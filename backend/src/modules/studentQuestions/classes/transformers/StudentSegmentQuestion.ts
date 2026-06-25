@@ -30,6 +30,7 @@ export interface IStudentSegmentQuestion {
   updatedAt: Date;
   isDeleted?: boolean;
   deletedAt?: Date;
+  promotedQuestionId?: ObjectId;
 }
 
 export class StudentSegmentQuestion implements IStudentSegmentQuestion {
@@ -52,6 +53,7 @@ export class StudentSegmentQuestion implements IStudentSegmentQuestion {
   updatedAt: Date;
   isDeleted?: boolean;
   deletedAt?: Date;
+  promotedQuestionId?: ObjectId;
 
   constructor(input: {
     courseId: string;

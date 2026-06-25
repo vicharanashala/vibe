@@ -12,6 +12,7 @@ export interface FaceDetectorsProps {
   onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
   onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
   onMismatchChange?: (hasMismatch: boolean) => void;
+  onMissingEmbedding?: () => void;
   settings:{
     isFaceCountDetectionEnabled:boolean, 
     isFaceRecognitionEnabled:boolean, 
@@ -68,6 +69,7 @@ export interface FaceRecognitionComponentProps {
   onRecognitionResult?: (recognitions: FaceRecognition[]) => void;
   onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
   onMismatchChange?: (hasMismatch: boolean) => void;
+  onMissingEmbedding?: () => void;
   enabled?: boolean;
 }
 

@@ -158,7 +158,7 @@ export class UserController {
   @OnUndefined(200)
   async updateCurrentUserFaceReference(
     @Req() req: any,
-    @Body() body: UpdateFaceReferenceBody,
+    @Body({ options: { limit: '10mb' } }) body: UpdateFaceReferenceBody,
   ): Promise<void> {
     const token = req.headers.authorization?.split(' ')[1];
     const user = await this.authService.getCurrentUserFromToken(token);
@@ -195,9 +195,10 @@ export class UserController {
   @OpenAPI({
     summary: 'Make a user an admin',
     description: `Promotes a user to admin status based on the provided user ID.<br/>
+    Only an existing admin may call this endpoint.<br/>
     It returns an empty body with a 200 status code.`,
   })
-  @Authorized()
+  @Authorized(['admin'])
   @Post('/make-admin/:userId')
   @OnUndefined(200)
   @ResponseSchema(UserNotFoundErrorResponse, {
@@ -205,10 +206,10 @@ export class UserController {
     statusCode: 404,
   })
   async makeAdmin(
+    @CurrentUser({ required: true }) currentUser: IUser,
     @Params() params: GetUserParams,
-    @Body() body: { password: string }
   ): Promise<void> {
     const { userId } = params;
-    await this.userService.makeAdmin(userId, body.password);
+    await this.userService.makeAdmin(userId, currentUser);
   }
 }

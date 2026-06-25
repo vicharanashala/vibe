@@ -42,6 +42,7 @@ import {
   useStudentProgressDetail,
   useStudentCourseStructure,
   useRecalculateStudentProgress,
+  useResetFace,
 } from "@/hooks/hooks"
 import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
@@ -49,6 +50,10 @@ import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
 import { generateExcel, generateStudentContactsExcel, type ExcelExportOptions } from "@/lib/excel-export"
+import {
+  downloadGuruSetuFeedbackExport,
+  isGuruSetuPilotCourse,
+} from "@/lib/gurusetu-feedback-export"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -226,6 +231,8 @@ function CourseEnrollments() {
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
   const [isDisableDialogOpen, setIsDisableDialogOpen] = useState(false)
   const [isEnableDialogOpen, setIsEnableDialogOpen] = useState(false)
+  const [isResetFaceDialogOpen, setIsResetFaceDialogOpen] = useState(false)
+  const [userToResetFace, setUserToResetFace] = useState<EnrolledUser | null>(null)
   const [isRecalculateProgressOpen, setIsRecalculateProgressOpen] = useState(false)
   const [isViewProgressDialogOpen, setIsViewProgressDialogOpen] = useState(false)
   const [userToRemove, setUserToRemove] = useState<EnrolledUser | null>(null)
@@ -430,6 +437,7 @@ function CourseEnrollments() {
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingStudentContacts, setIsExportingStudentContacts] = useState(false);
+  const [isExportingGuruSetuFeedback, setIsExportingGuruSetuFeedback] = useState(false);
   const [quizExportOptions, setQuizExportOptions] = useState<ExcelExportOptions>({
     includeAttempts: true,
     includeQuestionScores: true,
@@ -693,6 +701,7 @@ function CourseEnrollments() {
   const bulkChangeStatusMutation = useBulkChangeEnrollmentStatus()
   const recalculateMutation = useRecalculateProgress()
   const recalculateStudentMutation = useRecalculateStudentProgress()
+  const resetFaceMutation = useResetFace()
 
   // Disable/Enable handlers
   const handleDisableStudent = (enrollment: any) => {
@@ -777,6 +786,42 @@ function CourseEnrollments() {
     }
   }
 
+  const handleResetFace = (enrollment: any) => {
+    if (!courseId || !versionId) return
+    setUserToResetFace({
+      id: enrollment.user?._id,
+      name: `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() || "Unknown User",
+      email: enrollment.user?.email,
+      enrolledDate: enrollment.enrollmentDate,
+      progress: enrollment.progress || 0,
+      cohortId: enrollment.cohortId,
+      cohortName: enrollment.cohortName
+    })
+    setIsResetFaceDialogOpen(true)
+  }
+
+  const confirmResetFace = async () => {
+    if (userToResetFace && courseId && versionId) {
+      try {
+        await resetFaceMutation.mutateAsync({
+          params: {
+            path: {
+              userId: userToResetFace.id,
+              courseId,
+              versionId,
+            },
+          },
+        })
+        toast.success(`Face reference for ${userToResetFace.name} has been reset`)
+        setIsResetFaceDialogOpen(false)
+        setUserToResetFace(null)
+        refetchEnrollments()
+      } catch (error: any) {
+        toast.error(error?.message || 'Failed to reset face reference')
+      }
+    }
+  }
+
   const handleBulkDisable = () => {
     if (selectedUsers.size > 50) {
       toast.error('Cannot disable more than 50 students at once')
@@ -857,6 +902,7 @@ function CourseEnrollments() {
     }
   }, [totalDocuments, enrollmentTab])
   const totalPages = enrollmentsData?.totalPages || 1
+  const isGuruSetuCourse = isGuruSetuPilotCourse(courseId, versionId)
   // console.log("enrollmentsData--------------", enrollmentsData);
 
   // Sorting handler
@@ -925,6 +971,38 @@ function CourseEnrollments() {
           ? error.message
           : 'Failed to export student contacts',
       );
+    }
+  };
+
+  const handleExportGuruSetuFeedback = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course ID or Version ID is missing');
+      return;
+    }
+
+    const authToken = localStorage.getItem('firebase-auth-token');
+    if (!authToken) {
+      toast.error('Authentication token missing');
+      return;
+    }
+
+    try {
+      setIsExportingGuruSetuFeedback(true);
+      const rows = await downloadGuruSetuFeedbackExport({
+        courseId,
+        versionId,
+        token: authToken,
+        cohortId: cohort ?? undefined,
+      });
+      toast.success(`Downloaded ${rows} Gurusetu feedback rows`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to download Gurusetu feedback export',
+      );
+    } finally {
+      setIsExportingGuruSetuFeedback(false);
     }
   };
 
@@ -1538,6 +1616,9 @@ function CourseEnrollments() {
                   setIsExporting={setIsExporting}
                   isExportingStudentContacts={isLoadingStudentContacts}
                   setIsExportingStudentContacts={setIsExportingStudentContacts}
+                  isExportingGuruSetuFeedback={isExportingGuruSetuFeedback}
+                  onExportGuruSetuFeedback={handleExportGuruSetuFeedback}
+                  isGuruSetuCourse={isGuruSetuCourse}
                   unenrollMutation={unenrollMutation}
                   changeStatusMutation={changeStatusMutation}
                   bulkChangeStatusMutation={bulkChangeStatusMutation}
@@ -1546,6 +1627,8 @@ function CourseEnrollments() {
                   handleRemoveStudent={handleRemoveStudent}
                   handleDisableStudent={handleDisableStudent}
                   handleEnableStudent={handleEnableStudent}
+                  handleResetFace={handleResetFace}
+                  resetFaceMutation={resetFaceMutation}
                   isSelectionMode={isSelectionMode}
                   selectedUsers={selectedUsers}
                   onSelectUser={handleSelectUser}
@@ -1578,6 +1661,9 @@ function CourseEnrollments() {
                   setIsExporting={setIsExporting}
                   isExportingStudentContacts={isLoadingStudentContacts}
                   setIsExportingStudentContacts={setIsExportingStudentContacts}
+                  isExportingGuruSetuFeedback={isExportingGuruSetuFeedback}
+                  onExportGuruSetuFeedback={handleExportGuruSetuFeedback}
+                  isGuruSetuCourse={isGuruSetuCourse}
                   unenrollMutation={unenrollMutation}
                   changeStatusMutation={changeStatusMutation}
                   bulkChangeStatusMutation={bulkChangeStatusMutation}
@@ -1586,6 +1672,8 @@ function CourseEnrollments() {
                   handleRemoveStudent={handleRemoveStudent}
                   handleDisableStudent={handleDisableStudent}
                   handleEnableStudent={handleEnableStudent}
+                  handleResetFace={handleResetFace}
+                  resetFaceMutation={resetFaceMutation}
                   isSelectionMode={isInactiveSelectionMode}
                   selectedUsers={selectedInactiveUsers}
                   courseId={courseId}
@@ -2158,6 +2246,66 @@ function CourseEnrollments() {
                       </>
                     ) : (
                       "Yes, Enable"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isResetFaceDialogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center mb-0">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+                onClick={() => setIsResetFaceDialogOpen(false)}
+              />
+              <div className="relative bg-card border border-border rounded-2xl shadow-2xl sm:max-w-lg max-[425px]:w-[90vw] w-full mx-4 sm:p-10 p-5 space-y-8 animate-in fade-in-0 zoom-in-95 duration-300 cursor-default">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl md:text-2xl font-bold text-card-foreground">Reset Student Face Reference</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsResetFaceDialogOpen(false)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-8">
+                  <p className="text-lg text-card-foreground">
+                    Are you sure you want to reset the face reference for <strong className="text-primary">{userToResetFace?.name}</strong>?
+                  </p>
+
+                  <div className="flex gap-4 p-6 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl">
+                    <div><AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" /></div>
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
+                      <strong>Warning:</strong> This will delete the student's stored profile photo and face embedding. The student will be prompted to re-register their face the next time they attempt to view this course.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsResetFaceDialogOpen(false)}
+                    className="min-w-[100px] cursor-pointer"
+                  >
+                    No, Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={confirmResetFace}
+                    disabled={resetFaceMutation.isPending}
+                    className="min-w-[100px] shadow-lg cursor-pointer bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    {resetFaceMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Resetting...
+                      </>
+                    ) : (
+                      'Yes, Reset'
                     )}
                   </Button>
                 </div>
@@ -2858,6 +3006,9 @@ interface EnrollmentsTableProps {
   setIsExporting: (exporting: boolean) => void;
   isExportingStudentContacts: boolean;
   setIsExportingStudentContacts: (exporting: boolean) => void;
+  isExportingGuruSetuFeedback: boolean;
+  onExportGuruSetuFeedback: () => void;
+  isGuruSetuCourse: boolean;
   quizExportOptions: ExcelExportOptions;
   setQuizExportOptions: Dispatch<SetStateAction<ExcelExportOptions>>;
   unenrollMutation: any;
@@ -2868,6 +3019,8 @@ interface EnrollmentsTableProps {
   handleRemoveStudent: (user: any) => void;
   handleDisableStudent: (enrollment: any) => void;
   handleEnableStudent: (enrollment: any) => void;
+  handleResetFace: (enrollment: any) => void;
+  resetFaceMutation: any;
   isSelectionMode: boolean;
   selectedUsers: Set<string>;
   onSelectUser: (userId: string, checked: boolean) => void;
@@ -2899,6 +3052,9 @@ function EnrollmentsTable({
   setIsExporting,
   isExportingStudentContacts,
   setIsExportingStudentContacts,
+  isExportingGuruSetuFeedback,
+  onExportGuruSetuFeedback,
+  isGuruSetuCourse,
   quizExportOptions,
   setQuizExportOptions,
   unenrollMutation,
@@ -2909,6 +3065,8 @@ function EnrollmentsTable({
   handleRemoveStudent,
   handleDisableStudent,
   handleEnableStudent,
+  handleResetFace,
+  resetFaceMutation,
   isSelectionMode,
   selectedUsers,
   onSelectUser,
@@ -3083,6 +3241,24 @@ function EnrollmentsTable({
                 )}
                 <span>{isLoadingQuizScores ? "Exporting..." : "Export Quiz Scores"}</span>
               </DropdownMenuItem>
+
+              {isGuruSetuCourse && (
+                <DropdownMenuItem
+                  onClick={onExportGuruSetuFeedback}
+                  disabled={isExportingGuruSetuFeedback}
+                >
+                  {isExportingGuruSetuFeedback ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileDown className="h-4 w-4" />
+                  )}
+                  <span>
+                    {isExportingGuruSetuFeedback
+                      ? "Downloading..."
+                      : "Download Gurusetu Feedback"}
+                  </span>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -3480,6 +3656,24 @@ function EnrollmentsTable({
                                 <UserX className="h-4 w-4 mr-2" />
                               )}
                               Disable
+                            </Button>
+                          )}
+
+                          {/* Reset Face button - Active tab only */}
+                          {!isInactiveTab && enrollment.user?.faceEmbedding && enrollment.user.faceEmbedding.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleResetFace(enrollment)}
+                              disabled={resetFaceMutation.isPending}
+                              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-all duration-200 cursor-pointer"
+                            >
+                              {resetFaceMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                              )}
+                              Reset Face
                             </Button>
                           )}
 

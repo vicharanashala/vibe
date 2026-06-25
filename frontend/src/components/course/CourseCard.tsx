@@ -8,7 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLeaderboard, useCourseVersionById } from "@/hooks/hooks";
+import { useLeaderboard, useCourseVersionById, useCheckTimeSlotAccessOnDemand } from "@/hooks/hooks";
+import { toast } from "sonner";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, lazy, useEffect } from "react";
@@ -20,6 +21,7 @@ import { StudentPolicyModal } from "@/app/pages/student/components/policies/Stud
 
 import { EnrollmentDetailsDialog } from "@/components/course/EnrollmentDetailsDialog";
 import { Pagination } from "../ui/Pagination";
+import { LeaderboardLeagues } from "@/components/course/LeaderboardLeagues";
 
 const StudentTimeslotModal = lazy(() =>
   import("@/components/course/StudentTimeslotModal").then(mod => ({
@@ -28,24 +30,6 @@ const StudentTimeslotModal = lazy(() =>
 );
 
 // Helper function to check if current time is within assigned time slot
-const isCurrentTimeInTimeSlot = (timeSlotData?: any) => {
-  if (!timeSlotData) return true; // No time slot restriction
-
-  // Handle array or object
-  const timeSlot = Array.isArray(timeSlotData) ? timeSlotData[0] : timeSlotData;
-  if (!timeSlot || !timeSlot.from || !timeSlot.to) return true;
-
-  const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes since midnight
-
-  const [fromHours, fromMinutes] = timeSlot.from.split(':').map(Number);
-  const [toHours, toMinutes] = timeSlot.to.split(':').map(Number);
-  const fromTime = fromHours * 60 + fromMinutes;
-  const toTime = toHours * 60 + toMinutes;
-
-  return currentTime >= fromTime && currentTime <= toTime;
-};
-
 export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard', className }: CourseCardProps) => {
   // Add null checks to prevent errors when enrollment data is incomplete
   if (!enrollment || !enrollment.courseId || !enrollment.courseVersionId) {
@@ -72,6 +56,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
+  const { check: checkTimeSlotAccess } = useCheckTimeSlotAccessOnDemand();
   const [isFlipped, setIsFlipped] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isTimeslotModalOpen, setIsTimeslotModalOpen] = useState(false);
@@ -152,7 +137,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
    
   })
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (variant === 'available') {
       navigate({
         to: "/student/course-registration/$versionId/{-$cohort}",
@@ -161,7 +146,13 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       return;
     }
 
-   
+    // Time-slot ("commitment") gate at entry: only let the student in during a
+    // booked window. The backend getItem gate is the safety net.
+    const access = await checkTimeSlotAccess(courseId, versionId);
+    if (!access.canAccess) {
+      toast.error(access.message || "You can only access this course during your booked time slot.");
+      return;
+    }
 
     // Pass both courseId and versionId to the store
     setCurrentCourse({
@@ -260,7 +251,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   <div className="grid grid-cols-1 gap-3 pt-2">
                     <Button
                       onClick={(e) => { e.stopPropagation(); handleContinue(); }}
-                      disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
                       className={cn(
                         "w-full h-12 rounded-xl text-lg font-bold transition-all duration-300 shadow-md active:scale-95 flex items-center justify-center gap-2",
                         variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
@@ -522,7 +512,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                         variant="outline"
                         className="w-full rounded-lg h-9 text-[10px] font-bold border-2"
                         onClick={() => setIsTimeslotModalOpen(true)}
-                        disabled={hasAssignedTimeslot}
                       >
                         <Clock className="h-3.5 w-3.5 mr-1 text-green-500" />
                         {hasAssignedTimeslot ? 'Timeslot' : 'Pick Slot'}
@@ -534,7 +523,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
               <Button
                 onClick={(e) => { e.stopPropagation(); handleContinue(); }}
-                disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}
                 className={cn(
                   "w-full h-10 rounded-xl text-xs font-bold transition-all duration-300 shadow-md active:scale-95 flex items-center justify-center gap-2",
                   variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-[#FACC15] text-black"
@@ -626,7 +614,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           </div>
 
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button onClick={handleContinue} className="flex-1" disabled={!isCurrentTimeInTimeSlot(enrollment.assignedTimeSlot)}>
+            <Button onClick={handleContinue} className="flex-1">
               {isStart ? 'Start Course' : 'Continue Learning'}
             </Button>
             <div className="flex gap-2 w-full sm:w-auto">
@@ -706,41 +694,7 @@ export const CourseCardSkeleton = ({ variant }: { variant: string }) => {
 
 const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen, cohortId }: { courseId: string; versionId: string; courseName?: string; isOpen: boolean; cohortId?: string }) => {
   const [page, setPage] = useState(1);
-  const { leaderboard, totalPages, totalDocuments, isLoading, error, myStats } = useLeaderboard(courseId, versionId, page, 10, isOpen, cohortId);
-
-  const getInitials = (name: string) => {
-    const parts = name.split(" ");
-    return parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : name.substring(0, 2).toUpperCase();
-  };
-
-  const getRankStyle = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return {
-          bgColor: "bg-gradient-to-br from-yellow-400 to-yellow-600",
-          textColor: "text-yellow-900",
-          icon: <Crown className="h-5 w-5" />,
-        };
-      case 2:
-        return {
-          bgColor: "bg-gradient-to-br from-gray-300 to-gray-500",
-          textColor: "text-gray-900",
-          icon: <Medal className="h-5 w-5" />,
-        };
-      case 3:
-        return {
-          bgColor: "bg-gradient-to-br from-orange-400 to-orange-700",
-          textColor: "text-orange-900",
-          icon: <Award className="h-5 w-5" />,
-        };
-      default:
-        return {
-          bgColor: "bg-muted",
-          textColor: "text-muted-foreground",
-          icon: null,
-        };
-    }
-  };
+  const { finishers, active, totalPages, activeTotal, isLoading, error, myStats } = useLeaderboard(courseId, versionId, page, 100, isOpen, cohortId);
 
   return (
     <DialogContent className="max-w-4xl h-[85vh] flex flex-col overflow-hidden">
@@ -750,7 +704,7 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen, cohortId }
           {courseName || 'Course'} Leaderboard
         </DialogTitle>
         <p className="text-sm text-muted-foreground">
-          Students ranked by completion percentage and performance.
+          Finishers ranked by how fast they completed; active learners by effort in the last 7 days.
         </p>
       </DialogHeader>
 
@@ -764,61 +718,10 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen, cohortId }
             </div>
           ) : error ? (
             <p className="text-muted-foreground text-center py-8">{error}</p>
-          ) : !leaderboard || leaderboard.length === 0 ? (
+          ) : finishers.length === 0 && active.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">No leaderboard data available.</p>
           ) : (
-            <div className="space-y-2 pb-4">
-              {leaderboard.map((entry) => {
-                const rankStyle = getRankStyle(entry.rank);
-                return (
-                  <div key={entry.userId} className={cn(
-                    "flex items-center gap-3 p-3 rounded-lg transition-colors border-2",
-                    entry.rank === 1 ? "bg-yellow-400/10 border-yellow-400/30 shadow-sm" :
-                    entry.rank === 2 ? "bg-gray-400/10 border-gray-400/30" :
-                    entry.rank === 3 ? "bg-orange-400/10 border-orange-400/30" :
-                    "bg-muted/20 border-transparent hover:bg-muted/30"
-                  )}>
-                    <div className="flex-shrink-0 w-10 text-center">
-                      {entry.rank <= 3 ? (
-                        <div className={cn("w-8 h-8 rounded-full flex items-center justify-center mx-auto", rankStyle.bgColor)}>
-                          <span className={cn("font-bold text-sm", rankStyle.textColor)}>{entry.rank}</span>
-                        </div>
-                      ) : (
-                        <span className="text-base font-semibold text-muted-foreground">{entry.rank}</span>
-                      )}
-                    </div>
-                    <Avatar className="h-10 w-10 border border-white dark:border-slate-800 shadow-sm">
-                      <AvatarFallback>{getInitials(entry.userName)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold truncate text-sm flex items-center gap-2">
-                        {entry.userName}
-                        {entry.rank === 1 && <Crown className="h-3.5 w-3.5 text-yellow-500" />}
-                      </p>
-                      <div className="text-xs truncate">
-                        {Math.round(entry.completionPercentage) === 100 ? (
-                          <>
-                            <span className="text-green-600 font-medium">✓ Completed</span>
-                            {entry.completedAt && (
-                              <span className="ml-1 opacity-60 text-[10px]">on {new Date(entry.completedAt).toLocaleDateString()}</span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground">In Progress: {entry.completionPercentage.toFixed(2)}%</span>
-                        )}
-                        {/* <span className="mx-1.5 opacity-20">|</span> */}
-                        {/* <span className="opacity-70">{entry.completedCount || 0} Lessons &bull; {entry.score || 0} XP</span> */}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant={entry.completionPercentage === 100 ? "default" : "secondary"} className="font-bold text-[10px] min-w-[45px] justify-center">
-                        {Math.round(entry.completionPercentage)}%
-                      </Badge>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <LeaderboardLeagues finishers={finishers} active={active} myId={myStats?.userId} />
           )}
         </ScrollArea>
       </div>
@@ -830,20 +733,23 @@ const LeaderboardDialog = ({ courseId, versionId, courseName, isOpen, cohortId }
               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Your Rank</span>
               <span className="font-bold text-xl text-yellow-500">#{myStats.rank}</span>
             </div>
-            {/* <div className="w-px h-6 bg-border/50" /> */}
-            {/* <div className="flex items-center gap-2"> */}
-              {/* <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Stats</span> */}
-              {/* <span className="font-semibold text-sm">{myStats.completedCount || 0} Lessons &bull; {myStats.score || 0} XP</span> */}
-            {/* </div> */}
             <div className="w-px h-6 bg-border/50" />
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Progress</span>
-              <Badge variant="outline" className="font-bold">{myStats.completionPercentage.toFixed(2)}%</Badge>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                {myStats.league === "finishers" ? "Finished in" : "This week"}
+              </span>
+              <Badge variant="outline" className="font-bold">
+                {myStats.league === "finishers"
+                  ? myStats.daysToComplete != null
+                    ? `${myStats.daysToComplete} days`
+                    : `${myStats.completionPercentage.toFixed(0)}%`
+                  : `${myStats.weeklyItems ?? 0} items`}
+              </Badge>
             </div>
           </div>
         ) : <div />}
         {(totalPages || 0) > 1 && (
-          <Pagination currentPage={page} totalPages={totalPages || 1} totalDocuments={totalDocuments || 0} onPageChange={setPage} />
+          <Pagination currentPage={page} totalPages={totalPages || 1} totalDocuments={activeTotal || 0} onPageChange={setPage} />
         )}
       </div>
     </DialogContent>

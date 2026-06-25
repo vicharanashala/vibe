@@ -1,11 +1,10 @@
-import { appConfig } from '#root/config/app.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import { IUser } from '#root/shared/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
-import {BadRequestError, NotFoundError} from 'routing-controllers';
+import {ForbiddenError, NotFoundError} from 'routing-controllers';
 
 @injectable()
 export class UserService extends BaseService {
@@ -30,19 +29,40 @@ export class UserService extends BaseService {
     userId: string,
     userData: Partial<IUser>
   ): Promise<void> {
+    // Allow-list the fields a user may change about themselves. Validation runs
+    // with whitelist OFF, so unknown properties (e.g. `roles`) survive into the
+    // body — never spread it straight into a $set, or self-edit becomes a
+    // privilege-escalation vector. Keep this list in sync with EditUserBody.
+    const EDITABLE_FIELDS = [
+      'firstName', 'lastName', 'avatar', 'gender', 'country', 'state', 'city',
+    ] as const;
+    const sanitized: Partial<IUser> = {};
+    for (const field of EDITABLE_FIELDS) {
+      if (userData[field] !== undefined) {
+        sanitized[field] = userData[field];
+      }
+    }
     return this._withTransaction(async (session) => {
     const user = await this.userRepo.findById(userId);
     if (!user) {
       throw new NotFoundError(`User with ID ${userId} not found`);
     }
-    await this.userRepo.edit(userId, userData, session);
+    await this.userRepo.edit(userId, sanitized, session);
   });
   }
 
-  async makeAdmin(userId: string, password: string): Promise<void> {
+  async makeAdmin(userId: string, currentUser: IUser): Promise<void> {
+    // Privilege escalation guard: only an existing admin may promote another
+    // user. The runtime authorizationChecker only verifies token validity (not
+    // roles), so the role check must be enforced here rather than relying on
+    // the @Authorized(['admin']) decorator alone.
+    if (currentUser?.roles !== 'admin') {
+      throw new ForbiddenError('Only an admin can promote a user to admin');
+    }
     return this._withTransaction(async (session) => {
-      if (appConfig.adminPassword !== password) {
-        throw new BadRequestError('Invalid admin password');
+      const user = await this.userRepo.findById(userId);
+      if (!user) {
+        throw new NotFoundError(`User with ID ${userId} not found`);
       }
       await this.userRepo.makeAdmin(userId, session);
     });

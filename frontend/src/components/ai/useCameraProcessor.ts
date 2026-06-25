@@ -31,21 +31,7 @@ const useCameraProcessor = (frameRate = 3) => {
 
       if (!videoRef.current || !cameraProcessorRef.current) return;
 
-      // Wait for video to be ready before initializing processor
-      const video = videoRef.current;
-      if (video.readyState < 2) {
-        await new Promise((resolve) => {
-          const checkReady = () => {
-            if (video.readyState >= 2) {
-              resolve(null);
-            } else {
-              setTimeout(checkReady, 100);
-            }
-          };
-          checkReady();
-        });
-      }
-
+      // Initialize processor directly as React useEffect runs after the DOM element is mounted
       await cameraProcessorRef.current.initialize(videoRef.current);
 
       // Small delay before starting capture to ensure everything is ready

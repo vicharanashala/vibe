@@ -120,7 +120,10 @@ class AttemptService extends BaseService {
     super(database);
   }
 
-  private async _getQuestionsForAttempt(quiz: QuizItem): Promise<{
+  private async _getQuestionsForAttempt(
+    quiz: QuizItem,
+    userId: string,
+  ): Promise<{
     questionDetails: IQuestionDetails[];
     questionRenderViews: IQuestionRenderView[];
   }> {
@@ -154,93 +157,17 @@ class AttemptService extends BaseService {
       );
     }
 
-    // Phase 3: append APPROVED student MCQs tied to the video segments
-    // immediately preceding this quiz (contiguous run, no other quiz in between).
-    // These are rendered as ungraded extras: points=0, skipped in grading.
-    if (quiz._id) {
-      const precedingSegmentIds = await this._findPrecedingVideoSegments(
-        quiz._id.toString(),
-      );
-      if (precedingSegmentIds.length > 0) {
-        const approved = await this.studentQuestionRepo.findApprovedForSegments(
-          precedingSegmentIds,
-        );
-        for (const sq of approved) {
-          questionDetails.push({
-            questionId: sq._id as ObjectId,
-            parameterMap: null,
-            source: 'STUDENT_GENERATED',
-          });
-          questionRenderViews.push(
-            this._adaptStudentQuestionToRenderView(sq),
-          );
-        }
-      }
-    }
+    // Crowd questions are NOT served to students. Student-submitted questions
+    // must pass instructor validation + approval before any student answers
+    // them — peer-validation-by-serving (the V3 COLLECTING flow) is disabled
+    // because un-approved submissions can be nonsensical. They stay parked in
+    // the separate "Submitted – Pending Validation" bank until an instructor
+    // approves them into the graded bank. (The serving/capture helpers and
+    // their crowdGate / repository dependencies are not yet on main; restore
+    // from git history if peer-validation is reinstated. See
+    // CROWD_QUESTION_BANK.md.)
 
     return { questionDetails, questionRenderViews };
-  }
-
-  /**
-   * Phase 3 helper. Returns the IDs of VIDEO items that immediately precede
-   * the given quiz item in its items group (contiguous run, stopping at any
-   * other QUIZ item). Hidden items are skipped.
-   */
-  private async _findPrecedingVideoSegments(
-    quizItemId: string,
-  ): Promise<string[]> {
-    const itemsGroup = await this.itemRepo.findItemsGroupByItemId(quizItemId);
-    if (!itemsGroup || !Array.isArray(itemsGroup.items)) return [];
-
-    const items = itemsGroup.items;
-    const quizIndex = items.findIndex(
-      it => it._id?.toString() === quizItemId.toString(),
-    );
-    if (quizIndex === -1) return [];
-
-    const videoIds: string[] = [];
-    for (let i = quizIndex - 1; i >= 0; i--) {
-      const it = items[i];
-      if (it.type === ItemType.QUIZ) break;
-      if (it.type === ItemType.VIDEO && !it.isHidden && it._id) {
-        videoIds.push(it._id.toString());
-      }
-    }
-    return videoIds;
-  }
-
-  /**
-   * Phase 3 adapter. Converts a single-answer student MCQ into a
-   * SOL-shaped render view marked as peer-contributed (ungraded).
-   */
-  private _adaptStudentQuestionToRenderView(
-    sq: IStudentSegmentQuestion,
-  ): IQuestionRenderView {
-    const lotItems: ILotItem[] = sq.options.map(
-      (option: IStudentQuestionOption) => ({
-        _id: new ObjectId(),
-        text: option.text,
-        explaination: '',
-      }),
-    );
-    // Shuffle so the correct option isn't always at the same index
-    for (let i = lotItems.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [lotItems[i], lotItems[j]] = [lotItems[j], lotItems[i]];
-    }
-    const renderView = {
-      _id: sq._id as ObjectId,
-      text: sq.questionText,
-      type: 'SELECT_ONE_IN_LOT' as QuestionType,
-      isParameterized: false,
-      parameters: [],
-      hint: undefined,
-      timeLimitSeconds: PEER_QUESTION_DEFAULT_TIME_LIMIT_SECONDS,
-      points: PEER_QUESTION_DEFAULT_POINTS,
-      lotItems,
-      isPeerContributed: true,
-    } as unknown as IQuestionRenderView;
-    return renderView;
   }
 
   private _buildGradingResult(
@@ -498,7 +425,7 @@ class AttemptService extends BaseService {
 
       //4. Fetch questions for the quiz attempt
       const { questionDetails, questionRenderViews } =
-        await this._getQuestionsForAttempt(quiz);
+        await this._getQuestionsForAttempt(quiz, userObjecId.toString());
 
 
       //5. Create a new attempt
@@ -681,18 +608,43 @@ class AttemptService extends BaseService {
     };
 
     const isItemCompleted = await this.progressRepository.isItemCompleted(
-        userId.toString(),
-        courseId,
-        courseVersionId,
-        quizId,
-        cohortId,
-      )
+      userId.toString(),
+      courseId,
+      courseVersionId,
+      quizId,
+      cohortId,
+    )
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
-
     await this.submissionRepository.update(submissionId, { gradingResult });
-    if (!isSkipped && !isItemCompleted) {
-      const isPassed = gradingResult.gradingStatus === "PASSED"
-      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId);
+
+    const isPassed = gradingResult.gradingStatus === "PASSED"
+    if (!isSkipped && (!isItemCompleted || isPassed)) {
+      // Resolve the quiz's actual moduleId/sectionId rather than trusting
+      // progress.currentModule/currentSection, which can be stale if the
+      // student's cursor has drifted ahead via optimistic UI. Without this,
+      // getNextItemInSequence checks "is this the last item" against the
+      // wrong section and never rolls over into the next module.
+      let quizModuleId: string | undefined;
+      let quizSectionId: string | undefined;
+      const quizItemsGroup = await this.itemRepo.findItemsGroupByItemId(quizId);
+      if (quizItemsGroup?._id) {
+        const quizVersion = await this.courseRepo.findVersionByItemGroupId(
+          quizItemsGroup._id.toString(),
+        );
+        if (quizVersion) {
+          for (const mod of quizVersion.modules) {
+            const sec = mod.sections.find(
+              s => s.itemsGroupId?.toString() === quizItemsGroup._id.toString(),
+            );
+            if (sec) {
+              quizModuleId = mod.moduleId?.toString();
+              quizSectionId = sec.sectionId?.toString();
+              break;
+            }
+          }
+        }
+      }
+      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId, quizModuleId, quizSectionId);
     }
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */

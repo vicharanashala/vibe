@@ -378,12 +378,32 @@ export class ItemService extends BaseService {
       throw new NotFoundError(`Course for version ${versionId} not found.`);
     }
 
-    const user = await this.enrollmentRepo.getUserEnrollmentsByCourseVersion(
+    let user = await this.enrollmentRepo.getUserEnrollmentsByCourseVersion(
       userId,
       course.courseId.toString(),
       versionId,
       cohortId
     );
+
+    // The enrollment row's cohortId may be null or differ from the course's
+    // cohortId, which makes the strict cohort match miss an otherwise valid
+    // enrollment. We're identifying the enrolled user here, not the cohort, so
+    // retry cohort-agnostic before treating them as not enrolled (mirrors the
+    // gate fix in #1081). Without this, the null `user` below crashed on
+    // `user.role`, surfacing as "No items found" for every section.
+    if (!user && cohortId) {
+      user = await this.enrollmentRepo.getUserEnrollmentsByCourseVersion(
+        userId,
+        course.courseId.toString(),
+        versionId,
+      );
+    }
+
+    if (!user) {
+      throw new NotFoundError(
+        `User ${userId} is not enrolled in course version ${versionId}.`,
+      );
+    }
 
     // Only filter hidden items for students
     if (user.role === 'STUDENT') {
@@ -544,12 +564,23 @@ export class ItemService extends BaseService {
     
 
     // Fetch enrollment early
-    const enrollment = await this.enrollmentRepo.findEnrollment(
+    let enrollment = await this.enrollmentRepo.findEnrollment(
       userId,
       courseId,
       versionId,
       cohortId
     );
+
+    // Same cohortId-mismatch guard as readAllItems (#1081): a null or
+    // different cohortId on the enrollment row must not read as "not enrolled"
+    // when opening an item.
+    if (!enrollment && cohortId) {
+      enrollment = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        versionId,
+      );
+    }
 
     if (!enrollment) {
       throw new UnauthorizedError(

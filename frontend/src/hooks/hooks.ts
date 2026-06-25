@@ -1348,6 +1348,7 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
   data: components['schemas']['ItemDataResponse'] | undefined,
   isLoading: boolean,
   error: string | null,
+  errorName: string | null,
   refetch: () => void
 } {
   const isEnabled: boolean | null =
@@ -1371,6 +1372,7 @@ export function useItemsBySectionId(versionId: string, moduleId: string, section
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch items') : null,
+    errorName: result.error ? ((result.error as any).name || null) : null,
     refetch: result.refetch
   };
 }
@@ -2265,6 +2267,7 @@ export function useBackfillFollowUpInvites() {
   ): Promise<{
     completed: number;
     alreadyEnrolled: number;
+    alreadyInvited: number;
     missingEmail: number;
     invited: number;
   }> => {
@@ -5027,9 +5030,25 @@ export interface LeaderboardEntry {
   userName: string;
   completionPercentage: number;
   completedAt: Date | null;
+  enrollmentDate?: Date | null;
+  weeklyItems?: number;
+  weeklyMinutes?: number;
+  daysToComplete?: number | null;
+  league?: 'finishers' | 'active';
   rank: number;
   completedCount?: number;
   score?: number;
+}
+
+export interface LeaderboardResponse {
+  finishers: { data: LeaderboardEntry[]; total: number };
+  active: {
+    data: LeaderboardEntry[];
+    total: number;
+    totalPages: number;
+    currentPage: number;
+  };
+  myStats: LeaderboardEntry | null;
 }
 
 export const useLeaderboard = (
@@ -5061,23 +5080,78 @@ export const useLeaderboard = (
         throw new Error('Failed to fetch leaderboard');
       }
 
-      return response.json() as Promise<{
-        data: LeaderboardEntry[];
-        totalDocuments: number;
-        totalPages: number;
-        currentPage: number;
-        myStats: LeaderboardEntry | null;
-      }>;
+      // Shape is normalized below — accept either the new or legacy backend.
+      return response.json() as Promise<any>;
     },
     enabled: enabled && !!courseId && !!versionId,
   });
 
+  const raw: any = result.data;
+  // New backend returns { finishers, active, myStats }; legacy returns { data, myStats }.
+  const isNewShape =
+    !!raw && (raw.finishers !== undefined || raw.active !== undefined);
+
+  let finishers: LeaderboardEntry[];
+  let active: LeaderboardEntry[];
+  let finishersTotal: number;
+  let activeTotal: number;
+  let currentPage: number;
+  let totalPages: number;
+  let combined: LeaderboardEntry[];
+  let totalDocuments: number;
+
+  if (isNewShape) {
+    finishers = raw.finishers?.data ?? [];
+    active = raw.active?.data ?? [];
+    finishersTotal = raw.finishers?.total ?? finishers.length;
+    activeTotal = raw.active?.total ?? active.length;
+    currentPage = raw.active?.currentPage ?? page;
+    totalPages = raw.active?.totalPages ?? 0;
+    // Flat list for compact previews: finishers first (page 1 only), then active.
+    combined = (currentPage === 1 ? [...finishers, ...active] : active).map(
+      (entry, index) => ({ ...entry, rank: index + 1 }),
+    );
+    totalDocuments = finishersTotal + activeTotal;
+  } else {
+    // Legacy backend (pre-two-league deploy): derive the leagues from the flat
+    // `data` array so the UI still renders. New metrics (daysToComplete /
+    // weeklyItems) are absent here and fall back to placeholders until deploy.
+    const data: LeaderboardEntry[] = raw?.data ?? [];
+    finishers = data
+      .filter((e) => Math.round(e.completionPercentage) >= 100)
+      .map((e, i) => ({ ...e, league: 'finishers' as const, rank: i + 1 }));
+    active = data
+      .filter((e) => Math.round(e.completionPercentage) < 100)
+      .map((e, i) => ({ ...e, league: 'active' as const, rank: i + 1 }));
+    finishersTotal = finishers.length;
+    activeTotal = active.length;
+    currentPage = raw?.currentPage ?? page;
+    totalPages = raw?.totalPages ?? 0;
+    combined = data; // already ranked/sorted by the legacy backend
+    totalDocuments = raw?.totalDocuments ?? data.length;
+  }
+
+  // Tag myStats with a league if the backend didn't (legacy shape).
+  let myStats: LeaderboardEntry | null = raw?.myStats ?? null;
+  if (myStats && !myStats.league) {
+    myStats = {
+      ...myStats,
+      league:
+        Math.round(myStats.completionPercentage) >= 100 ? 'finishers' : 'active',
+    };
+  }
+
   return {
-    leaderboard: result.data?.data ?? [],
-    totalDocuments: result.data?.totalDocuments ?? 0,
-    totalPages: result.data?.totalPages ?? 0,
-    currentPage: result.data?.currentPage ?? page,
-    myStats: result.data?.myStats ?? null,
+    finishers,
+    finishersTotal,
+    active,
+    activeTotal,
+    totalPages,
+    currentPage,
+    myStats,
+    // Backward-compatible aliases for compact previews
+    leaderboard: combined,
+    totalDocuments,
     isLoading: result.isLoading,
     isFetching: result.isFetching,
     error: result.isError
@@ -5570,11 +5644,507 @@ export function useGetTimeSlots(
   };
 }
 
+// PUT /timeslots/budget — configure the per-course hours budget from the
+// instructor's per-category time estimates (raw fetch: not in the typed schema).
+// Instructor's TOTAL estimated hours for all items of each category together
+// (all videos, all quizzes, all readings, all projects) — not a per-item rate.
+export type CategoryHours = {
+  VIDEO?: number;
+  QUIZ?: number;
+  BLOG?: number;
+  PROJECT?: number;
+  FEEDBACK?: number;
+};
+
+export function useSetHoursBudget() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const setHoursBudget = async (
+    courseId: string,
+    courseVersionId: string,
+    categoryHours: CategoryHours,
+    hoursFactor?: number,
+  ): Promise<{
+    totalBudgetHours: number;
+    totalCategoryHours: number;
+  }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/budget`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({ courseId, courseVersionId, categoryHours, hoursFactor }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to set hours budget: ${res.status}`);
+      }
+      return data?.data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { setHoursBudget, loading, error };
+}
+
+// PUT /timeslots/fulfillment — configure the Phase 3 fulfillment threshold and
+// whether fulfilling a window grants a same-day bonus booking (raw fetch).
+export function useSetFulfillmentConfig() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const setFulfillmentConfig = async (
+    courseId: string,
+    courseVersionId: string,
+    fulfillmentThresholdPct: number,
+    bonusOnFulfillment: boolean,
+  ): Promise<{ fulfillmentThresholdPct: number; bonusOnFulfillment: boolean }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/fulfillment`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({
+          courseId,
+          courseVersionId,
+          fulfillmentThresholdPct,
+          bonusOnFulfillment,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.message || `Failed to set fulfillment settings: ${res.status}`,
+        );
+      }
+      return data?.data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { setFulfillmentConfig, loading, error };
+}
+
+// PUT /timeslots/capacity — derive each slot's maxStudents from a single
+// capacity knob (total students the backend is provisioned for) so per-slot
+// caps stay within the infra budget (raw fetch).
+export function useSetCapacityConfig() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const setCapacityConfig = async (
+    courseId: string,
+    courseVersionId: string,
+    targetConcurrentStudents: number,
+    headroomFactor: number,
+  ): Promise<{
+    targetConcurrentStudents: number;
+    capacityHeadroomFactor: number;
+    maxOverlappingWindows: number;
+    derivedPerSlotCap: number;
+    slots: { from: string; to: string; maxStudents: number }[];
+  }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/capacity`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({
+          courseId,
+          courseVersionId,
+          targetConcurrentStudents,
+          headroomFactor,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.message || `Failed to set capacity settings: ${res.status}`,
+        );
+      }
+      return data?.data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { setCapacityConfig, loading, error };
+}
+
+// PUT /timeslots/extend — grant a student extra committed hours (raw fetch).
+export function useGrantExtraHours() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const grantExtraHours = async (
+    courseId: string,
+    courseVersionId: string,
+    studentId: string,
+    extraHours: number,
+  ): Promise<{ commitmentExtraHours: number }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/extend`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({ courseId, courseVersionId, studentId, extraHours }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to grant extra hours: ${res.status}`);
+      }
+      return data?.data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { grantExtraHours, loading, error };
+}
+
+export interface SlotDemandData {
+  date: string;
+  isActive: boolean;
+  slots: Array<{
+    from: string;
+    to: string;
+    maxStudents: number | null;
+    booked: number;
+    remaining: number | null;
+  }>;
+}
+
+// GET /slot-bookings/availability/course/{courseId}/version/{courseVersionId}
+// Seats remaining + booked count per window for an IST day (default today), so
+// an enrolled student can see capacity while picking a slot. Counts only.
+export function useSlotAvailability(
+  courseId: string | undefined,
+  courseVersionId: string | undefined,
+  date?: string,
+  enabled: boolean = true,
+): {
+  data: SlotDemandData | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const day = date ?? istToday();
+  const valid =
+    !!courseId &&
+    courseId.length === 24 &&
+    !!courseVersionId &&
+    courseVersionId.length === 24;
+  const result = useQuery({
+    queryKey: ['slot-availability', courseId, courseVersionId, day],
+    enabled: enabled && valid,
+    queryFn: async (): Promise<SlotDemandData> => {
+      const url = `${import.meta.env.VITE_BASE_URL}/slot-bookings/availability/course/${courseId}/version/${courseVersionId}?date=${encodeURIComponent(day)}`;
+      const res = await fetch(url, {
+        headers: {
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to load availability: ${res.status}`);
+      }
+      return data?.data as SlotDemandData;
+    },
+  });
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error as Error).message : null,
+    refetch: () => {
+      void result.refetch();
+    },
+  };
+}
+
+// GET /slot-bookings/demand/course/{courseId}/version/{courseVersionId}
+// Booked load per window for an IST day (the "demand schedule" for capacity
+// planning). Instructors/managers only. Raw fetch via react-query.
+export function useSlotDemand(
+  courseId: string | undefined,
+  courseVersionId: string | undefined,
+  date?: string,
+  enabled: boolean = true,
+): {
+  data: SlotDemandData | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const valid =
+    !!courseId &&
+    courseId.length === 24 &&
+    !!courseVersionId &&
+    courseVersionId.length === 24;
+  const result = useQuery({
+    queryKey: ['slot-demand', courseId, courseVersionId, date ?? 'today'],
+    enabled: enabled && valid,
+    queryFn: async (): Promise<SlotDemandData> => {
+      const q = date ? `?date=${encodeURIComponent(date)}` : '';
+      const url = `${import.meta.env.VITE_BASE_URL}/slot-bookings/demand/course/${courseId}/version/${courseVersionId}${q}`;
+      const res = await fetch(url, {
+        headers: {
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to load slot demand: ${res.status}`);
+      }
+      return data?.data as SlotDemandData;
+    },
+  });
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error as Error).message : null,
+    refetch: () => {
+      void result.refetch();
+    },
+  };
+}
+
+export interface MyBooking {
+  _id: string;
+  date: string;
+  bookedOnDate?: string;
+  from: string;
+  to: string;
+  kind?: string;
+  status?: string;
+  hoursReserved?: number;
+  fulfilledAt?: string;
+}
+
+// IST "today" as YYYY-MM-DD — matches the backend's getCurrentISTDate so the
+// daily-allowance math lines up regardless of the viewer's local timezone.
+export function istToday(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
+// Current hour (0-23) in IST, used to gate which study days are bookable now.
+export function istHour(): number {
+  return parseInt(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      hour12: false,
+    }).format(new Date()),
+    10,
+  ) % 24;
+}
+
+// Add `days` calendar days to a YYYY-MM-DD date string (UTC-safe arithmetic).
+export function addDays(date: string, days: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const ms = Date.UTC(y, m - 1, d) + days * 24 * 60 * 60 * 1000;
+  const dt = new Date(ms);
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+// The study days a student may book *right now*, given the rule that booking for
+// day D opens 9 AM IST on D-2 and closes 9 AM IST on D:
+//   • today        — only before 9 AM IST
+//   • tomorrow     — all day
+//   • day-after    — only from 9 AM IST
+export function bookableStudyDates(): string[] {
+  const today = istToday();
+  const hour = istHour();
+  const dates: string[] = [];
+  if (hour < 9) dates.push(today); // today, before the 9 AM cutoff
+  dates.push(addDays(today, 1)); // tomorrow, always open
+  if (hour >= 9) dates.push(addDays(today, 2)); // day-after, opens at 9 AM
+  return dates;
+}
+
+// GET /slot-bookings/my/course/{courseId}/version/{courseVersionId}?date=
+// The calling student's active bookings for an IST day (default today).
+export function useMyBookings(
+  courseId: string | undefined,
+  courseVersionId: string | undefined,
+  date?: string,
+  enabled: boolean = true,
+): {
+  data: MyBooking[] | undefined;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const day = date ?? istToday();
+  const valid =
+    !!courseId &&
+    courseId.length === 24 &&
+    !!courseVersionId &&
+    courseVersionId.length === 24;
+  const result = useQuery({
+    queryKey: ['my-bookings', courseId, courseVersionId, day],
+    enabled: enabled && valid,
+    queryFn: async (): Promise<MyBooking[]> => {
+      const url = `${import.meta.env.VITE_BASE_URL}/slot-bookings/my/course/${courseId}/version/${courseVersionId}?date=${encodeURIComponent(day)}`;
+      const res = await fetch(url, {
+        headers: {
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to load bookings: ${res.status}`);
+      }
+      return (data?.data ?? []) as MyBooking[];
+    },
+  });
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error as Error).message : null,
+    refetch: () => {
+      void result.refetch();
+    },
+  };
+}
+
+// POST /slot-bookings/book — book a time slot for today (raw fetch). The backend
+// returns { success:false, message } for capacity/allowance/budget rejections
+// (HTTP 200), so callers must check `success`, not just the HTTP status.
+export function useBookSlot() {
+  const [loading, setLoading] = useState(false);
+  const book = async (
+    courseId: string,
+    courseVersionId: string,
+    timeSlot: { from: string; to: string },
+    cohortId?: string,
+    date?: string,
+  ): Promise<{ success: boolean; message?: string }> => {
+    setLoading(true);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/slot-bookings/book`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({ courseId, courseVersionId, timeSlot, cohortId, date }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, message: data?.message || `Failed to book: ${res.status}` };
+      }
+      return { success: data?.success !== false, message: data?.message };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Network error' };
+    } finally {
+      setLoading(false);
+    }
+  };
+  return { book, loading };
+}
+
+// POST /slot-bookings/cancel — cancel one of the student's own bookings.
+export function useCancelBooking() {
+  const [loading, setLoading] = useState(false);
+  const cancel = async (
+    bookingId: string,
+  ): Promise<{ success: boolean; message?: string }> => {
+    setLoading(true);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/slot-bookings/cancel`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({ bookingId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, message: data?.message || `Failed to cancel: ${res.status}` };
+      }
+      return { success: data?.success !== false, message: data?.message };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Network error' };
+    } finally {
+      setLoading(false);
+    }
+  };
+  return { cancel, loading };
+}
+
+// Imperative check used to gate entry on the "Continue Learning" click.
+// Returns { canAccess, message }. Fails OPEN (allows) on any network/error so a
+// transient failure never locks a student out — the backend gate is the backstop.
+export function useCheckTimeSlotAccessOnDemand() {
+  const check = async (
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<{ canAccess: boolean; message?: string }> => {
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/check-access/${courseId}/${courseVersionId}`;
+      const res = await fetch(url, {
+        headers: {
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+      if (!res.ok) return { canAccess: true };
+      const data = await res.json().catch(() => ({ canAccess: true }));
+      return { canAccess: data?.canAccess !== false, message: data?.message };
+    } catch {
+      return { canAccess: true };
+    }
+  };
+  return { check };
+}
+
 // GET /timeslots/check-access/{courseId}/{courseVersionId}
+// Pass pollMs to poll for a live cut-off when a booked window ends.
 export function useCheckTimeSlotAccess(
   courseId: string | undefined,
   courseVersionId: string | undefined,
-  enabled: boolean = true
+  enabled: boolean = true,
+  pollMs: number = 0
 ): {
   data: { canAccess: boolean; message?: string } | undefined,
   isLoading: boolean,
@@ -5592,7 +6162,8 @@ export function useCheckTimeSlotAccess(
     {
       enabled: !!courseId && !!courseVersionId && enabled,
       retry: 1,
-      refetchOnWindowFocus: false
+      refetchOnWindowFocus: false,
+      refetchInterval: pollMs > 0 ? pollMs : false
     }
   );
 
@@ -6509,5 +7080,64 @@ export function useUserEnrollmentStats(enabled: boolean = true): {
       ? result.error.message || "Failed to fetch enrollment stats"
       : null,
     refetch: result.refetch,
+  };
+}
+
+export function useResetFace(): {
+  mutate: (variables: { params: { path: { userId: string, courseId: string, versionId: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { userId: string, courseId: string, versionId: string } } }) => Promise<any>,
+  isPending: boolean,
+  error: string | null,
+  isSuccess: boolean,
+  isError: boolean,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [error, setError] = useState<string | null>(null);
+
+  const mutateAsync = useCallback(async (variables: { params: { path: { userId: string, courseId: string, versionId: string } } }) => {
+    setStatus('pending');
+    setError(null);
+    try {
+      const authToken = localStorage.getItem('firebase-auth-token');
+      const { userId, courseId, versionId } = variables.params.path;
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}/reset-face`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to reset face reference: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setStatus('success');
+      return data;
+    } catch (err: any) {
+      setStatus('error');
+      setError(err.message || 'Failed to reset face reference');
+      throw err;
+    }
+  }, []);
+
+  const mutate = useCallback((variables: { params: { path: { userId: string, courseId: string, versionId: string } } }) => {
+    mutateAsync(variables).catch(() => {});
+  }, [mutateAsync]);
+
+  return {
+    mutate,
+    mutateAsync,
+    isPending: status === 'pending',
+    error,
+    isSuccess: status === 'success',
+    isError: status === 'error',
+    status,
   };
 }

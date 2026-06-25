@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"; ExternalLink
+import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react"; ExternalLink
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
   SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter
+  SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter, useSidebar
 } from "@/components/ui/sidebar";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
+const LazyStudentTimeslotModal = lazy(() => import("@/components/course/StudentTimeslotModal"));
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import type { PendingStudentQuestionContext } from "@/types/student-question.types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -89,6 +90,21 @@ const sortItemsByOrder = (items: any[]) => {
     return orderA.localeCompare(orderB);
   });
 };
+
+/**
+ * Keeps the navigation sidebar collapsed while focus mode is active.
+ * Collapsing (rather than unmounting) the sidebar keeps the proctoring
+ * camera (FloatingVideo in the sidebar footer) mounted and decoding, so
+ * detection keeps running even though the camera is not shown.
+ */
+function SidebarFocusSync({ focusMode }: { focusMode: boolean }) {
+  const { setOpen } = useSidebar();
+  useEffect(() => {
+    setOpen(!focusMode);
+  }, [focusMode, setOpen]);
+  return null;
+}
+
 export default function CoursePage() {
   useEffect(() => {
     return () => {
@@ -198,6 +214,7 @@ export default function CoursePage() {
 
   // ✅ Add the missing ref declaration
   const itemContainerRef = useRef<ItemContainerRef>(null);
+  const navInFlightRef = useRef(false);
 
   // Ref for autoscroll to selected sidebar item
   const selectedItemRef = useRef<HTMLButtonElement | null>(null);
@@ -226,7 +243,20 @@ export default function CoursePage() {
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [doGesture, setDoGesture] = useState<boolean>(false);
+  // Focus mode: video plays maximized with the sidebar + surrounding chrome hidden.
+  // Single control model: the immersive view is driven entirely by the video's
+  // fullscreen button (bottom-right). focusMode simply mirrors native fullscreen,
+  // so entering/leaving fullscreen (or pressing Esc) is the one way in and out.
+  const [focusMode, setFocusMode] = useState<boolean>(false);
+  useEffect(() => {
+    const onFsChange = () => setFocusMode(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
   const [isItemForbidden, setIsItemForbidden] = useState<boolean>(false);
+  // Time-slot / commitment gate block (distinct from linear-progression ForbiddenError).
+  const [timeSlotBlock, setTimeSlotBlock] = useState<string | null>(null);
+  const [showTimeslotPicker, setShowTimeslotPicker] = useState<boolean>(false);
   const [isNavigatingToNext, setIsNavigatingToNext] = useState<boolean>(false);
   const [rewindVid, setRewindVid] = useState<boolean>(false);
   const [pauseVid, setPauseVid] = useState<boolean>(false);
@@ -299,7 +329,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
   const {
     data: currentSectionItems,
-    isLoading: itemsLoading
+    isLoading: itemsLoading,
   } = useItemsBySectionId(
     shouldFetchItems ? VERSION_ID : '',
     shouldFetchItems ? activeSectionInfo!.moduleId : '',
@@ -816,12 +846,22 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
       setPendingStudentQuestionContext(null);
 
       try {
-        // Stop current item immediately
-        if (itemContainerRef.current) {
-          // await itemContainerRef.current.stopCurrentItem();
-          // Small delay for API/callback cleanup
-          await new Promise(resolve => setTimeout(resolve, 50));
+        // Record completion for the current item before leaving.
+        // Documents (BLOG) only get their completion recorded by an explicit stop
+        // call; unlike video/quiz/project they don't auto-complete on their own
+        // event. Without this, leaving a document via the sidebar (instead of the
+        // "Next Lesson" button) left it un-ticked and stuck students below 100%.
+        // Scoped to BLOG so half-watched videos / unfinished quizzes are untouched,
+        // and wrapped so a stop failure can never block navigation.
+        if (itemContainerRef.current && currentItem?.type === 'BLOG') {
+          try {
+            await itemContainerRef.current.stopCurrentItem();
+          } catch (e) {
+            console.error('Failed to record document completion on sidebar nav:', e);
+          }
         }
+        // Small delay for API/callback cleanup
+        await new Promise(resolve => setTimeout(resolve, 50));
 
         // Store previous valid for fallback (only if not forbidden)
         if (selectedItemId && selectedSectionId && selectedModuleId && !isItemForbidden) {
@@ -867,6 +907,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     isItemForbidden,
     updateCourseNavigation,
     itemContainerRef,
+    currentItem,
   ]);
 
   const handleSkipItem = async () => {
@@ -1140,10 +1181,10 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
 
 
   const handleNext = useCallback(() => {
+    if (navInFlightRef.current || itemLoading) return;
+    navInFlightRef.current = true;
     enqueueNavigation(async () => {
-
       setIsNavigatingToNext(true);
-
       try {
         // 1️⃣ Stop current item (clean + API)
         if (itemContainerRef.current) {
@@ -1373,6 +1414,8 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
         console.error('Error navigating to next item:', error);
         // Clear loading state on error
         setIsNavigatingToNext(false);
+      } finally {
+        navInFlightRef.current = false;
       }
     });
   }, [
@@ -1388,6 +1431,7 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     recalculateStudentProgressAsync,
     COURSE_ID,
     VERSION_ID,
+    itemLoading,
   ]);
 
 
@@ -1802,6 +1846,7 @@ return false;
       </Dialog>
 
       <SidebarProvider defaultOpen={true}>
+        <SidebarFocusSync focusMode={focusMode} />
         <ResizablePanelGroup direction="horizontal" className="h-screen w-full">
           {/* Enhanced Course Navigation Sidebar */}
           {/* {isDesktopSidebarVisible && ( */}
@@ -2152,11 +2197,12 @@ return false;
           </SidebarResizablePanel>
           {/* // )} */}
           {/* {isDesktopSidebarVisible &&  */}
-          <ResizableHandle className="hidden md:flex h-screen" />
+          <ResizableHandle className={`${focusMode ? 'hidden' : 'hidden md:flex'} h-screen`} />
           {/* } */}
           <ResizablePanel defaultSize={80} className="min-w-0 min-h-screen">
             {/* Main Content Area */}
             <SidebarInset className="flex-1  bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
+              {!focusMode && (
               <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
                 {/* <Button
                   variant="ghost"
@@ -2189,9 +2235,10 @@ return false;
                   <ThemeToggle />
                 </div>
               </header>
+              )}
 
               {/* Emotion Selector Bar */}
-              {currentItem && (
+              {currentItem && !focusMode && (
                 <div className="border-b border-border/20 bg-background/50 backdrop-blur-sm px-4 py-2">
                   <EmotionSelector
                     itemId={currentItem._id}
@@ -2248,8 +2295,58 @@ return false;
                     </Card>
                   )}
 
-                  {/* Gesture Notification */}
-                  {doGesture && currentItem?.type !== 'VIDEO' && (
+                  {/* ⏰ Time-slot / commitment gate notice */}
+                  {timeSlotBlock && (
+                    <Card className="border border-amber-400/40 bg-amber-600/95 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
+                      <CardContent className="flex items-start gap-3 px-4 py-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-amber-50/10 p-2">
+                          <AlertCircle className="h-7 w-7" />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <Badge variant="outline" className="border-amber-50/30 bg-amber-50/10 text-amber-50 text-base font-bold">
+                            {/book a time slot|choose a slot/i.test(timeSlotBlock) ? 'Book a time slot' : 'Outside your study window'}
+                          </Badge>
+                          <p className="text-sm font-medium leading-relaxed">{timeSlotBlock}</p>
+                          <div className="flex gap-2 pt-1">
+                            {/book a time slot|choose a slot/i.test(timeSlotBlock) && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => setShowTimeslotPicker(true)}
+                              >
+                                Pick a slot
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-amber-50 hover:bg-amber-50/10"
+                              onClick={() => setTimeSlotBlock(null)}
+                            >
+                              Dismiss
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {showTimeslotPicker && (
+                    <Suspense fallback={null}>
+                      <LazyStudentTimeslotModal
+                        isOpen={showTimeslotPicker}
+                        onClose={() => { setShowTimeslotPicker(false); setTimeSlotBlock(null); }}
+                        courseId={COURSE_ID}
+                        courseVersionId={VERSION_ID}
+                        currentUserId={""}
+                        hasAssignedTimeslot={false}
+                      />
+                    </Suspense>
+                  )}
+
+                  {/* Gesture Notification — also shown for VIDEO in focus mode,
+                      since the in-sidebar camera (which normally shows this) is hidden. */}
+                  {doGesture && (currentItem?.type !== 'VIDEO' || focusMode) && (
                     <Card className="border border-amber-400/20 bg-amber-600/90 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
                       <CardContent className="flex items-center gap-3 px-4 py-0">
                         <div className="flex h-22 w-22 items-center justify-center rounded-lg bg-white text-4xl p-4">
@@ -2350,7 +2447,26 @@ return false;
                 />
                 {currentItem ? (
                   <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
-                    <div className="flex justify-end mb-1 me-10 gap-2 ">
+                    {anomalies.includes("faceRecognition") && (
+                      <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-[9999] flex flex-col items-center justify-center p-6 text-center select-none rounded-lg border border-red-500/20">
+                        <div className="max-w-md space-y-6 animate-in fade-in zoom-in duration-300">
+                          <div className="mx-auto w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/30">
+                            <AlertCircle className="w-10 h-10 text-red-500 animate-pulse" />
+                          </div>
+                          <div className="space-y-2">
+                            <h2 className="text-2xl font-bold text-red-500">Identity Mismatch Paused</h2>
+                            <p className="text-gray-300 text-sm leading-relaxed">
+                              The camera detects a different face or an unknown person. Please ensure the registered student is watching the course to continue.
+                            </p>
+                          </div>
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                            <span className="text-xs font-semibold text-red-400">Verifying live via camera...</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className={`${focusMode ? 'hidden' : 'flex'} justify-end mb-1 me-10 gap-2 `}>
                       {!isFlagSubmitted &&
                         <Button
                           size="sm"
@@ -2400,7 +2516,7 @@ return false;
                       <StudentProjectItem
                         item={currentItem}
                         onNext={handleNext}
-                        isProgressUpdating={isNavigatingToNext}
+                        isProgressUpdating={isNavigatingToNext || itemLoading}
                         completedItemIdsRef={completedItemIdsRef}
                         isAlreadyWatched={currentItem.isAlreadyWatched}
                       />
@@ -2409,10 +2525,11 @@ return false;
                       <ItemContainer
                         ref={itemContainerRef}
                         item={currentItem}
+                        focusMode={focusMode}
                         doGesture={doGesture}
                         onNext={handleNext}
                         onPrevVideo={handlePrevVideo}
-                        isProgressUpdating={isNavigatingToNext}
+                        isProgressUpdating={isNavigatingToNext || itemLoading}
                         isNavigatingToPrev={isNavigatingToPrev}
                         attemptId={attemptId || undefined}
                         setAttemptId={setAttemptId}

@@ -212,6 +212,17 @@ export class StudentQuestionRepository {
     return result.matchedCount > 0;
   }
 
+  async setPromotedQuestionId(
+    studentQuestionId: string,
+    promotedId: string,
+  ): Promise<void> {
+    await this.init();
+    await this.collection.updateOne(
+      {_id: new ObjectId(studentQuestionId)},
+      {$set: {promotedQuestionId: new ObjectId(promotedId), updatedAt: new Date()}},
+    );
+  }
+
   async updateStatus(input: {
     courseId: string;
     courseVersionId: string;

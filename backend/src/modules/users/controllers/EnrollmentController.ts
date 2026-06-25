@@ -29,6 +29,7 @@ import {
 } from '#users/classes/validators/EnrollmentValidators.js';
 import {QuizScoresExportResponseDto} from '../dtos/QuizScoresExportDto.js';
 import {EnrollmentService} from '#users/services/EnrollmentService.js';
+import {UserService} from '#users/services/UserService.js';
 
 import {USERS_TYPES} from '#users/types.js';
 import {injectable, inject} from 'inversify';
@@ -79,6 +80,8 @@ export class EnrollmentController {
   constructor(
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(USERS_TYPES.UserService)
+    private readonly userService: UserService,
   ) {}
 
   @OpenAPI({
@@ -415,6 +418,74 @@ export class EnrollmentController {
     });
 
     return response;
+  }
+
+  @OpenAPI({
+    summary: 'Reset face reference for a student',
+    description:
+      'Removes the faceEmbedding and profileImage from the user document, allowing the student to re-register their face.',
+  })
+  @Authorized()
+  @Post('/:userId/enrollments/courses/:courseId/versions/:versionId/reset-face')
+  @UseInterceptor(AuditTrailsHandler)
+  @HttpCode(200)
+  async resetFaceReference(
+    @Params() params: EnrollmentParams,
+    @Ability(getEnrollmentAbility) {ability, user},
+    @Req() req: Request,
+  ): Promise<{message: string}> {
+    const {userId, courseId, versionId} = params;
+
+    // Fetch enrollment to get the role for permission checking
+    const enrollmentData = await this.enrollmentService.findAnyEnrollment(
+      userId,
+      courseId,
+      versionId,
+    );
+    if (!enrollmentData) {
+      throw new NotFoundError('Enrollment not found');
+    }
+
+    const enrollmentResource = subject('Enrollment', {
+      courseId,
+      versionId,
+      role: enrollmentData.role,
+    });
+    if (!ability.can(EnrollmentActions.Modify, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to reset face reference for this student',
+      );
+    }
+
+    await this.userService.editUser(userId, {
+      profileImage: null as any,
+      faceEmbedding: null as any,
+    });
+
+    setAuditTrail(req, {
+      category: AuditCategory.ENROLLMENT,
+      action: AuditAction.ENROLLMENT_MODIFY,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        userId: ObjectId.createFromHexString(userId),
+      },
+      changes: {
+        after: {
+          profileImage: null,
+          faceEmbedding: null,
+        },
+      },
+      outcome: {status: OutComeStatus.SUCCESS},
+    });
+
+    return {message: 'Face reference reset successfully'};
   }
 
   @OpenAPI({
@@ -951,6 +1022,48 @@ export class EnrollmentController {
       cohortId,
     );
   }
+
+  @Get('/enrollments/courses/:courseId/versions/:versionId/export/gurusetu-feedback')
+  @Authorized()
+  @HttpCode(200)
+  @OpenAPI({
+    summary: 'Export Gurusetu feedback rows',
+    description:
+      'Returns one row per (enrolled student, video) for Gurusetu Pilot(FDP for Faculty), including watch time, watch percentage, and feedback when submitted. Optional cohort filter via cohortId query parameter.',
+  })
+  async exportGuruSetuFeedback(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @Ability(getEnrollmentAbility) {ability},
+    @QueryParam('cohortId') cohortId?: string,
+  ): Promise<{ data: any[] }> {
+    const courseResource = subject('Enrollment', {courseId});
+    const hasCourseLevelAccess = ability.can(
+      EnrollmentActions.ViewAll,
+      courseResource,
+    );
+
+    const versionResource = subject('Enrollment', {courseId, versionId});
+    const hasVersionLevelAccess = ability.can(
+      EnrollmentActions.ViewAll,
+      versionResource,
+    );
+
+    if (!hasCourseLevelAccess && !hasVersionLevelAccess) {
+      throw new ForbiddenError(
+        'You do not have permission to export Gurusetu feedback for this course',
+      );
+    }
+
+    const data = await this.enrollmentService.getGuruSetuFeedbackRows(
+      courseId,
+      versionId,
+      cohortId,
+    );
+
+    return { data };
+  }
+
   @OpenAPI({
     summary: 'Update completed items count for all enrollments',
     description:

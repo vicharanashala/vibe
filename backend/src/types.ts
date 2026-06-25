@@ -15,6 +15,7 @@ const TYPES = {
   CourseVersionService: Symbol.for('CourseVersionService'),
   
   SettingRepo: Symbol.for('SettingRepo'),
+  SlotBookingRepo: Symbol.for('SlotBookingRepo'),
 
   //Constants
   uri: Symbol.for('dbURI'),

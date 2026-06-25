@@ -117,11 +117,18 @@ export class EnrollmentService extends BaseService {
         );
       }
 
+      // For invite acceptance, the duplicate check is COHORT-AGNOSTIC: a learner
+      // who is already actively enrolled in this course version must not be
+      // enrolled again, no matter which cohort the invite targeted. This is what
+      // enforces "however many invites a learner has, only one acceptance ever
+      // results in an enrollment" — duplicate invites with differing cohortIds
+      // would otherwise each create a separate enrollment. Direct (non-invite)
+      // enrollment keeps its cohort-scoped check.
       const existingEnrollment = await this.enrollmentRepo.findActiveEnrollment(
         userId,
         courseId,
         courseVersionId,
-        cohort,
+        throughInvite ? undefined : cohort,
         session,
       );
       // if (existingEnrollment && !throughInvite) {
@@ -1445,6 +1452,58 @@ export class EnrollmentService extends BaseService {
     }
   }
 
+  async getGuruSetuFeedbackRows(
+    courseId: string,
+    versionId: string,
+    cohortId?: string,
+  ): Promise<any[]> {
+    try {
+      const [course, version] = await Promise.all([
+        this.courseRepo.read(courseId),
+        this.courseRepo.readVersion(versionId),
+      ]);
+
+      if (!course) {
+        throw new NotFoundError('Course not found');
+      }
+      if (!version) {
+        throw new NotFoundError('Course version not found');
+      }
+
+      if (courseId !== GURU_SETU_COURSE_ID || versionId !== GURU_SETU_VERSION_ID) {
+        throw new BadRequestError(
+          'This export is available only for Gurusetu Pilot(FDP for Faculty).',
+        );
+      }
+
+      if (cohortId && version.cohorts?.length) {
+        const belongsToVersion = version.cohorts.some(
+          id => id.toString() === cohortId,
+        );
+        if (!belongsToVersion) {
+          throw new NotFoundError('Cohort not found in this course version');
+        }
+      }
+
+      return this.enrollmentRepo.getGuruSetuFeedbackRows(
+        courseId,
+        versionId,
+        cohortId,
+      );
+    } catch (error) {
+      console.error(
+        `Error in getGuruSetuFeedbackRows for course ${courseId}, version ${versionId}:`,
+        error,
+      );
+
+      if (error instanceof NotFoundError || error instanceof BadRequestError) {
+        throw error;
+      }
+
+      throw new Error(`Failed to fetch Gurusetu feedback export: ${error.message}`);
+    }
+  }
+
   async countEnrollments(
     userId: string,
     role: EnrollmentRole,
@@ -2029,6 +2088,38 @@ export class EnrollmentService extends BaseService {
       );
 
       return !!result;
+    };
+
+    return session ? execute(session) : this._withTransaction(execute);
+  }
+
+  /**
+   * Grant a student extra committed hours (instructor action). Returns the
+   * enrollment's new total commitmentExtraHours.
+   */
+  async grantCommitmentExtraHours(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    extraHours: number,
+    session?: ClientSession,
+  ): Promise<number> {
+    const execute = async (session: ClientSession) => {
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        null,
+        session,
+      );
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found for this student.');
+      }
+      return this.enrollmentRepo.addCommitmentExtraHours(
+        enrollment._id?.toString(),
+        extraHours,
+        session,
+      );
     };
 
     return session ? execute(session) : this._withTransaction(execute);
@@ -2815,5 +2906,45 @@ export class EnrollmentService extends BaseService {
   ): Promise<UserEnrollmentStatisticsResponse> {
     const stats = await this.enrollmentRepo.getUserEnrollmentStatistics(userId);
     return stats;
+  }
+
+  /**
+   * Returns a paginated roster of every learner on the platform along with the
+   * courses each has completed. Backs the server-to-server integration endpoint.
+   */
+  async getLearnersWithCompletedCourses(
+    page: number,
+    limit: number,
+  ): Promise<{
+    page: number;
+    limit: number;
+    totalLearners: number;
+    totalPages: number;
+    learners: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      completedCourses: Array<{
+        courseId: string;
+        courseVersionId: string;
+        courseName?: string;
+        completedAt?: Date;
+      }>;
+    }>;
+  }> {
+    const safePage = Math.max(1, Math.floor(page) || 1);
+    const safeLimit = Math.min(Math.max(1, Math.floor(limit) || 50), 200);
+    const skip = (safePage - 1) * safeLimit;
+
+    const { total, learners } =
+      await this.enrollmentRepo.getLearnersWithCompletedCourses(skip, safeLimit);
+
+    return {
+      page: safePage,
+      limit: safeLimit,
+      totalLearners: total,
+      totalPages: Math.ceil(total / safeLimit),
+      learners,
+    };
   }
 }
