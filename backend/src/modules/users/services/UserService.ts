@@ -51,6 +51,21 @@ export class UserService extends BaseService {
   });
   }
 
+  async updateFaceReference(
+    userId: string,
+    profileImage: string | null,
+    faceEmbedding: number[] | null,
+  ): Promise<void> {
+    return this._withTransaction(async (session) => {
+      const user = await this.userRepo.findById(userId);
+      if (!user) {
+        throw new NotFoundError(`User with ID ${userId} not found`);
+      }
+      await this.userRepo.edit(userId, { profileImage, faceEmbedding }, session);
+    });
+  }
+
+
   async makeAdmin(userId: string, currentUser: IUser): Promise<void> {
     // Privilege escalation guard: only an existing admin may promote another
     // user. The runtime authorizationChecker only verifies token validity (not
