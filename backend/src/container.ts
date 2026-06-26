@@ -9,6 +9,7 @@ import { AuditTrailsHandler } from './shared/middleware/auditTrails.js';
 import {GLOBAL_TYPES} from './types.js';
 import {dbConfig} from './config/db.js';
 import {CourseRepository} from '#shared/database/providers/mongo/repositories/CourseRepository.js';
+import {SlotBookingRepository} from '#shared/database/providers/mongo/repositories/SlotBookingRepository.js';
 import { FirebaseAuthService } from './modules/auth/services/FirebaseAuthService.js';
 import { ProgressService } from './modules/users/services/ProgressService.js';
 import { EnrollmentService } from './modules/users/services/EnrollmentService.js';
@@ -35,6 +36,10 @@ export const sharedContainerModule = new ContainerModule(options => {
   options
     .bind(GLOBAL_TYPES.SettingRepo)
     .to(SettingRepository)
+    .inSingletonScope();
+  options
+    .bind(GLOBAL_TYPES.SlotBookingRepo)
+    .to(SlotBookingRepository)
     .inSingletonScope();
 
   // Other

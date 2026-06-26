@@ -128,7 +128,7 @@ export class InviteRepository {
     await this.init(); // Ensure collection is initialized
 
     const invites = await this.inviteCollection
-      .find({email}, {session})
+      .find({email: email.toLowerCase().trim()}, {session})
       .toArray();
 
     return invites.map(invite => ({
@@ -146,7 +146,7 @@ export class InviteRepository {
     await this.init();
 
     await this.inviteCollection.updateMany(
-      {email: email, isNewUser: true},
+      {email: email.toLowerCase().trim(), isNewUser: true},
       {$set: {isNewUser: false}},
       {session},
     );
@@ -159,7 +159,7 @@ export class InviteRepository {
     await this.init(); // Ensure collection is initialized
 
     const invites = await this.inviteCollection
-      .find({email, inviteStatus: 'PENDING'}, {session})
+      .find({email: email.toLowerCase().trim(), inviteStatus: 'PENDING'}, {session})
       .toArray();
 
     return invites.map(invite => ({
@@ -186,6 +186,45 @@ export class InviteRepository {
         courseVersionId: new ObjectId(courseVersionId),
         ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
         inviteStatus: 'PENDING',
+      },
+      {session},
+    );
+
+    if (!invite) return null;
+
+    return {
+      ...invite,
+      _id: invite._id.toString(),
+      courseId: invite.courseId?.toString(),
+      courseVersionId: invite.courseVersionId?.toString(),
+    };
+  }
+
+  // Returns an existing "blocking" invite for this email + course version: one
+  // that is still PENDING (awaiting action) or already ACCEPTED. Used by the
+  // follow-up backfill so a learner who was already invited — and especially one
+  // who already accepted — is never sent a duplicate. EXPIRED/REJECTED/CANCELLED
+  // are intentionally NOT blocking, so a genuine re-nudge is still possible.
+  //
+  // Deliberately COHORT-AGNOSTIC (unlike findPendingInviteByEmailAndCourse): a
+  // learner already invited to the target course must not be re-invited
+  // regardless of which cohort that invite was for. Scoping the check to a
+  // specific cohort is what let the backfill create duplicate invites when the
+  // configured follow-up cohort differed from the learner's existing one.
+  async findActiveInviteByEmailAndCourse(
+    email: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<Invite | null> {
+    await this.init();
+
+    const invite = await this.inviteCollection.findOne(
+      {
+        email: email.toLowerCase(),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        inviteStatus: {$in: ['PENDING', 'ACCEPTED']},
       },
       {session},
     );

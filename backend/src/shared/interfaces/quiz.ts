@@ -1,5 +1,8 @@
 import {ObjectId} from 'mongodb';
 
+export type QuestionSource = 'INSTRUCTOR' | 'AI_GENERATED' | 'STUDENT_GENERATED';
+export type QuestionReviewStatus = 'PENDING_REVIEW' | 'APPROVED';
+
 type QuestionType =
   | 'SELECT_ONE_IN_LOT'
   | 'SELECT_MANY_IN_LOT'
@@ -34,6 +37,9 @@ interface IQuestion {
   timeLimitSeconds: number;
   points?: number;
   priority: Priority;
+  source?: QuestionSource;
+  reviewStatus?: QuestionReviewStatus;
+  studentQuestionId?: string | ObjectId;
 }
 
 interface INATSolution {

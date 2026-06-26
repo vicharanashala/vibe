@@ -24,7 +24,10 @@ import {
   LeaderboardNoAuthResponse,
   GetLeaderboardResponse,
 } from '#users/classes/validators/ProgressValidators.js';
-import { ProgressService } from '#users/services/ProgressService.js';
+import {
+  ProgressService,
+  LeaderboardEntry,
+} from '#users/services/ProgressService.js';
 import { USERS_TYPES } from '#users/types.js';
 import { injectable, inject } from 'inversify';
 import {
@@ -786,16 +789,14 @@ It returns an empty body with a 200 status code.
     @QueryParams() query: GetLeaderboardQuery,
     @CurrentUser() user: IUser,
   ): Promise<{
-    data: Array<{
-      userId: string;
-      userName: string;
-      completionPercentage: number;
-      completedAt: Date | null;
-      rank: number;
-    }>;
-    totalDocuments: number;
-    totalPages: number;
-    currentPage: number;
+    finishers: { data: LeaderboardEntry[]; total: number };
+    active: {
+      data: LeaderboardEntry[];
+      total: number;
+      totalPages: number;
+      currentPage: number;
+    };
+    myStats: LeaderboardEntry | null;
   }> {
     const { courseId, versionId } = params;
     const { page = 1, limit = 10, cohortId } = query;

@@ -40,6 +40,11 @@ import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
 import { IProjectSubmission } from '#root/modules/projects/repositories/model.js';
 import { IReport } from '#root/shared/interfaces/reports.js';
 import { UserEnrollmentStatisticsResponse } from '#root/modules/users/classes/index.js';
+import {
+  buildGuruSetuVideoListPipeline,
+  buildGuruSetuWatchAggPipeline,
+  buildGuruSetuFeedbackAggPipeline,
+} from './queries/guruSetuFeedbackExportPipeline.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -3661,6 +3666,37 @@ export class EnrollmentRepository {
     }
   }
 
+  /**
+   * Returns the distinct student user IDs whose progress for a given course
+   * version is at or above `minPercent`, across all cohorts. Used to backfill
+   * follow-up invites for students who reached the threshold but never received
+   * the invite. Based purely on percent progress; the `completed` flag is not
+   * considered.
+   */
+  async getUserIdsAtOrAbovePercentForCourseVersion(
+    courseId: string,
+    courseVersionId: string,
+    minPercent: number,
+    session?: ClientSession,
+  ): Promise<string[]> {
+    await this.init();
+    const userIds = await this.enrollmentCollection.distinct(
+      'userId',
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        role: 'STUDENT',
+        status: { $regex: /^active$/i },
+        isDeleted: { $ne: true },
+        percentCompleted: { $gte: minPercent },
+      },
+      { session },
+    );
+    return userIds
+      .map((id: unknown) => (id ? id.toString() : ''))
+      .filter((id): id is string => id.length > 0);
+  }
+
   async deleteEnrollmentByVersionId(
     versionId: string,
     session?: ClientSession,
@@ -3732,6 +3768,178 @@ export class EnrollmentRepository {
         { session },
       )
       .next();
+  }
+
+  async getGuruSetuFeedbackRows(
+    courseId: string,
+    versionId: string,
+    cohortId?: string,
+  ): Promise<any[]> {
+    await this.init();
+
+    if (!ObjectId.isValid(courseId) || !ObjectId.isValid(versionId)) {
+      throw new BadRequestError('Invalid courseId or versionId');
+    }
+
+    const guruSetuCourseId = new ObjectId(courseId);
+    const guruSetuVersionId = new ObjectId(versionId);
+    const parsedCohortId = cohortId && ObjectId.isValid(cohortId)
+      ? new ObjectId(cohortId)
+      : null;
+
+    // The original single-aggregation approach did a correlated watchTime/feedback
+    // lookup per (student × video), which scanned each student's watch history once
+    // per video and timed out the remote connection. Instead we run a few bulk,
+    // index-friendly aggregations (once each) and assemble the rows in memory.
+
+    // 1. enrolled students
+    const enrollments = await this.enrollmentCollection
+      .find({
+        courseId: guruSetuCourseId,
+        courseVersionId: guruSetuVersionId,
+        role: 'STUDENT',
+        isDeleted: { $ne: true },
+        ...(parsedCohortId ? { cohortId: parsedCohortId } : {}),
+      })
+      .toArray();
+
+    if (!enrollments.length) {
+      return [];
+    }
+
+    const userIds = enrollments.map(e => e.userId as ObjectId);
+
+    const usersCollection = await this.db.getCollection<any>('users');
+    const feedbackFormCollection = await this.db.getCollection<any>(
+      'feedback_forms',
+    );
+
+    // 2. video list once (needed up front to clamp per-session watch time)
+    const videos = await this.courseVersionCollection
+      .aggregate(buildGuruSetuVideoListPipeline(guruSetuVersionId), {
+        allowDiskUse: true,
+        maxTimeMS: 60000,
+      })
+      .toArray();
+
+    const videoDurations = videos.map(v => ({
+      itemId: v.videoId as ObjectId,
+      durationSeconds: v.videoDurationSeconds as number,
+    }));
+
+    // 3. the rest in parallel: users, watch agg, feedback agg
+    const [users, watchAgg, feedbackAgg] = await Promise.all([
+      usersCollection
+        .find(
+          { _id: { $in: userIds } },
+          { projection: { email: 1, firstName: 1, lastName: 1 } },
+        )
+        .toArray(),
+      this.watchTimeCollection
+        .aggregate(
+          buildGuruSetuWatchAggPipeline(
+            guruSetuVersionId,
+            userIds,
+            videoDurations,
+          ),
+          { allowDiskUse: true, maxTimeMS: 120000 },
+        )
+        .toArray(),
+      this.feedbackCollection
+        .aggregate(
+          buildGuruSetuFeedbackAggPipeline(guruSetuVersionId, userIds),
+          { allowDiskUse: true, maxTimeMS: 120000 },
+        )
+        .toArray(),
+    ]);
+
+    // 3. resolve feedback form names (one query)
+    const formIds = Array.from(
+      new Set(
+        feedbackAgg
+          .map(f => f.feedbackFormId)
+          .filter(Boolean)
+          .map((id: any) => id.toString()),
+      ),
+    ).map(id => new ObjectId(id));
+    const forms = formIds.length
+      ? await feedbackFormCollection
+          .find(
+            { _id: { $in: formIds } },
+            { projection: { name: 1 } },
+          )
+          .toArray()
+      : [];
+
+    // 4. build lookup maps
+    const userMap = new Map(users.map(u => [u._id.toString(), u]));
+    const formMap = new Map(forms.map(f => [f._id.toString(), f.name]));
+    const watchMap = new Map(
+      watchAgg.map(w => [`${w._id.userId}|${w._id.itemId}`, w]),
+    );
+    const feedbackMap = new Map(
+      feedbackAgg.map(f => [`${f._id.userId}|${f._id.itemId}`, f]),
+    );
+
+    // 5. assemble one row per (enrolled student × video)
+    const rows: any[] = [];
+    for (const enrollment of enrollments) {
+      const uid = (enrollment.userId as ObjectId).toString();
+      const user = userMap.get(uid) || {};
+
+      for (const video of videos) {
+        const vid = video.videoId.toString();
+        const watch = watchMap.get(`${uid}|${vid}`);
+        const feedback = feedbackMap.get(`${uid}|${vid}`);
+
+        // cap the total at the video duration so watch % maxes out at 100%
+        const summedSeconds = watch?.rawWatchedSeconds || 0;
+        const cappedSeconds =
+          video.videoDurationSeconds > 0
+            ? Math.min(summedSeconds, video.videoDurationSeconds)
+            : summedSeconds;
+        const rawWatchedSeconds = Math.round(cappedSeconds * 100) / 100;
+        const watchPercentage =
+          video.videoDurationSeconds > 0
+            ? Math.round(
+                (rawWatchedSeconds / video.videoDurationSeconds) * 100 * 100,
+              ) / 100
+            : 0;
+
+        const details = feedback?.details || {};
+        const { Name, Email, ...feedbackAnswers } = details as Record<
+          string,
+          unknown
+        >;
+
+        rows.push({
+          userId: uid,
+          userEmail: user.email,
+          userFirstName: user.firstName,
+          userLastName: user.lastName,
+          videoName: video.videoName,
+          videoDurationSeconds: video.videoDurationSeconds,
+          rawWatchedSeconds,
+          watchPercentage,
+          watchSessionCount: watch?.watchSessionCount || 0,
+          firstWatchAt: watch?.firstWatchAt,
+          lastWatchAt: watch?.lastWatchAt,
+          feedbackFormName: feedback
+            ? formMap.get(feedback.feedbackFormId?.toString())
+            : undefined,
+          ...feedbackAnswers,
+          feedbackSubmittedAt: feedback?.createdAt,
+        });
+      }
+    }
+
+    rows.sort((a, b) => {
+      const byEmail = (a.userEmail || '').localeCompare(b.userEmail || '');
+      if (byEmail !== 0) return byEmail;
+      return (a.videoName || '').localeCompare(b.videoName || '');
+    });
+
+    return rows;
   }
 
   async setWatchTimeVisibility(
@@ -4236,6 +4444,29 @@ export class EnrollmentRepository {
     );
 
     return updateResult;
+  }
+
+  /**
+   * Add (increment) extra committed hours on an enrollment and return the new
+   * total. Used when an instructor grants a student more hours budget.
+   */
+  async addCommitmentExtraHours(
+    enrollmentId: string,
+    extraHours: number,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    const updated = await this.enrollmentCollection.findOneAndUpdate(
+      { _id: new ObjectId(enrollmentId) },
+      {
+        $inc: { commitmentExtraHours: extraHours },
+        $set: { updatedAt: new Date() },
+      },
+      { session, returnDocument: 'after' },
+    );
+
+    return (updated as any)?.commitmentExtraHours ?? 0;
   }
 
   /**
@@ -5610,5 +5841,130 @@ export class EnrollmentRepository {
         overallProgress: 0,
       }
     );
+  }
+
+  /**
+   * Returns every learner (a user with a STUDENT enrollment) on the platform,
+   * each with the list of courses they have completed (reached the finish line:
+   * a progress record with `completed: true`). Paginated by learner.
+   *
+   * Used by the server-to-server integration endpoint so external applications
+   * can pull a roster of learners and their completed courses.
+   */
+  async getLearnersWithCompletedCourses(
+    skip: number,
+    limit: number,
+  ): Promise<{
+    total: number;
+    learners: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      completedCourses: Array<{
+        courseId: string;
+        courseVersionId: string;
+        courseName?: string;
+        completedAt?: Date;
+      }>;
+    }>;
+  }> {
+    await this.init();
+
+    // Learners = distinct users with an active STUDENT enrollment.
+    const learnerMatch = {
+      role: { $regex: /^student$/i },
+      status: { $regex: /^active$/i },
+      isDeleted: { $ne: true },
+    };
+
+    const [countResult] = await this.enrollmentCollection
+      .aggregate([
+        { $match: learnerMatch },
+        { $group: { _id: '$userId' } },
+        { $count: 'total' },
+      ])
+      .toArray();
+    const total: number = countResult?.total ?? 0;
+
+    const learners = await this.enrollmentCollection
+      .aggregate([
+        { $match: learnerMatch },
+        { $group: { _id: '$userId' } },
+        { $sort: { _id: 1 } },
+        { $skip: skip },
+        { $limit: limit },
+        // attach user identity
+        {
+          $lookup: {
+            from: 'users',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        { $unwind: '$user' },
+        // attach the courses this learner has completed
+        {
+          $lookup: {
+            from: 'progress',
+            let: { uid: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$userId', '$$uid'] },
+                  completed: true,
+                  isDeleted: { $ne: true },
+                },
+              },
+              {
+                $lookup: {
+                  from: 'newCourse',
+                  localField: 'courseId',
+                  foreignField: '_id',
+                  as: 'course',
+                },
+              },
+              {
+                $unwind: {
+                  path: '$course',
+                  preserveNullAndEmptyArrays: true,
+                },
+              },
+              {
+                $project: {
+                  _id: 0,
+                  courseId: { $toString: '$courseId' },
+                  courseVersionId: { $toString: '$courseVersionId' },
+                  courseName: '$course.name',
+                  completedAt: '$completedAt',
+                },
+              },
+            ],
+            as: 'completedCourses',
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            userId: { $toString: '$_id' },
+            email: '$user.email',
+            name: {
+              $trim: {
+                input: {
+                  $concat: [
+                    { $ifNull: ['$user.firstName', ''] },
+                    ' ',
+                    { $ifNull: ['$user.lastName', ''] },
+                  ],
+                },
+              },
+            },
+            completedCourses: 1,
+          },
+        },
+      ])
+      .toArray();
+
+    return { total, learners: learners as any };
   }
 }
