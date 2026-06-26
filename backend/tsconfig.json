@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "ignoreDeprecations": "6.0",
-    "baseUrl": "src",
     "target": "esnext",
     "module": "nodenext",
     "moduleResolution": "nodenext",
@@ -35,7 +34,6 @@
       "#ejectionPolicy/*": ["./modules/ejectionPolicy/*"]
     },
 
-    "types": ["node", "express"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "noEmitOnError": true,
