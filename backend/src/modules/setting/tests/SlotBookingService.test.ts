@@ -65,6 +65,7 @@ function makeService(
   };
   const enrollmentService = {
     findEnrollment: vi.fn().mockResolvedValue(enrollment),
+    consumeCommitmentExtraBooking: vi.fn().mockResolvedValue(0),
   };
   const db = {} as any;
 
@@ -208,6 +209,63 @@ describe('SlotBookingService.bookSlot', () => {
     expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
   });
 
+  // --- Awarded extra-bookings pool (instructor grant) ---
+
+  it('allows booking past the daily allowance by drawing from the awarded pool', async () => {
+    const {svc, slotBookingRepo, enrollmentService} = makeService({
+      enrollment: {_id: 'enroll-1', commitmentExtraBookings: 2},
+      // already used the 1/day base allowance
+      myBookings: [{bookedOnDate: TODAY, from: '09:00', to: '10:00'}],
+    });
+
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT);
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+    // one drawn from the pool
+    expect(enrollmentService.consumeCommitmentExtraBooking).toHaveBeenCalledWith(
+      'enroll-1',
+      {},
+    );
+  });
+
+  it('still rejects past the allowance when the awarded pool is empty', async () => {
+    const {svc, enrollmentService} = makeService({
+      enrollment: {_id: 'enroll-1', commitmentExtraBookings: 0},
+      myBookings: [{bookedOnDate: TODAY, from: '09:00', to: '10:00'}],
+    });
+    await expect(svc.bookSlot(USER, COURSE, VERSION, SLOT)).rejects.toThrowError(
+      /booking\(s\) for today/i,
+    );
+    expect(
+      enrollmentService.consumeCommitmentExtraBooking,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('a pool (grant) booking bypasses the hard capacity cap', async () => {
+    const {svc, slotBookingRepo} = makeService({
+      enrollment: {_id: 'enroll-1', commitmentExtraBookings: 1},
+      slotCount: 2, // slot is full (maxStudents = 2)
+      myBookings: [{bookedOnDate: TODAY, from: '09:00', to: '10:00'}],
+    });
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT);
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+  });
+
+  it('a pool (grant) booking bypasses the hours budget', async () => {
+    const {svc, slotBookingRepo} = makeService({
+      timeslots: {
+        isActive: true,
+        slots: [{from: '13:00', to: '15:00', studentIds: [], maxStudents: 2}],
+        dailyBaseAllowance: 1,
+        totalBudgetHours: 1, // a 2h slot would normally exceed this
+      },
+      enrollment: {_id: 'enroll-1', commitmentExtraBookings: 1},
+      reservedHours: 1,
+      myBookings: [{bookedOnDate: TODAY, from: '09:00', to: '10:00'}],
+    });
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT);
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+  });
+
   // --- Phase 3 bonus allowance (bonusOnFulfillment) ---
 
   // A booking made today that consumes the base allowance, plus a window the
@@ -332,16 +390,23 @@ describe('SlotBookingService.bookSlot — booking window (D-2 9AM → D 9AM IST)
     expect(saved.bookedOnDate).toBe('2026-06-20'); // calendar day booked
   });
 
-  it('rejects booking for today once past the 9 AM cutoff', async () => {
-    at('2026-06-20T04:30:00.000Z'); // 10:00 IST on 06-20
+  it("allows booking today's slot any time before it starts (after 9 AM)", async () => {
+    at('2026-06-20T04:30:00.000Z'); // 10:00 IST on 06-20 — slot starts 13:00
+    const {svc, slotBookingRepo} = makeService();
+    await svc.bookSlot(USER, COURSE, VERSION, SLOT, undefined, '2026-06-20');
+    expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();
+  });
+
+  it('rejects booking for today once the slot has started', async () => {
+    at('2026-06-20T08:30:00.000Z'); // 14:00 IST on 06-20 — slot (13:00) started
     const {svc} = makeService();
     await expect(
       svc.bookSlot(USER, COURSE, VERSION, SLOT, undefined, '2026-06-20'),
     ).rejects.toThrowError(/has closed/i);
   });
 
-  it('allows booking for today before the 9 AM cutoff', async () => {
-    at('2026-06-20T02:30:00.000Z'); // 08:00 IST on 06-20
+  it("allows booking today's slot well before it starts", async () => {
+    at('2026-06-20T02:30:00.000Z'); // 08:00 IST on 06-20 — slot starts 13:00
     const {svc, slotBookingRepo} = makeService();
     await svc.bookSlot(USER, COURSE, VERSION, SLOT, undefined, '2026-06-20');
     expect(slotBookingRepo.createBooking).toHaveBeenCalledOnce();

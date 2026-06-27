@@ -18,6 +18,7 @@ import {
   useRemoveStudentFromTimeSlot,
   useSetHoursBudget,
   useGrantExtraHours,
+  useGrantExtraBookings,
   useSetFulfillmentConfig,
   useSetCapacityConfig,
   useSlotDemand,
@@ -156,6 +157,9 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   // Grant extra committed hours to a specific student.
   const [extendStudentId, setExtendStudentId] = useState<string>("");
   const [extendHours, setExtendHours] = useState<number>(1);
+  // Award extra bookings (consumable pool) to a specific student.
+  const [grantBookingsStudentId, setGrantBookingsStudentId] = useState<string>("");
+  const [grantBookingsCount, setGrantBookingsCount] = useState<number>(1);
   // Phase 3: fulfillment threshold (active share of a window) + bonus toggle.
   const [fulfillmentThresholdPct, setFulfillmentThresholdPct] = useState<number>(90);
   const [bonusOnFulfillment, setBonusOnFulfillment] = useState<boolean>(false);
@@ -186,6 +190,7 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   const removeStudentFromTimeSlotMutation = useRemoveStudentFromTimeSlot();
   const { setHoursBudget, loading: budgetLoading } = useSetHoursBudget();
   const { grantExtraHours, loading: extendLoading } = useGrantExtraHours();
+  const { grantExtraBookings, loading: grantBookingsLoading } = useGrantExtraBookings();
   const { setFulfillmentConfig, loading: fulfillmentLoading } = useSetFulfillmentConfig();
   const { setCapacityConfig, loading: capacityLoading } = useSetCapacityConfig();
 
@@ -291,6 +296,31 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
       setExtendHours(1);
     } catch (error: any) {
       toast.error(error?.message || 'Failed to grant extra hours');
+    }
+  };
+
+  const handleGrantBookings = async () => {
+    if (!grantBookingsStudentId) {
+      toast.error('Select a student first');
+      return;
+    }
+    if (!grantBookingsCount || grantBookingsCount <= 0) {
+      toast.error('Enter a positive number of bookings');
+      return;
+    }
+    try {
+      const result = await grantExtraBookings(
+        courseId,
+        courseVersionId,
+        grantBookingsStudentId,
+        grantBookingsCount,
+      );
+      toast.success(
+        `Awarded ${grantBookingsCount} booking(s) — student can now book ${result.commitmentExtraBookings} extra time(s)`,
+      );
+      setGrantBookingsCount(1);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to award extra bookings');
     }
   };
 
@@ -908,6 +938,7 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                               enr.user ? (
                                 <option key={enr.user._id} value={enr.user._id}>
                                   {enr.user.firstName} {enr.user.lastName}
+                                  {enr.user.email ? ` — ${enr.user.email}` : ""}
                                 </option>
                               ) : null,
                             )}
@@ -932,6 +963,61 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                             <Plus className="h-4 w-4 mr-2" />
                           )}
                           Grant
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Award extra bookings to a student (consumable pool) */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Plus className="h-5 w-5" />
+                          Award extra bookings
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Let a specific student book again beyond their daily limit. Each award is a one-time pool — every extra booking they make uses one up. These bookings ignore the slot capacity cap and hours budget.
+                        </p>
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <Label className="text-xs">Student</Label>
+                          <select
+                            value={grantBookingsStudentId}
+                            onChange={(e) => setGrantBookingsStudentId(e.target.value)}
+                            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          >
+                            <option value="">Select a student…</option>
+                            {enrolledStudents.map((enr: any) =>
+                              enr.user ? (
+                                <option key={enr.user._id} value={enr.user._id}>
+                                  {enr.user.firstName} {enr.user.lastName}
+                                  {enr.user.email ? ` — ${enr.user.email}` : ""}
+                                </option>
+                              ) : null,
+                            )}
+                          </select>
+                        </div>
+                        <div className="w-24">
+                          <Label className="text-xs">Bookings</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={grantBookingsCount}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              setGrantBookingsCount(e.target.value === "" ? 0 : parseInt(e.target.value))
+                            }
+                            className="mt-1"
+                          />
+                        </div>
+                        <Button size="sm" onClick={handleGrantBookings} disabled={grantBookingsLoading}>
+                          {grantBookingsLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4 mr-2" />
+                          )}
+                          Award
                         </Button>
                       </div>
                     </CardContent>

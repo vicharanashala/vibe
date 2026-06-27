@@ -31,7 +31,8 @@ class BookSlotRequestBody {
   timeSlot: {from: string; to: string};
   cohortId?: string;
   // Study day to book (YYYY-MM-DD IST). Defaults to today. Must fall inside the
-  // booking window: opens 9 AM IST on D-2, closes 9 AM IST on D.
+  // booking window: opens 9 AM IST on D-2, and each slot stays bookable until
+  // its own start time on D.
   date?: string;
 }
 
@@ -57,7 +58,7 @@ class SlotBookingController {
   @OpenAPI({
     summary: 'Book a time slot',
     description:
-      'A student books a time slot for a study day (default today). Booking for day D is open from 9 AM IST on D-2 until 9 AM IST on D, subject to the slot capacity cap and their per-day allowance.',
+      'A student books a time slot for a study day (default today). Booking for day D opens at 9 AM IST on D-2, and each slot stays bookable until its own start time on D, subject to the slot capacity cap and their per-day allowance.',
   })
   @Authorized()
   @Post('/book')
@@ -148,6 +149,36 @@ class SlotBookingController {
       return {success: true, data};
     } catch (error) {
       throw new InternalServerError(`Failed to get bookings: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: "The student's awarded extra-bookings pool",
+    description:
+      "Returns how many extra bookings the calling student may still make beyond their daily allowance (instructor-awarded, consumable). Used to keep the booking action enabled.",
+  })
+  @Authorized()
+  @Get('/my/extra-bookings/course/:courseId/version/:courseVersionId')
+  @HttpCode(200)
+  async myExtraBookings(
+    @Param('courseId') courseId: string,
+    @Param('courseVersionId') courseVersionId: string,
+    @CurrentUser() user: IUser,
+    @QueryParam('cohortId') cohortId?: string,
+  ): Promise<BookingResponse> {
+    try {
+      const extraBookings =
+        await this.slotBookingService.getStudentExtraBookings(
+          user._id.toString(),
+          courseId,
+          courseVersionId,
+          cohortId,
+        );
+      return {success: true, data: {extraBookings}};
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to get extra bookings: ${error}`,
+      );
     }
   }
 
