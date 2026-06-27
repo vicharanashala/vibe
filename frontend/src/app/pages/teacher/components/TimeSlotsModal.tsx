@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { StudentPicker } from "./StudentPicker";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -359,14 +360,13 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
       return { id: enr.user._id, label };
     });
 
-  // Placeholder text reflecting the load state, so an empty picker is never silent.
-  const studentPlaceholder = enrollmentsLoading
-    ? "Loading students…"
-    : enrollmentsError
-      ? "Failed to load students"
-      : studentOptions.length === 0
-        ? "No students found"
-        : "Select a student…";
+  // Placeholder for the typeahead pickers — reflects an error/empty state so an
+  // empty picker is never silent (loading is handled inside StudentPicker).
+  const studentPlaceholder = enrollmentsError
+    ? "Failed to load students"
+    : studentOptions.length === 0
+      ? "No students found"
+      : "Search students by name or email…";
 
   // Demand schedule for today (booked load per window) — the capacity-planning view.
   const {
@@ -956,18 +956,15 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                       <div className="flex items-end gap-2">
                         <div className="flex-1">
                           <Label className="text-xs">Student</Label>
-                          <select
-                            value={extendStudentId}
-                            onChange={(e) => setExtendStudentId(e.target.value)}
-                            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          >
-                            <option value="">{studentPlaceholder}</option>
-                            {studentOptions.map((o) => (
-                              <option key={o.id} value={o.id}>
-                                {o.label}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="mt-1">
+                            <StudentPicker
+                              options={studentOptions}
+                              value={extendStudentId}
+                              onChange={setExtendStudentId}
+                              loading={enrollmentsLoading}
+                              placeholder={studentPlaceholder}
+                            />
+                          </div>
                         </div>
                         <div className="w-24">
                           <Label className="text-xs">Hours</Label>
@@ -1008,18 +1005,15 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                       <div className="flex items-end gap-2">
                         <div className="flex-1">
                           <Label className="text-xs">Student</Label>
-                          <select
-                            value={grantBookingsStudentId}
-                            onChange={(e) => setGrantBookingsStudentId(e.target.value)}
-                            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          >
-                            <option value="">{studentPlaceholder}</option>
-                            {studentOptions.map((o) => (
-                              <option key={o.id} value={o.id}>
-                                {o.label}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="mt-1">
+                            <StudentPicker
+                              options={studentOptions}
+                              value={grantBookingsStudentId}
+                              onChange={setGrantBookingsStudentId}
+                              loading={enrollmentsLoading}
+                              placeholder={studentPlaceholder}
+                            />
+                          </div>
                         </div>
                         <div className="w-24">
                           <Label className="text-xs">Bookings</Label>
