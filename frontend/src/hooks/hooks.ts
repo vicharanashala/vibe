@@ -5837,6 +5837,46 @@ export function useGrantExtraHours() {
   return { grantExtraHours, loading, error };
 }
 
+// PUT /timeslots/grant-bookings — award a student extra bookings (a consumable
+// pool that lets them book beyond their daily allowance).
+export function useGrantExtraBookings() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const grantExtraBookings = async (
+    courseId: string,
+    courseVersionId: string,
+    studentId: string,
+    extraBookings: number,
+  ): Promise<{ commitmentExtraBookings: number }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/grant-bookings`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({ courseId, courseVersionId, studentId, extraBookings }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to award extra bookings: ${res.status}`);
+      }
+      return data?.data;
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { grantExtraBookings, loading, error };
+}
+
 export interface SlotDemandData {
   date: string;
   isActive: boolean;
@@ -5984,19 +6024,41 @@ export function addDays(date: string, days: number): string {
   return `${yy}-${mm}-${dd}`;
 }
 
-// The study days a student may book *right now*, given the rule that booking for
-// day D opens 9 AM IST on D-2 and closes 9 AM IST on D:
-//   • today        — only before 9 AM IST
+// The study days a student may book *right now*. Booking for day D opens 9 AM
+// IST on D-2, and each individual slot stays bookable until its own start time
+// on D (see slotBookingClosed):
+//   • today        — all day (per-slot: only slots that haven't started yet)
 //   • tomorrow     — all day
-//   • day-after    — only from 9 AM IST
+//   • day-after    — only from 9 AM IST (its D-2 open time)
 export function bookableStudyDates(): string[] {
   const today = istToday();
   const hour = istHour();
-  const dates: string[] = [];
-  if (hour < 9) dates.push(today); // today, before the 9 AM cutoff
+  const dates: string[] = [today]; // today — slots bookable until they start
   dates.push(addDays(today, 1)); // tomorrow, always open
   if (hour >= 9) dates.push(addDays(today, 2)); // day-after, opens at 9 AM
   return dates;
+}
+
+// Minutes since midnight in IST (0–1439). Used to tell whether a slot on the
+// current IST day has already started (and so is no longer bookable).
+export function istNowMinutes(): number {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+  const h = Number(parts.find(p => p.type === 'hour')?.value ?? '0') % 24;
+  const m = Number(parts.find(p => p.type === 'minute')?.value ?? '0');
+  return h * 60 + m;
+}
+
+// A slot closes for booking at its own start time on the study day. Only the
+// current IST day can have already-started slots; future days are always open.
+export function slotBookingClosed(date: string, from: string): boolean {
+  if (date !== istToday()) return false;
+  const [h, m] = from.split(':').map(Number);
+  return h * 60 + m <= istNowMinutes();
 }
 
 // GET /slot-bookings/my/course/{courseId}/version/{courseVersionId}?date=
@@ -6039,6 +6101,45 @@ export function useMyBookings(
     data: result.data,
     isLoading: result.isLoading,
     error: result.error ? (result.error as Error).message : null,
+    refetch: () => {
+      void result.refetch();
+    },
+  };
+}
+
+// GET /slot-bookings/my/extra-bookings/course/{courseId}/version/{courseVersionId}
+// How many instructor-awarded extra bookings the student may still make beyond
+// their daily allowance (a consumable pool). 0 when none granted.
+export function useMyExtraBookings(
+  courseId: string | undefined,
+  courseVersionId: string | undefined,
+  enabled: boolean = true,
+): { data: number; isLoading: boolean; refetch: () => void } {
+  const valid =
+    !!courseId &&
+    courseId.length === 24 &&
+    !!courseVersionId &&
+    courseVersionId.length === 24;
+  const result = useQuery({
+    queryKey: ['my-extra-bookings', courseId, courseVersionId],
+    enabled: enabled && valid,
+    queryFn: async (): Promise<number> => {
+      const url = `${import.meta.env.VITE_BASE_URL}/slot-bookings/my/extra-bookings/course/${courseId}/version/${courseVersionId}`;
+      const res = await fetch(url, {
+        headers: {
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to load extra bookings: ${res.status}`);
+      }
+      return Number(data?.data?.extraBookings ?? 0);
+    },
+  });
+  return {
+    data: result.data ?? 0,
+    isLoading: result.isLoading,
     refetch: () => {
       void result.refetch();
     },

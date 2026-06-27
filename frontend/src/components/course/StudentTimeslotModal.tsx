@@ -8,10 +8,12 @@ import {
   useGetTimeSlots,
   useMyBookings,
   useSlotAvailability,
+  useMyExtraBookings,
   useBookSlot,
   useCancelBooking,
   bookableStudyDates,
   istToday,
+  slotBookingClosed,
   type MyBooking,
 } from "@/hooks/hooks";
 import { cn } from "@/utils/utils";
@@ -65,8 +67,9 @@ export default function StudentTimeslotModal({
 }: StudentTimeslotModalProps) {
   const { data: timeSlotsData, isLoading } = useGetTimeSlots(courseId, courseVersionId, isOpen);
 
-  // Study days a student may book right now (today before 9 AM / tomorrow /
-  // day-after from 9 AM IST). The first open day is selected by default.
+  // Study days a student may book right now (today / tomorrow / day-after from
+  // 9 AM IST). Per slot, a slot stays bookable until it starts. The first open
+  // day is selected by default.
   const studyDates = bookableStudyDates();
   const [selectedDate, setSelectedDate] = useState<string>(studyDates[0]);
   const activeDate = studyDates.includes(selectedDate) ? selectedDate : studyDates[0];
@@ -84,6 +87,11 @@ export default function StudentTimeslotModal({
     activeDate,
     isOpen,
   );
+  const { data: extraBookings, refetch: refetchExtraBookings } = useMyExtraBookings(
+    courseId,
+    courseVersionId,
+    isOpen,
+  );
   const { book, loading: booking } = useBookSlot();
   const { cancel, loading: cancelling } = useCancelBooking();
 
@@ -93,6 +101,7 @@ export default function StudentTimeslotModal({
   const refresh = () => {
     refetchBookings();
     refetchAvailability();
+    refetchExtraBookings();
   };
 
   const tsSettings = timeSlotsData as
@@ -205,6 +214,12 @@ export default function StudentTimeslotModal({
                 +{bonusEarnedToday} bonus earned
               </span>
             ) : null}
+            {(extraBookings ?? 0) > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-xs font-medium">
+                <Gift className="h-3.5 w-3.5" />
+                {extraBookings} awarded booking{extraBookings !== 1 ? 's' : ''} available
+              </span>
+            ) : null}
           </div>
           {bonusEarnedToday > 0 ? (
             <p className="mt-1 text-xs text-amber-700">
@@ -231,7 +246,15 @@ export default function StudentTimeslotModal({
                 const remaining = avail?.remaining ?? null;
                 const isFull = remaining !== null && remaining <= 0;
                 const booked = bookingFor(slot);
-                const atLimit = !booked && bookedCount >= allowance;
+                // A slot closes for booking at its own start time on the study day.
+                const hasStarted = !booked && slotBookingClosed(activeDate, slot.from);
+                // Past the daily allowance a student may still book by drawing
+                // from an instructor-awarded pool — mirrors the backend rule.
+                const atLimit =
+                  !booked &&
+                  !hasStarted &&
+                  bookedCount >= allowance &&
+                  (extraBookings ?? 0) <= 0;
                 const pct = cap && cap > 0 ? Math.min(100, (bookedSeats / cap) * 100) : 0;
                 const nearFull = cap !== null && !isFull && pct >= 80;
 
@@ -242,7 +265,7 @@ export default function StudentTimeslotModal({
                       "border transition-all",
                       booked
                         ? "border-green-300 bg-green-50/40"
-                        : isFull || atLimit
+                        : isFull || atLimit || hasStarted
                           ? "opacity-70 border-muted"
                           : "hover:border-primary hover:shadow-sm"
                     )}
@@ -278,11 +301,13 @@ export default function StudentTimeslotModal({
                         ) : (
                           <Button
                             size="sm"
-                            disabled={busy || atLimit || isFull}
+                            disabled={busy || atLimit || isFull || hasStarted}
                             onClick={() => handleBook(slot)}
                           >
                             {busy ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : hasStarted ? (
+                              'Started'
                             ) : isFull ? (
                               'Full'
                             ) : atLimit ? (
@@ -334,7 +359,7 @@ export default function StudentTimeslotModal({
 
         <div className="mt-4 pt-4 border-t">
           <div className="text-xs text-muted-foreground space-y-0.5">
-            <p>• Booking for a day opens at 9:00 AM IST two days before, and closes at 9:00 AM IST on the day itself.</p>
+            <p>• Booking for a day opens at 9:00 AM IST two days before. Each slot stays open to book right up until it starts.</p>
             <p>• Your booking allowance resets each calendar day — it counts every booking you make today, for any day.</p>
             {bonusEnabled ? (
               <p>• Stay active for most of a booked window and you'll earn a bonus booking to use the same day.</p>

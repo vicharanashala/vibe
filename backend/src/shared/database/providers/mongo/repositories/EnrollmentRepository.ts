@@ -4470,6 +4470,41 @@ export class EnrollmentRepository {
   }
 
   /**
+   * Add (increment) the consumable extra-bookings pool on an enrollment and
+   * return the new total. Pass a negative delta to consume one when a student
+   * books beyond their normal daily allowance. The pool is clamped at 0 so it
+   * never goes negative.
+   */
+  async addCommitmentExtraBookings(
+    enrollmentId: string,
+    delta: number,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    const updated = await this.enrollmentCollection.findOneAndUpdate(
+      { _id: new ObjectId(enrollmentId) },
+      {
+        $inc: { commitmentExtraBookings: delta },
+        $set: { updatedAt: new Date() },
+      },
+      { session, returnDocument: 'after' },
+    );
+
+    const total = (updated as any)?.commitmentExtraBookings ?? 0;
+    if (total < 0) {
+      // Clamp back to 0 if a concurrent consume drove it negative.
+      await this.enrollmentCollection.updateOne(
+        { _id: new ObjectId(enrollmentId) },
+        { $set: { commitmentExtraBookings: 0, updatedAt: new Date() } },
+        { session },
+      );
+      return 0;
+    }
+    return total;
+  }
+
+  /**
    * Remove a specific time slot from enrollment's assigned time slots
    */
   async removeEnrollmentTimeSlot(
