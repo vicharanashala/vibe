@@ -2,6 +2,15 @@ import {ObjectId} from 'mongodb';
 
 export type StudentQuestionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
+/**
+ * Peer-validation lifecycle of a PENDING question (see CROWD_QUESTION_BANK.md).
+ * COLLECTING = served ungraded to students, gathering answers + 👍/👎.
+ * ELIGIBLE  = passed the gate (responseCount ≥ 200, correctRate ∈ [0.30,0.70],
+ *             thumbsDownRate < 0.10) and now awaits instructor approval.
+ * Only meaningful while `status === 'PENDING'`.
+ */
+export type StudentQuestionGateState = 'COLLECTING' | 'ELIGIBLE';
+
 export type StudentQuestionSource = 'STUDENT_GENERATED';
 
 export type StudentQuestionType = 'SELECT_ONE_IN_LOT';
@@ -31,6 +40,13 @@ export interface IStudentSegmentQuestion {
   isDeleted?: boolean;
   deletedAt?: Date;
   promotedQuestionId?: ObjectId;
+  // Peer-validation (stage 2) — only used while status === 'PENDING'.
+  gateState?: StudentQuestionGateState;
+  responseCount?: number;
+  correctCount?: number;
+  thumbsUpCount?: number;
+  thumbsDownCount?: number;
+  eligibleAt?: Date;
 }
 
 export class StudentSegmentQuestion implements IStudentSegmentQuestion {
@@ -54,6 +70,12 @@ export class StudentSegmentQuestion implements IStudentSegmentQuestion {
   isDeleted?: boolean;
   deletedAt?: Date;
   promotedQuestionId?: ObjectId;
+  gateState?: StudentQuestionGateState;
+  responseCount?: number;
+  correctCount?: number;
+  thumbsUpCount?: number;
+  thumbsDownCount?: number;
+  eligibleAt?: Date;
 
   constructor(input: {
     courseId: string;
@@ -80,5 +102,11 @@ export class StudentSegmentQuestion implements IStudentSegmentQuestion {
     this.createdAt = new Date();
     this.updatedAt = new Date();
     this.isDeleted = false;
+    // Peer-validation starts collecting with zeroed counters.
+    this.gateState = 'COLLECTING';
+    this.responseCount = 0;
+    this.correctCount = 0;
+    this.thumbsUpCount = 0;
+    this.thumbsDownCount = 0;
   }
 }
