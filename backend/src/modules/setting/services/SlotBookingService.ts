@@ -50,6 +50,8 @@ export class SlotBookingService extends BaseService {
   private static readonly BOOKING_OPEN_LEAD_DAYS = 2;
   /** Hour (IST) at which booking opens on D-2. */
   private static readonly BOOKING_OPEN_HOUR = 9;
+  /** Hours before a slot's start after which it can no longer be cancelled. */
+  private static readonly CANCEL_CUTOFF_HOURS = 1;
 
   /** IST "now" as epoch ms whose UTC fields read as the IST wall clock. */
   private getISTNowMs(): number {
@@ -350,7 +352,12 @@ export class SlotBookingService extends BaseService {
     });
   }
 
-  /** Cancel one of the student's own bookings (used for re-booking / changes). */
+  /**
+   * Cancel one of the student's own bookings (used for re-booking / changes).
+   * Only allowed up to CANCEL_CUTOFF_HOURS before the slot starts — once inside
+   * that window (or after the slot has started) it can no longer be cancelled
+   * and counts as an unused slot, which the fulfilment job marks UNFULFILLED.
+   */
   async cancelBooking(userId: string, bookingId: string): Promise<boolean> {
     return this._withTransaction(async (session) => {
       const booking = await this.slotBookingRepo.findById(bookingId, session);
@@ -359,6 +366,19 @@ export class SlotBookingService extends BaseService {
       }
       if (String(booking.userId) !== String(userId)) {
         throw new ForbiddenError('You can only cancel your own bookings.');
+      }
+      // Lock cancellation within the cutoff window before the slot starts.
+      if (booking.date && booking.from) {
+        const startMs = this.slotCloseMs(booking.date, booking.from);
+        const cancelDeadlineMs =
+          startMs -
+          SlotBookingService.CANCEL_CUTOFF_HOURS * 60 * 60 * 1000;
+        if (this.getISTNowMs() >= cancelDeadlineMs) {
+          throw new BadRequestError(
+            `Bookings can only be cancelled up to ${SlotBookingService.CANCEL_CUTOFF_HOURS} hour before the slot starts. ` +
+              'It will count as an unused slot if you do not attend.',
+          );
+        }
       }
       return this.slotBookingRepo.cancelBooking(bookingId, session);
     });

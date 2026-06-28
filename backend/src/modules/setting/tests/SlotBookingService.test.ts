@@ -461,6 +461,37 @@ describe('SlotBookingService.cancelBooking', () => {
     expect(ok).toBe(true);
     expect(slotBookingRepo.cancelBooking).toHaveBeenCalledWith('b1', {});
   });
+
+  it('allows cancelling more than 1 hour before the slot starts', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-06-20T05:30:00.000Z')); // 11:00 IST
+      const {svc, slotBookingRepo} = makeService({
+        bookingById: {userId: USER, date: '2026-06-20', from: '13:00', to: '15:00'},
+      });
+      const ok = await svc.cancelBooking(USER, 'b1'); // deadline 12:00 IST
+      expect(ok).toBe(true);
+      expect(slotBookingRepo.cancelBooking).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('rejects cancelling within 1 hour of the slot start', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-06-20T07:00:00.000Z')); // 12:30 IST
+      const {svc, slotBookingRepo} = makeService({
+        bookingById: {userId: USER, date: '2026-06-20', from: '13:00', to: '15:00'},
+      });
+      await expect(svc.cancelBooking(USER, 'b1')).rejects.toThrowError(
+        /1 hour before the slot starts/i,
+      );
+      expect(slotBookingRepo.cancelBooking).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('SlotBookingService.getStudentBookings', () => {

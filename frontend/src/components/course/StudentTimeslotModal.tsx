@@ -14,6 +14,7 @@ import {
   bookableStudyDates,
   istToday,
   slotBookingClosed,
+  slotCancelClosed,
   type MyBooking,
 } from "@/hooks/hooks";
 import { cn } from "@/utils/utils";
@@ -80,7 +81,7 @@ export default function StudentTimeslotModal({
     data: myBookings,
     isLoading: bookingsLoading,
     refetch: refetchBookings,
-  } = useMyBookings(courseId, courseVersionId, undefined, isOpen);
+  } = useMyBookings(courseId, courseVersionId, null, isOpen);
   const { data: availability, refetch: refetchAvailability } = useSlotAvailability(
     courseId,
     courseVersionId,
@@ -248,6 +249,9 @@ export default function StudentTimeslotModal({
                 const booked = bookingFor(slot);
                 // A slot closes for booking at its own start time on the study day.
                 const hasStarted = !booked && slotBookingClosed(activeDate, slot.from);
+                // Cancellation locks 1 hour before the slot starts; after that the
+                // booking counts as an unused slot.
+                const cancelLocked = !!booked && slotCancelClosed(booked.date, booked.from);
                 // Past the daily allowance a student may still book by drawing
                 // from an instructor-awarded pool — mirrors the backend rule.
                 const atLimit =
@@ -292,10 +296,15 @@ export default function StudentTimeslotModal({
                             <Button
                               size="sm"
                               variant="outline"
-                              disabled={busy}
+                              disabled={busy || cancelLocked}
+                              title={
+                                cancelLocked
+                                  ? "Cancellation closes 1 hour before the slot starts"
+                                  : undefined
+                              }
                               onClick={() => handleCancel(booked._id)}
                             >
-                              Cancel
+                              {cancelLocked ? "Locked" : "Cancel"}
                             </Button>
                           </div>
                         ) : (
@@ -364,7 +373,7 @@ export default function StudentTimeslotModal({
             {bonusEnabled ? (
               <p>• Stay active for most of a booked window and you'll earn a bonus booking to use the same day.</p>
             ) : null}
-            <p>• Need a different window? Cancel a booking to free up your allowance, then book another.</p>
+            <p>• Need a different window? Cancel up to 1 hour before the slot starts to free up your allowance, then book another. After that it locks and counts as an unused slot.</p>
             <p>• Access to the course is allowed during a window you've booked.</p>
             <p>• Time slots are in IST (Indian Standard Time, UTC+5:30).</p>
           </div>
