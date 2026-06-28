@@ -230,17 +230,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 {enrollment.hasNewItemsAfterCompletion && (
                   <Badge className="top-4 right-4 absolute bg-yellow-400 border-0 text-yellow-900">New Content</Badge>
                 )}
-                {variant !== 'available' && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setIsQuickOpen(true); }}
-                    aria-label="View course details"
-                    title="More details"
-                    className="top-3 left-3 absolute bg-black/30 hover:bg-black/50 backdrop-blur-sm p-2 rounded-full text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
-                  >
-                    <Info className="w-4 h-4" />
-                  </button>
-                )}
               </div>
 
               <CardContent className="flex flex-col p-4">
@@ -310,6 +299,19 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                           </>
                         )}
                       </Button>
+
+                      {variant !== 'available' && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={(e) => { e.stopPropagation(); setIsQuickOpen(true); }}
+                          className="border-2 rounded-xl w-10 h-10"
+                          aria-label="View course details"
+                          title="More details"
+                        >
+                          <Info className="w-4 h-4" />
+                        </Button>
+                      )}
 
                       {variant !== 'available' && isNotGuruSetu && (
                         <div onClick={(e) => e.stopPropagation()}>
