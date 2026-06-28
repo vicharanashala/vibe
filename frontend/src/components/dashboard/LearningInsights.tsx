@@ -12,8 +12,8 @@ interface LearningInsightsProps {
   isLoading?: boolean;
   /** Called when the student has no active courses (primary CTA → catalog). */
   onBrowse: () => void;
-  /** Called when the student has active courses (primary CTA → Enrolled tab). */
-  onGoToEnrolled: () => void;
+  /** Resume a specific course (primary CTA on the "next best action"). */
+  onResume: (enrollment: Enrollment) => void;
 }
 
 /** A course paired with a clamped 0–100 progress number, for ranking. */
@@ -42,7 +42,7 @@ export function LearningInsights({
   activeEnrollments,
   isLoading,
   onBrowse,
-  onGoToEnrolled,
+  onResume,
 }: LearningInsightsProps) {
   const ranked = useMemo<RankedCourse[]>(
     () =>
@@ -62,7 +62,7 @@ export function LearningInsights({
         title: `You're almost there — finish ${almostDone.name}`,
         body: `Just ${100 - almostDone.progress}% to go. A short push wraps up this course.`,
         cta: "Resume course",
-        onClick: onGoToEnrolled,
+        onClick: () => onResume(almostDone.enrollment),
       };
     }
     const continueCourse = ranked[0];
@@ -73,7 +73,7 @@ export function LearningInsights({
         title: `Pick up where you left off in ${continueCourse.name}`,
         body: `You're ${continueCourse.progress}% through. Keep the momentum going.`,
         cta: "Continue learning",
-        onClick: onGoToEnrolled,
+        onClick: () => onResume(continueCourse.enrollment),
       };
     }
     return {
@@ -84,7 +84,7 @@ export function LearningInsights({
       cta: "Browse courses",
       onClick: onBrowse,
     };
-  }, [ranked, onBrowse, onGoToEnrolled]);
+  }, [ranked, onBrowse, onResume]);
 
   if (isLoading) {
     return (

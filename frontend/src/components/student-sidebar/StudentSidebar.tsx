@@ -170,8 +170,8 @@ export function StudentSidebar() {
                     title="Toggle theme"
                     className={`flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground ${yellowItem}`}
                   >
-                    <Circle className="size-5 dark:hidden" />
-                    <Moon className="hidden size-5 dark:block" />
+                    <Circle className="size-4 dark:hidden" />
+                    <Moon className="hidden size-4 dark:block" />
                   </button>
                 </div>
               </div>

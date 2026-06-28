@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuthStore } from "@/store/auth-store";
-import { useUserEnrollments, useWatchtimeTotal, usePublicCourses, useUserEnrollmentStats } from "@/hooks/hooks";
+import { useUserEnrollments, useWatchtimeTotal, usePublicCourses, useUserEnrollmentStats, useCheckTimeSlotAccessOnDemand } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
+import { useCourseStore } from "@/store/course-store";
+import { toast } from "sonner";
 
 // Import components
 import { CourseSection } from "@/components/course/CourseSection";
 import { LearningInsights } from "@/components/dashboard/LearningInsights";
 // import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar"; // Hidden: Learning Checklist sidebar (commented out, not removed)
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getGreeting } from "@/utils/helpers";
+import { getGreeting, bufferToHex } from "@/utils/helpers";
 import type { CourseCardProps } from '@/types/course.types';
 import { stopAllStreams } from "@/lib/MediaRegistry";
 import { cn } from "@/utils/utils";
@@ -119,7 +121,26 @@ export default function Page() {
 function DashboardContent() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const { setCurrentCourse } = useCourseStore();
+  const { check: checkTimeSlotAccess } = useCheckTimeSlotAccessOnDemand();
   const studentName = user?.name || 'Student';
+
+  // Resume a specific course from the "next best action" CTA. Mirrors the card's
+  // Continue flow (time-slot gate at entry; backend getItem is the safety net).
+  const handleResume = async (enrollment: any) => {
+    const courseId = bufferToHex(enrollment.courseId as string);
+    const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
+    const access = await checkTimeSlotAccess(courseId, versionId);
+    if (!access.canAccess) {
+      toast.error(access.message || "You can only access this course during your booked time slot.");
+      return;
+    }
+    setCurrentCourse({
+      courseId, versionId, moduleId: null, sectionId: null, itemId: null, watchItemId: null,
+      cohortName: enrollment.cohortName || null, cohortId: enrollment.cohortId || null,
+    });
+    navigate({ to: "/student/learn" });
+  };
 
   // Greeting state & updater
   const [greeting, setGreeting] = useState(getGreeting());
@@ -221,7 +242,7 @@ function DashboardContent() {
               activeEnrollments={activeEnrollments}
               isLoading={statsLoading || enrollmentsLoading}
               onBrowse={() => navigate({ to: '/student/courses' })}
-              onGoToEnrolled={() => setActiveTab('enrolled')}
+              onResume={handleResume}
             />
 
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full space-y-6">
