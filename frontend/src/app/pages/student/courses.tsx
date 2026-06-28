@@ -10,6 +10,7 @@ import { CourseCard, CourseCardSkeleton } from "@/components/course/CourseCard";
 import { CourseListCard } from "@/components/course/CourseListCard";
 import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Input } from "@/components/ui/input";
 import { stopAllStreams } from "@/lib/MediaRegistry";
 import { LayoutGrid, List } from "lucide-react";
@@ -147,21 +148,21 @@ export default function StudentCourses() {
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="flex flex-col space-y-6">
-        <section className="flex items-start justify-between gap-4">
-          <div className="flex flex-col space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">My Courses</h1>
-            <p className="text-muted-foreground">Manage your learning journey</p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => activeTab === "available" ? refetchPublic() : refetch()}
-            disabled={activeTab === "available" ? isRefetchingPublic : isRefetching}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${(activeTab === "available" ? isRefetchingPublic : isRefetching) ? "animate-spin" : ""}`} />
-            {(activeTab === "available" ? isRefetchingPublic : isRefetching) ? "Refreshing..." : "Refresh"}
-          </Button>
-        </section>
+        <PageHeader
+          title="My Courses"
+          description="Manage your learning journey"
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => activeTab === "available" ? refetchPublic() : refetch()}
+              disabled={activeTab === "available" ? isRefetchingPublic : isRefetching}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${(activeTab === "available" ? isRefetchingPublic : isRefetching) ? "animate-spin" : ""}`} />
+              {(activeTab === "available" ? isRefetchingPublic : isRefetching) ? "Refreshing..." : "Refresh"}
+            </Button>
+          }
+        />
          
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <div className="flex md:flex-row flex-col items-center justify-between gap-2">

@@ -577,6 +577,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Loader2, AlertTriangle, AlertCircle, BookOpen, Tag, ListChecks, Calendar, Eye, Hash, ThumbsDown, ThumbsUp, Clock, MessageSquare, User, Search, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
@@ -689,25 +690,21 @@ export default function CourseIssueReports() {
   return (
     <div className="bg-background">
       <div className="container mx-auto min-w-0 space-y-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="space-y-4">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              My Issues
-            </h1>
-            <p className="text-muted-foreground">
-              Review and manage all the issues you raised.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => issuesRefetch()}
-            disabled={isRefetching}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
-            {isRefetching ? "Refreshing..." : "Refresh"}
-          </Button>
-        </div>
+        <PageHeader
+          title="My Issues"
+          description="Review and manage all the issues you raised."
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => issuesRefetch()}
+              disabled={isRefetching}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+              {isRefetching ? "Refreshing..." : "Refresh"}
+            </Button>
+          }
+        />
 
         <IssueFilters
           searchTerm={searchTerm}
