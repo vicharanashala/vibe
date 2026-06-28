@@ -1,6 +1,5 @@
-import { Clock, Info, Play, ExternalLink } from "lucide-react";
+import { Clock, Info, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -33,9 +32,6 @@ export interface CourseQuickDetailsDialogProps {
   projectCount: number;
   timeslotStr: string;
   hasTimeslot: boolean;
-
-  // Theme tokens passed through so the dialog matches its card's accent.
-  theme: { bg: string; icon: string };
 
   // Action state + handlers (behaviour preserved exactly).
   variant?: string;
@@ -72,7 +68,6 @@ export function CourseQuickDetailsDialog({
   projectCount,
   timeslotStr,
   hasTimeslot,
-  theme,
   variant = "dashboard",
   isStart = false,
   isCompleted = false,
@@ -87,14 +82,6 @@ export function CourseQuickDetailsDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="flex flex-col p-0 w-full max-w-md max-h-[85vh] overflow-hidden rounded-[24px]">
         <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-0">
-          <div className="flex justify-between items-center mb-1">
-            <Badge className={cn("px-3 py-1 font-bold", theme.bg, theme.icon.replace('text-', 'bg-').replace('[', '').replace(']', '/10'))}>
-              Course Details
-            </Badge>
-            <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full">
-              <Play className={cn("w-5 h-5", theme.icon)} />
-            </div>
-          </div>
           <DialogTitle className="text-left text-foreground text-lg">{courseName}</DialogTitle>
         </DialogHeader>
 

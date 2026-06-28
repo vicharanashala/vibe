@@ -109,11 +109,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const completedLessons = enrollment.completedItems as number || 0;
   const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
 
-  // Instructor name(s) for display (UI only — uses existing enrollment data).
-  const instructorName = Array.isArray(enrollment.course?.instructors)
-    ? enrollment.course.instructors.map((i: any) => i?.name).filter(Boolean).join(', ')
-    : '';
-
   const GURU_SETU_VERSION_ID = "6981df886e100cfe04f9c4ae";
   const isNotGuruSetu = versionId !== GURU_SETU_VERSION_ID;
 
@@ -248,14 +243,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                 >
                   {enrollment?.course?.name || `Course ${index + 1}`}
                 </h3>
-                <p
-                  className="mb-3 min-h-[1.25rem] text-muted-foreground text-sm break-words line-clamp-1"
-                  title={instructorName || enrollment?.course?.description || "Accelerate your learning journey"}
-                >
-                  {instructorName || enrollment?.course?.description || "Accelerate your learning journey"}
-                </p>
-
-                <div className="space-y-4">
+                <div className="mt-3 space-y-4">
                   {variant !== 'available' && (
                     <div className="space-y-2">
                       <div className="flex justify-between items-center font-semibold text-sm">
@@ -375,7 +363,6 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           projectCount={projectCount}
           timeslotStr={timeslotStr}
           hasTimeslot={!!timeSlot}
-          theme={{ bg: theme.bg, icon: theme.icon }}
           variant={variant}
           isStart={isStart}
           isCompleted={isCompleted}
