@@ -688,7 +688,7 @@ export default function CourseIssueReports() {
 
   return (
     <div className="bg-background">
-      <div className="container mx-auto space-y-8">
+      <div className="container mx-auto min-w-0 space-y-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-4">
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -720,10 +720,10 @@ export default function CourseIssueReports() {
         />
 
         {/* Table */}
-        <Card className="border-0 shadow-lg overflow-hidden min-h-[50vh]">
+        <Card className="border-0 shadow-lg min-h-[50vh]">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="w-full overflow-x-auto rounded-xl">
+              <Table className="min-w-[720px]">
                 <TableHeader>
                   <TableRow className="border-border bg-muted/30">
                     <TableHead className="w-[50px]">
