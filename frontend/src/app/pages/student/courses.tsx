@@ -235,7 +235,7 @@ export default function StudentCourses() {
             {isLoading || isSearching ? (
               <div className={cn(
                 "grid gap-6",
-                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"
               )}>
                 {Array.from({ length: 6 }, (_, i) => (
                   <CourseCardSkeleton key={i} variant="dashboard" />
@@ -245,7 +245,7 @@ export default function StudentCourses() {
               <>
                 <div className={cn(
                   "grid gap-6",
-                  viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                  viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"
                 )}>
                   {activeEnrollments.map((enrollment, index) =>
                     renderEnrollmentCard(enrollment, index, isLoading)
@@ -271,7 +271,7 @@ export default function StudentCourses() {
             {loadingPublic || isSearching ? (
               <div className={cn(
                 "grid gap-6",
-                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"
               )}>
                 {Array.from({ length: 6 }, (_, i) => (
                   <CourseCardSkeleton key={i} variant="available" />
@@ -281,7 +281,7 @@ export default function StudentCourses() {
               <>
                 <div className={cn(
                   "grid gap-6",
-                  viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                  viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"
                 )}>
                   {publicCoursesData.courses.map((course: any, index: number) => (
                     renderEnrollmentCard({
@@ -316,7 +316,7 @@ export default function StudentCourses() {
 
           <TabsContent value="completed" className="space-y-4">
             {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {Array.from({ length: 6 }, (_, i) => (
                   <CourseCardSkeleton key={i} variant="dashboard" />
                 ))}
@@ -324,7 +324,7 @@ export default function StudentCourses() {
             ) : completedEnrollments.length > 0 ? (
               <div className={cn(
                 "grid gap-6",
-                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "grid-cols-1"
               )}>
                 {completedEnrollments.map((enrollment, index) =>
                   renderEnrollmentCard(enrollment, index, isLoading)
