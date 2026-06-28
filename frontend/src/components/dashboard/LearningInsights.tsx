@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Sparkles, Target, BookOpen, ArrowRight, Flame } from "lucide-react";
+import { Target, BookOpen, ArrowRight, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from "@/types/course.types";
@@ -102,14 +102,9 @@ export function LearningInsights({
 
   return (
     <section className="rounded-3xl border border-neutral-200/70 bg-white p-6 shadow-sm ring-1 ring-black/[0.02] dark:border-white/[0.06] dark:bg-white/[0.03] dark:ring-white/[0.04] sm:p-7">
-      <div className="mb-5 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
-          <Sparkles className="h-4 w-4" />
-        </span>
-        <div>
-          <h2 className="text-lg font-bold tracking-tight text-foreground">Learning Insights</h2>
-          <p className="text-xs text-muted-foreground">Your personalized next step</p>
-        </div>
+      <div className="mb-5">
+        <h2 className="text-lg font-bold tracking-tight text-foreground">Where you left</h2>
+        <p className="text-xs text-muted-foreground">Your next step</p>
       </div>
 
       {/* Next best action */}
