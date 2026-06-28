@@ -144,7 +144,7 @@ export function StudentNotifications({ compact = false }: { compact?: boolean })
           onClick={() => setShowInvites((prev) => !prev)}
           aria-label="Notifications"
           title="Notifications"
-          className="relative flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="relative flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-yellow-100 hover:text-yellow-900 dark:hover:bg-yellow-400/10 dark:hover:text-yellow-100"
         >
           <Bell className="size-5" />
           {hasIndicator && (

@@ -55,6 +55,11 @@ export function StudentSidebar() {
     (item) => item.requires !== "hpSystem" || hasHpSystem,
   )
 
+  // One flat yellow used for every item's hover + active background.
+  const yellowItem =
+    "hover:bg-yellow-100 hover:text-yellow-900 data-[active=true]:bg-yellow-100 data-[active=true]:text-yellow-900 " +
+    "dark:hover:bg-yellow-400/10 dark:hover:text-yellow-100 dark:data-[active=true]:bg-yellow-400/10 dark:data-[active=true]:text-yellow-100"
+
   return (
     <>
       <ConfirmationModal
@@ -93,7 +98,7 @@ export function StudentSidebar() {
                         isActive={isActive(item.to)}
                         tooltip={item.title}
                         onClick={item.indicator === "announcements" ? markAnnouncementsSeen : undefined}
-                        className="h-10 [&>svg]:size-5"
+                        className={`h-10 [&>svg]:size-5 ${yellowItem}`}
                       >
                         <Link to={item.to} className="relative">
                           <Icon className="size-5" />
@@ -125,7 +130,7 @@ export function StudentSidebar() {
               <div className="flex items-center gap-1 rounded-md p-1 group-data-[collapsible=icon]:p-0">
                 <Link
                   to="/student/profile"
-                  className="flex min-w-0 flex-1 items-center gap-2 rounded-md p-1 transition-colors hover:bg-accent group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center"
+                  className={`flex min-w-0 flex-1 items-center gap-2 rounded-md p-1 transition-colors group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center ${yellowItem}`}
                 >
                   <Avatar className="h-7 w-7 shrink-0 border border-border/20">
                     <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name} />
@@ -145,7 +150,7 @@ export function StudentSidebar() {
                     to="/student/profile"
                     aria-label="Settings"
                     title="Settings"
-                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className={`flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors ${yellowItem}`}
                   >
                     <Settings className="size-5" />
                   </Link>
