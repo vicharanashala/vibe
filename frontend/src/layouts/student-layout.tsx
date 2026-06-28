@@ -20,7 +20,7 @@ export default function StudentLayout() {
         </header>
 
         <main className="relative flex min-w-0 flex-1 flex-col p-4 md:p-6">
-          <div className="relative z-10 mx-auto h-full w-full min-w-0 max-w-7xl">
+          <div className="relative z-10 mx-auto h-full w-full min-w-0 max-w-[1440px]">
             <Outlet />
           </div>
         </main>
