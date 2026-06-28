@@ -195,7 +195,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
     ];
     const theme = themes[index % themes.length];
 
-    const continueLabel = variant === 'available' ? 'Register Now' : isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue Learning';
+    const continueLabel = variant === 'available' ? 'Register Now' : isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue';
     const versionLabel = courseVersionData?.version || courseVersionData?.name || versionId.substring(0, 8);
 
     return (
@@ -281,7 +281,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                           </span>
                         ) : (
                           <>
-                            {isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue Learning'}
+                            {isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue'}
                             <Play className="fill-current w-4 h-4" />
                           </>
                         )}
@@ -535,7 +535,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
           <div className="flex flex-wrap gap-2 pt-2">
             <Button onClick={handleContinue} className="flex-1">
-              {isStart ? 'Start Course' : 'Continue Learning'}
+              {isStart ? 'Start Course' : 'Continue'}
             </Button>
             <div className="flex gap-2 w-full sm:w-auto">
               {isRankVisible && (
