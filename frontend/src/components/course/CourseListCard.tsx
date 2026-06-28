@@ -184,10 +184,10 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
               variant="outline"
               onClick={() => setIsTimeslotModalOpen(true)}
               className="h-9 gap-1.5 rounded-xl font-semibold"
-              title={hasAssignedTimeslot ? 'Time Slot' : 'Book Slot'}
+              title={hasAssignedTimeslot ? 'Slot' : 'Pick Slot'}
             >
               <Clock className="h-4 w-4 text-green-500" />
-              <span className="hidden sm:inline">{hasAssignedTimeslot ? 'Time Slot' : 'Book Slot'}</span>
+              <span className="hidden sm:inline">{hasAssignedTimeslot ? 'Slot' : 'Pick Slot'}</span>
             </Button>
 
             {/* Remaining actions as icon-only buttons */}

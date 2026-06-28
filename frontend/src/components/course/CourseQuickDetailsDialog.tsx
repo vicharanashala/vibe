@@ -143,7 +143,7 @@ export function CourseQuickDetailsDialog({
                   onClick={onTimeslot}
                 >
                   <Clock className="mr-1 w-3.5 h-3.5 text-green-500" />
-                  {hasAssignedTimeslot ? 'Timeslot' : 'Pick Slot'}
+                  {hasAssignedTimeslot ? 'Slot' : 'Pick Slot'}
                 </Button>
               )}
             </div>
