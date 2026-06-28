@@ -6061,12 +6061,31 @@ export function slotBookingClosed(date: string, from: string): boolean {
   return h * 60 + m <= istNowMinutes();
 }
 
+// How many minutes before a slot's start a booking can no longer be cancelled.
+// Mirrors the backend CANCEL_CUTOFF_HOURS (1h).
+export const CANCEL_CUTOFF_MINUTES = 60;
+
+// A booking can be cancelled only up to CANCEL_CUTOFF_MINUTES before its slot
+// starts; after that (or once the slot has started/passed) it locks and counts
+// as an unused slot. Future study days are always cancellable; past days locked.
+export function slotCancelClosed(date: string, from: string): boolean {
+  const today = istToday();
+  if (date < today) return true; // a past study day — already locked
+  if (date > today) return false; // a future study day — well outside the cutoff
+  const [h, m] = from.split(':').map(Number);
+  return h * 60 + m - CANCEL_CUTOFF_MINUTES <= istNowMinutes();
+}
+
 // GET /slot-bookings/my/course/{courseId}/version/{courseVersionId}?date=
-// The calling student's active bookings for an IST day (default today).
+// The calling student's active bookings. Pass a YYYY-MM-DD `date` to restrict to
+// one IST study day; pass `null` to fetch ALL active bookings across every study
+// day (needed for the per-calendar-day allowance meter, which counts bookings by
+// the day they were MADE, not the day they're for). Omitting `date` defaults to
+// today for backward compatibility.
 export function useMyBookings(
   courseId: string | undefined,
   courseVersionId: string | undefined,
-  date?: string,
+  date?: string | null,
   enabled: boolean = true,
 ): {
   data: MyBooking[] | undefined;
@@ -6074,17 +6093,19 @@ export function useMyBookings(
   error: string | null;
   refetch: () => void;
 } {
-  const day = date ?? istToday();
+  const allDates = date === null;
+  const day = allDates ? undefined : date ?? istToday();
   const valid =
     !!courseId &&
     courseId.length === 24 &&
     !!courseVersionId &&
     courseVersionId.length === 24;
   const result = useQuery({
-    queryKey: ['my-bookings', courseId, courseVersionId, day],
+    queryKey: ['my-bookings', courseId, courseVersionId, allDates ? 'all' : day],
     enabled: enabled && valid,
     queryFn: async (): Promise<MyBooking[]> => {
-      const url = `${import.meta.env.VITE_BASE_URL}/slot-bookings/my/course/${courseId}/version/${courseVersionId}?date=${encodeURIComponent(day)}`;
+      const base = `${import.meta.env.VITE_BASE_URL}/slot-bookings/my/course/${courseId}/version/${courseVersionId}`;
+      const url = allDates ? base : `${base}?date=${encodeURIComponent(day as string)}`;
       const res = await fetch(url, {
         headers: {
           authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,

@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { StudentPicker } from "./StudentPicker";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -325,7 +326,11 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   };
 
   // Get enrolled students for selection
-  const { data: enrollmentsData } = useCourseVersionEnrollments(
+  const {
+    data: enrollmentsData,
+    isLoading: enrollmentsLoading,
+    error: enrollmentsError,
+  } = useCourseVersionEnrollments(
     courseId && courseId.length === 24 ? courseId : undefined,
     courseVersionId && courseVersionId.length === 24 ? courseVersionId : undefined,
     1,
@@ -339,6 +344,29 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   );
 
   const enrolledStudents = enrollmentsData?.enrollments || [];
+
+  // Build {id,label} options for the student pickers with a robust label:
+  // "First Last — email", falling back to email, then the id, when a name is
+  // missing. Keeps the picker usable even for accounts with blank names.
+  const studentOptions = enrolledStudents
+    .filter((enr: any) => enr.user)
+    .map((enr: any) => {
+      const name = `${enr.user.firstName ?? ""} ${enr.user.lastName ?? ""}`.trim();
+      const label = name
+        ? enr.user.email
+          ? `${name} — ${enr.user.email}`
+          : name
+        : enr.user.email || enr.user._id;
+      return { id: enr.user._id, label };
+    });
+
+  // Placeholder for the typeahead pickers — reflects an error/empty state so an
+  // empty picker is never silent (loading is handled inside StudentPicker).
+  const studentPlaceholder = enrollmentsError
+    ? "Failed to load students"
+    : studentOptions.length === 0
+      ? "No students found"
+      : "Search students by name or email…";
 
   // Demand schedule for today (booked load per window) — the capacity-planning view.
   const {
@@ -928,21 +956,15 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                       <div className="flex items-end gap-2">
                         <div className="flex-1">
                           <Label className="text-xs">Student</Label>
-                          <select
-                            value={extendStudentId}
-                            onChange={(e) => setExtendStudentId(e.target.value)}
-                            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          >
-                            <option value="">Select a student…</option>
-                            {enrolledStudents.map((enr: any) =>
-                              enr.user ? (
-                                <option key={enr.user._id} value={enr.user._id}>
-                                  {enr.user.firstName} {enr.user.lastName}
-                                  {enr.user.email ? ` — ${enr.user.email}` : ""}
-                                </option>
-                              ) : null,
-                            )}
-                          </select>
+                          <div className="mt-1">
+                            <StudentPicker
+                              options={studentOptions}
+                              value={extendStudentId}
+                              onChange={setExtendStudentId}
+                              loading={enrollmentsLoading}
+                              placeholder={studentPlaceholder}
+                            />
+                          </div>
                         </div>
                         <div className="w-24">
                           <Label className="text-xs">Hours</Label>
@@ -983,21 +1005,15 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                       <div className="flex items-end gap-2">
                         <div className="flex-1">
                           <Label className="text-xs">Student</Label>
-                          <select
-                            value={grantBookingsStudentId}
-                            onChange={(e) => setGrantBookingsStudentId(e.target.value)}
-                            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          >
-                            <option value="">Select a student…</option>
-                            {enrolledStudents.map((enr: any) =>
-                              enr.user ? (
-                                <option key={enr.user._id} value={enr.user._id}>
-                                  {enr.user.firstName} {enr.user.lastName}
-                                  {enr.user.email ? ` — ${enr.user.email}` : ""}
-                                </option>
-                              ) : null,
-                            )}
-                          </select>
+                          <div className="mt-1">
+                            <StudentPicker
+                              options={studentOptions}
+                              value={grantBookingsStudentId}
+                              onChange={setGrantBookingsStudentId}
+                              loading={enrollmentsLoading}
+                              placeholder={studentPlaceholder}
+                            />
+                          </div>
                         </div>
                         <div className="w-24">
                           <Label className="text-xs">Bookings</Label>

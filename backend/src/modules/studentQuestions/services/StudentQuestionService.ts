@@ -22,6 +22,7 @@ import {COURSES_TYPES} from '../../courses/types.js';
 import {SOLQuestion} from '../../quizzes/classes/transformers/Question.js';
 import {IQuizDetails, ItemType} from '#root/shared/interfaces/models.js';
 import {ISOLSolution} from '#root/shared/interfaces/quiz.js';
+import {isEligibleForReview} from './crowdGate.js';
 
 const REPEATED_CHAR_PATTERN = /(.)\1{7,}/;
 const REPEATED_WORD_PATTERN = /(\b\w+\b)(\s+\1){4,}/;
@@ -45,7 +46,7 @@ export class StudentQuestionService {
     private readonly itemRepo: ItemRepository,
   ) {}
 
-  private async _promoteToQuestionBank(
+  private async _stageToSubmittedBank(
     studentQuestionId: string,
     input: {
       segmentId: string;
@@ -57,14 +58,17 @@ export class StudentQuestionService {
   ): Promise<void> {
     try {
       // `segmentId` is the VIDEO item the student just finished. The question
-      // belongs in the quiz that immediately follows that video in the same
-      // section, so resolve that quiz's question bank.
+      // belongs to the quiz immediately following that video. We do NOT add it
+      // to that quiz's GRADED bank — under the V3 crowd-question design
+      // (CROWD_QUESTION_BANK.md) crowd questions are parked in a separate
+      // "Submitted – Pending Validation" bank until peer-validated + instructor
+      // approved, so they never enter graded quiz draws.
       const quizItem = await this._resolveTargetQuiz(input.segmentId);
       if (!quizItem) return;
 
-      const bankId = ((quizItem as any).details as IQuizDetails | undefined)
+      const gradedBankId = ((quizItem as any).details as IQuizDetails | undefined)
         ?.questionBankRefs?.[0]?.bankId?.toString();
-      if (!bankId) return;
+      if (!gradedBankId) return;
 
       const solution: ISOLSolution = {
         correctLotItem: {
@@ -88,12 +92,17 @@ export class StudentQuestionService {
       }, solution);
 
       const promotedId = await this.questionService.create(solQuestion);
-      await this.questionBankService.addQuestion(bankId, promotedId).catch(e =>
-        console.warn('crowd-q: failed to add to bank', e),
-      );
+      const submittedBankId =
+        await this.questionBankService.findOrCreateCrowdSubmittedBank(
+          gradedBankId,
+          (quizItem as any)._id,
+        );
+      await this.questionBankService
+        .addQuestion(submittedBankId, promotedId)
+        .catch(e => console.warn('crowd-q: failed to add to submitted bank', e));
       await this.repository.setPromotedQuestionId(studentQuestionId, promotedId).catch(() => {});
     } catch (err) {
-      console.warn('crowd-q: promotion failed (non-fatal)', err);
+      console.warn('crowd-q: staging to submitted bank failed (non-fatal)', err);
     }
   }
 
@@ -325,7 +334,7 @@ export class StudentQuestionService {
 
     const createdId = await this.repository.create(question);
 
-    await this._promoteToQuestionBank(createdId, {
+    await this._stageToSubmittedBank(createdId, {
       segmentId: input.segmentId,
       questionText,
       options,
@@ -334,6 +343,30 @@ export class StudentQuestionService {
     });
 
     return createdId;
+  }
+
+  /**
+   * Stage-2 capture: record one student's ungraded response (answer correctness
+   * + optional 👍/👎) to a served crowd question, then evaluate the promotion
+   * gate. Idempotent per (question, student). When the gate passes, flips the
+   * question to ELIGIBLE so it surfaces in the instructor review queue.
+   * Best-effort: never throws into the quiz-submission path.
+   */
+  async recordPeerResponse(input: {
+    studentQuestionId: string;
+    userId: string;
+    isCorrect: boolean;
+    thumb?: 'UP' | 'DOWN';
+  }): Promise<void> {
+    try {
+      const counters = await this.repository.recordCrowdResponse(input);
+      if (!counters) return; // already responded — no double count
+      if (isEligibleForReview(counters)) {
+        await this.repository.markEligible(input.studentQuestionId);
+      }
+    } catch (err) {
+      console.warn('crowd-q: failed to record peer response', err);
+    }
   }
 
   async listSegmentQuestions(input: {
@@ -530,13 +563,21 @@ export class StudentQuestionService {
           input.status,
           input.reason?.trim(),
         );
-        // Sync the promoted quiz Question's reviewStatus.
+        // Sync the linked quiz Question.
         if (question.promotedQuestionId) {
           const promotedId = question.promotedQuestionId.toString();
           if (input.status === 'APPROVED') {
+            // Mark approved AND move it from the "Submitted – Pending
+            // Validation" bank into the quiz's graded bank so it counts toward
+            // grading. Both are best-effort and must not fail the status update.
             await this.questionService.setReviewStatus(promotedId, 'APPROVED').catch(e =>
               console.warn('crowd-q: failed to approve quiz question', e),
             );
+            await this.questionBankService
+              .promoteSubmittedQuestionToGraded(promotedId)
+              .catch(e =>
+                console.warn('crowd-q: failed to move approved question to graded bank', e),
+              );
           } else {
             await this.questionService.delete(promotedId).catch(e =>
               console.warn('crowd-q: failed to delete quiz question', e),
