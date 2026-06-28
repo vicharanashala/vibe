@@ -720,7 +720,7 @@ export default function CourseIssueReports() {
         />
 
         {/* Table */}
-        <Card className="border-0 shadow-lg min-h-[50vh]">
+        <Card className="border shadow-sm min-h-[50vh]">
           <CardContent className="p-0">
             <div className="w-full overflow-x-auto rounded-xl">
               <Table className="min-w-[720px]">
