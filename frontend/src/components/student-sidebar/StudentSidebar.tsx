@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { LogOut, Settings, Sun, Moon } from "lucide-react"
+import { LogOut, Settings, Circle, Moon } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useAuthStore } from "@/store/auth-store"
 import { useUserEnrollments } from "@/hooks/hooks"
@@ -155,9 +155,9 @@ export function StudentSidebar() {
                   type="button"
                   onClick={() => setConfirmLogout(true)}
                   title="Logout"
-                  className="flex h-7 items-center gap-2 rounded-md bg-red-50 px-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+                  className="flex h-7 items-center gap-1.5 rounded-md bg-red-50 px-2.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
                 >
-                  <LogOut className="size-4" />
+                  <LogOut className="size-3.5" />
                   <span className="group-data-[collapsible=icon]:hidden">Logout</span>
                 </button>
 
@@ -170,7 +170,7 @@ export function StudentSidebar() {
                     title="Toggle theme"
                     className={`flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground ${yellowItem}`}
                   >
-                    <Sun className="size-5 dark:hidden" />
+                    <Circle className="size-5 dark:hidden" />
                     <Moon className="hidden size-5 dark:block" />
                   </button>
                 </div>
