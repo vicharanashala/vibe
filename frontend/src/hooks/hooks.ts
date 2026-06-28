@@ -6167,6 +6167,53 @@ export function useMyExtraBookings(
   };
 }
 
+export interface MyHoursSummary {
+  hasBudget: boolean;
+  budgetHours: number | null;
+  reservedHours: number;
+  lostHours: number;
+  remainingHours: number | null;
+}
+
+// GET /slot-bookings/my/hours/course/{courseId}/version/{courseVersionId}
+// The student's committed-hours summary: budget, reserved, and hours LOST to
+// unused (unfulfilled) slots — used to warn them about wasted budget.
+export function useMyHoursSummary(
+  courseId: string | undefined,
+  courseVersionId: string | undefined,
+  enabled: boolean = true,
+): { data: MyHoursSummary | undefined; isLoading: boolean; refetch: () => void } {
+  const valid =
+    !!courseId &&
+    courseId.length === 24 &&
+    !!courseVersionId &&
+    courseVersionId.length === 24;
+  const result = useQuery({
+    queryKey: ['my-hours-summary', courseId, courseVersionId],
+    enabled: enabled && valid,
+    queryFn: async (): Promise<MyHoursSummary> => {
+      const url = `${import.meta.env.VITE_BASE_URL}/slot-bookings/my/hours/course/${courseId}/version/${courseVersionId}`;
+      const res = await fetch(url, {
+        headers: {
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to load hours summary: ${res.status}`);
+      }
+      return data?.data as MyHoursSummary;
+    },
+  });
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    refetch: () => {
+      void result.refetch();
+    },
+  };
+}
+
 // POST /slot-bookings/book — book a time slot for today (raw fetch). The backend
 // returns { success:false, message } for capacity/allowance/budget rejections
 // (HTTP 200), so callers must check `success`, not just the HTTP status.

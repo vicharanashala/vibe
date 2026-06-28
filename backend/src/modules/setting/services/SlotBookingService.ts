@@ -430,6 +430,80 @@ export class SlotBookingService extends BaseService {
   }
 
   /**
+   * A student's committed-hours summary for the course: their budget, the hours
+   * they've reserved against it, and — the part worth surfacing — the hours
+   * LOST to unused (UNFULFILLED) slots. Lets the UI warn e.g. "you've lost 2h of
+   * your 16h budget to missed slots." `hasBudget` is false when the course sets
+   * no hours budget (everything is then unlimited).
+   */
+  async getStudentHoursSummary(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+  ): Promise<{
+    hasBudget: boolean;
+    budgetHours: number | null;
+    reservedHours: number;
+    lostHours: number;
+    remainingHours: number | null;
+  }> {
+    const timeslots = await this.settingsRepo.readTimeslotsSettings(
+      courseId,
+      courseVersionId,
+    );
+    let enrollment = await this.enrollmentService.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
+    if (!enrollment && cohortId) {
+      enrollment = await this.enrollmentService.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+    }
+
+    const [reservedHours, lostHours] = await Promise.all([
+      this.slotBookingRepo.sumReservedHoursForStudent(
+        userId,
+        courseId,
+        courseVersionId,
+      ),
+      this.slotBookingRepo.sumUnfulfilledHoursForStudent(
+        userId,
+        courseId,
+        courseVersionId,
+      ),
+    ]);
+    const round = (n: number) => Math.round(n * 100) / 100;
+
+    const base = timeslots?.totalBudgetHours;
+    if (base == null) {
+      return {
+        hasBudget: false,
+        budgetHours: null,
+        reservedHours: round(reservedHours),
+        lostHours: round(lostHours),
+        remainingHours: null,
+      };
+    }
+    const budgetHours =
+      base +
+      ((enrollment as {commitmentExtraHours?: number} | null)
+        ?.commitmentExtraHours ?? 0);
+    return {
+      hasBudget: true,
+      budgetHours: round(budgetHours),
+      reservedHours: round(reservedHours),
+      lostHours: round(lostHours),
+      remainingHours: round(Math.max(0, budgetHours - reservedHours)),
+    };
+  }
+
+  /**
    * Booked load per window for an IST day — the "demand schedule" that lets ops
    * size capacity per window and scale down off-peak. Defaults to today.
    */
