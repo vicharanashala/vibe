@@ -17,8 +17,8 @@ export default function StudentLayout() {
         {/* Ambient background effect */}
         <div className="pointer-events-none fixed inset-0 bg-gradient-to-br from-primary/[0.02] via-transparent to-secondary/[0.02]" />
 
-        {/* Slim bar holding the collapse/open trigger (also opens the sheet on mobile). */}
-        <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 px-4">
+        {/* Mobile-only trigger to open the off-canvas sidebar (desktop trigger lives in the sidebar header). */}
+        <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 px-4 md:hidden">
           <SidebarTrigger className="-ml-1" />
         </header>
 
