@@ -6,6 +6,7 @@ import { useNavigate } from "@tanstack/react-router";
 // Import components
 import { StatCard } from "@/components/ui/StatCard";
 import { CourseSection } from "@/components/course/CourseSection";
+import { LearningInsights } from "@/components/dashboard/LearningInsights";
 // import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar"; // Hidden: Learning Checklist sidebar (commented out, not removed)
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting } from "@/utils/helpers";
@@ -250,6 +251,16 @@ function DashboardContent() {
 
             {/* Exclusive follow-up course invites unlocked by completing a course */}
             <FollowUpInvitesBanner />
+
+            {/* Personalized "next best action" + at-a-glance insights, derived
+                from data already fetched above (read-only). */}
+            <LearningInsights
+              stats={statsData}
+              activeEnrollments={activeEnrollments}
+              isLoading={statsLoading || enrollmentsLoading}
+              onBrowse={() => navigate({ to: '/student/courses' })}
+              onGoToEnrolled={() => setActiveTab('enrolled')}
+            />
 
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full space-y-6">
               <TabsList className="w-full md:w-fit flex h-auto p-1 bg-slate-100/80 dark:bg-white/[0.04] rounded-full border border-slate-200/50 dark:border-white/[0.07] overflow-x-auto scrollbar-hide">
