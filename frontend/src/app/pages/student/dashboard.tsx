@@ -226,36 +226,36 @@ function DashboardContent() {
 
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full space-y-6">
               <div className="flex items-center justify-between gap-3">
-              <TabsList className="w-full md:w-fit flex h-auto p-1 bg-slate-100/80 dark:bg-white/[0.04] rounded-full border border-slate-200/50 dark:border-white/[0.07] overflow-x-auto scrollbar-hide">
+              <TabsList className="w-full md:w-fit flex h-auto p-1 bg-neutral-100/80 dark:bg-white/[0.04] rounded-xl border border-neutral-200/70 dark:border-white/[0.07] overflow-x-auto scrollbar-hide">
                 <TabsTrigger
                   value="available"
-                  className="rounded-full py-2 px-3 md:py-2.5 md:px-6 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:text-primary data-[state=active]:shadow-sm whitespace-nowrap"
+                  className="rounded-lg px-3 py-1.5 md:px-4 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm whitespace-nowrap"
                 >
                   Available
                   {(publicCoursesData?.totalDocuments || 0) > 0 && (
-                    <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-full bg-primary/10 text-primary border border-primary/20">
+                    <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-md bg-primary/10 text-primary border border-primary/20">
                       {publicCoursesData?.totalDocuments}
                     </span>
                   )}
                 </TabsTrigger>
                 <TabsTrigger
                   value="enrolled"
-                  className="rounded-full py-2 px-3 md:py-2.5 md:px-6 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:text-primary data-[state=active]:shadow-sm whitespace-nowrap"
+                  className="rounded-lg px-3 py-1.5 md:px-4 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm whitespace-nowrap"
                 >
                   Enrolled
                   {activeEnrollments.length > 0 && (
-                    <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-full bg-blue-100 text-blue-600 border border-blue-200 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/20">
+                    <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-md bg-blue-100 text-blue-600 border border-blue-200 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/20">
                       {activeEnrollments.length}
                     </span>
                   )}
                 </TabsTrigger>
                 <TabsTrigger
                   value="completed"
-                  className="rounded-full py-2 px-3 md:py-2.5 md:px-6 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:text-primary data-[state=active]:shadow-sm whitespace-nowrap"
+                  className="rounded-lg px-3 py-1.5 md:px-4 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm whitespace-nowrap"
                 >
                   Completed
                   {completedEnrollments.length > 0 && (
-                    <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-full bg-green-100 text-green-600 border border-green-200 dark:bg-green-500/15 dark:text-green-400 dark:border-green-500/20">
+                    <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-md bg-green-100 text-green-600 border border-green-200 dark:bg-green-500/15 dark:text-green-400 dark:border-green-500/20">
                       {completedEnrollments.length}
                     </span>
                   )}
