@@ -119,11 +119,11 @@ export function StudentNotifications({ compact = false }: { compact?: boolean })
         title="Notifications"
         className={
           compact
-            ? "relative flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-yellow-100 hover:text-yellow-900 dark:hover:bg-yellow-400/10 dark:hover:text-yellow-100"
+            ? "relative flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-yellow-100 hover:text-yellow-900 dark:hover:bg-yellow-400/10 dark:hover:text-yellow-100"
             : "relative flex h-10 w-full items-center gap-2 rounded-md p-2 text-sm hover:bg-yellow-100 hover:text-yellow-900 dark:hover:bg-yellow-400/10"
         }
       >
-        <Bell className="size-5" />
+        <Bell className={compact ? "size-4" : "size-5"} />
         {!compact && <span>Notifications</span>}
         {hasIndicator && (
           <span className={compact ? "absolute right-1.5 top-1.5 block h-2 w-2 rounded-full bg-red-500" : "absolute left-5 top-1.5 block h-2 w-2 rounded-full bg-red-500"} />

@@ -2,13 +2,13 @@
 
 import { useState } from "react"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { LogOut, Settings } from "lucide-react"
+import { LogOut, Settings, Sun, Moon } from "lucide-react"
+import { useTheme } from "next-themes"
 import { useAuthStore } from "@/store/auth-store"
 import { useUserEnrollments } from "@/hooks/hooks"
 import { useNewAnnouncementIndicator } from "@/hooks/use-new-announcement-indicator"
 import { logout } from "@/utils/auth"
 import { AuroraText } from "@/components/magicui/aurora-text"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
 import {
@@ -32,6 +32,7 @@ export function StudentSidebar() {
   const { user, token } = useAuthStore()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const { theme, setTheme } = useTheme()
   const [confirmLogout, setConfirmLogout] = useState(false)
 
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator()
@@ -151,18 +152,28 @@ export function StudentSidebar() {
               </div>
             </SidebarMenuItem>
 
-            {/* Actions row: notifications, theme + logout together */}
+            {/* Actions row: notifications, theme + logout, right-aligned */}
             <SidebarMenuItem>
-              <div className="flex items-center gap-1 px-1 group-data-[collapsible=icon]:flex-col">
+              <div className="flex items-center justify-end gap-1 px-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-center">
                 <StudentNotifications compact />
-                <ThemeToggle />
                 <button
+                  type="button"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  aria-label="Toggle theme"
+                  title="Toggle theme"
+                  className={`flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground ${yellowItem}`}
+                >
+                  <Sun className="size-4 dark:hidden" />
+                  <Moon className="hidden size-4 dark:block" />
+                </button>
+                <button
+                  type="button"
                   onClick={() => setConfirmLogout(true)}
+                  aria-label="Logout"
                   title="Logout"
-                  className="ml-auto flex h-8 items-center gap-2 rounded-md bg-red-50 px-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md bg-red-50 text-red-600 transition-colors hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
                 >
                   <LogOut className="size-4" />
-                  <span className="group-data-[collapsible=icon]:hidden">Logout</span>
                 </button>
               </div>
             </SidebarMenuItem>
