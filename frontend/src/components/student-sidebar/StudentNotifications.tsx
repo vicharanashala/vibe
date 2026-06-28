@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { Bell } from "lucide-react"
 import { toast } from "sonner"
 import { useAuthStore } from "@/store/auth-store"
@@ -18,7 +18,7 @@ import {
 } from "@/hooks/system-notification-hooks"
 import InviteDropdown from "@/components/inviteDropDown"
 import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal"
-import { SidebarMenuButton } from "@/components/ui/sidebar"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 type Invite = {
   inviteId: string;
@@ -50,7 +50,6 @@ export function StudentNotifications({ compact = false }: { compact?: boolean })
   const [selectedInvite, setSelectedInvite] = useState<Invite | null>(null)
   const [approvedNotificationsList, setApprovedNotificationsList] = useState<any[]>([])
   const [localRejectedRegistrations, setLocalRejectedRegistrations] = useState<any[]>([])
-  const invitesRef = useRef<HTMLDivElement | null>(null)
 
   const { notifications: fetchedSystemNotifications = [], unreadCount: systemUnreadCount = 0 } =
     useGetSystemNotifications(user?.uid || '', false, !!user?.uid)
@@ -110,90 +109,63 @@ export function StudentNotifications({ compact = false }: { compact?: boolean })
     checkNotifications()
   }, [user, isAuthReady, approvedNotifications.length])
 
-  // Close on outside click / Escape
-  useEffect(() => {
-    if (!showInvites) return
-
-    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node | null
-      if (selectedInvite) return
-      if ((target as Element)?.closest?.('[role="dialog"]')) return
-      if (invitesRef.current && target && !invitesRef.current.contains(target)) {
-        setShowInvites(false)
-      }
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowInvites(false)
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('touchstart', handlePointerDown, { passive: true } as any)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('touchstart', handlePointerDown as any)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [showInvites, selectedInvite])
 
   return (
-    <div className="relative" ref={invitesRef}>
-      {compact ? (
-        <button
-          type="button"
-          onClick={() => setShowInvites((prev) => !prev)}
-          aria-label="Notifications"
-          title="Notifications"
-          className="relative flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-yellow-100 hover:text-yellow-900 dark:hover:bg-yellow-400/10 dark:hover:text-yellow-100"
-        >
-          <Bell className="size-5" />
-          {hasIndicator && (
-            <span className="absolute right-1.5 top-1.5 block h-2 w-2 rounded-full bg-red-500" />
-          )}
-        </button>
-      ) : (
-        <SidebarMenuButton
-          onClick={() => setShowInvites((prev) => !prev)}
-          tooltip="Notifications"
-          className="relative h-10 [&>svg]:size-5"
-        >
-          <Bell className="size-5" />
-          <span>Notifications</span>
-          {hasIndicator && (
-            <span className="absolute left-5 top-1.5 block h-2 w-2 rounded-full bg-red-500" />
-          )}
-        </SidebarMenuButton>
-      )}
+    <>
+      <button
+        type="button"
+        onClick={() => setShowInvites(true)}
+        aria-label="Notifications"
+        title="Notifications"
+        className={
+          compact
+            ? "relative flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-yellow-100 hover:text-yellow-900 dark:hover:bg-yellow-400/10 dark:hover:text-yellow-100"
+            : "relative flex h-10 w-full items-center gap-2 rounded-md p-2 text-sm hover:bg-yellow-100 hover:text-yellow-900 dark:hover:bg-yellow-400/10"
+        }
+      >
+        <Bell className="size-5" />
+        {!compact && <span>Notifications</span>}
+        {hasIndicator && (
+          <span className={compact ? "absolute right-1.5 top-1.5 block h-2 w-2 rounded-full bg-red-500" : "absolute left-5 top-1.5 block h-2 w-2 rounded-full bg-red-500"} />
+        )}
+      </button>
 
-      {showInvites && (
-        <InviteDropdown
-          setShowInvites={setShowInvites}
-          enrollments={enrollments}
-          onRejectClick={() => {
-            setSelectedInvite(null)
-            setShowInvites(false)
-          }}
-          systemNotifications={fetchedSystemNotifications}
-          onMarkSystemRead={(id: string) => {
-            // @ts-ignore - notificationId type mismatch in generated client
-            markSystemRead({ params: { path: { notificationId: id } } })
-          }}
-          onMarkAllSystemRead={() => {
-            markAllSystemRead({})
-          }}
-          selectedInvite={selectedInvite}
-          setSelectedInvite={setSelectedInvite}
-          setPendingInvites={setPendingInvites}
-          pendingInvites={pendingInvites}
-          approvedNotifications={approvedNotificationsList}
-          setApprovedNotifications={setApprovedNotificationsList}
-          pendingStudentRegistrations={pendingStudentRegistrations ?? []}
-          rejectedStudentRegistrations={localRejectedRegistrations}
-          onDismissRejected={(id: string) => {
-            setLocalRejectedRegistrations(prev => prev.filter(r => r._id !== id))
-          }}
-        />
-      )}
+      <Dialog open={showInvites} onOpenChange={setShowInvites}>
+        <DialogContent className="max-w-lg p-0">
+          <DialogHeader className="px-5 pt-5">
+            <DialogTitle>Notifications</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[70vh] overflow-y-auto px-2 pb-3">
+            <InviteDropdown
+              setShowInvites={setShowInvites}
+              enrollments={enrollments}
+              onRejectClick={() => {
+                setSelectedInvite(null)
+                setShowInvites(false)
+              }}
+              systemNotifications={fetchedSystemNotifications}
+              onMarkSystemRead={(id: string) => {
+                // @ts-ignore - notificationId type mismatch in generated client
+                markSystemRead({ params: { path: { notificationId: id } } })
+              }}
+              onMarkAllSystemRead={() => {
+                markAllSystemRead({})
+              }}
+              selectedInvite={selectedInvite}
+              setSelectedInvite={setSelectedInvite}
+              setPendingInvites={setPendingInvites}
+              pendingInvites={pendingInvites}
+              approvedNotifications={approvedNotificationsList}
+              setApprovedNotifications={setApprovedNotificationsList}
+              pendingStudentRegistrations={pendingStudentRegistrations ?? []}
+              rejectedStudentRegistrations={localRejectedRegistrations}
+              onDismissRejected={(id: string) => {
+                setLocalRejectedRegistrations(prev => prev.filter(r => r._id !== id))
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {selectedInvite && (
         <PolicyAcknowledgementModal
@@ -205,6 +177,6 @@ export function StudentNotifications({ compact = false }: { compact?: boolean })
           cohortId={selectedInvite?.cohortId}
         />
       )}
-    </div>
+    </>
   )
 }

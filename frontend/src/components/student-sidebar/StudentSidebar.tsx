@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { LogOut } from "lucide-react"
+import { LogOut, Settings } from "lucide-react"
 import { useAuthStore } from "@/store/auth-store"
 import { useUserEnrollments } from "@/hooks/hooks"
 import { useNewAnnouncementIndicator } from "@/hooks/use-new-announcement-indicator"
@@ -140,6 +140,15 @@ export function StudentSidebar() {
                   </div>
                 </Link>
 
+                <Link
+                  to="/student/profile"
+                  aria-label="Settings"
+                  title="Settings"
+                  className={`flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground group-data-[collapsible=icon]:hidden ${yellowItem}`}
+                >
+                  <Settings className="size-4" />
+                </Link>
+
                 <div className="flex items-center gap-0.5 group-data-[collapsible=icon]:hidden">
                   <StudentNotifications compact />
                   <ThemeToggle />
@@ -148,14 +157,14 @@ export function StudentSidebar() {
             </SidebarMenuItem>
 
             <SidebarMenuItem>
-              <SidebarMenuButton
+              <button
                 onClick={() => setConfirmLogout(true)}
-                tooltip="Logout"
-                className="h-10 text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400 dark:hover:text-red-400 [&>svg]:size-5"
+                title="Logout"
+                className="mx-auto mt-1 flex h-8 items-center gap-2 rounded-md bg-red-50 px-4 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:justify-center"
               >
-                <LogOut className="size-5" />
-                <span>Logout</span>
-              </SidebarMenuButton>
+                <LogOut className="size-4" />
+                <span className="group-data-[collapsible=icon]:hidden">Logout</span>
+              </button>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
