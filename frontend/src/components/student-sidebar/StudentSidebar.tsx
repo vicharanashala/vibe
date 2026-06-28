@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { LogOut, Settings } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { useAuthStore } from "@/store/auth-store"
 import { useUserEnrollments } from "@/hooks/hooks"
 import { useNewAnnouncementIndicator } from "@/hooks/use-new-announcement-indicator"
@@ -139,14 +139,6 @@ export function StudentSidebar() {
 
                 <div className="flex items-center gap-0.5 group-data-[collapsible=icon]:hidden">
                   <StudentNotifications compact />
-                  <Link
-                    to="/student/profile"
-                    aria-label="Settings"
-                    title="Settings"
-                    className={`flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors ${yellowItem}`}
-                  >
-                    <Settings className="size-5" />
-                  </Link>
                   <ThemeToggle />
                 </div>
               </div>
