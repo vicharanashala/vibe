@@ -18,7 +18,7 @@ import {
 } from "@/hooks/system-notification-hooks"
 import InviteDropdown from "@/components/inviteDropDown"
 import { PolicyAcknowledgementModal } from "@/app/pages/student/components/policies/PolicyAcknowledgementModal"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 type Invite = {
   inviteId: string;
@@ -131,12 +131,11 @@ export function StudentNotifications({ compact = false }: { compact?: boolean })
       </button>
 
       <Dialog open={showInvites} onOpenChange={setShowInvites}>
-        <DialogContent className="max-w-lg p-0">
-          <DialogHeader className="px-5 pt-5">
-            <DialogTitle>Notifications</DialogTitle>
-          </DialogHeader>
-          <div className="max-h-[70vh] overflow-y-auto px-2 pb-3">
+        <DialogContent className="max-w-md gap-0 p-0">
+          <DialogTitle className="sr-only">Notifications</DialogTitle>
+          <div className="max-h-[70vh] overflow-y-auto p-1">
             <InviteDropdown
+              inline
               setShowInvites={setShowInvites}
               enrollments={enrollments}
               onRejectClick={() => {
