@@ -209,22 +209,19 @@ function DashboardContent() {
       <div className="w-full">
         <div className="flex flex-col gap-6 lg:flex-row">
           <main className="w-full min-w-0 flex-1 space-y-6">
-            {/* Hero + Stat Cards Section */}
-            <section className="relative overflow-hidden rounded-3xl border border-neutral-200/70 bg-white p-6 shadow-sm ring-1 ring-black/[0.02] dark:border-white/[0.06] dark:bg-white/[0.03] dark:ring-white/[0.04] sm:p-8">
-              {/* Ambient gloss */}
-              <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
-
-              <div className="relative">
+            {/* Greeting + Stat Cards */}
+            <section className="space-y-6">
+              <div>
                 <p className="mb-1 text-sm font-semibold tracking-wide text-primary">Your Learning Journey</p>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                <h1 className="text-xl font-bold tracking-tight text-foreground">
                   {greeting}, {studentName} 👋
                 </h1>
-                <p className="mt-2 text-base text-muted-foreground sm:text-lg">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Welcome back — here's your progress at a glance.
                 </p>
               </div>
 
-              <div className="relative mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <StatCard
                   tone="amber"
                   icon={<BookOpen className="h-5 w-5" />}
