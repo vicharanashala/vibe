@@ -350,7 +350,7 @@ function DashboardContent() {
                   {enrollmentsLoading ? (
                     <div className={cn(
                       "grid gap-6",
-                      viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                      viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"
                     )}>
                       {Array.from({ length: 3 }).map((_, i) => (
                         <div key={i} className={cn(
@@ -362,7 +362,7 @@ function DashboardContent() {
                   ) : activeEnrollments.length > 0 ? (
                     <div className={cn(
                       "grid gap-6",
-                      viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                      viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"
                     )}>
                       {activeEnrollments.map((enrollment, index) => (
                         viewMode === 'grid' ? (
@@ -408,7 +408,7 @@ function DashboardContent() {
                   {enrollmentsLoading ? (
                     <div className={cn(
                       "grid gap-6",
-                      viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                      viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"
                     )}>
                       {Array.from({ length: 2 }).map((_, i) => (
                         <div key={i} className={cn(
@@ -420,7 +420,7 @@ function DashboardContent() {
                   ) : completedEnrollments.length > 0 ? (
                     <div className={cn(
                       "grid gap-6",
-                      viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                      viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"
                     )}>
                       {completedEnrollments.map((enrollment, index) => (
                         viewMode === 'grid' ? (
