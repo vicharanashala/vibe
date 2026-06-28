@@ -233,8 +233,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
               </div>
 
               <CardContent className="flex flex-col p-4">
-                <div className="flex flex-wrap items-center gap-2 mb-2.5">
-                  <Badge variant="secondary" className="bg-[#F1F5F9] dark:bg-slate-800 px-3 border-0 font-medium text-[#64748B] dark:text-slate-400">Course</Badge>
+                <div className="flex flex-wrap items-center gap-2 mb-2.5 empty:mb-0">
                   {enrollment.cohortName && (
                     <Badge variant="outline" className="dark:bg-primary/10 px-3 border-primary/30 dark:border-blue-400/30 font-medium text-primary dark:text-blue-400">
                       {enrollment.cohortName}
