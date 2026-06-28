@@ -118,14 +118,7 @@ export function StudentSidebar() {
 
         <SidebarFooter>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <div className="flex h-10 items-center gap-2 p-2 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2!">
-                <ThemeToggle />
-                {state === "expanded" && <span className="text-sm text-muted-foreground">Theme</span>}
-              </div>
-            </SidebarMenuItem>
-
-            {/* Profile tile: avatar + name link, with notifications & settings on the right */}
+            {/* Profile tile: avatar + name link, with notifications, settings & theme on the right */}
             <SidebarMenuItem>
               <div className="flex items-center gap-1 rounded-md p-1 group-data-[collapsible=icon]:p-0">
                 <Link
@@ -154,6 +147,7 @@ export function StudentSidebar() {
                   >
                     <Settings className="size-5" />
                   </Link>
+                  <ThemeToggle />
                 </div>
               </div>
             </SidebarMenuItem>
