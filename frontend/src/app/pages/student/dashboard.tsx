@@ -17,7 +17,7 @@ import { CourseCard } from "@/components/course/CourseCard";
 import { CourseListCard } from "@/components/course/CourseListCard";
 import { FollowUpInvitesBanner } from "@/components/course/FollowUpInvitesBanner";
 import { NewAnnouncementsPopup } from "@/components/announcements/NewAnnouncementsPopup";
-import { LayoutGrid, List } from "lucide-react";
+import { LayoutGrid, List, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -261,10 +261,30 @@ function DashboardContent() {
                   )}
                 </TabsTrigger>
               </TabsList>
-              <ViewSwitcher viewMode={viewMode} setViewMode={setViewMode} />
+              <div className="flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="About these tabs">
+                        <Info className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        {activeTab === 'available'
+                          ? 'Recommended courses to start next'
+                          : activeTab === 'enrolled'
+                            ? "Courses you're actively learning"
+                            : 'Courses you have finished'}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <ViewSwitcher viewMode={viewMode} setViewMode={setViewMode} />
+              </div>
               </div>
 
-              <TabsContent value="available" className="mt-6 space-y-4 animate-in fade-in-50 duration-300 slide-in-from-left-2">
+              <TabsContent value="available" className="mt-4 space-y-4 animate-in fade-in-50 duration-300 slide-in-from-left-2">
                 <CourseSection
                   title=""
                   viewMode={viewMode}
@@ -293,7 +313,7 @@ function DashboardContent() {
                 />
               </TabsContent>
 
-              <TabsContent value="enrolled" className="mt-6 space-y-4 animate-in fade-in-50 duration-300 slide-in-from-left-2">
+              <TabsContent value="enrolled" className="mt-4 space-y-4 animate-in fade-in-50 duration-300 slide-in-from-left-2">
                 <div className="space-y-4">
                   {enrollmentsLoading ? (
                     <div className={cn(
@@ -343,7 +363,7 @@ function DashboardContent() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="completed" className="mt-6 space-y-4 animate-in fade-in-50 duration-300 slide-in-from-left-2">
+              <TabsContent value="completed" className="mt-4 space-y-4 animate-in fade-in-50 duration-300 slide-in-from-left-2">
                 <div className="space-y-4">
                   {enrollmentsLoading ? (
                     <div className={cn(

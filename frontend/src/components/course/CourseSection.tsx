@@ -1,10 +1,8 @@
-import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CourseCard, CourseCardSkeleton } from "@/components/course/CourseCard";
 import { CourseListCard } from "@/components/course/CourseListCard";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/utils/utils";
 import type { CourseSectionProps } from '@/types/course.types';
 
@@ -136,37 +134,20 @@ export const CourseSection = ({
 
   return (
     <div className={className}>
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold">{title}</h2>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                <Info className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>
-                {title === "In progress learning content"
-                  ? "Courses you're currently enrolled in and actively learning"
-                  : title === "Recommended for you"
-                    ? "Personalized course recommendations based on your learning history and interests"
-                    : "View detailed information about this section"
-                }
-              </p>
-            </TooltipContent>
-          </Tooltip>
+      {(title || (showViewAll && onViewAll)) && (
+        <div className="flex justify-between items-center mb-3">
+          {title ? <h2 className="text-xl font-semibold">{title}</h2> : <span />}
+          {showViewAll && onViewAll && (
+            <Button
+              variant="link"
+              className="text-primary text-sm font-medium flex items-center"
+              onClick={onViewAll}
+            >
+              View all
+            </Button>
+          )}
         </div>
-        {showViewAll && onViewAll && (
-          <Button
-            variant="link"
-            className="text-primary text-sm font-medium flex items-center"
-            onClick={onViewAll}
-          >
-            View all
-          </Button>
-        )}
-      </div>
+      )}
 
       {renderContent()}
     </div>
