@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { RefreshCw, BookOpen, Target, GraduationCap, Clock } from "lucide-react";
+import { RefreshCw, BookOpen, Target, GraduationCap, Activity } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
-import { useUserEnrollmentsDetails, useUserEnrollmentStats, useWatchtimeTotal } from "@/hooks/hooks";
+import { useUserEnrollmentsDetails, useUserEnrollmentStats } from "@/hooks/hooks";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import {
   aggregateContentMix,
   averageQuizPercent,
   overallItemsPerWeek,
-  formatWatchTime,
 } from "@/components/analytics/analytics-utils";
 import { ContentMixCard } from "@/components/analytics/ContentMixCard";
 import { QuizPerformanceCard } from "@/components/analytics/QuizPerformanceCard";
@@ -25,7 +24,6 @@ export default function LearningAnalytics() {
 
   const { data: detailsData, isLoading: detailsLoading, refetch, } = useUserEnrollmentsDetails(enabled, "", "STUDENT");
   const { data: stats, isLoading: statsLoading } = useUserEnrollmentStats(enabled);
-  const { data: watchSeconds } = useWatchtimeTotal();
 
   const courses = useMemo(
     () => ((detailsData as any)?.enrollments || []).map((e: any, i: number) => toCourseAnalytics(e, i)),
@@ -41,6 +39,7 @@ export default function LearningAnalytics() {
   const totalCourses = stats?.totalCourses ?? courses.length;
   const completedItems = stats?.completedItems ?? 0;
   const totalItems = stats?.totalItems ?? 0;
+  const activeCourses = courses.filter((c: any) => c.progress < 100).length;
 
   const isLoading = detailsLoading || statsLoading;
 
@@ -70,7 +69,7 @@ export default function LearningAnalytics() {
             <StatCard tone="emerald" icon={<Target className="h-5 w-5" />} value={`${overallProgress}%`} label="Overall Progress" sublabel="Across all courses" />
             <StatCard tone="amber" icon={<BookOpen className="h-5 w-5" />} value={`${completedItems}/${totalItems}`} label="Lessons Completed" sublabel="Items finished" />
             <StatCard tone="violet" icon={<GraduationCap className="h-5 w-5" />} value={`${completedCourses}/${totalCourses}`} label="Courses Completed" sublabel="Fully finished" />
-            <StatCard tone="blue" icon={<Clock className="h-5 w-5" />} value={formatWatchTime(watchSeconds)} label="Time Learning" sublabel="Total watch time" />
+            <StatCard tone="blue" icon={<Activity className="h-5 w-5" />} value={`${activeCourses}`} label="Active Courses" sublabel="Currently in progress" />
           </div>
 
           {/* Pace + content mix + quiz performance */}

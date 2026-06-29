@@ -146,16 +146,6 @@ export function overallItemsPerWeek(courses: CourseAnalytics[]): number {
   return Math.round(total * 10) / 10;
 }
 
-/** Human watch-time. The API returns a single number; treat it as seconds. */
-export function formatWatchTime(seconds?: number): string {
-  const s = num(seconds);
-  if (s <= 0) return "0m";
-  const h = Math.floor(s / 3600);
-  const m = Math.round((s % 3600) / 60);
-  if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  return `${m}m`;
-}
-
 export const STATUS_META: Record<CourseStatus, { label: string; className: string }> = {
   completed: { label: "Completed", className: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400" },
   almost: { label: "Almost done", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400" },
