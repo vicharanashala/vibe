@@ -37,8 +37,11 @@ export default function LearningAnalytics() {
   const overallProgress = Math.round(stats?.overallProgress ?? 0);
   const completedCourses = stats?.completedCourses ?? courses.filter((c: any) => c.progress >= 100).length;
   const totalCourses = stats?.totalCourses ?? courses.length;
-  const completedItems = stats?.completedItems ?? 0;
-  const totalItems = stats?.totalItems ?? 0;
+  // Sum lessons from per-course data (the stats aggregate often reports 0 here).
+  const summedCompleted = courses.reduce((s: number, c: any) => s + c.completedItems, 0);
+  const summedTotal = courses.reduce((s: number, c: any) => s + c.totalItems, 0);
+  const completedItems = summedTotal > 0 ? summedCompleted : (stats?.completedItems ?? 0);
+  const totalItems = summedTotal > 0 ? summedTotal : (stats?.totalItems ?? 0);
   const activeCourses = courses.filter((c: any) => c.progress < 100).length;
 
   const isLoading = detailsLoading || statsLoading;
