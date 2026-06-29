@@ -1,17 +1,17 @@
 import { useMemo } from "react";
 import { RefreshCw, BookOpen, Target, GraduationCap, Activity } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
-import { useUserEnrollments, useUserEnrollmentStats } from "@/hooks/hooks";
+import { useUserEnrollments, useUserEnrollmentsDetails, useUserEnrollmentStats } from "@/hooks/hooks";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
+import { bufferToHex } from "@/utils/helpers";
 import {
   toCourseAnalytics,
   aggregateContentMix,
   averageQuizPercent,
-  overallItemsPerWeek,
 } from "@/components/analytics/analytics-utils";
 import { ContentMixCard } from "@/components/analytics/ContentMixCard";
 import { QuizPerformanceCard } from "@/components/analytics/QuizPerformanceCard";
@@ -22,17 +22,41 @@ export default function LearningAnalytics() {
   const { token } = useAuthStore();
   const enabled = !!token;
 
-  const { data: enrollmentsData, isLoading: enrollmentsLoading, refetch } = useUserEnrollments(1, 100, enabled);
+  // Details has rich per-type + quiz counts; plain enrollments reliably carries
+  // lesson totals. We use details as the source and backfill lessons from
+  // enrollments where details is sparse.
+  const { data: detailsData, isLoading: detailsLoading, refetch } = useUserEnrollmentsDetails(enabled, "", "STUDENT");
+  const { data: enrollmentsData, isLoading: enrollmentsLoading } = useUserEnrollments(1, 100, enabled);
   const { data: stats, isLoading: statsLoading } = useUserEnrollmentStats(enabled);
 
+  const lessonsByVersion = useMemo(() => {
+    const m = new Map<string, { total: number; done: number }>();
+    ((enrollmentsData as any)?.enrollments || []).forEach((e: any) => {
+      const key = bufferToHex(e.courseVersionId as string);
+      m.set(key, { total: Number(e.contentCounts?.totalItems ?? 0), done: Number(e.completedItems ?? 0) });
+    });
+    return m;
+  }, [enrollmentsData]);
+
   const courses = useMemo(
-    () => ((enrollmentsData as any)?.enrollments || []).map((e: any, i: number) => toCourseAnalytics(e, i)),
-    [enrollmentsData],
+    () =>
+      ((detailsData as any)?.enrollments || []).map((e: any, i: number) => {
+        const c = toCourseAnalytics(e, i);
+        if (c.totalItems === 0) {
+          const fb = lessonsByVersion.get(bufferToHex(e.courseVersionId as string));
+          if (fb && fb.total > 0) {
+            c.totalItems = fb.total;
+            c.completedItems = fb.done;
+            c.remaining = Math.max(fb.total - fb.done, 0);
+          }
+        }
+        return c;
+      }),
+    [detailsData, lessonsByVersion],
   );
 
   const contentMix = useMemo(() => aggregateContentMix(courses), [courses]);
   const avgQuiz = useMemo(() => averageQuizPercent(courses), [courses]);
-  const itemsPerWeek = useMemo(() => overallItemsPerWeek(courses), [courses]);
 
   const overallProgress = Math.round(stats?.overallProgress ?? 0);
   const completedCourses = stats?.completedCourses ?? courses.filter((c: any) => c.progress >= 100).length;
@@ -44,7 +68,7 @@ export default function LearningAnalytics() {
   const totalItems = summedTotal > 0 ? summedTotal : (stats?.totalItems ?? 0);
   const activeCourses = courses.filter((c: any) => c.progress < 100).length;
 
-  const isLoading = enrollmentsLoading || statsLoading;
+  const isLoading = detailsLoading || enrollmentsLoading || statsLoading;
 
   return (
     <div className="flex flex-1 flex-col gap-6">
@@ -77,7 +101,7 @@ export default function LearningAnalytics() {
 
           {/* Pace + content mix + quiz performance */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <VelocityCard itemsPerWeek={itemsPerWeek} courses={courses} />
+            <VelocityCard courses={courses} />
             <ContentMixCard mix={contentMix} />
             <QuizPerformanceCard courses={courses} average={avgQuiz} />
           </div>

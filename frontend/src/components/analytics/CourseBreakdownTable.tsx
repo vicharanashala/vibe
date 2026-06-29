@@ -22,7 +22,6 @@ export function CourseBreakdownTable({ courses }: { courses: CourseAnalytics[] }
                 <th className="px-3 py-2.5 font-medium">Progress</th>
                 <th className="px-3 py-2.5 font-medium">Lessons</th>
                 <th className="px-3 py-2.5 font-medium">Quiz</th>
-                <th className="px-3 py-2.5 font-medium">Pace</th>
                 <th className="px-5 py-2.5 font-medium">Status</th>
               </tr>
             </thead>
@@ -45,7 +44,6 @@ export function CourseBreakdownTable({ courses }: { courses: CourseAnalytics[] }
                     </td>
                     <td className="px-3 py-3 tabular-nums text-muted-foreground">{c.completedItems}/{c.totalItems}</td>
                     <td className="px-3 py-3 tabular-nums text-muted-foreground">{c.quizPercent != null ? `${c.quizPercent}%` : "—"}</td>
-                    <td className="px-3 py-3 tabular-nums text-muted-foreground">{c.itemsPerWeek > 0 ? `${c.itemsPerWeek.toFixed(1)}/wk` : "—"}</td>
                     <td className="px-5 py-3">
                       <span className={cn("inline-block rounded-md px-2 py-0.5 text-xs font-medium", meta.className)}>{meta.label}</span>
                     </td>

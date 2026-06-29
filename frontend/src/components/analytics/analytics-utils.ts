@@ -6,9 +6,7 @@
  * is presentation-layer math only.
  */
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-export type CourseStatus = "completed" | "almost" | "on-track" | "stalled" | "not-started";
+export type CourseStatus = "completed" | "almost" | "in-progress" | "not-started";
 
 export interface CourseAnalytics {
   id: string;
@@ -17,6 +15,7 @@ export interface CourseAnalytics {
   progress: number;            // 0–100
   completedItems: number;
   totalItems: number;
+  remaining: number;           // lessons left
   videos: { done: number; total: number };
   quizzes: { done: number; total: number };
   articles: { done: number; total: number };
@@ -24,10 +23,6 @@ export interface CourseAnalytics {
   quizScore: number;
   quizMaxScore: number;
   quizPercent: number | null;  // null when there are no graded quizzes
-  enrollmentDate?: string;
-  weeksEnrolled: number;
-  itemsPerWeek: number;
-  projectedFinishDays: number | null; // null = no measurable pace
   status: CourseStatus;
 }
 
@@ -45,20 +40,11 @@ const pick = (cc: any, ic: any, ...keys: string[]): number => {
   return 0;
 };
 
-export function weeksSince(date?: string): number {
-  if (!date) return 1;
-  const start = new Date(date).getTime();
-  if (Number.isNaN(start)) return 1;
-  const weeks = (Date.now() - start) / WEEK_MS;
-  return Math.max(weeks, 1 / 7); // floor at ~1 day so pace stays finite
-}
-
-function statusOf(progress: number, itemsPerWeek: number): CourseStatus {
+function statusOf(progress: number): CourseStatus {
   if (progress >= 100) return "completed";
   if (progress <= 0) return "not-started";
   if (progress >= 75) return "almost";
-  if (itemsPerWeek < 0.5) return "stalled";
-  return "on-track";
+  return "in-progress";
 }
 
 /** Map one raw enrollment-details entry to a typed analytics row. */
@@ -79,14 +65,6 @@ export function toCourseAnalytics(entry: any, index: number): CourseAnalytics {
   const quizMaxScore = num(cc.totalQuizMaxScore ?? entry?.totalQuizMaxScore);
   const quizPercent = quizMaxScore > 0 ? Math.round((quizScore / quizMaxScore) * 100) : null;
 
-  const enrollmentDate = entry?.enrollmentDate;
-  const weeksEnrolled = weeksSince(enrollmentDate);
-  const itemsPerWeek = completedItems > 0 ? completedItems / weeksEnrolled : 0;
-
-  const remaining = Math.max(totalItems - completedItems, 0);
-  const projectedFinishDays =
-    itemsPerWeek > 0 && remaining > 0 ? Math.ceil((remaining / itemsPerWeek) * 7) : null;
-
   return {
     id: String(entry?._id ?? entry?.courseId ?? index),
     name: entry?.course?.name || `Course ${index + 1}`,
@@ -94,6 +72,7 @@ export function toCourseAnalytics(entry: any, index: number): CourseAnalytics {
     progress,
     completedItems,
     totalItems,
+    remaining: Math.max(totalItems - completedItems, 0),
     videos,
     quizzes,
     articles,
@@ -101,11 +80,7 @@ export function toCourseAnalytics(entry: any, index: number): CourseAnalytics {
     quizScore,
     quizMaxScore,
     quizPercent,
-    enrollmentDate,
-    weeksEnrolled,
-    itemsPerWeek,
-    projectedFinishDays,
-    status: statusOf(progress, itemsPerWeek),
+    status: statusOf(progress),
   };
 }
 
@@ -138,71 +113,17 @@ export function averageQuizPercent(courses: CourseAnalytics[]): number | null {
   return Math.round(scored.reduce((s, c) => s + (c.quizPercent || 0), 0) / scored.length);
 }
 
-/** Combined items-per-week across all in-progress courses. */
-export function overallItemsPerWeek(courses: CourseAnalytics[]): number {
-  const active = courses.filter((c) => c.progress < 100 && c.itemsPerWeek > 0);
-  if (!active.length) return 0;
-  const total = active.reduce((s, c) => s + c.itemsPerWeek, 0);
-  return Math.round(total * 10) / 10;
-}
-
-export interface Forecast {
-  course: CourseAnalytics;
-  remaining: number;
-  projectedDays: number;     // days to finish at current pace
-  projectedDate: Date;
-  goalDays: number;          // the target horizon used for the nudge
-  goalDate: Date;
-  currentPerWeek: number;
-  neededPerWeek: number;     // lessons/week to hit the goal
-  extraPerWeek: number;      // additional lessons/week vs current pace (0 if ahead)
-  onTrack: boolean;          // already projected to finish within the goal
-}
-
-function addDays(days: number): Date {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-export function formatDate(d: Date): string {
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-/**
- * Pick the most actionable in-progress course (closest to done with a
- * measurable pace) and compute a finish forecast + a "to hit the goal, do N/week"
- * nudge. `goalDays` is the target horizon the nudge aims for.
- */
-export function buildForecast(courses: CourseAnalytics[], goalDays = 28): Forecast | null {
-  const target = courses
-    .filter((c) => c.progress > 0 && c.progress < 100 && c.itemsPerWeek > 0 && c.projectedFinishDays != null)
-    .sort((a, b) => b.progress - a.progress)[0];
-  if (!target) return null;
-
-  const remaining = Math.max(target.totalItems - target.completedItems, 0);
-  const neededPerWeek = Math.ceil((remaining / (goalDays / 7)) * 10) / 10;
-  const currentPerWeek = Math.round(target.itemsPerWeek * 10) / 10;
-  const projectedDays = target.projectedFinishDays as number;
-
-  return {
-    course: target,
-    remaining,
-    projectedDays,
-    projectedDate: addDays(projectedDays),
-    goalDays,
-    goalDate: addDays(goalDays),
-    currentPerWeek,
-    neededPerWeek,
-    extraPerWeek: Math.max(0, Math.round((neededPerWeek - currentPerWeek) * 10) / 10),
-    onTrack: projectedDays <= goalDays,
-  };
+/** In-progress courses sorted by closeness to completion — the quickest wins. */
+export function closestToFinishing(courses: CourseAnalytics[], limit = 3): CourseAnalytics[] {
+  return courses
+    .filter((c) => c.progress > 0 && c.progress < 100)
+    .sort((a, b) => b.progress - a.progress)
+    .slice(0, limit);
 }
 
 export const STATUS_META: Record<CourseStatus, { label: string; className: string }> = {
   completed: { label: "Completed", className: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400" },
   almost: { label: "Almost done", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400" },
-  "on-track": { label: "On track", className: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400" },
-  stalled: { label: "Stalled", className: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" },
+  "in-progress": { label: "In progress", className: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400" },
   "not-started": { label: "Not started", className: "bg-neutral-100 text-neutral-600 dark:bg-white/10 dark:text-neutral-300" },
 };
