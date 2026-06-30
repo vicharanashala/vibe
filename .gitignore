@@ -81,6 +81,8 @@ e2e/*.txt
 # Local Claude agents
 .github/agents/debugger.agent.md
 
+frontend/protype/
+pnpm-lock.yaml
 # One-off script run-output dumps & local reports (backend root)
 backend/*.json
 backend/*.csv

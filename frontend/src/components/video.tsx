@@ -55,7 +55,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef }: VideoProps) {
+export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, pauseSignal, awayPaused = false }: VideoProps) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -69,7 +69,18 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   // Use the stored playback rate from the player store
   const { playbackRate, setPlaybackRate, volume, setVolume, subtitlesEnabled, setSubtitlesEnabled } = usePlayerStore();
   const [maxTime, setMaxTime] = useState(0);
-  const [, setIsHovering] = useState(false);
+  // Auto-hide the control bar while playing; reveal on mouse activity / when paused.
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const controlsHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showControls = () => {
+    setControlsVisible(true);
+    if (controlsHideTimer.current) clearTimeout(controlsHideTimer.current);
+    controlsHideTimer.current = setTimeout(() => setControlsVisible(false), 2500);
+  };
+  const hideControls = () => {
+    if (controlsHideTimer.current) clearTimeout(controlsHideTimer.current);
+    setControlsVisible(false);
+  };
   const [videoEnded, setVideoEnded] = useState(false);
   // Rotating quote shown during the "preparing environment" delay.
   const [quoteIndex, setQuoteIndex] = useState(0);
@@ -523,6 +534,38 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     }
   }, [pauseVid, playing]);
 
+  // Imperative pause from the focused learn UI (clicking a floating control).
+  // Pauses without showing the anomaly overlay. Skips the initial mount value so
+  // the video isn't paused before it ever plays.
+  const pauseSignalSeenRef = useRef<number | undefined>(pauseSignal);
+  useEffect(() => {
+    if (pauseSignal === undefined) return;
+    if (pauseSignalSeenRef.current === pauseSignal) return;
+    pauseSignalSeenRef.current = pauseSignal;
+    playerRef.current?.pauseVideo?.();
+  }, [pauseSignal]);
+
+  // "Stepped away" pause (cursor left the page). Remembers whether the video was
+  // playing and AUTO-RESUMES when the learner returns — but only if it was
+  // actually playing and nothing else (anomaly/gesture) is blocking playback.
+  const wasPlayingBeforeAway = useRef(false);
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    if (awayPaused) {
+      if (playing) {
+        player.pauseVideo();
+        wasPlayingBeforeAway.current = true;
+      }
+    } else if (wasPlayingBeforeAway.current) {
+      wasPlayingBeforeAway.current = false;
+      if (!pauseVid && !rewindVid && !doGesture) {
+        player.playVideo();
+        setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
+      }
+    }
+  }, [awayPaused, playing]);
+
 
 
   // Autoplay: Wait for grace period completion
@@ -729,6 +772,11 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 const p = event.target as any;
                 p.loadModule?.('captions');
                 p.setOption?.('captions', 'track', { languageCode: 'en' });
+                // Shrink the (cross-origin) YouTube captions so they don't dominate
+                // the focused stage. fontSize is one of the few caption options the
+                // IFrame API honors; reapply after the module finishes loading.
+                p.setOption?.('captions', 'fontSize', -1);
+                setTimeout(() => { try { p.setOption?.('captions', 'fontSize', -1); } catch { /* noop */ } }, 800);
               } catch { /* captions module unavailable — non-fatal */ }
             }
             setMaxTime(startTimeSeconds);
@@ -1036,8 +1084,12 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
     if (playerRef.current) {
       if (newState) {
-        playerRef.current.loadModule('captions');
-        playerRef.current.setOption('captions', 'track', { languageCode: 'en' });
+        const p: any = playerRef.current;
+        p.loadModule('captions');
+        p.setOption('captions', 'track', { languageCode: 'en' });
+        // Keep captions compact (see note in onReady).
+        p.setOption?.('captions', 'fontSize', -1);
+        setTimeout(() => { try { p.setOption?.('captions', 'fontSize', -1); } catch { /* noop */ } }, 800);
       } else {
         playerRef.current.setOption('captions', 'track', {});
       }
@@ -1092,15 +1144,16 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        background: 'hsl(var(--background))',
+        background: focusMode ? 'hsl(var(--stage))' : 'hsl(var(--background))',
         overflow: 'hidden',
-        padding: '16px',
+        padding: focusMode ? '0px' : '16px',
         boxSizing: 'border-box',
         cursor: 'pointer',
       }}
       onClick={handlePlayPause}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
+      onMouseEnter={showControls}
+      onMouseMove={showControls}
+      onMouseLeave={hideControls}
     >
 
       <ConfirmOverlay
@@ -1307,6 +1360,27 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
               />
+
+              {/* Title mask — YouTube renders its title/channel overlay (top) only
+                  while paused/loading, and it's inside a cross-origin iframe we
+                  can't style. Cover that strip with a soft stage-coloured vignette
+                  in the immersive view; hidden during playback so content is clear. */}
+              {(focusMode || isFullscreen) && !playing && (
+                <div
+                  aria-hidden
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 88,
+                    zIndex: 11,
+                    pointerEvents: 'none',
+                    background:
+                      'linear-gradient(to bottom, hsl(var(--stage)) 0%, hsl(var(--stage)) 44%, hsl(var(--stage) / 0) 100%)',
+                  }}
+                />
+              )}
 
 
 
@@ -1691,16 +1765,20 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
         <div
           style={{
-            padding: '8px 16px',
+            padding: '3px 10px',
             borderTop: '1px solid hsl(var(--primary) / 0.2)',
             userSelect: 'none',
             WebkitUserSelect: 'none',
             MozUserSelect: 'none',
             msUserSelect: 'none',
             flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            flexWrap: 'wrap',
             ...((focusMode || isFullscreen)
               ? {
-                  // Float the bar over the bottom of the video.
+                  // Float the bar over the bottom of the video; auto-hide while playing.
                   position: 'absolute',
                   left: 0,
                   right: 0,
@@ -1710,6 +1788,9 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                   backdropFilter: 'blur(10px)',
                   WebkitBackdropFilter: 'blur(10px)',
                   borderRadius: 0,
+                  opacity: controlsVisible || !playing ? 1 : 0,
+                  pointerEvents: controlsVisible || !playing ? 'auto' : 'none',
+                  transition: 'opacity 250ms ease',
                 }
               : {
                   background: 'hsl(var(--card))',
@@ -1718,8 +1799,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Progress Bar - Seeking controlled by seekForwardEnabled */}
-          <div style={{ marginBottom: 8 }}>
+          {/* Progress Bar - Seeking controlled by seekForwardEnabled (fills the row middle) */}
+          <div style={{ order: 2, flex: 1, minWidth: 140 }}>
             <Slider
               value={[currentTime]}
               min={startTimeSeconds}
@@ -1785,16 +1866,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
             />
           </div>
 
-          {/* Control Bar */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            flexWrap: 'wrap'
-          }}>
             {/* Left Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, order: 1 }}>
               <Button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1802,10 +1875,10 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 }}
                 size="icon"
                 variant={playing ? "default" : "secondary"}
-                className="rounded-full w-11 h-11 flex-shrink-0"
+                className="rounded-full w-8 h-8 flex-shrink-0"
                 aria-label={playing ? 'Pause' : 'Play'}
               >
-                {playing ? <Pause className="h-7 w-7 scale-130" /> : <Play className="h-7 w-7 scale-130" />}
+                {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               </Button>
 
               <Button
@@ -1815,10 +1888,10 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 }}
                 size="icon"
                 variant="secondary"
-                className="rounded-full w-11 h-11 flex-shrink-0"
+                className="rounded-full w-8 h-8 flex-shrink-0"
                 aria-label="Back 10 seconds"
               >
-                <SkipBack className="h-3 w-3 scale-130" />
+                <SkipBack className="h-4 w-4" />
               </Button>
 
               {/* Forward seek button - shown when seekForwardEnabled is true */}
@@ -1830,20 +1903,20 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                   }}
                   size="icon"
                   variant="secondary"
-                  className="rounded-full w-11 h-11 flex-shrink-0"
+                  className="rounded-full w-8 h-8 flex-shrink-0"
                   aria-label="Forward 10 seconds"
                   title="Forward 10 seconds"
                 >
-                  <SkipForward className="h-3 w-3 scale-130" />
+                  <SkipForward className="h-4 w-4" />
                 </Button>
               )}
 
               <span style={{
                 color: 'hsl(var(--foreground))',
                 fontFamily: 'var(--font-sans)',
-                fontSize: 16,
-                fontWeight: 700,
-                minWidth: 80,
+                fontSize: 12,
+                fontWeight: 600,
+                minWidth: 62,
                 textShadow: '0 1px 3px hsl(var(--background) / 0.5)',
                 flexShrink: 0
               }}>
@@ -1853,7 +1926,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
             {/* Right Controls */}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, order: 3 }}>
 
               <TooltipProvider>
                 {/* Subtitles */}
@@ -1863,13 +1936,13 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                       onClick={handleToggleSubtitles}
                       variant="ghost"
                       size="icon"
-                      className={`rounded-sm relative group transition-colors duration-200 ${subtitlesEnabled
+                      className={`rounded-sm relative group h-8 w-8 transition-colors duration-200 ${subtitlesEnabled
                         ? "text-black dark:text-white"
                         : "text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
                         }`}
                     >
-                      <span className="scale-[1.4] flex items-center justify-center">
-                        <Captions className="h-6 w-6" strokeWidth={2.5} />
+                      <span className="flex items-center justify-center">
+                        <Captions className="h-5 w-5" strokeWidth={2.25} />
                       </span>
 
                       {subtitlesEnabled && (
@@ -1883,11 +1956,11 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 </Tooltip>
 
                 {/* Speed Control */}
-                <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-                  <span className="hidden md:block text-md font-bold text-foreground min-w-[24px]">
+                <Card className="flex flex-row items-center gap-1.5 px-2 py-0.5 bg-accent/15 flex-shrink-0">
+                  <span className="hidden md:block text-xs font-semibold text-foreground min-w-[24px]">
                     Speed
                   </span>
-                  <FastForward className="flex md:hidden h-3 w-3 text-accent flex-shrink-0 scale-160" />
+                  <FastForward className="flex md:hidden h-3.5 w-3.5 text-accent flex-shrink-0" />
                   <Slider
                     value={[playbackRate]}
                     min={0.25}
@@ -1913,14 +1986,14 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                     }}
                     className="w-[80px]"
                   />
-                  <span className="text-md font-semibold text-primary min-w-[24px] text-center">
+                  <span className="text-xs font-semibold text-primary min-w-[24px] text-center">
                     {playbackRate.toFixed(2)}x
                   </span>
                 </Card>
 
                 {/* Volume Control */}
-                <Card className="flex flex-row items-center gap-1.5 px-2 py-1.5 bg-accent/15 flex-shrink-0">
-                  <Volume2 className="h-3 w-3 text-accent flex-shrink-0 scale-160" />
+                <Card className="flex flex-row items-center gap-1.5 px-2 py-0.5 bg-accent/15 flex-shrink-0">
+                  <Volume2 className="h-3.5 w-3.5 text-accent flex-shrink-0" />
                   <Slider
                     value={[volume]}
                     min={0}
@@ -1932,7 +2005,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                     }}
                     className="w-[80px]"
                   />
-                  <span className="text-md font-bold text-foreground min-w-[24px] text-center">
+                  <span className="text-xs font-semibold text-foreground min-w-[24px] text-center">
                     {Math.round(volume)}%
                   </span>
                 </Card>
@@ -1947,14 +2020,14 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                       }}
                       variant="ghost"
                       size="icon"
-                      className="rounded-sm relative group transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+                      className="rounded-sm relative group h-8 w-8 transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
                       aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
                     >
-                      <span className="scale-[1.4] flex items-center justify-center">
+                      <span className="flex items-center justify-center">
                         {isFullscreen ? (
-                          <Minimize className="h-6 w-6" strokeWidth={2.5} />
+                          <Minimize className="h-5 w-5" strokeWidth={2.25} />
                         ) : (
-                          <Maximize className="h-6 w-6" strokeWidth={2.5} />
+                          <Maximize className="h-5 w-5" strokeWidth={2.25} />
                         )}
                       </span>
                     </Button>
@@ -1965,7 +2038,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 </Tooltip>
               </TooltipProvider>
             </div>
-          </div>
 
           {/* Next Lesson Button */}
           {/*onNext && (
