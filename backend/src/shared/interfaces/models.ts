@@ -413,6 +413,10 @@ export interface IEnrollment {
   // Extra committed hours granted to this student by an instructor, added on
   // top of the course's totalBudgetHours when enforcing the hours budget.
   commitmentExtraHours?: number;
+  // A consumable pool of extra bookings an instructor has awarded this student.
+  // Each booking made beyond the student's normal daily allowance draws one from
+  // this pool; such bookings bypass the slot capacity cap and the hours budget.
+  commitmentExtraBookings?: number;
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;

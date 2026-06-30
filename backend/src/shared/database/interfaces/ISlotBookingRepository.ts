@@ -57,6 +57,17 @@ export interface ISlotBookingRepository {
     session?: ClientSession,
   ): Promise<number>;
 
+  /**
+   * Total `hoursReserved` a student has LOST to UNFULFILLED (unused) bookings on
+   * a course version — hours spent from the budget with nothing gained.
+   */
+  sumUnfulfilledHoursForStudent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<number>;
+
   /** Mark a booking cancelled (student re-book or instructor removal). */
   cancelBooking(
     bookingId: string,
