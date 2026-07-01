@@ -145,6 +145,12 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const watchTimeTrackRef = useRef<WatchTimeTrackData>(watchTimeTrack);
 
   const wasPlayingBeforeTabSwitch = useRef(false);
+  // Keep a synchronous reference of the playing state to avoid React state race conditions during rapid switches
+  const isPlayingRef = useRef(false);
+
+  useEffect(() => {
+    isPlayingRef.current = playing;
+  }, [playing]);
 
 
   useEffect(() => {
@@ -248,33 +254,55 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     };
   }, []);
 
-  // Pause video when user switches browser tabs
+  // Pause video when user switches browser tabs or window focus changes
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const checkPresence = () => {
       const player = playerRef.current;
       if (!player) return;
 
-      if (document.hidden) {
-        if (playing) {
+      // User is present ONLY if tab is visible AND browser window is active/focused
+      const isPresent = !document.hidden && document.hasFocus();
+
+      if (!isPresent) {
+        // Switch/blur detected: pause if currently playing
+        if (isPlayingRef.current) {
           wasPlayingBeforeTabSwitch.current = true;
           player.pauseVideo();
-        } else {
-          wasPlayingBeforeTabSwitch.current = false;
+          isPlayingRef.current = false;
         }
       } else {
+        // Return/focus detected: resume if was playing before leaving
         if (wasPlayingBeforeTabSwitch.current && playerReady) {
           player.playVideo();
+          isPlayingRef.current = true;
           setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
           wasPlayingBeforeTabSwitch.current = false;
+        }
+        // Or autoplay if grace period completed and auto-play hasn't run yet
+        else if (!hasAutoPlayedRef.current && playerReady && readyToDetect && gracePeriodCompleted && !playing && !pauseVid && !rewindVid && !doGesture) {
+          player.playVideo();
+          isPlayingRef.current = true;
+          setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
+          hasAutoPlayedRef.current = true;
         }
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // Register listeners for tab visibility and window focus/blur
+    document.addEventListener('visibilitychange', checkPresence);
+    window.addEventListener('focus', checkPresence);
+    window.addEventListener('blur', checkPresence);
+
+    // Periodic check (every 3 seconds) for background windows and edge cases
+    const presenceInterval = setInterval(checkPresence, 3000);
+
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('visibilitychange', checkPresence);
+      window.removeEventListener('focus', checkPresence);
+      window.removeEventListener('blur', checkPresence);
+      clearInterval(presenceInterval);
     };
-  }, [playing, playerReady, playbackRate]);
+  }, [playerReady, readyToDetect, gracePeriodCompleted, playing, pauseVid, rewindVid, doGesture, playbackRate]);
 
   // Wait 10 seconds after readyToDetect becomes true (to match FloatingVideo's grace period)
   useEffect(() => {
@@ -325,12 +353,14 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
     if (!player || typeof player.pauseVideo !== 'function' || stopInFlightRef.current) return;
     if (playing || isSkipping || isStopFailed || isStopping) {
       player.pauseVideo();
+      isPlayingRef.current = false;
     } else {
       // Prevent playing if current time is at or beyond endTime
       if (endTimeSeconds > 0 && currentTime >= endTimeSeconds) {
         return;
       }else{
         player.playVideo();
+        isPlayingRef.current = true;
       }
       setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
     }
@@ -469,6 +499,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       if (playing) {
         wasPlayingBeforeGesture.current = true;
         player.pauseVideo();
+        isPlayingRef.current = false;
       } else {
         wasPlayingBeforeGesture.current = false;
       }
@@ -476,6 +507,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       // Resume if it was playing before gesture
       if (wasPlayingBeforeGesture.current) {
         player.playVideo();
+        isPlayingRef.current = true;
         setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
         wasPlayingBeforeGesture.current = false;
       }
@@ -510,6 +542,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       // Pause video due to anomaly detection
       if (playing) {
         player.pauseVideo();
+        isPlayingRef.current = false;
         wasPlayingBeforeRewind.current = true; // Remember it was playing
       }
     } else {
@@ -517,6 +550,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       // Only resume if it was playing before the rewind/pause
       if (wasPlayingBeforeRewind.current) {
         player.playVideo();
+        isPlayingRef.current = true;
         setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
         wasPlayingBeforeRewind.current = false; // Reset the flag
       }
@@ -554,9 +588,14 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           !rewindVid &&
           !doGesture) {
 
-          playerRef.current.playVideo();
-          setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
-          hasAutoPlayedRef.current = true;
+          // Only autoplay if user is present/focused
+          const isPresent = !document.hidden && document.hasFocus();
+          if (isPresent) {
+            playerRef.current.playVideo();
+            isPlayingRef.current = true;
+            setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
+            hasAutoPlayedRef.current = true;
+          }
         }
       }, 1000); // 1 second final delay
 
@@ -744,7 +783,16 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           },
           onStateChange: async (event: { data: number; target: YTPlayerInstance }) => {
             if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
+              // Ensure we don't start playing in the background
+              const isPresent = !document.hidden && document.hasFocus();
+              if (!isPresent) {
+                event.target.pauseVideo();
+                isPlayingRef.current = false;
+                setPlaying(false);
+                return;
+              }
               setPlaying(true);
+              isPlayingRef.current = true;
               if (!progressStartedRef.current) {
                 handleSendStartItem();
                 setVideoEnded(false);
@@ -755,6 +803,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
               }, 500);
             } else if (window.YT && event.data === window.YT.PlayerState.ENDED) {
               setPlaying(false);
+              isPlayingRef.current = false;
               setVideoEnded(true);
               if (!progressStoppedRef.current && currentCourse) {
                 const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
@@ -776,6 +825,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
               }
             } else {
               setPlaying(false);
+              isPlayingRef.current = false;
             }
           },
         },
