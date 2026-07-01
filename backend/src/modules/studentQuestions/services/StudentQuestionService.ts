@@ -23,11 +23,23 @@ import {SOLQuestion} from '../../quizzes/classes/transformers/Question.js';
 import {IQuizDetails, ItemType} from '#root/shared/interfaces/models.js';
 import {ISOLSolution} from '#root/shared/interfaces/quiz.js';
 import {isEligibleForReview} from './crowdGate.js';
+import {ScreeningService, ScreeningResult} from './screening/ScreeningService.js';
+import {IScreeningVerdict} from '../classes/transformers/StudentSegmentQuestion.js';
+import {screeningConfig} from '#root/config/screening.js';
 
 const REPEATED_CHAR_PATTERN = /(.)\1{7,}/;
 const REPEATED_WORD_PATTERN = /(\b\w+\b)(\s+\1){4,}/;
 const URL_TOKEN_PATTERN = /^https?:\/\/\S+$/i;
 const NOTIFICATION_QUESTION_PREVIEW_CHARS = 80;
+
+/** Result of a submission after screening — drives the student-facing response. */
+export interface CreateQuestionResult {
+  decision: 'pass' | 'reject' | 'hold';
+  reasonCode: string;
+  message: string;
+  /** Present unless rejected (no live record is kept for a reject beyond the stub). */
+  questionId?: string;
+}
 
 @injectable()
 export class StudentQuestionService {
@@ -44,6 +56,8 @@ export class StudentQuestionService {
     private readonly questionBankService: QuestionBankService,
     @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: ItemRepository,
+    @inject(STUDENT_QUESTION_TYPES.ScreeningService)
+    private readonly screeningService: ScreeningService,
   ) {}
 
   private async _stageToSubmittedBank(
@@ -283,7 +297,7 @@ export class StudentQuestionService {
     options: IStudentQuestionOption[];
     correctOptionIndex: number;
     createdBy: string;
-  }): Promise<string> {
+  }): Promise<CreateQuestionResult> {
     await this.ensureSubmissionEnabled(input.courseId, input.courseVersionId);
 
     if (input.questionType !== 'SELECT_ONE_IN_LOT') {
@@ -309,16 +323,41 @@ export class StudentQuestionService {
       correctOptionIndex: input.correctOptionIndex,
     });
 
-    const duplicate = await this.repository.findDuplicate({
+    // Exact-resubmit guard (free, idempotent): identical content on this segment
+    // is a definite duplicate — reject without spending an LLM call.
+    const exact = await this.repository.findDuplicate({
       courseVersionId: input.courseVersionId,
       segmentId: input.segmentId,
       normalizedSignature,
     });
-    if (duplicate) {
-      throw new BadRequestError(
-        'A similar question already exists for this segment.',
-      );
+    if (exact) {
+      return {
+        decision: 'reject',
+        reasonCode: 'duplicate',
+        message: 'You have already submitted this exact question for this segment.',
+      };
     }
+
+    // AI screening: fetch the segment's graded-QB pool (dedup reference) + lesson
+    // context (relevance), then run the ordered short-circuiting checks.
+    const [existingQuestions, context] = await Promise.all([
+      this.fetchGradedPool(input.segmentId),
+      this.fetchSegmentContext(input.segmentId),
+    ]);
+
+    const verdict = await this.screeningService.screen({
+      questionText,
+      options: options.map(o => o.text),
+      correctOptionIndex: input.correctOptionIndex,
+      existingQuestions,
+      context,
+    });
+
+    const persisted = this.toPersistedVerdict(verdict);
+
+    // pass → live PENDING; hold → HELD (awaits instructor); reject → rejected stub.
+    const status: StudentQuestionStatus =
+      verdict.decision === 'pass' ? 'PENDING' : verdict.decision === 'hold' ? 'HELD' : 'REJECTED';
 
     const question = new StudentSegmentQuestion({
       courseId: input.courseId,
@@ -330,19 +369,88 @@ export class StudentQuestionService {
       correctOptionIndex: input.correctOptionIndex,
       normalizedSignature,
       createdBy: input.createdBy,
+      status,
+      screening: persisted,
+      rejectionReason: verdict.decision === 'reject' ? verdict.reasonCode : undefined,
     });
 
     const createdId = await this.repository.create(question);
 
-    await this._stageToSubmittedBank(createdId, {
-      segmentId: input.segmentId,
-      questionText,
-      options,
-      correctOptionIndex: input.correctOptionIndex,
-      createdBy: input.createdBy,
-    });
+    // Only a clean PASS enters the served/collecting pool.
+    if (verdict.decision === 'pass') {
+      await this._stageToSubmittedBank(createdId, {
+        segmentId: input.segmentId,
+        questionText,
+        options,
+        correctOptionIndex: input.correctOptionIndex,
+        createdBy: input.createdBy,
+      });
+    }
 
-    return createdId;
+    return {
+      decision: verdict.decision,
+      reasonCode: verdict.reasonCode,
+      message: verdict.message,
+      questionId: verdict.decision === 'reject' ? undefined : createdId,
+    };
+  }
+
+  /** Map the transient screening result to the persisted verdict subdocument. */
+  private toPersistedVerdict(v: ScreeningResult): IScreeningVerdict {
+    return {
+      decision: v.decision,
+      reasonCode: v.reasonCode,
+      check: v.check,
+      message: v.message,
+      checks: v.checks,
+      matchQuestion: v.matchQuestion,
+      provider: v.provider,
+      model: v.model,
+      latencyMs: v.latencyMs,
+      at: new Date(),
+    };
+  }
+
+  /**
+   * The duplicate-check reference pool: existing question stems in the segment's
+   * graded question bank. Best-effort — any failure yields an empty pool (screen
+   * still runs the other checks). No new query engine; reuses existing services.
+   */
+  private async fetchGradedPool(segmentId: string): Promise<string[]> {
+    try {
+      const quizItem = await this._resolveTargetQuiz(segmentId);
+      const bankRef = (quizItem as any)?.details?.questionBankRefs?.[0];
+      if (!bankRef) return [];
+      const ids = (await this.questionBankService.getQuestions(bankRef)).slice(
+        0,
+        screeningConfig.dedupPoolLimit,
+      );
+      const questions = await Promise.all(
+        ids.map(id => this.questionService.getByIdWithoutExplanation(id).catch(() => null)),
+      );
+      return questions
+        .map(q => (q as any)?.text)
+        .filter((t: unknown): t is string => typeof t === 'string' && t.trim().length > 0);
+    } catch {
+      return [];
+    }
+  }
+
+  /** Lesson context for the relevance check: the VIDEO item's title + transcript. */
+  private async fetchSegmentContext(segmentId: string): Promise<string | null> {
+    try {
+      const item: any = await this.itemRepo.readItemById(segmentId);
+      if (!item) return null;
+      const transcript =
+        item.details?.transcript ?? item.transcript ?? item.details?.text ?? '';
+      const text = [item.name, item.description, transcript]
+        .filter((s: unknown) => typeof s === 'string' && (s as string).trim())
+        .join('\n')
+        .slice(0, screeningConfig.contextCharBudget);
+      return text.trim() || null;
+    } catch {
+      return null;
+    }
   }
 
   /**

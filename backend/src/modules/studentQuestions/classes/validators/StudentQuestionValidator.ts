@@ -17,7 +17,7 @@ import {JSONSchema} from 'class-validator-jsonschema';
 
 const QUESTION_TYPES = ['SELECT_ONE_IN_LOT'] as const;
 type QuestionTypeLiteral = (typeof QUESTION_TYPES)[number];
-const STATUS_VALUES = ['PENDING', 'APPROVED', 'REJECTED'] as const;
+const STATUS_VALUES = ['PENDING', 'HELD', 'APPROVED', 'REJECTED'] as const;
 type StatusLiteral = (typeof STATUS_VALUES)[number];
 const STATUS_FILTER_VALUES = ['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as const;
 type StatusFilterLiteral = (typeof STATUS_FILTER_VALUES)[number];
@@ -125,8 +125,22 @@ export class UpdateStudentQuestionStatusBody {
 }
 
 export class StudentQuestionCreateResponse {
+  /** Screening outcome: 'pass' | 'reject' | 'hold'. */
   @IsString()
-  questionId!: string;
+  decision!: string;
+
+  /** Machine-readable reason (e.g. 'duplicate', 'off_topic', 'wrong_answer', 'ok'). */
+  @IsString()
+  reasonCode!: string;
+
+  /** Human-friendly message shown to the student. */
+  @IsString()
+  message!: string;
+
+  /** Present unless the submission was rejected. */
+  @IsOptional()
+  @IsString()
+  questionId?: string;
 }
 
 export class StudentQuestionListItemResponse {

@@ -91,7 +91,7 @@ export class StudentQuestionController {
     if (!createdBy) {
       throw new ForbiddenError('Unable to resolve authenticated user.');
     }
-    const questionId = await this.service.createQuestion({
+    const result = await this.service.createQuestion({
       courseId: params.courseId,
       courseVersionId: params.courseVersionId,
       segmentId: params.segmentId,
@@ -101,7 +101,12 @@ export class StudentQuestionController {
       correctOptionIndex: body.correctOptionIndex,
       createdBy,
     });
-    return {questionId};
+    return {
+      decision: result.decision,
+      reasonCode: result.reasonCode,
+      message: result.message,
+      questionId: result.questionId,
+    };
   }
 
   @Authorized()
