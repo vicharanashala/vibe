@@ -239,6 +239,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
     switch (question.type) {
       case 'SELECT_ONE_IN_LOT': {
+        if (typeof answer === 'string') {
+          return answer.trim() !== '';
+        }
         return answer !== undefined && answer !== null;
       }
       case 'SELECT_MANY_IN_LOT': {
@@ -370,15 +373,34 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
 
         switch (question.type) {
           case 'SELECT_ONE_IN_LOT':
-            if (typeof userAnswer === 'number' && question.lotItems) {
-              const selectedLotItem = question.lotItems[userAnswer];
-              if (selectedLotItem && selectedLotItem._id) {
-                if (typeof selectedLotItem._id === 'string') {
-                  saveAnswer.lotItemId = selectedLotItem._id;
-                } else if (selectedLotItem._id.buffer && selectedLotItem._id) {
-                  const buffer = selectedLotItem._id;
-                  saveAnswer.lotItemId = bufferToHex(buffer);
+            if (question.lotItems) {
+              let selectedIndex = -1;
+              // 1. General Flow: The user picked a radio button (number)
+              if (typeof userAnswer === 'number') {
+                selectedIndex = userAnswer;
+              }
+              // 2. Integer Flow: The user typed an answer in the input box (string)
+              else if (typeof userAnswer === 'string') {
+                selectedIndex = question.options?.findIndex(opt => {
+                  return preprocessRemoveFromOptions(opt).trim() === userAnswer.trim();
+                }) ?? -1;
+              }
+
+              // Proceed exactly as before, using the matched index
+              if (selectedIndex !== -1) {
+                const selectedLotItem = question.lotItems[selectedIndex];
+                if (selectedLotItem && selectedLotItem._id) {
+                  if (typeof selectedLotItem._id === 'string') {
+                    saveAnswer.lotItemId = selectedLotItem._id;
+                  } else if (selectedLotItem._id.buffer && selectedLotItem._id) {
+                    const buffer = selectedLotItem._id;
+                    saveAnswer.lotItemId = bufferToHex(buffer);
+                  }
                 }
+              } else if (typeof userAnswer === 'string' && userAnswer.trim() !== '') {
+                // Integer Flow with wrong/out-of-bounds answer:
+                // Send a dummy lotItemId so the backend grades it as INCORRECT
+                saveAnswer.lotItemId = '000000000000000000000000';
               }
             }
             break;
@@ -492,7 +514,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       return;
     }
 
-    if((isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)) ){
+    if ((isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId))) {
       return;
     }
 
@@ -745,7 +767,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           const answersForSaving = convertAnswersToSaveFormat();
           await saveQuiz({
             params: { path: { quizId: processedQuizId, attemptId: attemptId } },
-            body: { answers: answersForSaving, cohortId: currentCourse?.cohortId??'' }
+            body: { answers: answersForSaving, cohortId: currentCourse?.cohortId ?? '' }
           });
         } catch (saveErr) {
           console.warn('Failed to save answers before submission:', saveErr);
@@ -761,9 +783,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           answers: answersForSubmission, isSkipped, courseId: currentCourse?.courseId,
           courseVersionId: currentCourse?.versionId,
           watchItemId: currentCourse?.watchItemId ?? undefined,
-          cohortId: currentCourse?.cohortId??'',
-          moduleId: currentCourse?.moduleId ?? '',
-          sectionId: currentCourse?.sectionId ?? '',
+          cohortId: currentCourse?.cohortId ?? ''
         }
       };
 
@@ -971,12 +991,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
   const handleAnswer = useCallback((answer: string | number | number[] | string[] | undefined) => {
-    if (answer === undefined) return;
     if (!currentQuestion) return;
-    setAnswers(prev => ({
-      ...prev,
-      [currentQuestion.id]: answer
-    }));
+    setAnswers(prev => {
+      const updated = { ...prev };
+      if (answer === undefined || answer === '') {
+        delete updated[currentQuestion.id];
+      } else {
+        updated[currentQuestion.id] = answer;
+      }
+      return updated;
+    });
   }, [currentQuestion]);
 
   const resetQuiz = useCallback(() => {
@@ -1182,7 +1206,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   useImperativeHandle(ref, () => ({
     stopItem: async () => {
       if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
-      if( isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId) ){
+      if (isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)) {
         return;
       }
       try {
@@ -1498,14 +1522,14 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 {/* Next Lesson Button-If user doesn't want to wait*/}
                 {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
                   <Button
-                    onClick={async ()=>{
-                        if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
-                          await handleSkipItem();
-                        }
-                        if(onNext){
-                        onNext();
-                        }
+                    onClick={async () => {
+                      if (!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))) {
+                        await handleSkipItem();
                       }
+                      if (onNext) {
+                        onNext();
+                      }
+                    }
                     }
                     disabled={isProgressUpdating}
                     className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
@@ -1775,7 +1799,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     );
   }
 
-  if(quizStarted && noAttemptsLeft){
+  if (quizStarted && noAttemptsLeft) {
     return (
       <Card className="mx-auto">
         <CardContent className="p-8 text-center space-y-6">
@@ -1817,16 +1841,16 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               {/* Next Lesson Button-If user doesn't want to wait*/}
               {onNext && (submissionResults?.gradingStatus !== "FAILED") && (
                 <Button
-                  onClick={async ()=>{
-                      if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
-                        await handleSkipItem();
-                      }
-                      setQuizStarted(false);
-                      setNoAttemptsLeft(false);
-                      if(onNext){
-                        onNext();
-                      }
+                  onClick={async () => {
+                    if (!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))) {
+                      await handleSkipItem();
                     }
+                    setQuizStarted(false);
+                    setNoAttemptsLeft(false);
+                    if (onNext) {
+                      onNext();
+                    }
+                  }
                   }
                   disabled={isProgressUpdating}
                   className="min-w-[180px] h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
@@ -2026,28 +2050,60 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           )} */}
           {/* Single Select (SELECT_ONE_IN_LOT) */}
           {currentQuestion.type === 'SELECT_ONE_IN_LOT' && currentQuestion.options && (
-            <RadioGroup
-              key={currentQuestion.id}
-              name={`question-${currentQuestion.id}`}
-              value={answers[currentQuestion.id] !== undefined ? answers[currentQuestion.id].toString() : undefined}
-              onValueChange={(value) => handleAnswer(value ? parseInt(value) : undefined)}
-              className="space-y-3"
-            >
-              {currentQuestion.options.map((option, index) => (
-                <Label
-                  key={index}
-                  htmlFor={`option-${currentQuestion.id}-${index}`}
-                  className="flex items-center space-x-3 rounded-lg border border-border p-4 cursor-pointer w-full hover:bg-accent/50 transition-colors"
+            (() => {
+              // Check if every single option in the question is a valid integer
+              const isIntegerMCQ = currentQuestion.options.length > 0 && currentQuestion.options.every(opt => {
+                const cleanOpt = preprocessRemoveFromOptions(opt).trim();
+                const num = Number(cleanOpt);
+                return cleanOpt !== '' && !isNaN(num) && Number.isInteger(num);
+              });
+              // If they are all integers, render the Number Input box
+              if (isIntegerMCQ) {
+                return (
+                  <div className="space-y-2">
+                    <Label htmlFor={`numerical-mcq-answer-${currentQuestion.id}`}>Enter your answer (integer)</Label>
+                    <Input
+                      id={`numerical-mcq-answer-${currentQuestion.id}`}
+                      type="number"
+                      step="1"
+                      value={answers[currentQuestion.id] !== undefined ? (answers[currentQuestion.id] as string | number) : ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Saves the typed text natively as a string
+                        handleAnswer(val === '' ? undefined : val);
+                      }}
+                      placeholder="Enter an integer"
+                      className="text-lg"
+                    />
+                  </div>
+                );
+              }
+              // Otherwise, render the standard Radio Group just like before
+              return (
+                <RadioGroup
+                  key={currentQuestion.id}
+                  name={`question-${currentQuestion.id}`}
+                  value={answers[currentQuestion.id] !== undefined ? answers[currentQuestion.id].toString() : undefined}
+                  onValueChange={(value) => handleAnswer(value ? parseInt(value) : undefined)}
+                  className="space-y-3"
                 >
-                  <RadioGroupItem value={index.toString()} id={`option-${currentQuestion.id}-${index}`} />
-                  <span className="flex-1">
-                    <MathRenderer>
-                      {preprocessMathContent(preprocessRemoveFromOptions(option))}
-                    </MathRenderer>
-                  </span>
-                </Label>
-              ))}
-            </RadioGroup>
+                  {currentQuestion.options!.map((option, index) => (
+                    <Label
+                      key={index}
+                      htmlFor={`option-${currentQuestion.id}-${index}`}
+                      className="flex items-center space-x-3 rounded-lg border border-border p-4 cursor-pointer w-full hover:bg-accent/50 transition-colors"
+                    >
+                      <RadioGroupItem value={index.toString()} id={`option-${currentQuestion.id}-${index}`} />
+                      <span className="flex-1">
+                        <MathRenderer>
+                          {preprocessMathContent(preprocessRemoveFromOptions(option))}
+                        </MathRenderer>
+                      </span>
+                    </Label>
+                  ))}
+                </RadioGroup>
+              );
+            })()
           )}
 
           {/* Multi-Select (SELECT_MANY_IN_LOT) */}
