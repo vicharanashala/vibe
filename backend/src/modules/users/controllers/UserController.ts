@@ -162,10 +162,11 @@ export class UserController {
   ): Promise<void> {
     const token = req.headers.authorization?.split(' ')[1];
     const user = await this.authService.getCurrentUserFromToken(token);
-    await this.userService.editUser(user._id!.toString(), {
-      profileImage: body.profileImage,
-      faceEmbedding: body.faceEmbedding,
-    });
+    await this.userService.updateFaceReference(
+      user._id!.toString(),
+      body.profileImage,
+      body.faceEmbedding,
+    );
   }
 
   @OpenAPI({

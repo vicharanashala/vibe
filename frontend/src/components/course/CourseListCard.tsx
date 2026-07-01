@@ -1,22 +1,20 @@
-import { Clock, Info, Play, Trophy, Headphones, MessageCircle, ExternalLink, Users, Sparkles, Check, Copy, Crown, Medal, Award, LifeBuoy, Mail, Activity } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Clock, Info, Play, Trophy, Headphones, MessageCircle, ExternalLink, Check, Copy, Mail, Activity, BookOpen } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useCourseVersionById, useLeaderboard, useCheckTimeSlotAccessOnDemand } from "@/hooks/hooks";
 import { toast } from "sonner";
 import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
-import { useState, lazy, Suspense, useEffect } from "react";
+import { useState, lazy, Suspense } from "react";
 import { bufferToHex } from "@/utils/helpers";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { EnrollmentDetailsDialog } from "@/components/course/EnrollmentDetailsDialog";
-import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Pagination } from "../ui/Pagination";
 import { LeaderboardLeagues } from "@/components/course/LeaderboardLeagues";
 
@@ -32,9 +30,6 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
   const courseId = bufferToHex(enrollment.courseId as string);
   const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
   const cohortId = enrollment?.cohortId ? (typeof enrollment.cohortId === 'string' ? enrollment.cohortId : bufferToHex(enrollment.cohortId as any)) : "";
-  const module_number = enrollment.moduleNumber || "";
-  const section_number = enrollment.sectionNumber || "";
-  const item_type = enrollment.itemType || "VIDEO";
 
   const { data: courseVersionData } = useCourseVersionById(versionId, variant !== 'available', cohortId || undefined);
   const { setCurrentCourse } = useCourseStore();
@@ -48,7 +43,9 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
   const [copied, setCopied] = useState(false);
 
   const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
-  const hasAssignedTimeslot = enrollment.assignedTimeSlot && Array.isArray(enrollment.assignedTimeSlot) && enrollment.assignedTimeSlot.length > 0;
+  const hasAssignedTimeslot = Array.isArray(enrollment.assignedTimeSlot)
+    ? enrollment.assignedTimeSlot.length > 0
+    : !!enrollment.assignedTimeSlot;
   const isCompleted = (typeof enrollment.percentCompleted === 'number' && enrollment.percentCompleted >= 100) || false;
 
   const GURU_SETU_VERSION_ID = "6981df886e100cfe04f9c4ae";
@@ -64,6 +61,27 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
   const videoCount = Number((contentCounts as any).videos ?? itemCounts.VIDEO ?? versionItemCounts.VIDEO ?? 0);
   const quizCount = Number((contentCounts as any).quizzes ?? itemCounts.QUIZ ?? versionItemCounts.QUIZ ?? 0);
 
+  // Derived presentation data (UI only — no new data sources).
+  const instructors = enrollment.course?.instructors;
+  const instructorName = Array.isArray(instructors)
+    ? instructors.map((i: any) => i?.name).filter(Boolean).join(', ')
+    : '';
+  const completedItems = Number(enrollment.completedItems ?? 0);
+  const totalItems = Number(enrollment.contentCounts?.totalItems ?? 0);
+  const hpSystem = !!(courseVersionData as any)?.hpSystem;
+  const isMoreVideosSoon = enrollment.courseId === "6981df886e100cfe04f9c4ad";
+
+  // Subtle icon-tile accent, varied by position for visual rhythm.
+  const iconThemes = [
+    "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+    "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    "bg-pink-500/10 text-pink-600 dark:text-pink-400",
+  ];
+  const iconTheme = iconThemes[index % iconThemes.length];
+
+  const hasMenu = variant !== 'available' && isNotGuruSetu;
 
   const handleContinue = async (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -86,167 +104,132 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
   };
 
   return (
-    <Card className={cn("dark:bg-[#4b341e4b] border border-border overflow-hidden flex flex-col sm:flex-row student-card-hover p-0", className)}>
-      <div className="w-full h-40 sm:h-auto sm:w-32 flex-shrink-0 flex items-center justify-center">
-        <ImageWithFallback
-          src="https://us.123rf.com/450wm/warat42/warat422108/warat42210800253/173451733-charts-graph-with-analysis-business-financial-data-white-clipboard-checklist-smartphone-wallet.jpg?ver=6"
-          alt={enrollment?.course?.name || `Course ${index + 1}`}
-          aspectRatio="aspect-square"
-          className="w-full h-full object-cover rounded-t-lg sm:rounded-l-lg sm:rounded-t-none"
-        />
+    <Card
+      className={cn(
+        "group relative flex flex-col gap-3 rounded-2xl border p-4 transition-all duration-300 ease-out sm:flex-row sm:items-center sm:gap-4",
+        "bg-white border-neutral-200/80 hover:border-neutral-300 hover:shadow-md",
+        "dark:bg-white/[0.03] dark:border-white/[0.07] dark:hover:bg-white/[0.05]",
+        "ring-1 ring-black/[0.02] dark:ring-white/[0.04]",
+        className
+      )}
+    >
+      {/* Icon tile */}
+      <div className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-xl", iconTheme)}>
+        <BookOpen className="h-6 w-6" />
       </div>
 
-      <CardContent className="p-4 sm:pl-3 flex flex-col flex-1">
-        <div className="flex items-start justify-between xl:flex-row flex-col gap-2 mb-2">
-          <div className="flex items-center gap-2">
-            <Badge className="bg-secondary/70 text-secondary-foreground border-0 font-normal">Course</Badge>
-            {isCompleted && <Badge className="bg-green-100 text-green-800 border-0 font-normal">Completed</Badge>}
-            {enrollment.cohortName && <Badge variant="outline" className="text-[10px] border-primary/20 text-primary">{enrollment.cohortName}</Badge>}
-          </div>
-
-          <div className="text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-            <div className="flex items-center gap-1.5 min-w-fit">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors" />
-                  </TooltipTrigger>
-                  <TooltipContent side="top" sideOffset={8}>
-                    <p>This course is actively updated with new content.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <span>Ongoing training</span>
-            </div>
-
-            {variant !== 'available' && (
-              <div className="flex items-center gap-2">
-                <span>Progress</span>
-                <div className="flex items-center gap-2">
-                  {enrollment.courseId !== "6981df886e100cfe04f9c4ad" ?  <div className="w-16 h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full bg-primary rounded-full transition-all duration-300 ease-out" style={{ width: `${progress}%` }} />
-                  </div> : (<span>{enrollment.completedItems}/{enrollment.contentCounts?.totalItems} (More videos soon)</span>)}
-                  {enrollment.courseId !== "6981df886e100cfe04f9c4ad" && <span>{progress.toFixed(2)}%</span>}
-                </div>
-              </div>
-            )}
-
-            {variant !== 'available' && enrollment.enrollmentDate && (
-              <div className="flex items-center gap-1.5">
-                <span>Enrolled At</span>
-                <div className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5 text-green-500" />
-                  <span className="text-green-500">{new Date(enrollment.enrollmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <h3 className="font-bold text-lg mb-1 leading-tight text-foreground">{enrollment?.course?.name || `Course ${index + 1}`}</h3>
-
-        <p className="text-xs text-muted-foreground mb-4">
-          {variant === 'available' ? 'Discover and enroll' : isCompleted ? 'Course completed!' : progress === 0 ? 'Start your learning journey' : 'Continue Learning'}
-          {variant !== 'available' && !isCompleted && progress !== 0 && (
-            <span className="ml-2">&bull; MOD {module_number} &bull; SEC {section_number} &bull; {item_type}</span>
-          )}
-          &nbsp;&nbsp;&bull; {videoCount} Videos &bull; {quizCount} Quizzes
-        </p>
-
-        <div className="mt-auto flex flex-col sm:flex-row gap-2">
-          <Button
-            className={cn("w-full sm:w-auto h-9 rounded-xl font-bold transition-all duration-200", variant === 'available' ? "bg-primary text-primary-foreground" : progress === 0 ? "bg-green-600 hover:bg-green-700 text-white shadow-md border-0" : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md")}
-            onClick={handleContinue}
+      {/* Main content */}
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <h3
+            className="truncate text-base font-bold leading-tight text-foreground sm:text-lg"
+            title={enrollment?.course?.name || `Course ${index + 1}`}
           >
-            {variant === 'available' ? 'Register' : progress === 0 ? 'Start' : isCompleted ? 'Completed' : 'Continue'}
-            <Play className="h-3.5 w-3.5 ml-2 fill-current" />
-          </Button>
-
-          {variant !== 'available' && isNotGuruSetu && (
-            <>
-              <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold" onClick={() => setIsDetailsOpen(true)}>
-                    <Info className="h-3.5 w-3.5 mr-1.5 text-blue-500" /> Details
-                </Button>
-                {(courseVersionData as any)?.hpSystem && (
-                    <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold" onClick={() => navigate({ to: `/student/hp-system/${versionId}/${enrollment.cohortName || 'default'}/activities` })}>
-                        <Activity className="h-3.5 w-3.5 mr-1.5 text-blue-500" /> HP
-                    </Button>
-                )}
-              <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold" onClick={() => setIsTimeslotModalOpen(true)}>
-                <Clock className="h-3.5 w-3.5 mr-1.5 text-green-500" /> {hasAssignedTimeslot ? 'Slot' : 'Pick Slot'}
-              </Button>
-              <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold">
-                    <Trophy className="h-3.5 w-3.5 mr-1.5 text-yellow-500" /> Rank
-                  </Button>
-                </DialogTrigger>
-                <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} cohortId={cohortId} />
-              </Dialog>
-              {supportLink && (
-                <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold" asChild>
-                  <a href={supportLink.startsWith('mailto:') || supportLink.includes('@') ? (supportLink.startsWith('mailto:') ? supportLink : `mailto:${supportLink}`) : supportLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
-                    <Headphones className="h-3.5 w-3.5 text-indigo-500" /> Support
-                  </a>
-                </Button>
-              )}
-              {enrollment.courseId === MERN_CASE_STUDY_ID && (
-                <Dialog open={isForumOpen} onOpenChange={setIsForumOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold">Forum</Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl h-[70vh] flex flex-col">
-                    <DialogHeader><DialogTitle>Discussion Forum</DialogTitle></DialogHeader>
-                    <ScrollArea className="flex-1 mt-4">
-                      <div className="space-y-4 p-4">
-                        <div className="flex items-center gap-2 mb-4">
-                          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                            <MessageCircle className="w-4 h-4 text-primary-foreground" />
-                          </div>
-                          <h3 className="text-lg font-semibold">Discord Community</h3>
-                        </div>
-                        <div className="rounded-xl border bg-primary/5 p-6 space-y-4">
-                          <p className="text-sm text-muted-foreground">Join our exclusive Discord community to connect with peers and mentors.</p>
-                          <div className="flex gap-2">
-                            <Button className="flex-1" asChild>
-                              <a href="https://discord.gg/kKNBu3PF" target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="w-4 h-4 mr-2" /> Join Discord
-                              </a>
-                            </Button>
-                            <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText("https://discord.gg/kKNBu3PF"); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
-                              {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </ScrollArea>
-                  </DialogContent>
-                </Dialog>
-              )}
-              {!supportLink && (enrollment.courseId === "6943b2cafa4e840eb39490b6" || enrollment.courseId === MERN_CASE_STUDY_ID) && (
-                <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 rounded-xl text-[11px] font-bold">Support</Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader><DialogTitle>Contact Support</DialogTitle></DialogHeader>
-                    <div className="p-4 space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary"><Mail className="w-6 h-6" /></div>
-                        <div>
-                          <p className="font-semibold">Email us at</p>
-                          <a href={`mailto:${supportEmail}`} className="text-primary hover:underline">{supportEmail}</a>
-                        </div>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </>
+            {enrollment?.course?.name || `Course ${index + 1}`}
+          </h3>
+          {isCompleted && (
+            <Badge className="border-0 bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400">Completed</Badge>
+          )}
+          {enrollment.cohortName && (
+            <Badge variant="outline" className="border-primary/20 text-primary text-[10px]">{enrollment.cohortName}</Badge>
           )}
         </div>
-      </CardContent>
 
+        {(instructorName || variant === 'available') && (
+          <p className="mt-0.5 truncate text-xs text-muted-foreground sm:text-sm">
+            {instructorName || 'Discover and enroll'}
+          </p>
+        )}
+
+        {variant !== 'available' ? (
+          <div className="mt-2.5 space-y-1.5">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">
+                {isMoreVideosSoon
+                  ? `${completedItems}/${totalItems} • More videos soon`
+                  : totalItems > 0
+                    ? `${completedItems} of ${totalItems} lessons`
+                    : `${videoCount} Videos • ${quizCount} Quizzes`}
+              </span>
+              {!isMoreVideosSoon && <span className="font-semibold text-foreground tabular-nums">{progress.toFixed(0)}%</span>}
+            </div>
+            {!isMoreVideosSoon && <Progress value={progress} className="h-1.5" />}
+          </div>
+        ) : (
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {videoCount} Videos • {quizCount} Quizzes
+          </p>
+        )}
+      </div>
+
+      {/* Actions: prominent primary CTA + tidy overflow menu (keeps every action) */}
+      <div className="flex shrink-0 items-center gap-2 self-stretch sm:self-center">
+        <Button
+          onClick={handleContinue}
+          className={cn(
+            "h-9 flex-1 gap-1.5 rounded-xl font-bold transition-all duration-200 sm:flex-none",
+            variant === 'available'
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : progress === 0
+                ? "bg-green-600 text-white hover:bg-green-700"
+                : "bg-primary text-primary-foreground hover:bg-primary/90"
+          )}
+        >
+          {variant === 'available' ? 'Register' : progress === 0 ? 'Start' : isCompleted ? 'Review' : 'Continue'}
+          <Play className="h-3.5 w-3.5 fill-current" />
+        </Button>
+
+        {hasMenu && (
+          <>
+            {/* Book Slot — kept labeled */}
+            <Button
+              variant="outline"
+              onClick={() => setIsTimeslotModalOpen(true)}
+              className="h-9 gap-1.5 rounded-xl font-semibold"
+              title="Pick Slot"
+            >
+              <Clock className="h-4 w-4 text-green-500" />
+              <span className="hidden sm:inline">Pick Slot</span>
+            </Button>
+
+            {/* Remaining actions as icon-only buttons */}
+            <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setIsDetailsOpen(true)} title="Details" aria-label="Details">
+              <Info className="h-4 w-4 text-blue-500" />
+            </Button>
+            {hpSystem && (
+              <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" onClick={() => navigate({ to: `/student/hp-system/${versionId}/${enrollment.cohortName || 'default'}/activities` })} title="HP System" aria-label="HP System">
+                <Activity className="h-4 w-4 text-blue-500" />
+              </Button>
+            )}
+            <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setIsLeaderboardOpen(true)} title="Leaderboard" aria-label="Leaderboard">
+              <Trophy className="h-4 w-4 text-yellow-500" />
+            </Button>
+            {supportLink && (
+              <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" asChild title="Support" aria-label="Support">
+                <a
+                  href={supportLink.startsWith('mailto:') || supportLink.includes('@') ? (supportLink.startsWith('mailto:') ? supportLink : `mailto:${supportLink}`) : supportLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Headphones className="h-4 w-4 text-indigo-500" />
+                </a>
+              </Button>
+            )}
+            {enrollment.courseId === MERN_CASE_STUDY_ID && (
+              <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setIsForumOpen(true)} title="Forum" aria-label="Forum">
+                <MessageCircle className="h-4 w-4 text-blue-500" />
+              </Button>
+            )}
+            {!supportLink && (enrollment.courseId === "6943b2cafa4e840eb39490b6" || enrollment.courseId === MERN_CASE_STUDY_ID) && (
+              <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setIsSupportOpen(true)} title="Support" aria-label="Support">
+                <Mail className="h-4 w-4 text-indigo-500" />
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Controlled dialogs / modals — mounted here, opened from the menu. */}
       <EnrollmentDetailsDialog isOpen={isDetailsOpen} onOpenChange={setIsDetailsOpen} enrollment={enrollment} />
       <Suspense fallback={null}>
         <StudentTimeslotModal
@@ -258,6 +241,60 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
           hasAssignedTimeslot={!!hasAssignedTimeslot}
         />
       </Suspense>
+
+      {hasMenu && (
+        <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
+          <LeaderboardDialog courseId={courseId} versionId={versionId} courseName={enrollment?.course?.name} isOpen={isLeaderboardOpen} cohortId={cohortId} />
+        </Dialog>
+      )}
+
+      {enrollment.courseId === MERN_CASE_STUDY_ID && (
+        <Dialog open={isForumOpen} onOpenChange={setIsForumOpen}>
+          <DialogContent className="max-w-2xl h-[70vh] flex flex-col">
+            <DialogHeader><DialogTitle>Discussion Forum</DialogTitle></DialogHeader>
+            <ScrollArea className="flex-1 mt-4">
+              <div className="space-y-4 p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                    <MessageCircle className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold">Discord Community</h3>
+                </div>
+                <div className="rounded-xl border bg-primary/5 p-6 space-y-4">
+                  <p className="text-sm text-muted-foreground">Join our exclusive Discord community to connect with peers and mentors.</p>
+                  <div className="flex gap-2">
+                    <Button className="flex-1" asChild>
+                      <a href="https://discord.gg/kKNBu3PF" target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="w-4 h-4 mr-2" /> Join Discord
+                      </a>
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText("https://discord.gg/kKNBu3PF"); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+                      {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {!supportLink && (enrollment.courseId === "6943b2cafa4e840eb39490b6" || enrollment.courseId === MERN_CASE_STUDY_ID) && (
+        <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Contact Support</DialogTitle></DialogHeader>
+            <div className="p-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary"><Mail className="w-6 h-6" /></div>
+                <div>
+                  <p className="font-semibold">Email us at</p>
+                  <a href={`mailto:${supportEmail}`} className="text-primary hover:underline">{supportEmail}</a>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
 };

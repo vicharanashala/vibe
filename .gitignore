@@ -80,3 +80,16 @@ e2e/*.txt
 
 # Local Claude agents
 .github/agents/debugger.agent.md
+
+# One-off script run-output dumps & local reports (backend root)
+backend/*.json
+backend/*.csv
+backend/*.html
+backend/*.pdf
+backend/html/
+
+# Local PR draft notes
+.pr-*.md
+
+# Firebase hosting cache
+.firebase/

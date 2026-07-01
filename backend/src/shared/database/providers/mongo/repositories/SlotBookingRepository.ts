@@ -164,6 +164,42 @@ export class SlotBookingRepository implements ISlotBookingRepository {
     return result.length > 0 ? (result[0] as any).total ?? 0 : 0;
   }
 
+  /**
+   * Sum the reserved hours a student has LOST to unused slots — bookings that
+   * ended UNFULFILLED (booked but not attended enough). These hours are spent
+   * from the budget with nothing to show for them.
+   */
+  async sumUnfulfilledHoursForStudent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    sinceDate?: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const match: Record<string, unknown> = {
+      userId: new ObjectId(userId),
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      status: SlotBookingStatus.UNFULFILLED,
+      isDeleted: {$ne: true},
+    };
+    // `date` is YYYY-MM-DD IST, so a lexical >= is a correct date comparison.
+    if (sinceDate) match.date = {$gte: sinceDate};
+    const result = await this.slotBookingsCollection
+      .aggregate(
+        [
+          {
+            $match: match,
+          },
+          {$group: {_id: null, total: {$sum: '$hoursReserved'}}},
+        ],
+        {session},
+      )
+      .toArray();
+    return result.length > 0 ? (result[0] as any).total ?? 0 : 0;
+  }
+
   async cancelBooking(
     bookingId: string,
     session?: ClientSession,
