@@ -2486,7 +2486,10 @@ export function useListMyStudentQuestions(): {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const listMine = async (
+  // Memoized so its identity is stable across renders — callers put this in
+  // effect deps, and an unstable reference caused an infinite fetch loop on
+  // the My Submissions page. (Setters are stable; status/limit come from args.)
+  const listMine = useCallback(async (
     status: import('@/types/student-question.types').StudentQuestionStatusFilter = 'ALL',
     limit = 100,
   ) => {
@@ -2522,7 +2525,7 @@ export function useListMyStudentQuestions(): {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return { listMine, loading, error };
 }
