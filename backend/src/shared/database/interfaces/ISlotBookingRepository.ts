@@ -59,12 +59,15 @@ export interface ISlotBookingRepository {
 
   /**
    * Total `hoursReserved` a student has LOST to UNFULFILLED (unused) bookings on
-   * a course version — hours spent from the budget with nothing gained.
+   * a course version — hours spent from the budget with nothing gained. Pass
+   * `sinceDate` (YYYY-MM-DD IST) to only count recent misses, so the warning
+   * decays as the student gets back on track rather than being an all-time tally.
    */
   sumUnfulfilledHoursForStudent(
     userId: string,
     courseId: string,
     courseVersionId: string,
+    sinceDate?: string,
     session?: ClientSession,
   ): Promise<number>;
 

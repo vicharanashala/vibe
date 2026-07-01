@@ -46,6 +46,13 @@ export class SlotBookingService extends BaseService {
     super(mongoDatabase);
   }
 
+  /**
+   * Rolling window (days) over which UNFULFILLED slots count as "wasted hours"
+   * in the student-facing warning. Keeps the warning a recent-accountability
+   * signal that decays once the student gets back on track, not an all-time tally.
+   */
+  private static readonly LOST_HOURS_WINDOW_DAYS = 7;
+
   /** How many days before the study day booking opens. */
   private static readonly BOOKING_OPEN_LEAD_DAYS = 2;
   /** Hour (IST) at which booking opens on D-2. */
@@ -466,6 +473,12 @@ export class SlotBookingService extends BaseService {
       );
     }
 
+    // Only recent misses count toward the warning, so it decays as the student
+    // recovers rather than lingering for the life of the course.
+    const lostSince = this.formatISTDate(
+      this.getISTNowMs() -
+        SlotBookingService.LOST_HOURS_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    );
     const [reservedHours, lostHours] = await Promise.all([
       this.slotBookingRepo.sumReservedHoursForStudent(
         userId,
@@ -476,6 +489,7 @@ export class SlotBookingService extends BaseService {
         userId,
         courseId,
         courseVersionId,
+        lostSince,
       ),
     ]);
     const round = (n: number) => Math.round(n * 100) / 100;

@@ -29,11 +29,13 @@ function makeService(opts: {
   bookings?: any[];
   sessions?: any[];
   timeslots?: any;
+  percentCompleted?: number;
 }) {
   const {
     bookings = [DAY_BOOKING],
     sessions = [],
     timeslots = {isActive: true, slots: [], fulfillmentThresholdPct: 90},
+    percentCompleted = 0,
   } = opts;
 
   const slotBookingRepo = {
@@ -44,12 +46,16 @@ function makeService(opts: {
   const settingsRepo = {
     readTimeslotsSettings: vi.fn().mockResolvedValue(timeslots),
   };
+  const enrollmentService = {
+    findEnrollment: vi.fn().mockResolvedValue({percentCompleted}),
+  };
   const svc = new FulfillmentService(
     slotBookingRepo as any,
     settingsRepo as any,
+    enrollmentService as any,
     {} as any,
   );
-  return {svc, slotBookingRepo, settingsRepo};
+  return {svc, slotBookingRepo, settingsRepo, enrollmentService};
 }
 
 // A watch session as Date objects.
@@ -126,14 +132,56 @@ describe('FulfillmentService.evaluateDueBookings', () => {
   });
 
   it('defaults the threshold to 90% when unset', async () => {
-    // 89% should fail the default, 90% should pass it.
+    // Sparse 89%: 30min + 76.8min with a gap, so engagement density is also 89%
+    // → fails both the full-window rule and the finished-early rule under the
+    // default 90% threshold.
     const eightyNine = makeService({
       timeslots: {isActive: true, slots: []}, // no fulfillmentThresholdPct
-      sessions: [session('2026-06-20T07:30:00Z', '2026-06-20T09:16:48Z')], // ~106.8min → 89%
+      sessions: [
+        session('2026-06-20T07:30:00Z', '2026-06-20T08:00:00Z'), // 30 min
+        session('2026-06-20T08:13:12Z', '2026-06-20T09:30:00Z'), // 76.8 min
+      ],
     });
     await eightyNine.svc.evaluateDueBookings(AFTER);
     expect(eightyNine.slotBookingRepo.setFulfillment.mock.calls[0][1]).toBe(
       SlotBookingStatus.UNFULFILLED,
+    );
+  });
+
+  it('credits finishing early: dense engagement that leaves before the window ends', async () => {
+    // Active 13:00–14:46.8 IST (07:30–09:16.8 UTC) = 106.8 min of a 120-min
+    // window → 89% of the window (fails rule 1), but the student was active
+    // 100% of the time until they left → FULFILLED via the finished-early rule.
+    const {svc, slotBookingRepo} = makeService({
+      sessions: [session('2026-06-20T07:30:00Z', '2026-06-20T09:16:48Z')],
+    });
+    await svc.evaluateDueBookings(AFTER);
+    const [, status, activePct] = slotBookingRepo.setFulfillment.mock.calls[0];
+    expect(status).toBe(SlotBookingStatus.FULFILLED);
+    expect(activePct).toBe(89); // honest measured pct still recorded
+  });
+
+  it('does not credit a token appearance below the minimum active floor', async () => {
+    // 13:00–13:30 IST = 30 min dense, but under the 45-min floor → UNFULFILLED.
+    const {svc, slotBookingRepo} = makeService({
+      sessions: [session('2026-06-20T07:30:00Z', '2026-06-20T08:00:00Z')],
+    });
+    await svc.evaluateDueBookings(AFTER);
+    expect(slotBookingRepo.setFulfillment.mock.calls[0][1]).toBe(
+      SlotBookingStatus.UNFULFILLED,
+    );
+  });
+
+  it('credits a slot when the student has no remaining work (course complete)', async () => {
+    // Barely active, but the course is 100% complete → nothing left to do, so
+    // the booked slot is not counted as wasted.
+    const {svc, slotBookingRepo} = makeService({
+      sessions: [session('2026-06-20T07:30:00Z', '2026-06-20T07:35:00Z')],
+      percentCompleted: 100,
+    });
+    await svc.evaluateDueBookings(AFTER);
+    expect(slotBookingRepo.setFulfillment.mock.calls[0][1]).toBe(
+      SlotBookingStatus.FULFILLED,
     );
   });
 
