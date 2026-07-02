@@ -113,6 +113,27 @@ class QuestionBankRepository {
     return result.modifiedCount; // number of banks updated
   }
 
+  /**
+   * Detach a question reference from ONE bank's `questions` array without
+   * touching the underlying question document. Used when MOVING a question
+   * between banks (e.g. crowd "Submitted – Pending Validation" → graded), where
+   * the question must stay alive — unlike QuestionBankService.removeQuestion,
+   * which soft-deletes the question. Returns true if the bank was modified.
+   */
+  async removeQuestionRefFromBank(
+    questionBankId: string,
+    questionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const result = await this.questionBankCollection.updateOne(
+      {_id: new ObjectId(questionBankId)},
+      {$pull: {questions: new ObjectId(questionId)}},
+      {session},
+    );
+    return result.modifiedCount > 0;
+  }
+
   async update(
     questionBankId: string,
     updateData: Partial<IQuestionBank>,
