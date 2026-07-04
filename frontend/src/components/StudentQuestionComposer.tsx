@@ -127,12 +127,23 @@ export default function StudentQuestionComposer({
 
   // ── Verdict ──
   if (phase === 'verdict' && verdict) {
-    return <VerdictPanel verdict={verdict} onEdit={() => setPhase('form')} onDone={() => onDone?.(verdict)} />;
+    const applyFix = (fixed: string) => {
+      setPayload(current => ({...current, questionText: fixed}));
+      setPhase('form');
+    };
+    return (
+      <VerdictPanel
+        verdict={verdict}
+        onEdit={() => setPhase('form')}
+        onApplyFix={applyFix}
+        onDone={() => onDone?.(verdict)}
+      />
+    );
   }
 
   // ── Form ──
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-4 pt-4">
       {error && (
         <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
           {error}
@@ -141,7 +152,7 @@ export default function StudentQuestionComposer({
 
       <div className="grid gap-1.5">
         <Label htmlFor="student-question-text" className="text-sm font-medium">
-          Question prompt
+          Enter your question
         </Label>
         <Textarea
           id="student-question-text"
@@ -224,18 +235,21 @@ export default function StudentQuestionComposer({
 function VerdictPanel({
   verdict,
   onEdit,
+  onApplyFix,
   onDone,
 }: {
   verdict: StudentQuestionSubmissionResult;
   onEdit: () => void;
+  onApplyFix: (fixed: string) => void;
   onDone: () => void;
 }) {
+  const isTypo = verdict.reasonCode === 'typo' && !!verdict.suggestedFix;
   const tone =
     verdict.decision === 'pass'
       ? {icon: CheckCircle2, ring: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', title: 'Contributed! 🎉'}
       : verdict.decision === 'hold'
         ? {icon: Clock, ring: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20', title: 'Sent for review'}
-        : {icon: XCircle, ring: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/10 border-red-500/20', title: 'Needs a small fix'};
+        : {icon: XCircle, ring: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/10 border-red-500/20', title: isTypo ? 'Quick spelling fix' : 'Needs a small fix'};
   const Icon = tone.icon;
 
   return (
@@ -248,7 +262,16 @@ function VerdictPanel({
         <p className="max-w-md text-sm text-muted-foreground">{verdict.message}</p>
       </div>
 
-      {verdict.decision === 'reject' ? (
+      {isTypo ? (
+        <div className="flex gap-2 pt-1">
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            Edit myself
+          </Button>
+          <Button size="sm" onClick={() => onApplyFix(verdict.suggestedFix!)}>
+            Apply fix &amp; retry
+          </Button>
+        </div>
+      ) : verdict.decision === 'reject' ? (
         <div className="flex gap-2 pt-1">
           <Button variant="outline" size="sm" onClick={onDone}>
             Discard

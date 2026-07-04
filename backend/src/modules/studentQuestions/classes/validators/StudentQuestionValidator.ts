@@ -141,6 +141,11 @@ export class StudentQuestionCreateResponse {
   @IsOptional()
   @IsString()
   questionId?: string;
+
+  /** For a 'typo' reject: corrected question text the student can one-tap apply. */
+  @IsOptional()
+  @IsString()
+  suggestedFix?: string;
 }
 
 export class StudentQuestionListItemResponse {

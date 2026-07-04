@@ -39,6 +39,8 @@ export interface CreateQuestionResult {
   message: string;
   /** Present unless rejected (no live record is kept for a reject beyond the stub). */
   questionId?: string;
+  /** For a `typo` reject: the corrected question text the student can one-tap apply. */
+  suggestedFix?: string;
 }
 
 @injectable()
@@ -334,16 +336,34 @@ export class StudentQuestionService {
       return {
         decision: 'reject',
         reasonCode: 'duplicate',
-        message: 'You have already submitted this exact question for this segment.',
+        message: 'You have already submitted this exact question for this lesson. Try asking about something different.',
       };
     }
 
-    // AI screening: fetch the segment's graded-QB pool (dedup reference) + lesson
-    // context (relevance), then run the ordered short-circuiting checks.
-    const [existingQuestions, context] = await Promise.all([
+    // AI screening: build the dedup reference pool + lesson context (relevance),
+    // then run the ordered short-circuiting checks. The pool is every prior
+    // question for this segment the new one could duplicate: existing student
+    // submissions (PENDING/HELD/APPROVED) AND the graded question bank, merged
+    // and de-duplicated. Comparing against pending submissions — not just
+    // approved/graded ones — is what catches a repeat before any teacher acts.
+    const [gradedPool, submissionPool, context] = await Promise.all([
       this.fetchGradedPool(input.segmentId),
+      this.fetchSubmissionPool({
+        courseId: input.courseId,
+        courseVersionId: input.courseVersionId,
+        segmentId: input.segmentId,
+      }),
       this.fetchSegmentContext(input.segmentId),
     ]);
+    const existingQuestions = this.mergePool(gradedPool, submissionPool);
+    console.log('[screening] DEDUP POOL', {
+      segmentId: input.segmentId,
+      newQuestion: questionText,
+      gradedCount: gradedPool.length,
+      submissionCount: submissionPool.length,
+      mergedCount: existingQuestions.length,
+      pool: existingQuestions,
+    });
 
     const verdict = await this.screeningService.screen({
       questionText,
@@ -392,6 +412,7 @@ export class StudentQuestionService {
       reasonCode: verdict.reasonCode,
       message: verdict.message,
       questionId: verdict.decision === 'reject' ? undefined : createdId,
+      ...(verdict.suggestedFix ? {suggestedFix: verdict.suggestedFix} : {}),
     };
   }
 
@@ -421,19 +442,62 @@ export class StudentQuestionService {
       const quizItem = await this._resolveTargetQuiz(segmentId);
       const bankRef = (quizItem as any)?.details?.questionBankRefs?.[0];
       if (!bankRef) return [];
-      const ids = (await this.questionBankService.getQuestions(bankRef)).slice(
-        0,
-        screeningConfig.dedupPoolLimit,
-      );
+      // NOTE: getQuestions() honours the ref's `count` (a random draw the quiz
+      // shows the learner — often 1-5), not the whole bank. For dedup we need
+      // EVERY stem in the bank, so override count to the dedup pool limit.
+      const ids = await this.questionBankService.getQuestions({
+        ...bankRef,
+        count: screeningConfig.dedupPoolLimit,
+      });
       const questions = await Promise.all(
-        ids.map(id => this.questionService.getByIdWithoutExplanation(id).catch(() => null)),
+        ids.map(id => this.questionService.getByIdWithoutExplanation(id, true).catch(() => null)),
       );
-      return questions
+      const stems = questions
         .map(q => (q as any)?.text)
         .filter((t: unknown): t is string => typeof t === 'string' && t.trim().length > 0);
+      console.log('[screening] dedup pool for segment', segmentId, '→', stems.length, 'stems:', stems);
+      return stems;
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Existing student submissions for this segment that a new one could
+   * duplicate — PENDING, HELD or APPROVED (rejected stubs are ignored so a
+   * student can retry a fixed version). Returns their question stems.
+   */
+  private async fetchSubmissionPool(input: {
+    courseId: string;
+    courseVersionId: string;
+    segmentId: string;
+  }): Promise<string[]> {
+    try {
+      const existing = await this.repository.listBySegment({
+        ...input,
+        limit: screeningConfig.dedupPoolLimit,
+      });
+      return existing
+        .filter(q => q.status !== 'REJECTED')
+        .map(q => q.questionText)
+        .filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
+    } catch {
+      return [];
+    }
+  }
+
+  /** Merge dedup sources, drop case/space-insensitive repeats, cap at the pool limit. */
+  private mergePool(...sources: string[][]): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const stem of sources.flat()) {
+      const key = this.normalize(stem);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(stem);
+      if (out.length >= screeningConfig.dedupPoolLimit) break;
+    }
+    return out;
   }
 
   /** Lesson context for the relevance check: the VIDEO item's title + transcript. */

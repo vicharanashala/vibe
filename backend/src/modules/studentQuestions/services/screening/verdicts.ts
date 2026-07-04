@@ -21,11 +21,18 @@ export class VerdictSchemaError extends Error {
 
 export interface MeaningfulVerdict {
   meaningful: boolean;
+  confidence: Confidence;
   reason: string;
+  /** The question rewritten with obvious spelling typos fixed, or null if none. */
+  corrected: string | null;
 }
 export function asMeaningful(o: Record<string, unknown>): MeaningfulVerdict {
   if (!isBool(o.meaningful)) throw new VerdictSchemaError('meaningful');
-  return {meaningful: o.meaningful, reason: str(o.reason)};
+  // Confidence is advisory here — default to 'high' if the model omits it so a
+  // clear reject still rejects; only an explicit 'low' softens to a hold.
+  const confidence = isConf(o.confidence) ? o.confidence : 'high';
+  const corrected = typeof o.corrected === 'string' && o.corrected.trim() ? o.corrected.trim() : null;
+  return {meaningful: o.meaningful, confidence, reason: str(o.reason), corrected};
 }
 
 export interface DuplicateVerdict {
@@ -52,13 +59,19 @@ export function asContext(o: Record<string, unknown>): ContextVerdict {
 }
 
 export interface AnswerVerdict {
-  correctIndex: number;
+  /** 0-based index of the correct option, or null = no/ambiguous correct option (route to human). */
+  correctIndex: number | null;
   confidence: Confidence;
   reason: string;
 }
 export function asAnswer(o: Record<string, unknown>): AnswerVerdict {
-  const ci = typeof o.correctIndex === 'string' ? Number(o.correctIndex) : o.correctIndex;
-  if (typeof ci !== 'number' || !Number.isInteger(ci) || ci < 0 || !isConf(o.confidence)) {
+  if (!isConf(o.confidence)) throw new VerdictSchemaError('answer');
+  const raw = o.correctIndex;
+  if (raw === null || raw === undefined) {
+    return {correctIndex: null, confidence: o.confidence, reason: str(o.reason)};
+  }
+  const ci = typeof raw === 'string' ? Number(raw) : raw;
+  if (typeof ci !== 'number' || !Number.isInteger(ci) || ci < 0) {
     throw new VerdictSchemaError('answer');
   }
   return {correctIndex: ci, confidence: o.confidence, reason: str(o.reason)};

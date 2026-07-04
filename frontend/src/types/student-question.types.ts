@@ -26,6 +26,8 @@ export interface StudentQuestionSubmissionResult {
   message: string;
   /** Present unless rejected. */
   questionId?: string;
+  /** For a 'typo' reject: corrected question text the student can one-tap apply. */
+  suggestedFix?: string;
 }
 
 export type StudentQuestionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';

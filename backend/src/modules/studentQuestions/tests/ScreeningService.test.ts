@@ -22,11 +22,12 @@ function mockLlm(handler: (prompt: string) => Record<string, unknown>, spy?: (p:
   };
 }
 
+// Dispatch on the reply-spec JSON keys — stable across prompt-wording changes.
 const which = (p: string) =>
-  /meaningful=false/.test(p) ? 'meaningful'
-  : /DUPLICATE of ANY/.test(p) ? 'duplicate'
-  : /on-topic/.test(p) ? 'context'
-  : /0-based index/.test(p) ? 'answer'
+  p.includes('"meaningful"') ? 'meaningful'
+  : p.includes('"duplicate"') ? 'duplicate'
+  : p.includes('"onTopic"') ? 'context'
+  : p.includes('"correctIndex"') ? 'answer'
   : 'unknown';
 
 const svc = (llm: ScreeningLlm) => new ScreeningService().setLlm(llm);
@@ -57,6 +58,24 @@ describe('ScreeningService (mocked LLM)', () => {
     const r = await svc(mockLlm(() => ({meaningful: false, reason: 'too vague'}))).screen({questionText: 'what is that'});
     expect(r.decision).toBe('reject');
     expect(r.check).toBe('meaningful');
+  });
+
+  it('bounces a typo back to the student with a suggested fix', async () => {
+    const r = await svc(mockLlm(p => which(p) === 'meaningful'
+      ? {meaningful: true, confidence: 'high', reason: 'clear', corrected: 'who is the founder of amazon?'}
+      : allPass(p),
+    )).screen({questionText: 'who is the founder of amazzon?'});
+    expect(r.decision).toBe('reject');
+    expect(r.reasonCode).toBe('typo');
+    expect(r.suggestedFix).toBe('who is the founder of amazon?');
+  });
+
+  it('ignores a "correction" that only differs in case/spacing (not a real typo)', async () => {
+    const r = await svc(mockLlm(p => which(p) === 'meaningful'
+      ? {meaningful: true, confidence: 'high', reason: 'clear', corrected: 'What is AI?'}
+      : allPass(p),
+    )).screen({questionText: 'what is ai?', existingQuestions: ['what is ml']});
+    expect(r.reasonCode).not.toBe('typo');
   });
 
   it('rejects a high-confidence duplicate against the graded pool', async () => {

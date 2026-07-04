@@ -45,6 +45,7 @@ export class GroqScreeningLlm implements ScreeningLlm {
 
         const json = (await res.json()) as any;
         const content: string = json?.choices?.[0]?.message?.content ?? '';
+        console.log('[screening/groq] raw response:', JSON.stringify(content).slice(0, 400));
         return parseJsonObject(content);
       } catch (err) {
         lastErr = err;
