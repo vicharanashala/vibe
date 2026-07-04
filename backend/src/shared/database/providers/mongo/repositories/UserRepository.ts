@@ -58,6 +58,9 @@ export class UserRepository implements IUserRepository {
    */
   async create(user: IUser, session?: ClientSession): Promise<string> {
     await this.init();
+    if (!user._id) {
+      user._id = new ObjectId();
+    }
     const result = await this.usersCollection.findOneAndUpdate(
       { firebaseUID: user.firebaseUID },
       { $setOnInsert: user },
