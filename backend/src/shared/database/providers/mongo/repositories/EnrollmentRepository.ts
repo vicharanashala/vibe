@@ -34,8 +34,6 @@ import {
   ItemsGroup,
   QuizItem,
 } from '#root/modules/courses/classes/index.js';
-import { AttemptRepository } from '#root/modules/quizzes/repositories/index.js';
-import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
 import { IProjectSubmission } from '#root/modules/projects/repositories/model.js';
 import { IReport } from '#root/shared/interfaces/reports.js';
@@ -64,8 +62,6 @@ export class EnrollmentRepository {
   private userActivityEventCollection!: Collection<IUserActivityEvent>;
 
   constructor(
-    @inject(QUIZZES_TYPES.AttemptRepo)
-    private attemptRepository: AttemptRepository,
     @inject(GLOBAL_TYPES.Database) private db: MongoDatabase,
   ) { }
 

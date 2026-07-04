@@ -173,20 +173,24 @@ export class SlotBookingRepository implements ISlotBookingRepository {
     userId: string,
     courseId: string,
     courseVersionId: string,
+    sinceDate?: string,
     session?: ClientSession,
   ): Promise<number> {
     await this.init();
+    const match: Record<string, unknown> = {
+      userId: new ObjectId(userId),
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      status: SlotBookingStatus.UNFULFILLED,
+      isDeleted: {$ne: true},
+    };
+    // `date` is YYYY-MM-DD IST, so a lexical >= is a correct date comparison.
+    if (sinceDate) match.date = {$gte: sinceDate};
     const result = await this.slotBookingsCollection
       .aggregate(
         [
           {
-            $match: {
-              userId: new ObjectId(userId),
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(courseVersionId),
-              status: SlotBookingStatus.UNFULFILLED,
-              isDeleted: {$ne: true},
-            },
+            $match: match,
           },
           {$group: {_id: null, total: {$sum: '$hoursReserved'}}},
         ],

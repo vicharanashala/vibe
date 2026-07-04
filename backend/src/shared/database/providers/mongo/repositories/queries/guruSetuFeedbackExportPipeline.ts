@@ -6,42 +6,63 @@ const HHMMSS_TO_SECONDS = (path: string) => ({
       parts: { $split: [{ $ifNull: [path, '00:00:00'] }, ':'] },
     },
     in: {
-      $add: [
-        {
-          $multiply: [
-            {
-              $convert: {
-                input: { $arrayElemAt: ['$$parts', 0] },
-                to: 'int',
-                onError: 0,
-                onNull: 0,
-              },
+      $let: {
+        vars: {
+          numParts: { $size: '$$parts' },
+          p0: {
+            $convert: {
+              input: { $arrayElemAt: ['$$parts', 0] },
+              to: 'int',
+              onError: 0,
+              onNull: 0,
             },
-            3600,
-          ],
-        },
-        {
-          $multiply: [
-            {
-              $convert: {
-                input: { $arrayElemAt: ['$$parts', 1] },
-                to: 'int',
-                onError: 0,
-                onNull: 0,
-              },
+          },
+          p1: {
+            $convert: {
+              input: { $arrayElemAt: ['$$parts', 1] },
+              to: 'int',
+              onError: 0,
+              onNull: 0,
             },
-            60,
-          ],
-        },
-        {
-          $convert: {
-            input: { $arrayElemAt: ['$$parts', 2] },
-            to: 'int',
-            onError: 0,
-            onNull: 0,
+          },
+          p2: {
+            $convert: {
+              input: { $arrayElemAt: ['$$parts', 2] },
+              to: 'int',
+              onError: 0,
+              onNull: 0,
+            },
           },
         },
-      ],
+        in: {
+          $switch: {
+            branches: [
+              {
+                // HH:MM:SS
+                case: { $eq: ['$$numParts', 3] },
+                then: {
+                  $add: [
+                    { $multiply: ['$$p0', 3600] },
+                    { $multiply: ['$$p1', 60] },
+                    '$$p2',
+                  ],
+                },
+              },
+              {
+                // MM:SS
+                case: { $eq: ['$$numParts', 2] },
+                then: { $add: [{ $multiply: ['$$p0', 60] }, '$$p1'] },
+              },
+              {
+                // SS only
+                case: { $eq: ['$$numParts', 1] },
+                then: '$$p0',
+              },
+            ],
+            default: 0,
+          },
+        },
+      },
     },
   },
 });
