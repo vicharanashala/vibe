@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CourseCard } from "@/components/course/CourseCard";
 import { CourseListCard } from "@/components/course/CourseListCard";
 import { FollowUpInvitesBanner } from "@/components/course/FollowUpInvitesBanner";
+import { CompanionWidget } from "@/components/Companion/CompanionWidget";
 import { NewAnnouncementsPopup } from "@/components/announcements/NewAnnouncementsPopup";
 import { LayoutGrid, List, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -235,6 +236,9 @@ function DashboardContent() {
 
             {/* Exclusive follow-up course invites unlocked by completing a course */}
             <FollowUpInvitesBanner />
+
+            {/* Learning Companion — grows automatically from real progress data */}
+            <CompanionWidget />
 
             {/* Personalized "next best action" + at-a-glance insights, derived
                 from data already fetched above (read-only). */}
