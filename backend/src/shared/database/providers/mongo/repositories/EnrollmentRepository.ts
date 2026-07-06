@@ -1611,7 +1611,14 @@ export class EnrollmentRepository {
       { $match: matchStage },
       {
         $addFields: {
-          userIdObj: { $toObjectId: '$userId' },
+          userIdObj: {
+            $convert: {
+              input: '$userId',
+              to: 'objectId',
+              onError: null,
+              onNull: null,
+            },
+          },
         },
       },
       {
@@ -1689,7 +1696,13 @@ export class EnrollmentRepository {
     // 4. Enrich only with basic user data and assigned time slots (no heavy watchTime/itemsGroup lookups)
     paginatedPipeline.push({
       $addFields: {
-        userId: { $toString: '$userInfo._id' },
+        userId: {
+          $cond: [
+            { $ifNull: ['$userInfo._id', false] },
+            { $toString: '$userInfo._id' },
+            '$userId',
+          ],
+        },
         _id: { $toString: '$_id' },
         courseId: { $toString: '$courseId' },
         courseVersionId: { $toString: '$courseVersionId' },
@@ -1787,7 +1800,13 @@ export class EnrollmentRepository {
       {
         $project: {
           _id: { $toString: '$_id' },
-          userId: { $toString: '$userInfo._id' },
+          userId: {
+            $cond: [
+              { $ifNull: ['$userInfo._id', false] },
+              { $toString: '$userInfo._id' },
+              '$userId',
+            ],
+          },
           firstName: '$userInfo.firstName',
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
