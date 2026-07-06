@@ -31,7 +31,9 @@ const POOL = [
 const CASES: Case[] = [
   // ── controls: legit questions must still pass ──
   {id: 'ok-clean', req: 'control', expect: 'pass', input: {questionText: 'what is the chemical formula of water', options: ['H2O', 'CO2'], correctOptionIndex: 0, existingQuestions: POOL}},
-  {id: 'ok-typo-q', req: 'control', expect: 'pass', input: {questionText: 'wat is fotosynthesis in plants', options: ['making food from sunlight', 'breathing'], correctOptionIndex: 0, existingQuestions: POOL}},
+  // Typo-bounce feature: an obvious spelling typo is sent BACK to the student
+  // with a suggested fix (reject + suggestedFix), so instructors never see typos.
+  {id: 'typo-bounce', req: 'R2-mistake', expect: 'reject', input: {questionText: 'wat is fotosynthesis in plants', options: ['making food from sunlight', 'breathing'], correctOptionIndex: 0, existingQuestions: POOL}},
 
   // ── R1: duplicates ──
   {id: 'dup-reword', req: 'R1-dup', expect: 'blocked', input: {questionText: 'at what temperature does water begin boiling', existingQuestions: POOL, options: ['100C', '50C'], correctOptionIndex: 0}},

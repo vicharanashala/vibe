@@ -232,6 +232,16 @@ strings.
 
 ## Changelog
 
+- **2026-07-06** — **Strict-judge DUPLICATE_PROMPT (ASK/GIVENS/KEY):** duplicate check now
+  decomposes the new question (ASK / GIVENS / KEY) inside a JSON `analysis` field and
+  compares per-candidate. KEY is defined per question type — numerical (computed answer;
+  any changed parameter = not dup) vs conceptual/factual (the fact tested; no numeric
+  givens is normal, same fact + same key = dup regardless of wording). Fixes both failure
+  modes: isomorphic-numbers over-matching AND conceptual reworded dups being missed.
+  Verified live 5/5 (faithful + zero-overlap rewords caught; same-answer-different-problem
+  and different-focus correctly pass). Red-team 0/7 slipped; edge suite 17/17 (typo-bounce
+  test expectation updated to match the student-side typo-fix feature). ANSWER_PROMPT also
+  tightened by user (no typo tolerance; ambiguity → hold; injection-aware).
 - **2026-07-03** — **Prompt overhaul (accuracy pass targeting dup/mistake/spam requirements):**
   (1) all four prompts rewritten reason-FIRST (model reasons before committing a verdict)
   with few-shot examples covering known traps (commutative dup, same-answer-different-question,

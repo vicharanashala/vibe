@@ -163,11 +163,15 @@ export class ScreeningService {
       const opts = input.options ?? [];
       if (opts.length >= 2 && Number.isInteger(input.correctOptionIndex)) {
         const a = asAnswer(await this.llm.askJson(ANSWER_PROMPT(q, opts, input.context ?? undefined)));
-        // null = LLM says NO option is correct / question is ambiguous → a human
-        // must look, regardless of confidence (rejecting would be too harsh: the
-        // student may have a typo in the options rather than a wrong answer).
+        // null = LLM says NO option is correct / multiple correct / ambiguous.
+        // Confident → bounce back to the STUDENT to fix the options (teachers
+        // shouldn't clean this up); unsure → the rare genuinely-debatable case
+        // goes to an instructor.
         if (a.correctIndex === null) {
-          return done({decision: 'hold', reasonCode: 'answer_uncertain', check: 'answer', message: 'None of the options looks clearly correct, so an instructor will review your question before it’s added.', checks: {wellFormed: true, notDuplicate: true, onTopic: true, answerCorrect: false}});
+          if (a.confidence === 'high') {
+            return done({decision: 'reject', reasonCode: 'wrong_answer', check: 'answer', message: 'None of your options is a correct answer to this question. Please fix the options (or the question) and resubmit.', checks: {wellFormed: true, notDuplicate: true, onTopic: true, answerCorrect: false}});
+          }
+          return done({decision: 'hold', reasonCode: 'answer_uncertain', check: 'answer', message: 'The correct answer here seems debatable, so an instructor will review your question before it’s added.', checks: {wellFormed: true, notDuplicate: true, onTopic: true, answerCorrect: false}});
         }
         if (a.correctIndex !== input.correctOptionIndex) {
           // Unsure disagreement → hold; confident disagreement → reject to fix.

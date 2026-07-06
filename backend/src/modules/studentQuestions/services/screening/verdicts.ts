@@ -71,8 +71,12 @@ export function asAnswer(o: Record<string, unknown>): AnswerVerdict {
     return {correctIndex: null, confidence: o.confidence, reason: str(o.reason)};
   }
   const ci = typeof raw === 'string' ? Number(raw) : raw;
-  if (typeof ci !== 'number' || !Number.isInteger(ci) || ci < 0) {
+  if (typeof ci !== 'number' || !Number.isInteger(ci)) {
     throw new VerdictSchemaError('answer');
+  }
+  // Models sometimes signal "no correct option" as -1 instead of null — same meaning.
+  if (ci < 0) {
+    return {correctIndex: null, confidence: o.confidence, reason: str(o.reason)};
   }
   return {correctIndex: ci, confidence: o.confidence, reason: str(o.reason)};
 }
