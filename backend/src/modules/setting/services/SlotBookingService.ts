@@ -46,10 +46,19 @@ export class SlotBookingService extends BaseService {
     super(mongoDatabase);
   }
 
+  /**
+   * Rolling window (days) over which UNFULFILLED slots count as "wasted hours"
+   * in the student-facing warning. Keeps the warning a recent-accountability
+   * signal that decays once the student gets back on track, not an all-time tally.
+   */
+  private static readonly LOST_HOURS_WINDOW_DAYS = 7;
+
   /** How many days before the study day booking opens. */
   private static readonly BOOKING_OPEN_LEAD_DAYS = 2;
   /** Hour (IST) at which booking opens on D-2. */
   private static readonly BOOKING_OPEN_HOUR = 9;
+  /** Hours before a slot's start after which it can no longer be cancelled. */
+  private static readonly CANCEL_CUTOFF_HOURS = 1;
 
   /** IST "now" as epoch ms whose UTC fields read as the IST wall clock. */
   private getISTNowMs(): number {
@@ -350,7 +359,12 @@ export class SlotBookingService extends BaseService {
     });
   }
 
-  /** Cancel one of the student's own bookings (used for re-booking / changes). */
+  /**
+   * Cancel one of the student's own bookings (used for re-booking / changes).
+   * Only allowed up to CANCEL_CUTOFF_HOURS before the slot starts — once inside
+   * that window (or after the slot has started) it can no longer be cancelled
+   * and counts as an unused slot, which the fulfilment job marks UNFULFILLED.
+   */
   async cancelBooking(userId: string, bookingId: string): Promise<boolean> {
     return this._withTransaction(async (session) => {
       const booking = await this.slotBookingRepo.findById(bookingId, session);
@@ -359,6 +373,19 @@ export class SlotBookingService extends BaseService {
       }
       if (String(booking.userId) !== String(userId)) {
         throw new ForbiddenError('You can only cancel your own bookings.');
+      }
+      // Lock cancellation within the cutoff window before the slot starts.
+      if (booking.date && booking.from) {
+        const startMs = this.slotCloseMs(booking.date, booking.from);
+        const cancelDeadlineMs =
+          startMs -
+          SlotBookingService.CANCEL_CUTOFF_HOURS * 60 * 60 * 1000;
+        if (this.getISTNowMs() >= cancelDeadlineMs) {
+          throw new BadRequestError(
+            `Bookings can only be cancelled up to ${SlotBookingService.CANCEL_CUTOFF_HOURS} hour before the slot starts. ` +
+              'It will count as an unused slot if you do not attend.',
+          );
+        }
       }
       return this.slotBookingRepo.cancelBooking(bookingId, session);
     });
@@ -407,6 +434,87 @@ export class SlotBookingService extends BaseService {
       (enrollment as {commitmentExtraBookings?: number} | null)
         ?.commitmentExtraBookings ?? 0
     );
+  }
+
+  /**
+   * A student's committed-hours summary for the course: their budget, the hours
+   * they've reserved against it, and — the part worth surfacing — the hours
+   * LOST to unused (UNFULFILLED) slots. Lets the UI warn e.g. "you've lost 2h of
+   * your 16h budget to missed slots." `hasBudget` is false when the course sets
+   * no hours budget (everything is then unlimited).
+   */
+  async getStudentHoursSummary(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+  ): Promise<{
+    hasBudget: boolean;
+    budgetHours: number | null;
+    reservedHours: number;
+    lostHours: number;
+    remainingHours: number | null;
+  }> {
+    const timeslots = await this.settingsRepo.readTimeslotsSettings(
+      courseId,
+      courseVersionId,
+    );
+    let enrollment = await this.enrollmentService.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
+    if (!enrollment && cohortId) {
+      enrollment = await this.enrollmentService.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+    }
+
+    // Only recent misses count toward the warning, so it decays as the student
+    // recovers rather than lingering for the life of the course.
+    const lostSince = this.formatISTDate(
+      this.getISTNowMs() -
+        SlotBookingService.LOST_HOURS_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    );
+    const [reservedHours, lostHours] = await Promise.all([
+      this.slotBookingRepo.sumReservedHoursForStudent(
+        userId,
+        courseId,
+        courseVersionId,
+      ),
+      this.slotBookingRepo.sumUnfulfilledHoursForStudent(
+        userId,
+        courseId,
+        courseVersionId,
+        lostSince,
+      ),
+    ]);
+    const round = (n: number) => Math.round(n * 100) / 100;
+
+    const base = timeslots?.totalBudgetHours;
+    if (base == null) {
+      return {
+        hasBudget: false,
+        budgetHours: null,
+        reservedHours: round(reservedHours),
+        lostHours: round(lostHours),
+        remainingHours: null,
+      };
+    }
+    const budgetHours =
+      base +
+      ((enrollment as {commitmentExtraHours?: number} | null)
+        ?.commitmentExtraHours ?? 0);
+    return {
+      hasBudget: true,
+      budgetHours: round(budgetHours),
+      reservedHours: round(reservedHours),
+      lostHours: round(lostHours),
+      remainingHours: round(Math.max(0, budgetHours - reservedHours)),
+    };
   }
 
   /**

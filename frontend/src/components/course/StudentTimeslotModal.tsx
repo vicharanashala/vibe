@@ -9,11 +9,13 @@ import {
   useMyBookings,
   useSlotAvailability,
   useMyExtraBookings,
+  useMyHoursSummary,
   useBookSlot,
   useCancelBooking,
   bookableStudyDates,
   istToday,
   slotBookingClosed,
+  slotCancelClosed,
   type MyBooking,
 } from "@/hooks/hooks";
 import { cn } from "@/utils/utils";
@@ -80,7 +82,7 @@ export default function StudentTimeslotModal({
     data: myBookings,
     isLoading: bookingsLoading,
     refetch: refetchBookings,
-  } = useMyBookings(courseId, courseVersionId, undefined, isOpen);
+  } = useMyBookings(courseId, courseVersionId, null, isOpen);
   const { data: availability, refetch: refetchAvailability } = useSlotAvailability(
     courseId,
     courseVersionId,
@@ -88,6 +90,11 @@ export default function StudentTimeslotModal({
     isOpen,
   );
   const { data: extraBookings, refetch: refetchExtraBookings } = useMyExtraBookings(
+    courseId,
+    courseVersionId,
+    isOpen,
+  );
+  const { data: hoursSummary, refetch: refetchHoursSummary } = useMyHoursSummary(
     courseId,
     courseVersionId,
     isOpen,
@@ -102,6 +109,7 @@ export default function StudentTimeslotModal({
     refetchBookings();
     refetchAvailability();
     refetchExtraBookings();
+    refetchHoursSummary();
   };
 
   const tsSettings = timeSlotsData as
@@ -220,12 +228,28 @@ export default function StudentTimeslotModal({
                 {extraBookings} awarded booking{extraBookings !== 1 ? 's' : ''} available
               </span>
             ) : null}
+            {hoursSummary?.hasBudget && hoursSummary.budgetHours != null ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted text-foreground px-2.5 py-0.5 text-xs font-medium">
+                <Clock className="h-3.5 w-3.5" />
+                {hoursSummary.remainingHours}h of {hoursSummary.budgetHours}h left
+              </span>
+            ) : null}
           </div>
           {bonusEarnedToday > 0 ? (
             <p className="mt-1 text-xs text-amber-700">
               🎉 You stayed active in {bonusEarnedToday} of your booked window
               {bonusEarnedToday !== 1 ? 's' : ''} today — that earned you{' '}
               {bonusEarnedToday} extra booking{bonusEarnedToday !== 1 ? 's' : ''}. Book another window below.
+            </p>
+          ) : null}
+          {hoursSummary && hoursSummary.lostHours > 0 ? (
+            <p className="mt-1 text-xs text-red-700">
+              ⚠️ You've lost {hoursSummary.lostHours}h
+              {hoursSummary.hasBudget && hoursSummary.budgetHours != null
+                ? ` of your ${hoursSummary.budgetHours}h budget`
+                : ''}{' '}
+              to missed slots (booked but not used). Cancel at least 1 hour before a
+              slot if you can't attend — that returns the hours.
             </p>
           ) : null}
         </DialogHeader>
@@ -248,6 +272,9 @@ export default function StudentTimeslotModal({
                 const booked = bookingFor(slot);
                 // A slot closes for booking at its own start time on the study day.
                 const hasStarted = !booked && slotBookingClosed(activeDate, slot.from);
+                // Cancellation locks 1 hour before the slot starts; after that the
+                // booking counts as an unused slot.
+                const cancelLocked = !!booked && slotCancelClosed(booked.date, booked.from);
                 // Past the daily allowance a student may still book by drawing
                 // from an instructor-awarded pool — mirrors the backend rule.
                 const atLimit =
@@ -292,10 +319,15 @@ export default function StudentTimeslotModal({
                             <Button
                               size="sm"
                               variant="outline"
-                              disabled={busy}
+                              disabled={busy || cancelLocked}
+                              title={
+                                cancelLocked
+                                  ? "Cancellation closes 1 hour before the slot starts"
+                                  : undefined
+                              }
                               onClick={() => handleCancel(booked._id)}
                             >
-                              Cancel
+                              {cancelLocked ? "Locked" : "Cancel"}
                             </Button>
                           </div>
                         ) : (
@@ -364,7 +396,7 @@ export default function StudentTimeslotModal({
             {bonusEnabled ? (
               <p>• Stay active for most of a booked window and you'll earn a bonus booking to use the same day.</p>
             ) : null}
-            <p>• Need a different window? Cancel a booking to free up your allowance, then book another.</p>
+            <p>• Need a different window? Cancel up to 1 hour before the slot starts to free up your allowance, then book another. After that it locks and counts as an unused slot.</p>
             <p>• Access to the course is allowed during a window you've booked.</p>
             <p>• Time slots are in IST (Indian Standard Time, UTC+5:30).</p>
           </div>

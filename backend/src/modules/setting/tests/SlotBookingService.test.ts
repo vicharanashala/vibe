@@ -35,6 +35,7 @@ function makeService(
     slotCount?: number;
     bookingById?: any;
     reservedHours?: number;
+    lostHours?: number;
   } = {},
 ) {
   const {
@@ -48,12 +49,14 @@ function makeService(
     slotCount = 0,
     bookingById = null,
     reservedHours = 0,
+    lostHours = 0,
   } = opts;
 
   const slotBookingRepo = {
     findActiveForStudent: vi.fn().mockResolvedValue(myBookings),
     countActiveInSlot: vi.fn().mockResolvedValue(slotCount),
     sumReservedHoursForStudent: vi.fn().mockResolvedValue(reservedHours),
+    sumUnfulfilledHoursForStudent: vi.fn().mockResolvedValue(lostHours),
     createBooking: vi
       .fn()
       .mockImplementation((b: any) => Promise.resolve({...b, _id: 'booking-new'})),
@@ -460,6 +463,82 @@ describe('SlotBookingService.cancelBooking', () => {
     const ok = await svc.cancelBooking(USER, 'b1');
     expect(ok).toBe(true);
     expect(slotBookingRepo.cancelBooking).toHaveBeenCalledWith('b1', {});
+  });
+
+  it('allows cancelling more than 1 hour before the slot starts', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-06-20T05:30:00.000Z')); // 11:00 IST
+      const {svc, slotBookingRepo} = makeService({
+        bookingById: {userId: USER, date: '2026-06-20', from: '13:00', to: '15:00'},
+      });
+      const ok = await svc.cancelBooking(USER, 'b1'); // deadline 12:00 IST
+      expect(ok).toBe(true);
+      expect(slotBookingRepo.cancelBooking).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('rejects cancelling within 1 hour of the slot start', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-06-20T07:00:00.000Z')); // 12:30 IST
+      const {svc, slotBookingRepo} = makeService({
+        bookingById: {userId: USER, date: '2026-06-20', from: '13:00', to: '15:00'},
+      });
+      await expect(svc.cancelBooking(USER, 'b1')).rejects.toThrowError(
+        /1 hour before the slot starts/i,
+      );
+      expect(slotBookingRepo.cancelBooking).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('SlotBookingService.getStudentHoursSummary', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('reports budget, reserved and hours lost to unused slots', async () => {
+    const {svc} = makeService({
+      timeslots: {isActive: true, slots: [], totalBudgetHours: 16},
+      enrollment: {_id: 'enroll-1', commitmentExtraHours: 0},
+      reservedHours: 6,
+      lostHours: 2,
+    });
+    const summary = await svc.getStudentHoursSummary(USER, COURSE, VERSION);
+    expect(summary).toEqual({
+      hasBudget: true,
+      budgetHours: 16,
+      reservedHours: 6,
+      lostHours: 2,
+      remainingHours: 10,
+    });
+  });
+
+  it('adds instructor-granted extra hours to the budget', async () => {
+    const {svc} = makeService({
+      timeslots: {isActive: true, slots: [], totalBudgetHours: 16},
+      enrollment: {_id: 'enroll-1', commitmentExtraHours: 4},
+      reservedHours: 0,
+      lostHours: 0,
+    });
+    const summary = await svc.getStudentHoursSummary(USER, COURSE, VERSION);
+    expect(summary.budgetHours).toBe(20);
+    expect(summary.remainingHours).toBe(20);
+  });
+
+  it('reports no budget (unlimited) when the course sets none', async () => {
+    const {svc} = makeService({
+      timeslots: {isActive: true, slots: []}, // no totalBudgetHours
+      lostHours: 2,
+    });
+    const summary = await svc.getStudentHoursSummary(USER, COURSE, VERSION);
+    expect(summary.hasBudget).toBe(false);
+    expect(summary.budgetHours).toBeNull();
+    expect(summary.remainingHours).toBeNull();
+    expect(summary.lostHours).toBe(2); // still reports lost hours
   });
 });
 

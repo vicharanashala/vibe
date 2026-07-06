@@ -183,6 +183,33 @@ class SlotBookingController {
   }
 
   @OpenAPI({
+    summary: "The student's committed-hours summary",
+    description:
+      "Returns the calling student's hours budget, hours reserved, and hours LOST to unused (unfulfilled) slots, so the UI can warn them about wasted budget.",
+  })
+  @Authorized()
+  @Get('/my/hours/course/:courseId/version/:courseVersionId')
+  @HttpCode(200)
+  async myHoursSummary(
+    @Param('courseId') courseId: string,
+    @Param('courseVersionId') courseVersionId: string,
+    @CurrentUser() user: IUser,
+    @QueryParam('cohortId') cohortId?: string,
+  ): Promise<BookingResponse> {
+    try {
+      const data = await this.slotBookingService.getStudentHoursSummary(
+        user._id.toString(),
+        courseId,
+        courseVersionId,
+        cohortId,
+      );
+      return {success: true, data};
+    } catch (error) {
+      throw new InternalServerError(`Failed to get hours summary: ${error}`);
+    }
+  }
+
+  @OpenAPI({
     summary: 'Slot availability (for booking)',
     description:
       'Booked load and seats remaining per window for an IST day (default today), so an enrolled student can see capacity while picking a slot. Returns counts only — no learner identities.',
