@@ -36,13 +36,30 @@ async function request<T>(
     },
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Request failed");
+  // 204 No Content (and any other success with an empty body) — leave `data`
+  // as `null` instead of crashing `response.json()` on an empty string. This
+  // happens for /api/companion/me when the user hasn't picked an animal yet.
+  const raw = await response.text();
+  let data: unknown = null;
+  if (raw.length > 0) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      // Non-JSON success bodies are unexpected, but we shouldn't crash the
+      // caller. Surface them as a string so the caller can still log.
+      data = raw;
+    }
   }
 
-  return { data };
+  if (!response.ok) {
+    const message =
+      (data && typeof data === 'object' && 'message' in data
+        ? String((data as { message: unknown }).message)
+        : null) || response.statusText || 'Request failed';
+    throw new Error(message);
+  }
+
+  return { data: data as T };
 }
 
 export const apiClient = {

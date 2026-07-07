@@ -203,10 +203,22 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         displayName: `${body.firstName} ${body.lastName || ''}`,
         disabled: false,
       });
-    } catch (error) {
-      throw new InternalServerError(
-        `Failed to create user in Firebase: ${error.message}`,
-      );
+    } catch (error: unknown) {
+      // The frontend's Firebase Auth SDK (createUserWithEmail) often creates the
+      // Firebase Auth account *before* posting to /api/auth/signup. If we got
+      // here, that already happened — fetch the existing record instead of
+      // surfacing 500. The userRepository.findByEmail guard above still
+      // protects us against double-creating our local Mongo user.
+      const code = (error as { code?: string })?.code;
+      if (code === 'auth/email-already-exists') {
+        userRecord = await this.auth.getUserByEmail(body.email);
+      } else {
+        const message =
+          error instanceof Error ? error.message : 'Unknown Firebase error';
+        throw new InternalServerError(
+          `Failed to create user in Firebase: ${message}`,
+        );
+      }
     }
 
     // Prepare user object for storage in our database
