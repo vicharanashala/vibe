@@ -40,11 +40,14 @@ export class MongoDatabase implements IDatabase<Db> {
       return;
     }
 
+    // TLS is disabled for local development because the local Mongo container
+    // doesn't ship with certificates. For production, uncomment the SSL/TLS
+    // block and ensure prod Mongo has valid certificates configured.
     this.client = new MongoClient(uri, {
-      ssl: true,
-      tls: true,
-      tlsAllowInvalidCertificates: false,
-      tlsAllowInvalidHostnames: false,
+      // ssl: true,
+      // tls: true,
+      // tlsAllowInvalidCertificates: false,
+      // tlsAllowInvalidHostnames: false,
 
       retryWrites: true,
 
