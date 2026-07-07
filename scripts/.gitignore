@@ -1,0 +1,4 @@
+scripts/.smoke-state.json
+*.trace.txt
+*.smoke-state.json
+
