@@ -295,7 +295,18 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       body.email,
     );
     if (existingUserByEmail) {
-      // User already exists, return existing user ID
+      // User already exists by email. Their firebaseUID may differ from the
+      // current one (Firebase Auth emulator wipes users on restart while the
+      // Mongo `users` collection persists, so the same person can come back
+      // with a brand-new localId). Re-link the existing Mongo record to the
+      // current Firebase UID so future requests find them by firebaseUID and
+      // skip this auto-create path entirely.
+      if (existingUserByEmail.firebaseUID !== firebaseUID) {
+        await this.userRepository.edit(
+          existingUserByEmail._id.toString(),
+          {firebaseUID},
+        );
+      }
       return {
         userId: existingUserByEmail._id.toString(),
       };
