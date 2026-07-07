@@ -45,7 +45,7 @@ class CompanionRepository {
       lastActiveAt: now,
       createdAt: now,
     };
-    const result = await this.collection!.insertOne(doc as any);
+    const result = await this.collection!.insertOne(doc);
     if (!result.acknowledged || !result.insertedId) {
       throw new InternalServerError('Failed to create companion');
     }

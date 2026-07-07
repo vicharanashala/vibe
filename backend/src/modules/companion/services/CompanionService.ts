@@ -89,10 +89,13 @@ class CompanionService {
           PAGE_SIZE,
           '',
           'STUDENT',
-        )) as any;
-        const enrollments = ((result?.enrollments ?? []) as Array<{
-          percentCompleted?: number;
-        }>).filter(e => (e.percentCompleted ?? 0) < 100); // ignore completed
+        )) as unknown as {
+          enrollments?: Array<{percentCompleted?: number}>;
+          totalDocuments?: number;
+        };
+        const enrollments = (result.enrollments ?? []).filter(
+          e => (e.percentCompleted ?? 0) < 100,
+        ); // ignore completed
         for (const e of enrollments) {
           if ((e.percentCompleted ?? 0) > highest) {
             highest = e.percentCompleted ?? 0;
@@ -163,12 +166,12 @@ class CompanionService {
    */
   private async _daysSinceEnrollment(userId: string): Promise<number> {
     try {
-      const result = await this.enrollmentRepo.getEnrollments(
+      const result = (await this.enrollmentRepo.getEnrollments(
         userId, 0, 1, '', 'STUDENT',
-      ) as any;
-      const enrollment = (result?.enrollments ?? [])[0] as
-        | {enrollmentDate?: Date}
-        | undefined;
+      )) as unknown as {
+        enrollments?: Array<{enrollmentDate?: Date}>;
+      };
+      const enrollment = (result?.enrollments ?? [])[0];
       if (!enrollment?.enrollmentDate) return 0;
       const msPerDay = 1000 * 60 * 60 * 24;
       const diffMs = Date.now() - new Date(enrollment.enrollmentDate).getTime();

@@ -37,9 +37,16 @@ export const useCompanionStore = create<CompanionStore>((set, get) => {
     fetchCompanion: async () => {
       if (inFlight) return inFlight;
       set({isLoading: true, error: null});
+      // Per-call AbortController so consumers (or the visibility-aware poller)
+      // can cancel an outstanding request instead of receiving its result after
+      // a tear-down, which would otherwise call setState on an unmounted store.
+      const controller = new AbortController();
       inFlight = (async () => {
         try {
-          const res = await apiClient.get<CompanionState | null>('/companion/me');
+          const res = await apiClient.get<CompanionState | null>(
+            '/companion/me',
+            { signal: controller.signal },
+          );
           set({
             companion: res.data,
             // Only flip hasSelected to false when the API confirms no record exists
@@ -49,7 +56,13 @@ export const useCompanionStore = create<CompanionStore>((set, get) => {
             hasSelected: res.data !== null,
             isLoading: false,
           });
-        } catch (err: any) {
+        } catch (err: unknown) {
+          // Aborted requests are part of normal lifecycle; do not surface them
+          // as errors and do not clear companion state.
+          if (controller.signal.aborted) {
+            set({isLoading: false});
+            return;
+          }
           // Don't clear hasSelected/companion here — a network blip should not wipe
           // the student's existing animal choice. Just record the error and stop
           // the loading spinner so the UI can show an error state if it wants to.
@@ -68,8 +81,9 @@ export const useCompanionStore = create<CompanionStore>((set, get) => {
     try {
       const res = await apiClient.post<CompanionState>('/companion/me', {animal});
       set({companion: res.data, hasSelected: true, isLoading: false});
-    } catch (err: any) {
-      set({error: err.message ?? 'Failed to select companion', isLoading: false});
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to select companion';
+      set({error: message, isLoading: false});
     }
   },
   };

@@ -64,10 +64,6 @@ function CompanionCanvas({
     }
 
     try {
-      console.log("[CompanionCanvas] MOUNT with", {
-        animal, mood, progress, idleDays, quizScore,
-        canvasW: canvas.width, canvasH: canvas.height,
-      });
       const safeAnimal = (
         animal === "panda" ||
         animal === "fox" ||
@@ -76,8 +72,9 @@ function CompanionCanvas({
         animal === "cat"
       ) ? animal : "panda";
 
-      if (safeAnimal !== animal) {
-        console.warn(`[CompanionCanvas] bad animal "${animal}", falling back to "${safeAnimal}"`);
+      if (import.meta.env.DEV && safeAnimal !== animal) {
+        // Defensive guard for unexpected animal strings — only log in dev.
+        console.warn(`[CompanionCanvas] unexpected animal "${animal}", falling back to "${safeAnimal}"`);
       }
 
       const renderer = createCompanionRenderer(canvas, {
@@ -152,6 +149,7 @@ export function CompanionWidget() {
   const companion = useCompanionStore((s) => s.companion);
   const hasSelected = useCompanionStore((s) => s.hasSelected);
   const isLoading = useCompanionStore((s) => s.isLoading);
+  const error = useCompanionStore((s) => s.error);
   const fetchCompanion = useCompanionStore((s) => s.fetchCompanion);
   const selectAnimal = useCompanionStore((s) => s.selectAnimal);
 
@@ -201,6 +199,11 @@ export function CompanionWidget() {
             </button>
           ))}
         </div>
+        {error && (
+          <p className="text-xs text-red-600 max-w-xs text-center" data-testid="companion-error">
+            {error}
+          </p>
+        )}
       </div>
     );
   }

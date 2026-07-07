@@ -4,6 +4,13 @@ type ApiResponse<T = unknown> = {
 
 type RequestOptions = {
   headers?: Record<string, string>;
+  /**
+   * AbortSignal to cancel the in-flight request. Callers should obtain an
+   * AbortController, pass `controller.signal`, and call `controller.abort()`
+   * on cleanup (typically in a React useEffect cleanup) to avoid setState
+   * after unmount.
+   */
+  signal?: AbortSignal;
 };
 
 const getBaseUrl = () => import.meta.env.VITE_BASE_URL ?? "";
@@ -43,6 +50,7 @@ export const apiClient = {
     request<T>(path, {
       method: "GET",
       headers: options?.headers,
+      signal: options?.signal,
     }),
 
   post: <T = unknown>(path: string, body?: unknown, options?: RequestOptions) =>
@@ -50,5 +58,6 @@ export const apiClient = {
       method: "POST",
       body: body !== undefined ? JSON.stringify(body) : undefined,
       headers: options?.headers,
+      signal: options?.signal,
     }),
 };
