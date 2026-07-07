@@ -6,7 +6,7 @@
  * is presentation-layer math only.
  */
 
-export type CourseStatus = "completed" | "almost" | "in-progress" | "not-started";
+export type CourseStatus = "completed" | "almost" | "in-progress" | "just-started" | "not-started";
 
 export interface CourseAnalytics {
   id: string;
@@ -44,6 +44,7 @@ function statusOf(progress: number): CourseStatus {
   if (progress >= 100) return "completed";
   if (progress <= 0) return "not-started";
   if (progress >= 75) return "almost";
+  if (progress < 20) return "just-started"; // barely begun (e.g. 3%, 12%)
   return "in-progress";
 }
 
@@ -113,11 +114,19 @@ export function averageQuizPercent(courses: CourseAnalytics[]): number | null {
   return Math.round(scored.reduce((s, c) => s + (c.quizPercent || 0), 0) / scored.length);
 }
 
-/** Progress-bar fill color that shifts red → amber → green as % rises. */
-export function progressTone(pct: number): string {
-  if (pct >= 75) return "bg-emerald-500";
-  if (pct >= 40) return "bg-amber-500";
-  return "bg-rose-500";
+/**
+ * Progress-bar fill color that shifts orange → yellow → green as % rises.
+ * No red by default: low completion means "just started", not a failure.
+ *
+ * `redBelow` opts into a red (rose) tone under that % — used by the course
+ * breakdown table to flag barely-started courses that need attention. Leave it
+ * at 0 (default) everywhere else so ordinary progress bars never turn red.
+ */
+export function progressTone(pct: number, redBelow = 0): string {
+  if (pct < redBelow) return "bg-rose-500"; // red — at-risk / needs attention
+  if (pct >= 75) return "bg-emerald-500"; // green — nearly done
+  if (pct >= 40) return "bg-yellow-500"; // yellow — in progress
+  return "bg-orange-500"; // orange — just getting started
 }
 
 /** In-progress courses sorted by closeness to completion — the quickest wins. */
@@ -132,5 +141,6 @@ export const STATUS_META: Record<CourseStatus, { label: string; className: strin
   completed: { label: "Completed", className: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400" },
   almost: { label: "Almost done", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400" },
   "in-progress": { label: "In progress", className: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400" },
+  "just-started": { label: "Just started", className: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400" },
   "not-started": { label: "Not started", className: "bg-neutral-100 text-neutral-600 dark:bg-white/10 dark:text-neutral-300" },
 };

@@ -4,6 +4,9 @@ import { STATUS_META, progressTone, type CourseAnalytics } from "./analytics-uti
 
 /** Per-course breakdown: progress, lessons, quiz score, pace and status. */
 export function CourseBreakdownTable({ courses }: { courses: CourseAnalytics[] }) {
+  // Ascending by progress — least-progressed courses first, so what needs
+  // attention surfaces at the top of the table.
+  const rows = [...courses].sort((a, b) => a.progress - b.progress);
   return (
     <Card className="rounded-2xl border p-0">
       <div className="border-b p-5">
@@ -26,7 +29,7 @@ export function CourseBreakdownTable({ courses }: { courses: CourseAnalytics[] }
               </tr>
             </thead>
             <tbody>
-              {courses.map((c) => {
+              {rows.map((c) => {
                 const meta = STATUS_META[c.status];
                 return (
                   <tr key={c.id} className="border-b last:border-0 hover:bg-muted/30">
@@ -37,7 +40,7 @@ export function CourseBreakdownTable({ courses }: { courses: CourseAnalytics[] }
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-16 overflow-hidden rounded-full bg-neutral-100 dark:bg-white/10">
-                          <div className={cn("h-full rounded-full", progressTone(c.progress))} style={{ width: `${c.progress}%` }} />
+                          <div className={cn("h-full rounded-full", progressTone(c.progress, 15))} style={{ width: `${c.progress}%` }} />
                         </div>
                         <span className="tabular-nums text-xs font-semibold text-foreground">{c.progress}%</span>
                       </div>
