@@ -35,11 +35,20 @@ export const useCompanionStore = create<CompanionStore>((set) => ({
       const res = await apiClient.get<CompanionState | null>('/companion/me');
       set({
         companion: res.data,
+        // Only flip hasSelected to false when the API confirms no record exists
+        // (res.data === null). On any other response (including errors), preserve
+        // the previous value so a transient backend hiccup never makes the user
+        // re-select their animal and overwrite the existing DB row.
         hasSelected: res.data !== null,
         isLoading: false,
       });
-    } catch {
-      set({isLoading: false, hasSelected: false});
+    } catch (err: any) {
+      // Don't clear hasSelected/companion here — a network blip should not wipe
+      // the student's existing animal choice. Just record the error and stop
+      // the loading spinner so the UI can show an error state if it wants to.
+      const message =
+        err instanceof Error ? err.message : 'Failed to load companion';
+      set({isLoading: false, error: message});
     }
   },
 

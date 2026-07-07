@@ -61,29 +61,29 @@ class CompanionRepository {
   }
 
   /**
-   * Upsert the animal choice.
-   * - If no companion exists for the user: create one.
-   * - If one exists: update the animal choice (and bump lastActiveAt).
+   * Upsert the animal choice atomically.
+   * - If no companion exists for the user: create one (createdAt = now).
+   * - If one exists: update the animal choice and bump lastActiveAt,
+   *   preserving the original createdAt.
    *
-   * NOTE: deliberately does NOT reset createdAt on update — that timestamp
-   * represents the user's first pick and powers the "time with companion"
-   * surface elsewhere.
+   * Uses a single atomic findOneAndUpdate with $set + $setOnInsert instead of
+   * a read-then-write pattern. This avoids a race where two concurrent
+   * selectAnimal calls could both fall through to the create() fallback and
+   * clobber the original createdAt timestamp.
    */
   async upsert(userId: string, animal: CompanionAnimal): Promise<Companion> {
     await this.init();
     const now = new Date();
-    const existing = await this.getByUserId(userId);
-    if (!existing) {
-      return this.create({userId, animal, now});
-    }
     const result = await this.collection!.findOneAndUpdate(
       {userId},
-      {$set: {animal, lastActiveAt: now}},
-      {returnDocument: 'after'},
+      {
+        $set: {animal, lastActiveAt: now},
+        $setOnInsert: {userId, createdAt: now},
+      },
+      {upsert: true, returnDocument: 'after'},
     );
     if (!result) {
-      // Doc vanished between read and write (race) — fall back to create.
-      return this.create({userId, animal, now});
+      throw new InternalServerError('Failed to upsert companion');
     }
     return new Companion(
       result.userId,

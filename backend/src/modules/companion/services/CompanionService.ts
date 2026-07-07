@@ -75,17 +75,33 @@ class CompanionService {
    */
   private async _getRealProgress(userId: string): Promise<number> {
     try {
-      const result = await this.enrollmentRepo.getEnrollments(
-        userId,
-        0,       // skip
-        10,      // limit — get top 10 active enrollments
-        '',      // search
-        'STUDENT',
-      ) as any;
-      const enrollments = (result?.enrollments ?? []) as Array<{percentCompleted?: number}>;
-      if (enrollments.length === 0) return 0;
-      // Return the highest progress across all courses
-      const highest = Math.max(...enrollments.map(e => e.percentCompleted ?? 0));
+      // Page through enough enrollments to find the highest active one. Without
+      // pagination, a student enrolled in 12+ courses would have their oldest
+      // entries silently dropped, and the 'highest' calculation would be wrong.
+      const PAGE_SIZE = 100;
+      let skip = 0;
+      let highest = 0;
+      let totalDocs = Infinity;
+      while (skip < totalDocs) {
+        const result = (await this.enrollmentRepo.getEnrollments(
+          userId,
+          skip,
+          PAGE_SIZE,
+          '',
+          'STUDENT',
+        )) as any;
+        const enrollments = ((result?.enrollments ?? []) as Array<{
+          percentCompleted?: number;
+        }>).filter(e => (e.percentCompleted ?? 0) < 100); // ignore completed
+        for (const e of enrollments) {
+          if ((e.percentCompleted ?? 0) > highest) {
+            highest = e.percentCompleted ?? 0;
+          }
+        }
+        totalDocs = result?.totalDocuments ?? enrollments.length;
+        if (enrollments.length < PAGE_SIZE) break;
+        skip += PAGE_SIZE;
+      }
       return Math.min(100, highest);
     } catch {
       return 0;
@@ -101,11 +117,19 @@ class CompanionService {
   private async _getRealQuizScore(userId: string): Promise<number> {
     try {
       const submissionsCollection = await this.db.getCollection('quiz_submission_results');
+      // Submission records store userId as either a hex string or an ObjectId
+      // (see SubmissionRepository.get). Match both shapes to be safe — otherwise
+      // a string-stored userId would cause ObjectId() to throw inside $match.
+      const userIdStr = String(userId);
+      const userIdObj = ObjectId.isValid(userIdStr) ? new ObjectId(userIdStr) : null;
+      const userIdMatch = userIdObj
+        ? {$in: [userIdStr, userIdObj]}
+        : userIdStr;
       const result = await (submissionsCollection as Collection)
         .aggregate([
           {
             $match: {
-              userId: new ObjectId(userId),
+              userId: userIdMatch,
               'gradingResult.totalScore': {$exists: true, $ne: null},
             },
           },
