@@ -81,28 +81,24 @@ class CompanionService {
       const PAGE_SIZE = 100;
       let skip = 0;
       let highest = 0;
-      let totalDocs = Infinity;
-      while (skip < totalDocs) {
-        const result = (await this.enrollmentRepo.getEnrollments(
+      while (true) {
+        // EnrollmentRepository.getEnrollments returns the enrollment docs
+        // directly (an array), not {enrollments, totalDocuments}. Earlier
+        // code here read `result.enrollments` which was always undefined and
+        // meant the companion never actually reflected real progress.
+        const page = (await this.enrollmentRepo.getEnrollments(
           userId,
           skip,
           PAGE_SIZE,
           '',
           'STUDENT',
-        )) as unknown as {
-          enrollments?: Array<{percentCompleted?: number}>;
-          totalDocuments?: number;
-        };
-        const enrollments = (result.enrollments ?? []).filter(
-          e => (e.percentCompleted ?? 0) < 100,
-        ); // ignore completed
-        for (const e of enrollments) {
-          if ((e.percentCompleted ?? 0) > highest) {
-            highest = e.percentCompleted ?? 0;
-          }
+        )) as unknown as Array<{percentCompleted?: number}>;
+        if (!Array.isArray(page) || page.length === 0) break;
+        for (const e of page) {
+          const pct = e.percentCompleted ?? 0;
+          if (pct < 100 && pct > highest) highest = pct;
         }
-        totalDocs = result?.totalDocuments ?? enrollments.length;
-        if (enrollments.length < PAGE_SIZE) break;
+        if (page.length < PAGE_SIZE) break;
         skip += PAGE_SIZE;
       }
       return Math.min(100, highest);
@@ -166,12 +162,11 @@ class CompanionService {
    */
   private async _daysSinceEnrollment(userId: string): Promise<number> {
     try {
-      const result = (await this.enrollmentRepo.getEnrollments(
+      // getEnrollments returns the array directly (see _getRealProgress comment).
+      const page = (await this.enrollmentRepo.getEnrollments(
         userId, 0, 1, '', 'STUDENT',
-      )) as unknown as {
-        enrollments?: Array<{enrollmentDate?: Date}>;
-      };
-      const enrollment = (result?.enrollments ?? [])[0];
+      )) as unknown as Array<{enrollmentDate?: Date}>;
+      const enrollment = Array.isArray(page) ? page[0] : undefined;
       if (!enrollment?.enrollmentDate) return 0;
       const msPerDay = 1000 * 60 * 60 * 24;
       const diffMs = Date.now() - new Date(enrollment.enrollmentDate).getTime();
