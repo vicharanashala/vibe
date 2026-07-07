@@ -38,16 +38,16 @@ class CompanionService {
     const companion = await this.companionRepo.getByUserId(userId);
     if (!companion) return null;
 
-    const [liveProgress, liveQuizScore, idleDays] = await Promise.all([
+    const [liveProgress, liveQuizScore, daysSinceEnrollment] = await Promise.all([
       this._getRealProgress(userId),
       this._getRealQuizScore(userId),
-      this._getIdleDays(userId),
+      this._daysSinceEnrollment(userId),
     ]);
 
     const stage = this._computeStage(liveProgress);
-    const mood = this._deriveMood(liveProgress, idleDays);
+    const mood = this._deriveMood(liveProgress, daysSinceEnrollment);
 
-    return companion.toJSON({realProgress: liveProgress, realQuizScore: liveQuizScore, idleDays, stage, mood});
+    return companion.toJSON({realProgress: liveProgress, realQuizScore: liveQuizScore, idleDays: daysSinceEnrollment, stage, mood});
   }
 
   /**
@@ -56,14 +56,14 @@ class CompanionService {
    */
   async selectAnimal(userId: string, animal: CompanionAnimal): Promise<ICompanion> {
     const companion = await this.companionRepo.upsert(userId, animal);
-    const [liveProgress, liveQuizScore, idleDays] = await Promise.all([
+    const [liveProgress, liveQuizScore, daysSinceEnrollment] = await Promise.all([
       this._getRealProgress(userId),
       this._getRealQuizScore(userId),
-      this._getIdleDays(userId),
+      this._daysSinceEnrollment(userId),
     ]);
     const stage = this._computeStage(liveProgress);
-    const mood = this._deriveMood(liveProgress, idleDays);
-    return companion.toJSON({realProgress: liveProgress, realQuizScore: liveQuizScore, idleDays, stage, mood});
+    const mood = this._deriveMood(liveProgress, daysSinceEnrollment);
+    return companion.toJSON({realProgress: liveProgress, realQuizScore: liveQuizScore, idleDays: daysSinceEnrollment, stage, mood});
   }
 
   // ─── Live data read methods ──────────────────────────────────────────────
@@ -150,10 +150,18 @@ class CompanionService {
   }
 
   /**
-   * Days since the student's last enrollment date.
-   * (Enrollment date = when they first enrolled, so it's a proxy for activity age.)
+   * Days since the student's first enrollment date.
+   *
+   * NOTE: this is a misnomer that survived from the prototype. It really
+   * measures "account age as a student", NOT activity — a learner who enrolled
+   * two years ago and just finished a lesson today will read as `idle=730`.
+   * Wiring it to true last-activity time is tracked separately; for now the
+   * name is changed to make the semantic clear at the call site.
+   *
+   * TODO: replace with `lastActiveAt` from the user's session log once that
+   * signal is exposed by the auth service.
    */
-  private async _getIdleDays(userId: string): Promise<number> {
+  private async _daysSinceEnrollment(userId: string): Promise<number> {
     try {
       const result = await this.enrollmentRepo.getEnrollments(
         userId, 0, 1, '', 'STUDENT',

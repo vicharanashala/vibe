@@ -8,6 +8,7 @@ import {
   Post,
   Body,
   CurrentUser,
+  UnauthorizedError,
 } from 'routing-controllers';
 import {injectable, inject} from 'inversify';
 import {OpenAPI} from 'routing-controllers-openapi';
@@ -40,7 +41,13 @@ class CompanionController {
 
   private _userId(user: IUser | string): string {
     if (typeof user === 'string') return user;
-    return user._id ? String(user._id) : '';
+    if (user._id) return String(user._id);
+    // Without _id, downstream queries would silently produce empty results
+    // (e.g. upsert would target an empty userId filter). The auth middleware
+    // is supposed to populate this on every request; if it didn't, fail loud.
+    throw new UnauthorizedError(
+      'Authenticated user is missing _id; cannot resolve companion owner.',
+    );
   }
 }
 

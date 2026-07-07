@@ -156,9 +156,15 @@ export function CompanionWidget() {
   const fetchCompanion = useCompanionStore((s) => s.fetchCompanion);
   const selectAnimal = useCompanionStore((s) => s.selectAnimal);
 
-  // Fetch on mount.
+  // Fetch on mount, then auto-poll every 30s so mood/progress/idle stay fresh
+  // without a full page reload (matches the polling interval documented in the
+  // store API contract).
   useEffect(() => {
     void fetchCompanion();
+    const id = window.setInterval(() => {
+      void fetchCompanion();
+    }, 30_000);
+    return () => window.clearInterval(id);
   }, [fetchCompanion]);
 
   // First-time: just show picker (nothing to render yet).

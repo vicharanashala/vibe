@@ -13,6 +13,13 @@ export function createCompanionRenderer(canvas, opts = {}) {
   const G = canvas.getContext('2d');
 
 const W=320,H=360,CX=160,CY=195;
+// Per-instance state. These `let`s are lexically inside createCompanionRenderer
+// (the factory spans line 10–710), so each renderer instance gets its own copy
+// of `animal`, `mood`, `prog`, `idleDays`, `forced`, and `quizScore`. Visually
+// it looks module-level because nothing here is indented, but the lack of
+// indentation was a leftover from the prototype and is a footgun: a future
+// contributor could refactor "this looks like a constant" to top-level and
+// silently introduce cross-widget state collisions. Don't move them.
 let animal='panda',mood='happy',prog=5,idleDays=0,forced=null;
 let quizScore=60;
 const GOOD_SCORE=85;
