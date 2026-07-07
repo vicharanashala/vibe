@@ -640,7 +640,6 @@ function loop(){
   headTurn=Math.sin(headTurnT)*htAmp;
   G.clearRect(0,0,W,H);
   if (!SCENES[animal]) {
-    console.warn('[companionRenderer] unknown animal:', animal, '— falling back to panda');
     animal = 'panda';
   }
   SCENES[animal](T);
@@ -648,7 +647,6 @@ function loop(){
   const gy=CY+GROUND_OFF[animal];
   G.save();G.translate(CX*(1-sc),gy*(1-sc));G.scale(sc,sc);
   if (!DFN[animal]) {
-    console.warn('[companionRenderer] unknown DFN:', animal, '— falling back to panda');
     animal = 'panda';
   }
   DFN[animal](m,bOpen,bobY,br,tail,stageT,headTurn);
@@ -678,7 +676,6 @@ function step() {
   // Defensive: if backend sends a value not in the prototype's animal set,
   // fall back to 'panda' so we at least render something.
   if (SCENES[_animal] === undefined) {
-    console.warn('[companionRenderer] unknown animal from caller:', _animal, '→ using panda');
     _animal = 'panda';
   }
   animal = _animal;

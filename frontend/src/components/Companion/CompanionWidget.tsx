@@ -117,7 +117,6 @@ function CompanionCanvas({
       animal === "dog" ||
       animal === "cat"
     ) ? animal : "panda";
-    console.log("[CompanionCanvas] prop change", {animal: safeAnimal, mood, progress, idleDays, quizScore});
     r.setAnimal(safeAnimal);
     r.setMood(toPrototypeMood(mood, progress));
     r.setProg(progress);
@@ -158,13 +157,28 @@ export function CompanionWidget() {
 
   // Fetch on mount, then auto-poll every 30s so mood/progress/idle stay fresh
   // without a full page reload (matches the polling interval documented in the
-  // store API contract).
+  // store API contract). Polling pauses while the tab is hidden to avoid
+  // wasting CPU + bandwidth on a screen the user can't see; the interval
+  // resumes immediately when the tab becomes visible again.
   useEffect(() => {
     void fetchCompanion();
-    const id = window.setInterval(() => {
-      void fetchCompanion();
+    let id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void fetchCompanion();
+      }
     }, 30_000);
-    return () => window.clearInterval(id);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        // Catch up immediately on tab focus so the widget reflects current
+        // state without waiting up to 30s for the next tick.
+        void fetchCompanion();
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [fetchCompanion]);
 
   // First-time: just show picker (nothing to render yet).
@@ -213,6 +227,11 @@ export function CompanionWidget() {
                 disabled={isLoading}
                 onClick={async () => {
                   await selectAnimal(a.id);
+                  // Close the picker on either success or failure: the store
+                  // sets the `error` field on failure, which the dashboard
+                  // toast (or future inline error UI) will surface. Leaving
+                  // the picker open on every retry would trap users who only
+                  // wanted to cancel.
                   setPickerOpen(false);
                 }}
                 className="px-4 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 text-sm font-medium text-indigo-700"
