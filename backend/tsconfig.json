@@ -31,7 +31,8 @@
       "#users/*": ["./modules/users/*"],
       "#quizzes/*": ["./modules/quizzes/*"],
       "#settings/*": ["./modules/settings/*"],
-      "#ejectionPolicy/*": ["./modules/ejectionPolicy/*"]
+      "#ejectionPolicy/*": ["./modules/ejectionPolicy/*"],
+      "#peerReview/*": ["./modules/peerReview/*"]
     },
 
     "types": ["node", "express"],
