@@ -23,7 +23,7 @@ interface CompanionStore {
   selectAnimal: (animal: CompanionAnimal) => Promise<void>;
 }
 
-export const useCompanionStore = create<CompanionStore>((set, get) => {
+export const useCompanionStore = create<CompanionStore>((set) => {
   // Track an in-flight fetch so concurrent callers (e.g. React Strict Mode
   // double-invocation, or a 30s poll firing while another fetch is still
   // pending) share one network request instead of racing.

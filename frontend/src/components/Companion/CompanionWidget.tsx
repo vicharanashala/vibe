@@ -160,7 +160,7 @@ export function CompanionWidget() {
   // resumes immediately when the tab becomes visible again.
   useEffect(() => {
     void fetchCompanion();
-    let id = window.setInterval(() => {
+    const id = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
         void fetchCompanion();
       }
