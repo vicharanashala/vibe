@@ -9,7 +9,7 @@ export function CourseBreakdownTable({ courses }: { courses: CourseAnalytics[] }
   const rows = [...courses].sort((a, b) => a.progress - b.progress);
   return (
     <Card className="rounded-2xl border p-0">
-      <div className="border-b p-5">
+      <div className="px-5 pb-1 pt-4">
         <h3 className="text-sm font-semibold text-foreground">Course breakdown</h3>
         <p className="text-xs text-muted-foreground">Progress, accuracy and pace for every course</p>
       </div>
@@ -21,11 +21,11 @@ export function CourseBreakdownTable({ courses }: { courses: CourseAnalytics[] }
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b text-left text-xs text-muted-foreground">
-                <th className="px-5 py-2.5 font-medium">Course</th>
-                <th className="px-3 py-2.5 font-medium">Progress</th>
-                <th className="px-3 py-2.5 font-medium">Lessons</th>
-                <th className="px-3 py-2.5 font-medium">Quiz</th>
-                <th className="px-5 py-2.5 font-medium">Status</th>
+                <th className="px-5 py-2 font-medium">Course</th>
+                <th className="px-3 py-2 font-medium">Progress</th>
+                <th className="px-3 py-2 font-medium">Lessons</th>
+                <th className="px-3 py-2 font-medium">Quiz</th>
+                <th className="px-5 py-2 font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
