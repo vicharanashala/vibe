@@ -572,6 +572,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
       !pauseVid &&
       !rewindVid &&
       !doGesture &&
+      !awayPaused &&
       !hasAutoPlayedRef.current &&
       !videoEnded) {
 
@@ -581,7 +582,8 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           !playing &&
           !pauseVid &&
           !rewindVid &&
-          !doGesture) {
+          !doGesture &&
+          !awayPaused) {
 
           playerRef.current.playVideo();
           setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
@@ -591,7 +593,7 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
 
       return () => clearTimeout(timer);
     }
-  }, [playerReady, readyToDetect, gracePeriodCompleted, playing, pauseVid, rewindVid, doGesture, videoEnded]);
+  }, [playerReady, readyToDetect, gracePeriodCompleted, playing, pauseVid, rewindVid, doGesture, awayPaused, videoEnded]);
 
   // Autoplay: Only trigger once when everything becomes ready
   // useEffect(() => {

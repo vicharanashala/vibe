@@ -7,7 +7,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
-import { exitFullscreen } from "@/utils/fullscreen";
+import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
 const LazyStudentTimeslotModal = lazy(() => import("@/components/course/StudentTimeslotModal"));
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import type { PendingStudentQuestionContext } from "@/types/student-question.types";
@@ -22,6 +22,7 @@ import {
   XCircle,
   X,
   CircleCheckIcon,
+  Maximize2,
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -233,6 +234,21 @@ export default function CoursePage() {
   useEffect(() => {
     return () => exitFullscreen();
   }, []);
+
+  // Strict fullscreen enforcement. The Fullscreen API only grants a request made
+  // inside a user gesture, so we can't silently re-enter after a reload or an Esc.
+  // Instead we track fullscreen state and, when the lesson is active but we're not
+  // fullscreen, show a blocking overlay + pause the video until the student clicks
+  // to go back into fullscreen (a valid gesture).
+  const [isPageFullscreen, setIsPageFullscreen] = useState(!!document.fullscreenElement);
+  useEffect(() => {
+    const onChange = () => setIsPageFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  // Only gate once past the consent + proctoring-declaration dialogs (they run
+  // their own flow); then fullscreen is required for the focused learn stage.
+  const needsFullscreen = consentSatisfied && !showProctorDialog && !isPageFullscreen;
 
   // Debounced "blocking anomaly" (no person / multiple people / identity / etc.).
   // Face detection is noisy, so require the anomaly to persist briefly before we
@@ -1829,7 +1845,7 @@ return false;
             </li>
           </ul>
           <div className="flex justify-end w-full">
-            <Button onClick={() => { setShowProctorDialog(false) }} className="w-full">ACCEPT</Button>
+            <Button onClick={() => { enterFullscreen(); setShowProctorDialog(false); }} className="w-full">ACCEPT</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1913,7 +1929,7 @@ return false;
                   readyToDetect={readyToDetect}
                   pauseVid={pauseVid || showProctorDialog || alertVisible}
                   pauseSignal={pauseSignal}
-                  awayPaused={awayPaused}
+                  awayPaused={awayPaused || drawerOpen || needsFullscreen}
                   displayNextLesson={false}
                   setQuizPassed={setQuizPassed}
                   anomalies={anomalies}
@@ -2161,6 +2177,31 @@ return false;
 
       {/* Buttonless anomaly alert — covers the video until it clears (incl. no/multiple person) */}
       <ProctorAlertOverlay active={alertVisible} anomalies={anomalies} />
+
+      {/* Fullscreen gate — after a reload or an Esc, a request can only succeed
+          inside a click, so block the lesson until the student clicks to re-enter. */}
+      {needsFullscreen && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-5 bg-black/80 backdrop-blur-sm text-center px-6"
+          role="dialog"
+          aria-modal="true"
+        >
+          <Maximize2 className="h-10 w-10 text-white/90" />
+          <div className="max-w-md space-y-1.5">
+            <h2 className="text-xl font-semibold text-white">Fullscreen required</h2>
+            <p className="text-sm text-white/70">
+              This lesson runs in fullscreen. Your video is paused — click below to continue.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => enterFullscreen()}
+            className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-white/90"
+          >
+            Enter fullscreen
+          </button>
+        </div>
+      )}
 
     </>
   );
