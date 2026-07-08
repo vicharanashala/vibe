@@ -6,17 +6,23 @@ import { PeerReviewAssignmentRepository } from './repositories/providers/mongodb
 import { PeerReviewReviewRepository } from './repositories/providers/mongodb/PeerReviewReviewRepository.js';
 import { PeerReviewAssessmentService } from './services/PeerReviewAssessmentService.js';
 import { PeerReviewSubmissionService } from './services/PeerReviewSubmissionService.js';
+import { PeerReviewAssignmentService } from './services/PeerReviewAssignmentService.js';
 import { PeerReviewUrlAccessibilityService } from './services/PeerReviewUrlAccessibilityService.js';
 import { PeerReviewAssessmentController } from './controllers/PeerReviewAssessmentController.js';
 import { PeerReviewSubmissionController } from './controllers/PeerReviewSubmissionController.js';
+import { PeerReviewAssignmentController } from './controllers/PeerReviewAssignmentController.js';
+import { AssignmentRunner } from './cron/AssignmentRunner.js';
+import { ReassignmentRunner } from './cron/ReassignmentRunner.js';
+import { FinalizationRunner } from './cron/FinalizationRunner.js';
 
 /**
  * DI bindings for the peerReview module.
  *
- * Bindings (Phase 1+2+3):
+ * Bindings (Phase 1+2+3+4):
  *   - 4 repositories (data layer)
- *   - 3 services (assessment, submission, URL accessibility)
+ *   - 4 services (assessment, submission, URL accessibility, assignment)
  *   - 2 controllers (assessment teacher-side, submission student-side)
+ *   - 3 cron runners (assignment, reassignment, finalization)
  *
  * Each binding is a singleton.
  */
@@ -49,8 +55,18 @@ export const peerReviewContainerModule = new ContainerModule(options => {
     .to(PeerReviewSubmissionService)
     .inSingletonScope();
   options
+    .bind(PEERREVIEW_TYPES.PeerReviewAssignmentService)
+    .to(PeerReviewAssignmentService)
+    .inSingletonScope();
+  options
     .bind(PEERREVIEW_TYPES.PeerReviewUrlAccessibilityChecker)
     .to(PeerReviewUrlAccessibilityService)
+    .inSingletonScope();
+  options
+    .bind(PEERREVIEW_TYPES.PeerReviewNotificationService)
+    .to(
+      require('./services/PeerReviewNotificationService.js').PeerReviewNotificationService,
+    )
     .inSingletonScope();
 
   // Controllers
@@ -61,5 +77,23 @@ export const peerReviewContainerModule = new ContainerModule(options => {
   options
     .bind(PEERREVIEW_TYPES.PeerReviewSubmissionController)
     .to(PeerReviewSubmissionController)
+    .inSingletonScope();
+  options
+    .bind(PEERREVIEW_TYPES.PeerReviewAssignmentController)
+    .to(PeerReviewAssignmentController)
+    .inSingletonScope();
+
+  // Crons
+  options
+    .bind(PEERREVIEW_TYPES.AssignmentRunner)
+    .to(AssignmentRunner)
+    .inSingletonScope();
+  options
+    .bind(PEERREVIEW_TYPES.ReassignmentRunner)
+    .to(ReassignmentRunner)
+    .inSingletonScope();
+  options
+    .bind(PEERREVIEW_TYPES.FinalizationRunner)
+    .to(FinalizationRunner)
     .inSingletonScope();
 });
