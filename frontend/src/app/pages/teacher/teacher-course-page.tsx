@@ -57,6 +57,7 @@ import { toast } from "sonner";
 import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
+import { PeerReviewAssessmentForm } from "./components/PeerReviewAssessmentForm";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -144,6 +145,18 @@ function TeacherCourseContent() {
   const invitesRef = useRef<HTMLDivElement | null>(null);
   const [videoTab, setVideoTab] = useState("video");
   const [isReorderEnabled, setIsReorderEnabled] = useState(false);
+
+  // Phase 2.2.4: peer-review assessment form modal context. When non-null,
+  // a modal with PeerReviewAssessmentForm is rendered; on save, the modal
+  // closes and the item list is refetched.
+  const [peerReviewFormContext, setPeerReviewFormContext] = useState<
+    | null
+    | {
+        moduleId: string;
+        sectionId: string;
+        cohortId: string;
+      }
+  >(null);
 
 
 
@@ -1066,14 +1079,32 @@ function TeacherCourseContent() {
   const handleAddItem = (moduleId: string, sectionId: string, type: string, videoData?: any) => {
     if (!versionId) return;
 
-    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
+    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK" | "PEER_REVIEW_ASSESSMENT";
     const typeMap: Record<string, ItemType> = {
       video: "VIDEO",
       quiz: "QUIZ",
       article: "BLOG",
       project: "PROJECT",
-      feedback: "FEEDBACK"
+      feedback: "FEEDBACK",
+      'peer-review': "PEER_REVIEW_ASSESSMENT",
     };
+
+    // Peer-review assessments use their own dedicated controller (Phase 2.2.2)
+    // because they need their own endpoints, audit logging, and the full
+    // assessment config (rubric, deadlines, cohort). The simple item-record
+    // POST is insufficient. We open the PeerReviewAssessmentForm modal here.
+    if (type === 'peer-review') {
+      const cohortId = (window.prompt(
+        'Cohort ID for this assessment:',
+        ''
+      ) ?? '').trim();
+      if (!cohortId) {
+        toast.error('Cohort ID is required to create a peer-review assessment.');
+        return;
+      }
+      setPeerReviewFormContext({ moduleId, sectionId, cohortId });
+      return;
+    }
 
     // Handle video items
     if (type === "VIDEO" && videoData) {
@@ -4012,6 +4043,40 @@ export function UserAnalytics({
             className="mt-4"
           />
         </CardContent>
+
+        {/* Phase 2.2.4: Peer-review assessment creation modal. Triggered from
+            handleAddItem when the teacher picks 'peer-review'. Renders
+            PeerReviewAssessmentForm and refreshes the item list on save. */}
+        <Dialog
+          open={peerReviewFormContext !== null}
+          onOpenChange={open => {
+            if (!open) setPeerReviewFormContext(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Peer-Review Assessment</DialogTitle>
+            </DialogHeader>
+            {peerReviewFormContext && (
+              <PeerReviewAssessmentForm
+                courseId={courseId}
+                courseVersionId={versionId!}
+                moduleId={peerReviewFormContext.moduleId}
+                sectionId={peerReviewFormContext.sectionId}
+                cohortId={peerReviewFormContext.cohortId}
+                onSaved={() => {
+                  setPeerReviewFormContext(null);
+                  refetchVersion();
+                  if (typeof shouldFetchItems !== 'undefined' && shouldFetchItems) {
+                    refetchItems();
+                  }
+                  toast.success('Peer-review assessment created.');
+                }}
+                onCancel={() => setPeerReviewFormContext(null)}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </Card>
     </div>
   );
