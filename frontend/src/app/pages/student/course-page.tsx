@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
+import { exitFullscreen } from "@/utils/fullscreen";
 const LazyStudentTimeslotModal = lazy(() => import("@/components/course/StudentTimeslotModal"));
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import type { PendingStudentQuestionContext } from "@/types/student-question.types";
@@ -226,6 +227,12 @@ export default function CoursePage() {
   // Pause the lesson video imperatively (without the anomaly overlay) whenever a
   // floating control is used.
   const pauseVideoForControl = useCallback(() => setPauseSignal((n) => n + 1), []);
+
+  // Fullscreen is entered from the "Continue" click that brings the student here.
+  // Exit it when they leave the learn page so fullscreen is scoped to this page only.
+  useEffect(() => {
+    return () => exitFullscreen();
+  }, []);
 
   // Debounced "blocking anomaly" (no person / multiple people / identity / etc.).
   // Face detection is noisy, so require the anomaly to persist briefly before we
