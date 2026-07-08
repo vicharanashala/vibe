@@ -1469,6 +1469,56 @@ export function useClosePeerReviewAssessment(): {
   };
 }
 
+// POST /courses/:courseId/versions/:versionId/items/:itemId/submit  (Phase 3.2.4)
+//
+// Cast to `any` until OpenAPI schema regen picks up the new route. Same
+// pattern as the teacher-side hooks above.
+export function useSubmitPeerReview(): {
+  mutate: (variables: {
+    params: { path: { courseId: string, versionId: string, itemId: string } },
+    body: { notes?: string, links: Array<{ url: string, label: string, kind?: string }> },
+  }) => void,
+  mutateAsync: (variables: {
+    params: { path: { courseId: string, versionId: string, itemId: string } },
+    body: { notes?: string, links: Array<{ url: string, label: string, kind?: string }> },
+  }) => Promise<any>,
+  data: any,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'failed' | 'error'
+} {
+  const result = (api as any).useMutation('post', '/courses/{courseId}/versions/{versionId}/items/{itemId}/submit');
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Submission failed') : null,
+  };
+}
+
+// GET /students/me/submissions?assessmentId=...
+export function useMySubmission(assessmentId: string | undefined): {
+  data: any,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void
+} {
+  const result = (api as any).useQuery(
+    'get',
+    '/students/me/submissions',
+    assessmentId ? { params: { query: { assessmentId } } } : ({} as any),
+    { enabled: !!assessmentId },
+  );
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Load failed') : null,
+    refetch: result.refetch,
+  };
+}
+
 export function userParseCSVtoItems(): {
   mutate: (variables: { params: { path: { courseId: string, versionId: string, moduleId: string, sectionId: string } }, body: any }) => void,
   mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, moduleId: string, sectionId: string } }, body: any }) => Promise<{
