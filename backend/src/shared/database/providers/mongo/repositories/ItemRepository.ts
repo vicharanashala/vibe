@@ -908,7 +908,7 @@ export class ItemRepository implements IItemRepository {
         session,
       );
 
-      // pull the items from items groups
+      // Pull the items from items groups
       const allDeletedItemIds = [
         ...deletedQuizIds,
         ...deletedVideoIds,
@@ -922,6 +922,66 @@ export class ItemRepository implements IItemRepository {
           { $pull: { items: { _id: { $in: allDeletedItemIds } } } },
           { session },
         );
+      }
+
+      // Cascade-delete peer-review artefacts for the hard-deleted
+      // PEER_REVIEW_ASSESSMENT items. Without this, deleting a course
+      // would leave orphan rows in peer_review_assessments /
+      // peer_review_submissions / peer_review_assignments /
+      // peer_review_reviews. The DB is shared, so we touch the
+      // collections directly.
+      const peerReviewItemIds = itemMap[ItemType.PEER_REVIEW_ASSESSMENT];
+      if (peerReviewItemIds.length > 0) {
+        const peerReviewCollNames = [
+          'peer_review_assessments',
+          'peer_review_submissions',
+          'peer_review_assignments',
+          'peer_review_reviews',
+        ];
+        const db = (this.db as any).database as import('mongodb').Db;
+        for (const collName of peerReviewCollNames) {
+          try {
+            const coll = db.collection(collName);
+            await coll.deleteMany(
+              { itemId: { $in: peerReviewItemIds } },
+              { session },
+            );
+            // The submissions + assignments + reviews don't have a
+            // direct itemId. Look up the affected assessmentIds via
+            // the assessments collection, then cascade the rest.
+            const aRows = await db
+              .collection('peer_review_assessments')
+              .find({ itemId: { $in: peerReviewItemIds } })
+              .project({ _id: 1 })
+              .toArray();
+            const assessmentIds = aRows.map((r) => r._id);
+            if (assessmentIds.length > 0) {
+              await db
+                .collection('peer_review_submissions')
+                .deleteMany(
+                  { assessmentId: { $in: assessmentIds } },
+                  { session },
+                );
+              await db
+                .collection('peer_review_assignments')
+                .deleteMany(
+                  { assessmentId: { $in: assessmentIds } },
+                  { session },
+                );
+              await db
+                .collection('peer_review_reviews')
+                .deleteMany(
+                  { assessmentId: { $in: assessmentIds } },
+                  { session },
+                );
+            }
+          } catch (e) {
+            console.warn(
+              `[ItemRepository] cascade-delete for ${collName} failed (non-fatal):`,
+              e instanceof Error ? e.message : String(e),
+            );
+          }
+        }
       }
 
       await this.courseRepo.cascadeDeleteVersion(session);
