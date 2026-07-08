@@ -122,6 +122,21 @@ export class PeerReviewAssignmentRepository {
     return docs as IPeerReviewAssignment[];
   }
 
+  /**
+   * Find every assignment for a given assessment. Used by the
+   * AssignmentRunner cron to fan out the per-reviewer
+   * notifyAssignmentsOut call.
+   */
+  async findByAssessment(
+    assessmentId: string,
+  ): Promise<IPeerReviewAssignment[]> {
+    await this.init();
+    const docs = await this.collection
+      .find({ assessmentId: assessmentId as any })
+      .toArray();
+    return docs as IPeerReviewAssignment[];
+  }
+
   async setStatus(
     id: string,
     status: IPeerReviewAssignment['status'],

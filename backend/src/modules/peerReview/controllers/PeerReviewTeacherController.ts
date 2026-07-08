@@ -20,6 +20,7 @@ import { PeerReviewSubmissionRepository } from '../repositories/providers/mongod
 import { PeerReviewReviewRepository } from '../repositories/providers/mongodb/PeerReviewReviewRepository.js';
 import { PeerReviewAssignmentRepository } from '../repositories/providers/mongodb/PeerReviewAssignmentRepository.js';
 import { PeerReviewScoringService } from '../services/PeerReviewScoringService.js';
+import { PeerReviewNotificationService } from '../services/PeerReviewNotificationService.js';
 import { IUser } from '#shared/interfaces/models.js';
 
 /**
@@ -65,6 +66,8 @@ export class PeerReviewTeacherController {
     private readonly assignmentRepo: PeerReviewAssignmentRepository,
     @inject(PEERREVIEW_TYPES.PeerReviewScoringService)
     private readonly scoringService: PeerReviewScoringService,
+    @inject(PEERREVIEW_TYPES.PeerReviewNotificationService)
+    private readonly notifier: PeerReviewNotificationService,
   ) {}
 
   @Get('/peer-review-assessments/:id/submissions')
@@ -170,6 +173,15 @@ export class PeerReviewTeacherController {
     if (!review || (review as any).isDeleted) {
       throw new NotFoundError('Review not found.');
     }
+    // Look up the assessment for the notification payload (Phase 5.2.4
+    // notify-on-override requires the assessment's title + rubric for
+    // the message body).
+    const assessment = await this.assessmentRepo.findById(
+      (review as any).assessmentId?.toString(),
+    );
+    if (!assessment || (assessment as any).isDeleted) {
+      throw new NotFoundError('Assessment not found for this review.');
+    }
     // Apply the override. The repo method requires
     // teacherOverrideScores with a `comment` field per item; default
     // to empty string. The comment alone (without new scores) is
@@ -188,6 +200,29 @@ export class PeerReviewTeacherController {
     const recompute = await this.scoringService.recomputeSubmission(
       (review as any).submissionId?.toString(),
     );
+    // Fire notify-on-override to the submitter (Phase 5.2.4 spec).
+    // Submitter is on the linked submission; fetch to get studentId
+    // for the notification payload. The assessment was loaded above
+    // (variable `assessment` is in scope from line 153).
+    const submission = await this.submissionRepo.findById(
+      (review as any).submissionId?.toString(),
+    );
+    if (submission && recompute && assessment) {
+      const rubric = (assessment as any).rubric ?? [];
+      const totalMax = rubric.reduce(
+        (acc: number, c: any) => acc + (c.maxPoints ?? 0),
+        0,
+      );
+      await this.notifier.notifyTeacherOverride({
+        userId: (submission as any).studentId?.toString() ?? '',
+        assessmentTitle: (assessment as any).title ?? 'Assessment',
+        newFinalScore: recompute.totalScore,
+        totalMax,
+        assessmentId: id,
+        courseId: (assessment as any).courseId?.toString(),
+        reason: body.reason,
+      });
+    }
     return {
       ok: true,
       reviewId: id,

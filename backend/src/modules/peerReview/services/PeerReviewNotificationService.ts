@@ -119,6 +119,36 @@ export class PeerReviewNotificationService {
     );
   }
 
+  /**
+   * Submitter notification when a teacher manually overrides one of
+   * the reviews on their submission. Required by Phase 5.2.2 audit
+   * transparency: the submitter must be told their grade was
+   * adjusted, with the reason.
+   */
+  async notifyTeacherOverride(args: {
+    userId: string;
+    assessmentTitle: string;
+    newFinalScore: number;
+    totalMax: number;
+    assessmentId: string;
+    courseId?: string;
+    reason: string;
+  }): Promise<string> {
+    return this.create(
+      args.userId,
+      'PEER_REVIEW_TEACHER_OVERRIDE',
+      'Your grade was adjusted by your teacher',
+      `Your grade for "${args.assessmentTitle}" was adjusted to ${args.newFinalScore} / ${args.totalMax}. Reason: ${args.reason}`,
+      {
+        assessmentId: args.assessmentId,
+        newFinalScore: args.newFinalScore,
+        totalMax: args.totalMax,
+        reason: args.reason,
+      },
+      args.courseId,
+    );
+  }
+
   async notifyScoreReady(args: {
     userId: string;
     assessmentTitle: string;
