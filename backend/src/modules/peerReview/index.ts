@@ -4,6 +4,7 @@ import { InversifyAdapter } from '#root/inversify-adapter.js';
 import { useContainer, RoutingControllersOptions } from 'routing-controllers';
 import { peerReviewContainerModule } from './container.js';
 import { PeerReviewAssessmentController } from './controllers/PeerReviewAssessmentController.js';
+import { PeerReviewSubmissionController } from './controllers/PeerReviewSubmissionController.js';
 
 export const peerReviewContainerModules: ContainerModule[] = [
   peerReviewContainerModule,
@@ -12,6 +13,7 @@ export const peerReviewContainerModules: ContainerModule[] = [
 
 export const peerReviewModuleControllers: Function[] = [
   PeerReviewAssessmentController,
+  PeerReviewSubmissionController,
 ];
 
 export async function setupPeerReviewContainer(): Promise<void> {
