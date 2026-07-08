@@ -31,10 +31,6 @@ import { ProgressRepository } from './ProgressRepository.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 import { Module } from '#root/modules/courses/classes/index.js';
 import { EnrollmentRepository } from './EnrollmentRepository.js';
-import {
-  ANOMALIES_TYPES,
-  AnomalyRepository,
-} from '#root/modules/anomalies/index.js';
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import { COURSE_REGISTRATION_TYPES } from '#root/modules/courseRegistration/types.js';
 import { ICourseRegistrationRepository } from '#root/shared/database/interfaces/ICourseRegistrationRepository.js';
@@ -68,8 +64,6 @@ export class CourseRepository implements ICourseRepository {
     private progressRepo: ProgressRepository,
     @inject(USERS_TYPES.EnrollmentRepo)
     private readonly enrollmentRepo: EnrollmentRepository,
-    @inject(ANOMALIES_TYPES.AnomalyRepository)
-    private anomalyRepository: AnomalyRepository,
     @inject(SETTING_TYPES.SettingRepo)
     private readonly settingsRepo: ISettingRepository,
     @inject(COURSE_REGISTRATION_TYPES.CourseRegistrationRepository)
