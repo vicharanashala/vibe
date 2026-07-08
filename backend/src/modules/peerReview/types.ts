@@ -6,8 +6,9 @@ const TYPES = {
   // Services
   PeerReviewAssessmentService: Symbol.for('PeerReviewAssessmentService'),
   PeerReviewSubmissionService: Symbol.for('PeerReviewSubmissionService'),
-  PeerReviewUrlAccessibilityChecker: Symbol.for('PeerReviewUrlAccessibilityChecker'),
   PeerReviewAssignmentService: Symbol.for('PeerReviewAssignmentService'),
+  PeerReviewScoringService: Symbol.for('PeerReviewScoringService'),
+  PeerReviewUrlAccessibilityChecker: Symbol.for('PeerReviewUrlAccessibilityChecker'),
   PeerReviewNotificationService: Symbol.for('PeerReviewNotificationService'),
   // Crons
   AssignmentRunner: Symbol.for('AssignmentRunner'),

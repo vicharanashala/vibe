@@ -192,6 +192,30 @@ export class PeerReviewSubmissionRepository {
     );
   }
 
+  /**
+   * Clears the final score (used by the hard-exclude late path so the
+   * teacher gets a finalScore=null submission to intervene on).
+   */
+  async clearFinalScore(
+    id: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.collection.updateOne(
+      { _id: id as any },
+      {
+        $set: {
+          finalScore: null,
+          finalScoreBreakdown: null,
+          finalScoreLockedAt: new Date(),
+          pendingTeacherIntervention: true,
+          updatedAt: new Date(),
+        },
+      },
+      { session },
+    );
+  }
+
   async setTeacherOverride(
     id: string,
     reason: string,

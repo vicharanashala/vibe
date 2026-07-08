@@ -7,6 +7,7 @@ import { PeerReviewReviewRepository } from './repositories/providers/mongodb/Pee
 import { PeerReviewAssessmentService } from './services/PeerReviewAssessmentService.js';
 import { PeerReviewSubmissionService } from './services/PeerReviewSubmissionService.js';
 import { PeerReviewAssignmentService } from './services/PeerReviewAssignmentService.js';
+import { PeerReviewScoringService } from './services/PeerReviewScoringService.js';
 import { PeerReviewUrlAccessibilityService } from './services/PeerReviewUrlAccessibilityService.js';
 import { PeerReviewAssessmentController } from './controllers/PeerReviewAssessmentController.js';
 import { PeerReviewSubmissionController } from './controllers/PeerReviewSubmissionController.js';
@@ -57,6 +58,10 @@ export const peerReviewContainerModule = new ContainerModule(options => {
   options
     .bind(PEERREVIEW_TYPES.PeerReviewAssignmentService)
     .to(PeerReviewAssignmentService)
+    .inSingletonScope();
+  options
+    .bind(PEERREVIEW_TYPES.PeerReviewScoringService)
+    .to(PeerReviewScoringService)
     .inSingletonScope();
   options
     .bind(PEERREVIEW_TYPES.PeerReviewUrlAccessibilityChecker)
