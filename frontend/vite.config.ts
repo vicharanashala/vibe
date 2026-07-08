@@ -24,9 +24,11 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // Proxy API requests to staging backend to avoid CORS issues
+      // Proxy API requests to the local backend (port 3141 per backend/.env APP_PORT).
+      // Stale config pointed at 4001 (pre-port-change), causing every /api call to
+      // hit ECONNREFUSED on the old port. See bug discovered 2026-07-08.
       '/api': {
-        target: 'http://localhost:4001',
+        target: 'http://localhost:3141',
         changeOrigin: true,
         secure: true,
       },

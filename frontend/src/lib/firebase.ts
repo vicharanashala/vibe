@@ -36,6 +36,12 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+// Google OAuth provider — used by both src/lib/firebase.ts#loginWithGoogle
+// and src/utils/auth.ts#loginWithGoogle. Exported so consumers can import
+// the same instance.
+// See bug discovered 2026-07-08: `provider` was referenced but never created,
+// breaking imports of { provider } from this module.
+export const provider = new GoogleAuthProvider();
 // In dev, point Firebase Auth at the local emulator (firebase emulators:start
 // in backend/) instead of production. Production deployment should leave this
 // off so real Firebase handles authentication.
@@ -43,7 +49,14 @@ if (import.meta.env.DEV) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', {disableWarnings: true});
 }
 
-export const provider = new GoogleAuthProvider();
+// Firebase Analytics: only initialize in production. In dev, the auth project
+// is `demo-test` (emulator-only) but Analytics still tries to register an
+// installation against the prod Firebase Installations endpoint
+// (firebaseinstallations.googleapis.com) and fails with 403 PERMISSION_DENIED.
+// This spams the console and obscures real errors. Prod uses the real
+// project, so this gate is correct and harmless.
+// See bug discovered 2026-07-08.
+export const analytics = import.meta.env.PROD ? getAnalytics(app) : null;
 
 // Firebase authentication functions
 export const loginWithGoogle = async () => {
@@ -177,5 +190,3 @@ export const logout = () => {
   signOut(auth);
   useAuthStore.getState().clearUser();
 };
-
-export const analytics = getAnalytics(app);
