@@ -20,6 +20,10 @@ import { PeerReviewSubmissionRepository } from '../repositories/providers/mongod
 import { PeerReviewAssessmentRepository } from '../repositories/providers/mongodb/PeerReviewAssessmentRepository.js';
 import { PeerReviewReviewRepository } from '../repositories/providers/mongodb/PeerReviewReviewRepository.js';
 import { IUser, IPeerReviewReview, PeerReviewAssignmentStatus } from '#shared/interfaces/models.js';
+import {
+  stripSubmitterIdentity,
+  stripReviewerIdentity,
+} from '../utils/doubleBlindFilters.js';
 
 /**
  * Reviewer-side HTTP endpoints (student-facing double-blind flow).
@@ -241,52 +245,6 @@ export class PeerReviewAssignmentController {
   }
 }
 
-// ---- double-blind payload filters ----
-
-function stripSubmitterIdentity(obj: any): any {
-  // Defensive copy with student-identifying fields removed.
-  const allowed = new Set([
-    '_id',
-    'assessmentId',
-    'submissionId',
-    'reviewerId',
-    'cohortId',
-    'courseId',
-    'courseVersionId',
-    'assignedAt',
-    'dueAt',
-    'status',
-    'reassignmentCount',
-    'submittedReviewId',
-    'reassignedToAssignmentId',
-    'createdAt',
-    'updatedAt',
-  ]);
-  const out: any = {};
-  for (const k of Object.keys(obj || {})) {
-    if (allowed.has(k)) out[k] = obj[k];
-  }
-  return out;
-}
-
-function stripReviewerIdentity(obj: any): any {
-  // Strip reviewer identifying fields. Only the review content stays.
-  const allowed = new Set([
-    '_id',
-    'assignmentId',
-    'assessmentId',
-    'submissionId',
-    'cohortId',
-    'scores',
-    'overallComment',
-    'totalScore',
-    'submittedAt',
-    'isLate',
-    'teacherOverridden',
-  ]);
-  const out: any = {};
-  for (const k of Object.keys(obj || {})) {
-    if (allowed.has(k)) out[k] = obj[k];
-  }
-  return out;
-}
+// stripSubmitterIdentity / stripReviewerIdentity live in
+// ../utils/doubleBlindFilters.ts so they can be unit-tested in
+// isolation (Phase 4.2.6 leak tests).
