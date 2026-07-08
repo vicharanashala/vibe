@@ -9,6 +9,7 @@ import { PeerReviewSubmissionService } from './services/PeerReviewSubmissionServ
 import { PeerReviewAssignmentService } from './services/PeerReviewAssignmentService.js';
 import { PeerReviewScoringService } from './services/PeerReviewScoringService.js';
 import { PeerReviewUrlAccessibilityService } from './services/PeerReviewUrlAccessibilityService.js';
+import { PeerReviewNotificationService } from './services/PeerReviewNotificationService.js';
 import { PeerReviewAssessmentController } from './controllers/PeerReviewAssessmentController.js';
 import { PeerReviewSubmissionController } from './controllers/PeerReviewSubmissionController.js';
 import { PeerReviewAssignmentController } from './controllers/PeerReviewAssignmentController.js';
@@ -70,9 +71,7 @@ export const peerReviewContainerModule = new ContainerModule(options => {
     .inSingletonScope();
   options
     .bind(PEERREVIEW_TYPES.PeerReviewNotificationService)
-    .to(
-      require('./services/PeerReviewNotificationService.js').PeerReviewNotificationService,
-    )
+    .to(PeerReviewNotificationService)
     .inSingletonScope();
 
   // Controllers
