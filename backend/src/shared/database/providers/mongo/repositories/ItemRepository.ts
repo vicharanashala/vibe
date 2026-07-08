@@ -869,6 +869,12 @@ export class ItemRepository implements IItemRepository {
         [ItemType.BLOG]: [],
         [ItemType.PROJECT]: [],
         [ItemType.FEEDBACK]: [],
+        // Peer-review assessment items have their own collection
+        // (peer_review_assessments) owned by the peerReview module; their
+        // cascade-delete is wired up in Phase 5 when we add an assessment
+        // delete endpoint. For now, this entry exists only so the type
+        // exhaustiveness on ItemType still compiles.
+        [ItemType.PEER_REVIEW_ASSESSMENT]: [],
       };
 
       for (const group of deletedItemGroups) {

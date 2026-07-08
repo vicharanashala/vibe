@@ -310,6 +310,7 @@ export enum ItemType {
   BLOG = 'BLOG',
   PROJECT = 'PROJECT',
   FEEDBACK = 'FEEDBACK',
+  PEER_REVIEW_ASSESSMENT = 'PEER_REVIEW_ASSESSMENT',
 }
 
 export interface IBaseItem {
@@ -318,7 +319,33 @@ export interface IBaseItem {
   description: string;
   type: ItemType;
   order: string;
-  itemDetails: IVideoDetails | IQuizDetails | IBlogDetails | IProjectDetails;
+  itemDetails:
+    | IVideoDetails
+    | IQuizDetails
+    | IBlogDetails
+    | IProjectDetails
+    | IPeerReviewAssessmentDetails;
+}
+
+/**
+ * Shape of the `Item.details` blob for a PEER_REVIEW_ASSESSMENT item.
+ *
+ * This is the subset of `IPeerReviewAssessment` that lives on the Item
+ * doc itself (the course-tree representation). The full assessment doc
+ * (including rubric, deadlines, and per-cohort config) is stored
+ * separately in the `peer_review_assessments` collection; this blob is
+ * enough for the renderer + student-side "what do I submit?" view.
+ */
+export interface IPeerReviewAssessmentDetails {
+  /** Stable id linking back to the full peer_review_assessments row. */
+  assessmentId: string;
+  /** Total max points, denormalized for fast render. */
+  totalMaxPoints: number;
+  /** Cached rubric summary (label + maxPoints only; the full criterion
+   *  list, including descriptions, lives on the assessment doc). */
+  rubricSummary: Array<{ criterionId: string; label: string; maxPoints: number }>;
+  submissionDeadline: string; // ISO date string
+  reviewDeadline: string; // ISO date string
 }
 
 // Add minimal IProjectItemDetails interface for PROJECT type

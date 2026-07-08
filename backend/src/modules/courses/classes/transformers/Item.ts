@@ -14,9 +14,15 @@ import {
   IVideoDetails,
   IBlogDetails,
   IFeedBackFormDetails,
+  IPeerReviewAssessmentDetails,
 } from '#root/shared/interfaces/models.js';
 
-export type Item = QuizItem | VideoItem | BlogItem | ProjectItem;
+export type Item =
+  | QuizItem
+  | VideoItem
+  | BlogItem
+  | ProjectItem
+  | PeerReviewAssessmentItem;
 
 class QuizItem {
   @Expose()
@@ -313,6 +319,57 @@ class ProjectItem {
   }
 }
 
+class PeerReviewAssessmentItem {
+  @Expose()
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  _id?: ID;
+
+  @Expose()
+  name: string;
+
+  @Expose()
+  isOptional?: boolean = false;
+
+  @Expose()
+  description: string;
+
+  @Expose()
+  type: ItemType = ItemType.PEER_REVIEW_ASSESSMENT;
+
+  @Expose()
+  details?: IPeerReviewAssessmentDetails;
+
+  @Expose()
+  isDeleted?: boolean;
+
+  @Expose()
+  deletedAt?: Date;
+
+  @Expose()
+  isHidden?: boolean;
+
+  constructor(
+    name: string,
+    description: string,
+    _id: ID,
+    details?: IPeerReviewAssessmentDetails,
+    isOptional: boolean = false,
+  ) {
+    this._id = _id;
+    this.type = ItemType.PEER_REVIEW_ASSESSMENT;
+    this.name = name;
+    this.description = description;
+    this.isOptional = isOptional;
+
+    if (details) {
+      this.details = details;
+    }
+    this.isDeleted = false;
+    this.deletedAt = undefined;
+  }
+}
+
 class ItemBase {
   @Expose()
   @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
@@ -375,6 +432,18 @@ class ItemBase {
             pdesc,
             this.itemId,
             itemBody.details,
+          );
+          break;
+        case ItemType.PEER_REVIEW_ASSESSMENT:
+          // Peer-review assessment items carry a slim details blob (assessmentId,
+          // rubric summary, deadlines). The full assessment doc is created in
+          // the same controller call (Phase 2.2.2) and linked via assessmentId.
+          this.itemDetails = new PeerReviewAssessmentItem(
+            itemBody.name,
+            itemBody.description,
+            this.itemId,
+            itemBody.peerReviewAssessmentDetails,
+            itemBody.isOptional,
           );
           break;
         case ItemType.FEEDBACK:
@@ -479,6 +548,7 @@ export {
   VideoItem,
   BlogItem,
   ProjectItem,
+  PeerReviewAssessmentItem,
   FeedBackFormItem,
   FeedbackSubmissionItem,
 };
