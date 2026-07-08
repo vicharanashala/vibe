@@ -69,18 +69,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   // Use the stored playback rate from the player store
   const { playbackRate, setPlaybackRate, volume, setVolume, subtitlesEnabled, setSubtitlesEnabled } = usePlayerStore();
   const [maxTime, setMaxTime] = useState(0);
-  // Auto-hide the control bar while playing; reveal on mouse activity / when paused.
-  const [controlsVisible, setControlsVisible] = useState(true);
-  const controlsHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showControls = () => {
-    setControlsVisible(true);
-    if (controlsHideTimer.current) clearTimeout(controlsHideTimer.current);
-    controlsHideTimer.current = setTimeout(() => setControlsVisible(false), 2500);
-  };
-  const hideControls = () => {
-    if (controlsHideTimer.current) clearTimeout(controlsHideTimer.current);
-    setControlsVisible(false);
-  };
   const [videoEnded, setVideoEnded] = useState(false);
   // Rotating quote shown during the "preparing environment" delay.
   const [quoteIndex, setQuoteIndex] = useState(0);
@@ -226,12 +214,10 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   };
 
   const toggleFullscreen = useCallback(async () => {
-    const container = videoContainerRef.current;
-    if (!container) return;
-
     try {
       if (!document.fullscreenElement) {
-        await container.requestFullscreen();
+        // Fullscreen the document root so page-level proctoring overlays stay visible.
+        await document.documentElement.requestFullscreen();
         setIsFullscreen(true);
       } else {
         await document.exitFullscreen();
@@ -756,8 +742,18 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
             try {
               const iframeEl = (event.target as any).getIframe?.() as HTMLIFrameElement | undefined;
               if (iframeEl) {
+                // Enlarge the iframe ~72px past the top and bottom of its
+                // (overflow-hidden) container so YouTube's own top title and
+                // bottom control/branding chrome — which we cannot remove from a
+                // cross-origin iframe — fall outside the visible area and get
+                // clipped. For a 16:9 stage YouTube letterboxes the extra height,
+                // so the video stays full-width with no zoom; the black bars (and
+                // the chrome on them) are what gets clipped away.
+                iframeEl.style.position = 'absolute';
+                iframeEl.style.top = '-72px';
+                iframeEl.style.left = '0';
                 iframeEl.style.width = '100%';
-                iframeEl.style.height = '100%';
+                iframeEl.style.height = 'calc(100% + 144px)';
                 iframeEl.style.display = 'block';
               }
             } catch { /* getIframe unavailable — non-fatal */ }
@@ -1151,9 +1147,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
         cursor: 'pointer',
       }}
       onClick={handlePlayPause}
-      onMouseEnter={showControls}
-      onMouseMove={showControls}
-      onMouseLeave={hideControls}
     >
 
       <ConfirmOverlay
@@ -1184,8 +1177,9 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           overflow: 'hidden',
           position: 'relative',
         }}>
-        {/* Video Container */}
-        <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+        {/* Video Container — overflow-hidden so the enlarged YouTube iframe
+            (see onReady) is clipped, hiding YouTube's top/bottom chrome. */}
+        <div style={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden' }}>
 
           {!readyToDetect ? (  // Show preparing message before player is ready 
             <div
@@ -1361,10 +1355,9 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
               />
 
-              {/* Title mask — YouTube renders its title/channel overlay (top) only
-                  while paused/loading, and it's inside a cross-origin iframe we
-                  can't style. Cover that strip with a soft stage-coloured vignette
-                  in the immersive view; hidden during playback so content is clear. */}
+              {/* YouTube's own top title/channel overlay is clipped away by the
+                  enlarged-iframe trick (see onReady); this soft vignette just
+                  polishes the top edge in the immersive stage while paused. */}
               {(focusMode || isFullscreen) && !playing && (
                 <div
                   aria-hidden
@@ -1788,8 +1781,9 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                   backdropFilter: 'blur(10px)',
                   WebkitBackdropFilter: 'blur(10px)',
                   borderRadius: 0,
-                  opacity: controlsVisible || !playing ? 1 : 0,
-                  pointerEvents: controlsVisible || !playing ? 'auto' : 'none',
+                  // Keep the control bar visible over the video at all times.
+                  opacity: 1,
+                  pointerEvents: 'auto',
                   transition: 'opacity 250ms ease',
                 }
               : {
