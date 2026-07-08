@@ -4,19 +4,21 @@ import { PeerReviewAssessmentRepository } from './repositories/providers/mongodb
 import { PeerReviewSubmissionRepository } from './repositories/providers/mongodb/PeerReviewSubmissionRepository.js';
 import { PeerReviewAssignmentRepository } from './repositories/providers/mongodb/PeerReviewAssignmentRepository.js';
 import { PeerReviewReviewRepository } from './repositories/providers/mongodb/PeerReviewReviewRepository.js';
+import { PeerReviewAssessmentService } from './services/PeerReviewAssessmentService.js';
+import { PeerReviewAssessmentController } from './controllers/PeerReviewAssessmentController.js';
 
 /**
  * DI bindings for the peerReview module.
  *
- * Bindings:
- *   - 4 repositories (Phase 1; data layer)
- *   - services and controllers will be added in Phases 2–5
+ * Bindings (Phase 1+2):
+ *   - 4 repositories (data layer)
+ *   - 1 service (assessment create/edit/get/close)
+ *   - 1 controller (3 endpoints)
  *
- * Each binding is a singleton — the repositories are stateless besides the
- * lazily-initialized `Collection<T>` reference (set in init()).
+ * Each binding is a singleton.
  */
 export const peerReviewContainerModule = new ContainerModule(options => {
-  // Repositories (Phase 1)
+  // Repositories
   options
     .bind(PEERREVIEW_TYPES.PeerReviewAssessmentRepo)
     .to(PeerReviewAssessmentRepository)
@@ -34,7 +36,15 @@ export const peerReviewContainerModule = new ContainerModule(options => {
     .to(PeerReviewReviewRepository)
     .inSingletonScope();
 
-  // Services (Phases 2–5)
+  // Services
+  options
+    .bind(PEERREVIEW_TYPES.PeerReviewAssessmentService)
+    .to(PeerReviewAssessmentService)
+    .inSingletonScope();
 
-  // Controllers (Phases 2–5)
+  // Controllers
+  options
+    .bind(PEERREVIEW_TYPES.PeerReviewAssessmentController)
+    .to(PeerReviewAssessmentController)
+    .inSingletonScope();
 });

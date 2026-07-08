@@ -3,13 +3,16 @@ import { sharedContainerModule } from '#root/container.js';
 import { InversifyAdapter } from '#root/inversify-adapter.js';
 import { useContainer, RoutingControllersOptions } from 'routing-controllers';
 import { peerReviewContainerModule } from './container.js';
+import { PeerReviewAssessmentController } from './controllers/PeerReviewAssessmentController.js';
 
 export const peerReviewContainerModules: ContainerModule[] = [
   peerReviewContainerModule,
   sharedContainerModule,
 ];
 
-export const peerReviewModuleControllers: Function[] = [];
+export const peerReviewModuleControllers: Function[] = [
+  PeerReviewAssessmentController,
+];
 
 export async function setupPeerReviewContainer(): Promise<void> {
   const container = new Container();
