@@ -31,6 +31,35 @@ import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {appConfig} from '#root/config/app.js';
 import {BadRequestErrorResponse} from '#root/shared/index.js';
 
+// (touch: ensure tsc --watch re-emits; comment-only, no functional change)
+
+/**
+ * Build the URL for Firebase Auth's `signInWithPassword` REST endpoint.
+ *
+ * In development, when `FIREBASE_AUTH_EMULATOR_HOST` is set, route to the
+ * local emulator instead of Google prod. The emulator accepts any string for
+ * the `key` query param, so we still pass `appConfig.firebase.apiKey`
+ * (which may be undefined) and just substitute a non-empty placeholder.
+ *
+ * The hardcoded prod URL was crashing `/api/auth/login` in dev whenever
+ * `FIREBASE_API_KEY` was unset (the backend fetched Google with `key=undefined`
+ * and got "API key not valid"). Bug discovered 2026-07-08 while debugging
+ * "Login failed" in the Vite frontend.
+ */
+function buildSignInWithPasswordUrl(): string {
+  const emulatorHost = process.env.FIREBASE_AUTH_EMULATOR_HOST;
+  if (appConfig.isDevelopment && emulatorHost) {
+    // Emulator accepts any non-empty `key` value; use 'emulator' as a clear marker.
+    return `http://${emulatorHost}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=emulator`;
+  }
+  // Production path: require an explicit API key.
+  const apiKey = appConfig.firebase.apiKey;
+  if (!apiKey) {
+    throw new HttpError(500, 'FIREBASE_API_KEY is not configured for this environment');
+  }
+  return `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
+}
+
 @OpenAPI({
   tags: ['Authentication'],
 })
@@ -189,18 +218,15 @@ export class AuthController {
     }
 
     // Proceed with Firebase authentication
-    const data = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
-      {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          email,
-          password,
-          returnSecureToken: true,
-        }),
-      },
-    );
+    const data = await fetch(buildSignInWithPasswordUrl(), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        email,
+        password,
+        returnSecureToken: true,
+      }),
+    });
     const result = await data.json();
 
     // ✅ fetch your app user from DB
