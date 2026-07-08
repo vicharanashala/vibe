@@ -11,6 +11,7 @@ import {
   ForbiddenError,
   NotFoundError,
   BadRequestError,
+  Req,
 } from 'routing-controllers';
 import { injectable, inject } from 'inversify';
 import { ObjectId } from 'mongodb';
@@ -22,6 +23,8 @@ import { PeerReviewAssignmentRepository } from '../repositories/providers/mongod
 import { PeerReviewScoringService } from '../services/PeerReviewScoringService.js';
 import { PeerReviewNotificationService } from '../services/PeerReviewNotificationService.js';
 import { IUser } from '#shared/interfaces/models.js';
+import { setAuditTrail } from '#root/utils/setAuditTrail.js';
+import { AuditCategory, AuditAction } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 
 /**
  * Teacher-side HTTP endpoints.
@@ -155,6 +158,7 @@ export class PeerReviewTeacherController {
   @HttpCode(200)
   @Authorized(['INSTRUCTOR', 'MANAGER'])
   async teacherOverride(
+    @Req() req: any,
     @CurrentUser({ required: true }) user: IUser,
     @Param('id') id: string,
     @Body()
@@ -223,6 +227,26 @@ export class PeerReviewTeacherController {
         reason: body.reason,
       });
     }
+    // Audit log (Phase 7 audit-improvement tier-2.b).
+    setAuditTrail(req, {
+      category: AuditCategory.PEER_REVIEW,
+      action: AuditAction.PEER_REVIEW_TEACHER_OVERRIDE,
+      actor: {
+        id: new ObjectId(user._id!.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        peerReviewAssessmentId: (assessment as any)._id?.toString() as any,
+      },
+      changes: {
+        after: {
+          reason: body.reason,
+          newFinalScore: recompute?.totalScore ?? null,
+        },
+      },
+    });
     return {
       ok: true,
       reviewId: id,

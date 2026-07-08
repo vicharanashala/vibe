@@ -1,4 +1,4 @@
-import { JsonController, Post, Patch, Get, Param, Body, HttpCode, Authorized, CurrentUser } from 'routing-controllers';
+import { JsonController, Post, Patch, Get, Param, Body, HttpCode, Authorized, CurrentUser, Req } from 'routing-controllers';
 import { injectable, inject } from 'inversify';
 import { ObjectId } from 'mongodb';
 import { ForbiddenError, InternalServerError } from 'routing-controllers';
@@ -48,10 +48,26 @@ export class PeerReviewAssessmentController {
   @HttpCode(201)
   @Authorized(['INSTRUCTOR', 'MANAGER'])
   async create(
+    @Req() req: any,
     @CurrentUser({ required: true }) user: IUser,
     @Body() body: CreatePeerReviewAssessmentBody,
   ): Promise<{ assessmentId: string; itemId: string }> {
     const result = await this.service.create(user, body);
+    setAuditTrail(req, {
+      category: AuditCategory.PEER_REVIEW,
+      action: AuditAction.PEER_REVIEW_ASSESSMENT_CREATE,
+      actor: {
+        id: new ObjectId(user._id!.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseId: body.courseId as any,
+        courseVersionId: body.courseVersionId as any,
+        peerReviewAssessmentId: result.assessmentId as any,
+      },
+    });
     return result;
   }
 
@@ -59,11 +75,23 @@ export class PeerReviewAssessmentController {
   @HttpCode(200)
   @Authorized(['INSTRUCTOR', 'MANAGER'])
   async edit(
+    @Req() req: any,
     @CurrentUser({ required: true }) user: IUser,
     @Param('id') id: string,
     @Body() body: UpdatePeerReviewAssessmentBody,
   ): Promise<{ ok: true }> {
     await this.service.edit(user, id, body);
+    setAuditTrail(req, {
+      category: AuditCategory.PEER_REVIEW,
+      action: AuditAction.PEER_REVIEW_ASSESSMENT_UPDATE,
+      actor: {
+        id: new ObjectId(user._id!.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: { peerReviewAssessmentId: id as any },
+    });
     return { ok: true };
   }
 
@@ -86,38 +114,36 @@ export class PeerReviewAssessmentController {
   @HttpCode(200)
   @Authorized(['INSTRUCTOR', 'MANAGER'])
   async close(
+    @Req() req: any,
     @CurrentUser({ required: true }) user: IUser,
     @Param('id') id: string,
   ): Promise<{ ok: true }> {
     await this.service.close(user, id);
+    setAuditTrail(req, {
+      category: AuditCategory.PEER_REVIEW,
+      action: AuditAction.PEER_REVIEW_ASSESSMENT_CLOSED,
+      actor: {
+        id: new ObjectId(user._id!.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: { peerReviewAssessmentId: id as any },
+    });
     return { ok: true };
   }
 }
 
 /**
- * setAuditTrail helper: keep imports tidy by re-exporting here. The actual
- * setAuditTrail definition lives in src/utils/setAuditTrail.js; controllers
- * call it directly via the import above.
+ * Audit-trail wiring (Phase 7 audit-improvement tier-2.b).
  *
- * For Phase 2 the audit emissions are best-effort: failures here would
- * not block the user's request but are logged. Audit calls would normally
- * be inside the controller method body, calling:
+ * The 3 endpoints above (create, edit, close) emit InstructorAuditTrail
+ * entries via setAuditTrail(). The actual write to the audit_trails
+ * collection happens later in the request lifecycle (the existing
+ * per-request middleware handles the persist). This change closes the
+ * "audit-log was a TODO" gap from Phase 2 commit 1.
  *
- *   setAuditTrail(req, { category: AuditCategory.PEER_REVIEW, ... });
- *
- * We don't have `req` in this controller yet because our endpoints don't
- * accept arbitrary metadata beyond the body. Phase 5 wires the audit
- * trail once we have request context for teacher audit logs.
- *
- * Until then: the AuditCategory / AuditAction enum values are reserved
- * (Phase 1, commit 4) and the controllers import them here as a forward
- * reference, ensuring the imports stay live in tsc even when no
- * setAuditTrail call is emitted.
+ * AuditCategory / AuditAction enum values were reserved in Phase 1
+ * commit 4; this is the first consumer.
  */
-void setAuditTrail;
-void AuditCategory;
-void AuditAction;
-void OutComeStatus;
-void ForbiddenError;
-void InternalServerError;
-void ObjectId;
+export {};

@@ -1606,6 +1606,37 @@ export function useReviewsReceived(assessmentId: string | undefined): {
   };
 }
 
+// GET /peer-review-links/check?url=...  (Phase 7 audit-improvement)
+//
+// Live URL accessibility check. Used by the submission form to show
+// a green check / red x next to each link as the user types/pastes.
+export function useCheckPeerReviewLink(url: string | undefined): {
+  data: { accessible: boolean; reason?: string } | null,
+  isLoading: boolean,
+  error: string | null,
+} {
+  const result = (api as any).useQuery(
+    'get',
+    '/peer-review-links/check',
+    url && url.trim().length > 0
+      ? { params: { query: { url: url.trim() } } }
+      : ({} as any),
+    {
+      enabled: !!url && url.trim().length > 0,
+      // The backend caches for 60s; we mirror that with a 30s
+      // stale window so rapid re-checks within the cache TTL
+      // are instant.
+      staleTime: 30_000,
+      retry: false,
+    },
+  );
+  return {
+    data: (result.data as any) ?? null,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Check failed') : null,
+  };
+}
+
 export function userParseCSVtoItems(): {
   mutate: (variables: { params: { path: { courseId: string, versionId: string, moduleId: string, sectionId: string } }, body: any }) => void,
   mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, moduleId: string, sectionId: string } }, body: any }) => Promise<{
