@@ -1519,6 +1519,93 @@ export function useMySubmission(assessmentId: string | undefined): {
   };
 }
 
+// GET /students/me/peer-review-assignments  (Phase 4.2.3 reviewer flow)
+export function useMyPeerReviewAssignments(): {
+  data: any[],
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void,
+} {
+  const result = (api as any).useQuery(
+    'get',
+    '/students/me/peer-review-assignments',
+    {} as any,
+  );
+  return {
+    data: (result.data ?? []) as any[],
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Load failed') : null,
+    refetch: result.refetch,
+  };
+}
+
+// GET /peer-review-assignments/{id}/submission  (Phase 4.2.3 reviewer flow)
+export function useSubmissionToReview(assignmentId: string | undefined): {
+  data: any,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void,
+} {
+  const result = (api as any).useQuery(
+    'get',
+    '/peer-review-assignments/{id}/submission',
+    assignmentId ? { params: { path: { id: assignmentId } } } : ({} as any),
+    { enabled: !!assignmentId },
+  );
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Load failed') : null,
+    refetch: result.refetch,
+  };
+}
+
+// POST /peer-review-assignments/{id}/review  (Phase 4.2.3 reviewer flow)
+export function useSubmitPeerReviewScore(): {
+  mutate: (variables: {
+    params: { path: { id: string } },
+    body: { scores: any[], overallComment: string },
+  }) => void,
+  mutateAsync: (variables: {
+    params: { path: { id: string } },
+    body: { scores: any[], overallComment: string },
+  }) => Promise<any>,
+  isPending: boolean,
+  error: string | null,
+} {
+  const result = (api as any).useMutation(
+    'post',
+    '/peer-review-assignments/{id}/review',
+  );
+  return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    isPending: result.isPending ?? false,
+    error: result.error ? (result.error.message || 'Submit failed') : null,
+  };
+}
+
+// GET /students/me/peer-reviews-received  (Phase 4.2.3 reviewer flow)
+export function useReviewsReceived(assessmentId: string | undefined): {
+  data: any,
+  isLoading: boolean,
+  error: string | null,
+  refetch: () => void,
+} {
+  const result = (api as any).useQuery(
+    'get',
+    '/students/me/peer-reviews-received',
+    assessmentId ? { params: { query: { assessmentId } } } : ({} as any),
+    { enabled: !!assessmentId },
+  );
+  return {
+    data: result.data,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Load failed') : null,
+    refetch: result.refetch,
+  };
+}
+
 export function userParseCSVtoItems(): {
   mutate: (variables: { params: { path: { courseId: string, versionId: string, moduleId: string, sectionId: string } }, body: any }) => void,
   mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, moduleId: string, sectionId: string } }, body: any }) => Promise<{
