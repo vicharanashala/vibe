@@ -1,4 +1,4 @@
-import { loginWithGoogle, loginWithEmail, auth } from "@/lib/firebase";
+import { loginWithGoogle, loginWithEmail, auth, createUserWithEmail } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -880,12 +880,15 @@ export default function AuthPage({ role }: AuthPageProps) {
           ? (uploadEmbeddingRef.current || await generateFaceEmbedding(studentPhotoFile))
           : undefined;
 
-      // const result = await createUserWithEmail(email, password, fullName);
-
       // Parse fullName into firstName and lastName
       const nameParts = fullName.trim().split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ' ';
+
+      // Create the Firebase Auth user FIRST so the subsequent login call has
+      // a real account to sign in to. (Backend /auth/signup alone does NOT
+      // create a Firebase user — it only writes to the app DB.)
+      await createUserWithEmail(email, password, fullName);
 
       await signupMutation({
         body: {
