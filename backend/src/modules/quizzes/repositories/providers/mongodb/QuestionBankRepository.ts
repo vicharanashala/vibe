@@ -46,6 +46,25 @@ class QuestionBankRepository {
     throw new Error('Failed to create question bank');
   }
 
+  /**
+   * Find the crowd "Submitted – Pending Validation" bank for a given graded
+   * bank (keyed by sourceGradedBankId). Returns null if none exists yet.
+   */
+  async findCrowdSubmittedBankByGradedBankId(
+    gradedBankId: string,
+    session?: ClientSession,
+  ): Promise<IQuestionBank | null> {
+    await this.init();
+    return this.questionBankCollection.findOne(
+      {
+        crowdSubmitted: true,
+        sourceGradedBankId: new ObjectId(gradedBankId),
+        isDeleted: {$ne: true},
+      },
+      {session},
+    );
+  }
+
   async getById(
     questionBankId: string,
     session?: ClientSession,

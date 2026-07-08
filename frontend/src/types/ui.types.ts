@@ -128,6 +128,12 @@ export interface StatCardProps {
   icon: string | ReactNode;
   value: string;
   label: string;
+  /** Optional supporting line shown beneath the label. */
+  sublabel?: string;
+  /** Accent color used for the icon chip and ambient glow. */
+  tone?: 'amber' | 'blue' | 'emerald' | 'violet';
+  /** Optional decorative node rendered in the top-right corner (e.g. an emoji/badge). */
+  decoration?: ReactNode;
   className?: string;
 }
 
