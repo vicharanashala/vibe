@@ -6,6 +6,7 @@ import { peerReviewContainerModule } from './container.js';
 import { PeerReviewAssessmentController } from './controllers/PeerReviewAssessmentController.js';
 import { PeerReviewSubmissionController } from './controllers/PeerReviewSubmissionController.js';
 import { PeerReviewAssignmentController } from './controllers/PeerReviewAssignmentController.js';
+import { PeerReviewTeacherController } from './controllers/PeerReviewTeacherController.js';
 
 export const peerReviewContainerModules: ContainerModule[] = [
   peerReviewContainerModule,
@@ -16,6 +17,7 @@ export const peerReviewModuleControllers: Function[] = [
   PeerReviewAssessmentController,
   PeerReviewSubmissionController,
   PeerReviewAssignmentController,
+  PeerReviewTeacherController,
 ];
 
 export async function setupPeerReviewContainer(): Promise<void> {

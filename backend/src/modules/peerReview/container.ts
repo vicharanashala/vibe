@@ -12,6 +12,7 @@ import { PeerReviewUrlAccessibilityService } from './services/PeerReviewUrlAcces
 import { PeerReviewAssessmentController } from './controllers/PeerReviewAssessmentController.js';
 import { PeerReviewSubmissionController } from './controllers/PeerReviewSubmissionController.js';
 import { PeerReviewAssignmentController } from './controllers/PeerReviewAssignmentController.js';
+import { PeerReviewTeacherController } from './controllers/PeerReviewTeacherController.js';
 import { AssignmentRunner } from './cron/AssignmentRunner.js';
 import { ReassignmentRunner } from './cron/ReassignmentRunner.js';
 import { FinalizationRunner } from './cron/FinalizationRunner.js';
@@ -86,6 +87,10 @@ export const peerReviewContainerModule = new ContainerModule(options => {
   options
     .bind(PEERREVIEW_TYPES.PeerReviewAssignmentController)
     .to(PeerReviewAssignmentController)
+    .inSingletonScope();
+  options
+    .bind(PEERREVIEW_TYPES.PeerReviewTeacherController)
+    .to(PeerReviewTeacherController)
     .inSingletonScope();
 
   // Crons

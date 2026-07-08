@@ -3,6 +3,7 @@ const TYPES = {
   PeerReviewAssessmentController: Symbol.for('PeerReviewAssessmentController'),
   PeerReviewSubmissionController: Symbol.for('PeerReviewSubmissionController'),
   PeerReviewAssignmentController: Symbol.for('PeerReviewAssignmentController'),
+  PeerReviewTeacherController: Symbol.for('PeerReviewTeacherController'),
   // Services
   PeerReviewAssessmentService: Symbol.for('PeerReviewAssessmentService'),
   PeerReviewSubmissionService: Symbol.for('PeerReviewSubmissionService'),
