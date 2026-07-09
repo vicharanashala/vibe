@@ -98,4 +98,31 @@ export interface IItemRepository {
   // readVideoDetails(detailsId: string): Promise<IVideoDetails | null>;
   // readQuizDetails(detailsId: string): Promise<IQuizDetails | null>;
   // readBlogDetails(detailsId: string): Promise<IBlogDetails | null>;
+
+  /**
+   * Phase 2.2.2 fix: stamp the slim `details` blob (assessmentId +
+   * denormalized rubric summary + deadlines) onto a peer-review item
+   * AFTER its assessment doc has been created. Without this the
+   * student/teacher renderer silently renders an empty state because
+   * `useGetPeerReviewAssessment(undefined)` never fires. The slim
+   * blob lives in the peerReviewItems collection (separate from
+   * videos/quizzes/etc.) so we update by direct collection write
+   * here, not via the existing updateItem switch (which targets the
+   * other per-type collections).
+   */
+  updatePeerReviewItemDetails(
+    itemId: string,
+    details: {
+      assessmentId: string;
+      totalMaxPoints: number;
+      submissionDeadline: string;
+      reviewDeadline: string;
+      rubricSummary: Array<{
+        criterionId: string;
+        label: string;
+        maxPoints: number;
+      }>;
+    },
+    session?: ClientSession,
+  ): Promise<void>;
 }

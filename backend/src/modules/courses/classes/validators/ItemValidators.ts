@@ -1,4 +1,4 @@
-import { Transform, Type } from 'class-transformer';
+import {Transform, Type} from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -20,8 +20,8 @@ import {
   IsArray,
   IsInt,
 } from 'class-validator';
-import { JSONSchema } from 'class-validator-jsonschema';
-import { CourseVersion } from '../transformers/CourseVersion.js';
+import {JSONSchema} from 'class-validator-jsonschema';
+import {CourseVersion} from '../transformers/CourseVersion.js';
 import {
   FeedBackFormItem,
   Item,
@@ -38,7 +38,7 @@ import {
   IProjectDetails,
   IFeedBackFormDetails,
 } from '#root/shared/interfaces/models.js';
-import { OnlyOneId } from './customValidators.js';
+import {OnlyOneId} from './customValidators.js';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -88,7 +88,8 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
 }
 
 class QuizDetailsPayloadValidator
-  implements Omit<IQuizDetails, 'questionBankRefs'> {
+  implements Omit<IQuizDetails, 'questionBankRefs'>
+{
   @JSONSchema({
     description: 'Minimum percentage required to pass, between 0 and 1',
     example: 0.7,
@@ -286,6 +287,60 @@ class ProjectDetailsPayloadValidator implements IProjectDetails {
   description: string;
 }
 
+/**
+ * Slim details blob for a PEER_REVIEW_ASSESSMENT item.
+ *
+ * The standard ItemController should NOT be used to create peer-review
+ * items — those go through PeerReviewAssessmentController which writes
+ * the slim blob + the full peer_review_assessments doc atomically. This
+ * validator exists so that, if the standard controller ever IS called
+ * with type=PEER_REVIEW_ASSESSMENT, the request validates cleanly and the
+ * PeerReviewAssessmentItem transformer can do its job. We require just
+ * the assessmentId link; the rest is denormalized from the full doc.
+ */
+class PeerReviewDetailsPayloadValidator {
+  @JSONSchema({
+    title: 'Assessment ID',
+    description:
+      'Stable id linking this item back to its peer_review_assessments row. Required.',
+    example: '6a4e18aebb5aabc700f1695a',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsMongoId()
+  @IsString()
+  assessmentId: string;
+
+  @JSONSchema({
+    title: 'Total Max Points',
+    description: 'Denormalized max points for fast render.',
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  totalMaxPoints?: number;
+
+  @JSONSchema({
+    title: 'Submission Deadline',
+    description: 'ISO date string.',
+    type: 'string',
+    format: 'date-time',
+  })
+  @IsOptional()
+  @IsDateString()
+  submissionDeadline?: string;
+
+  @JSONSchema({
+    title: 'Review Deadline',
+    description: 'ISO date string.',
+    type: 'string',
+    format: 'date-time',
+  })
+  @IsOptional()
+  @IsDateString()
+  reviewDeadline?: string;
+}
+
 class CreateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
     description: 'Title of the item',
@@ -330,7 +385,14 @@ class CreateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK'],
+    enum: [
+      'VIDEO',
+      'BLOG',
+      'QUIZ',
+      'PROJECT',
+      'FEEDBACK',
+      'PEER_REVIEW_ASSESSMENT',
+    ],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -430,12 +492,18 @@ class UpdateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, QUIZ or PROJECT',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK'],
+    enum: [
+      'VIDEO',
+      'BLOG',
+      'QUIZ',
+      'PROJECT',
+      'FEEDBACK',
+      'PEER_REVIEW_ASSESSMENT',
+    ],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
   type: ItemType;
-
 
   @JSONSchema({
     description: 'isOptional field is required only for Feedback type items',
@@ -486,6 +554,15 @@ class UpdateItemBody implements Partial<IBaseItem> {
         return ProjectDetailsPayloadValidator;
       case ItemType.FEEDBACK:
         return FeedBackFormPayloadValidator;
+      case ItemType.PEER_REVIEW_ASSESSMENT:
+        // PEER_REVIEW_ASSESSMENT items are created through the dedicated
+        // PeerReviewAssessmentController (which writes the slim details blob
+        // + the full peer_review_assessments doc atomically). The standard
+        // ItemController should NOT be used for them, but if it ever is we
+        // accept any payload here so the request doesn't 500 — the
+        // transformer handles the slim blob. Required fields are enforced
+        // by the peer-review-specific validators on its own route.
+        return PeerReviewDetailsPayloadValidator;
       default:
         throw new Error(`Unknown item type: ${itemType}`);
     }
@@ -495,7 +572,8 @@ class UpdateItemBody implements Partial<IBaseItem> {
     | BlogDetailsPayloadValidator
     | QuizDetailsPayloadValidator
     | ProjectDetailsPayloadValidator
-    | FeedBackFormPayloadValidator;
+    | FeedBackFormPayloadValidator
+    | PeerReviewDetailsPayloadValidator;
 }
 
 class MoveItemBody {
@@ -792,7 +870,7 @@ class ItemsGroupResponse implements ItemsGroup {
   })
   @IsNotEmpty()
   @Type(() => ItemRefResponse)
-  @ValidateNested({ each: true })
+  @ValidateNested({each: true})
   @IsArray()
   items: ItemRef[];
 
@@ -805,7 +883,6 @@ class ItemsGroupResponse implements ItemsGroup {
   @IsNotEmpty()
   sectionId: ID;
 }
-
 
 export class VideoUserAnalytics {
   @IsString()
@@ -842,13 +919,13 @@ export class VideoUserAnalyticsQuery {
   search?: string;
 
   @IsOptional()
-  @Transform(({ value }) => Number(value))
+  @Transform(({value}) => Number(value))
   @IsInt()
   @Min(1)
   page: number = 1;
 
   @IsOptional()
-  @Transform(({ value }) => Number(value))
+  @Transform(({value}) => Number(value))
   @IsInt()
   @Min(1)
   @Max(200)
@@ -880,7 +957,6 @@ export class VideoOverallAnalytics {
   averageWatchHoursPerUser!: number;
 }
 
-
 export class GetVideoAnalyticsParams {
   @IsMongoId()
   courseId!: string;
@@ -892,13 +968,12 @@ export class GetVideoAnalyticsParams {
   itemId!: string;
 }
 
-
 class ItemDataResponse {
   @JSONSchema({
     description: 'The item data',
     type: 'object',
     readOnly: true,
-    items: { $ref: '#/components/schemas/ItemGroupResponse' },
+    items: {$ref: '#/components/schemas/ItemGroupResponse'},
   })
   @IsNotEmpty()
   @ValidateNested()
@@ -913,9 +988,7 @@ class ItemDataResponse {
   @IsOptional()
   version?: CourseVersion;
 
-  @JSONSchema({
-
-  })
+  @JSONSchema({})
   createdItem: ItemRef;
 }
 
@@ -924,7 +997,7 @@ class DeletedItemResponse {
     description: 'The deleted item data',
     type: 'object',
     readOnly: true,
-    example: { deletedItemId: '68ee280e1f1beg90c14b68ba' },
+    example: {deletedItemId: '68ee280e1f1beg90c14b68ba'},
   })
   @IsNotEmpty()
   deletedItem: Record<string, any>;
@@ -1036,8 +1109,7 @@ class CSVRow {
   'Correct Answer'?: string;
 
   [key: string]: string | undefined;
-};
-
+}
 
 class CSVQuizQuestion {
   Segment: string;
@@ -1091,7 +1163,7 @@ export {
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
   CSVRow,
-  csvResponse
+  csvResponse,
 };
 
 export const ITEM_VALIDATORS = [
@@ -1114,5 +1186,5 @@ export const ITEM_VALIDATORS = [
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
   CSVRow,
-  csvResponse
+  csvResponse,
 ];

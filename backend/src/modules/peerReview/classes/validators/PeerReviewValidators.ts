@@ -1,5 +1,6 @@
 import { Expose, Type } from 'class-transformer';
 import {
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -102,9 +103,9 @@ export class CreatePeerReviewAssessmentBody {
 
   @Expose()
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => RubricCriterionDto)
-  @MinLength(1)
   rubric!: RubricCriterionDto[];
 
   @Expose()

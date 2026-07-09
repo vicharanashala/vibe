@@ -31,6 +31,11 @@ export class ItemRepository implements IItemRepository {
   private blogCollection: Collection<BlogItem>;
   private projectCollection: Collection<ProjectItem>;
   private feedbackFormCollection: Collection<FeedBackFormItem>;
+  // Phase 2.2.2: peer-review assessment items live in their own
+  // collection. The slim doc holds the assessmentId link + denormalized
+  // rubric summary; the full assessment (rubric criteria, instructor
+  // attachments, deadlines) is in peer_review_assessments.
+  private peerReviewAssessmentItemCollection: Collection<any>;
   private questionBankCollection: Collection<QuestionBank>;
   private questionsCollection: Collection<any>;
   private courseVersionCollection: Collection<any>;
@@ -56,6 +61,9 @@ export class ItemRepository implements IItemRepository {
     );
     this.feedbackFormCollection = await this.db.getCollection<FeedBackFormItem>(
       'feedback_forms',
+    );
+    this.peerReviewAssessmentItemCollection = await this.db.getCollection<any>(
+      'peerReviewItems',
     );
 
     this.itemsGroupCollection.createIndex({ items: 1 });
@@ -300,6 +308,9 @@ export class ItemRepository implements IItemRepository {
       case ItemType.FEEDBACK:
         collection = this.feedbackFormCollection;
         break;
+      case ItemType.PEER_REVIEW_ASSESSMENT:
+        collection = this.peerReviewAssessmentItemCollection;
+        break;
       default:
         throw new Error(`Unsupported item type: ${(item as any).type}`);
     }
@@ -314,6 +325,32 @@ export class ItemRepository implements IItemRepository {
     );
 
     return createdItem as Item;
+  }
+
+  async updatePeerReviewItemDetails(
+    itemId: string,
+    details: {
+      assessmentId: string;
+      totalMaxPoints: number;
+      submissionDeadline: string;
+      reviewDeadline: string;
+      rubricSummary: Array<{
+        criterionId: string;
+        label: string;
+        maxPoints: number;
+      }>;
+    },
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    if (!ObjectId.isValid(itemId)) {
+      throw new Error(`updatePeerReviewItemDetails: invalid itemId ${itemId}`);
+    }
+    await this.peerReviewAssessmentItemCollection.updateOne(
+      { _id: new ObjectId(itemId) },
+      { $set: { details, updatedAt: new Date() } },
+      { session },
+    );
   }
 
   async createItems(items: Item[], session?: ClientSession): Promise<Item[]> {
@@ -338,6 +375,9 @@ export class ItemRepository implements IItemRepository {
           break;
         case ItemType.FEEDBACK:
           collection = this.feedbackFormCollection;
+          break;
+        case ItemType.PEER_REVIEW_ASSESSMENT:
+          collection = this.peerReviewAssessmentItemCollection;
           break;
         default:
           throw new Error(`Unsupported item type: ${item.type}`);
