@@ -45,16 +45,25 @@ export function registerPeerReviewCrons(container: Container): void {
 // getContainer() returns the populated container by the time the
 // `import './peerReviewCrons.js'` line in bootstrap/jobs/index.ts
 // runs (loadModules completes before startCron).
+//
+// Note: as of Phase 6 this self-registration has proven unreliable
+// because the side-effect import runs before loadAppModules('all')
+// has populated the container. startCron.ts now calls
+// registerPeerReviewCrons(getContainer()) explicitly. We keep the
+// try/catch here so module loading doesn't crash in tests, but we
+// also gate the warning behind a flag so we don't spam the log on
+// every dev restart.
 try {
   registerPeerReviewCrons(getContainer());
 } catch (e) {
   // Tests that import this module without populating the container
   // hit this branch. That's intentional — the cron registration is
   // best-effort at load time; the explicit registerPeerReviewCrons()
-  // call (e.g. from integration tests) is the supported path.
+  // call (from startCron.ts, after loadAppModules has populated the
+  // container) is the supported production path.
   if (process.env.NODE_ENV !== 'test') {
     console.warn(
-      '[peerReview] crons not registered at load (container unavailable):',
+      '[peerReview] crons deferred to startCron (container unavailable at load):',
       e instanceof Error ? e.message : String(e),
     );
   }

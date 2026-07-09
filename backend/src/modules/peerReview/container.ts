@@ -75,22 +75,15 @@ export const peerReviewContainerModule = new ContainerModule(options => {
     .inSingletonScope();
 
   // Controllers
-  options
-    .bind(PEERREVIEW_TYPES.PeerReviewAssessmentController)
-    .to(PeerReviewAssessmentController)
-    .inSingletonScope();
-  options
-    .bind(PEERREVIEW_TYPES.PeerReviewSubmissionController)
-    .to(PeerReviewSubmissionController)
-    .inSingletonScope();
-  options
-    .bind(PEERREVIEW_TYPES.PeerReviewAssignmentController)
-    .to(PeerReviewAssignmentController)
-    .inSingletonScope();
-  options
-    .bind(PEERREVIEW_TYPES.PeerReviewTeacherController)
-    .to(PeerReviewTeacherController)
-    .inSingletonScope();
+  //
+  // IMPORTANT: controllers must be bound to themselves (toSelf), NOT to a
+  // TYPES symbol. routing-controllers resolves controller classes via the
+  // class-as-symbol pattern; binding under a TYPES symbol makes the
+  // framework fail with "No bindings found for service: ControllerClass".
+  options.bind(PeerReviewAssessmentController).toSelf().inSingletonScope();
+  options.bind(PeerReviewSubmissionController).toSelf().inSingletonScope();
+  options.bind(PeerReviewAssignmentController).toSelf().inSingletonScope();
+  options.bind(PeerReviewTeacherController).toSelf().inSingletonScope();
 
   // Crons
   options
