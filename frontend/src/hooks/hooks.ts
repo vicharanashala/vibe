@@ -6682,13 +6682,6 @@ export function useHpCohorts(courseVersionId: string) {
     enabled: !!courseVersionId,
     refetchOnWindowFocus: false,
   });
-
-  return {
-    data: query.data || [],
-    isLoading: query.isLoading,
-    error: query.error ? (query.error as Error).message : null,
-    refetch: query.refetch,
-  };
 }
 
 export function useCourseDetails(versionId?: string) {
