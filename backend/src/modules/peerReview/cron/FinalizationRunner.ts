@@ -1,4 +1,5 @@
 import { injectable, inject } from 'inversify';
+import cron from 'node-cron';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { PEERREVIEW_TYPES } from '../types.js';
 import { PeerReviewAssessmentRepository } from '../repositories/providers/mongodb/PeerReviewAssessmentRepository.js';
@@ -30,8 +31,7 @@ export class FinalizationRunner {
   }
 
   scheduleCron(): void {
-    const cron = require('node-cron');
-    cron.schedule('*/1 * * * *', async () => {
+    cron.schedule('* * * * *', async () => {
       try {
         const r = await this.runNow();
         if (r.finalized > 0) {

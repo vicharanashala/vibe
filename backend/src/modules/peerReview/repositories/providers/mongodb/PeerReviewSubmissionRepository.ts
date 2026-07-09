@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { injectable, inject } from 'inversify';
-import { ClientSession, Collection } from 'mongodb';
+import { ClientSession, Collection, ObjectId } from 'mongodb';
 import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
 import { InternalServerError } from 'routing-controllers';
 import { GLOBAL_TYPES } from '#root/types.js';
@@ -61,8 +61,14 @@ export class PeerReviewSubmissionRepository {
     assessmentId: string,
   ): Promise<IPeerReviewSubmission[]> {
     await this.init();
+    const filter: any = {};
+    if (typeof assessmentId === 'string' && /^[0-9a-fA-F]{24}$/.test(assessmentId)) {
+      filter.assessmentId = new ObjectId(assessmentId);
+    } else {
+      filter.assessmentId = assessmentId as any;
+    }
     const docs = await this.collection
-      .find({ assessmentId: assessmentId as any })
+      .find(filter)
       .toArray();
     return docs as IPeerReviewSubmission[];
   }

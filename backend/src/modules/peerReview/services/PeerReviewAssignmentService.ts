@@ -37,7 +37,7 @@ export class PeerReviewAssignmentService extends BaseService {
     @inject(PEERREVIEW_TYPES.PeerReviewAssignmentRepo)
     private readonly assignmentRepo: PeerReviewAssignmentRepository,
     @inject(GLOBAL_TYPES.Database)
-    database: MongoDatabase,
+    private readonly database: MongoDatabase,
   ) {
     super(database);
   }

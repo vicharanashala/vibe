@@ -1,4 +1,5 @@
 import { injectable, inject } from 'inversify';
+import cron from 'node-cron';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { PEERREVIEW_TYPES } from '../types.js';
 import { PeerReviewAssessmentRepository } from '../repositories/providers/mongodb/PeerReviewAssessmentRepository.js';
@@ -89,11 +90,13 @@ export class AssignmentRunner {
    * the module is bootstrapped in production; tests should not call this.
    */
   scheduleCron(): void {
-    // Defer the actual cron import to avoid loading it in tests
-    const cron = require('node-cron');
     cron.schedule('* * * * *', async () => {
       try {
         const result = await this.runNow();
+        console.log(
+          `[AssignmentRunner] tick ran=${result.ran.length} errors=${result.errors.length}`,
+          result.errors,
+        );
         if (result.ran.length > 0) {
           console.log(
             `[AssignmentRunner] ran ${result.ran.length} assessments, errors=${result.errors.length}`,

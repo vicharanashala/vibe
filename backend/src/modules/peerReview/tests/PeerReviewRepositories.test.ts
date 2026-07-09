@@ -231,10 +231,10 @@ describe('PeerReviewAssignmentRepository', () => {
 });
 
 describe('PeerReviewReviewRepository', () => {
-  it('create + findByAssignment returns the same row', async () => {
+  it('create + findByAssessment returns the same row', async () => {
     const r = makeReview();
     const id = await repos.review.create(r);
-    const got = await repos.review.findByAssignment(r.assignmentId as string);
+    const got = await repos.review.findByAssessment(r.assignmentId as string);
     expect(got).toBeTruthy();
     expect((got! as any)._id.toString()).toBe(id);
   });

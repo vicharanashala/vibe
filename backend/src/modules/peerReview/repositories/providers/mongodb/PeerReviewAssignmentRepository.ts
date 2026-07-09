@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { injectable, inject } from 'inversify';
-import { ClientSession, Collection } from 'mongodb';
+import { ClientSession, Collection, ObjectId } from 'mongodb';
 import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
 import { InternalServerError } from 'routing-controllers';
 import { GLOBAL_TYPES } from '#root/types.js';
@@ -84,7 +84,13 @@ export class PeerReviewAssignmentRepository {
 
   async findById(id: string): Promise<IPeerReviewAssignment | null> {
     await this.init();
-    const doc = await this.collection.findOne({ _id: id as any });
+    const filter: any = {};
+    if (typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id)) {
+      filter._id = new ObjectId(id);
+    } else {
+      filter._id = id as any;
+    }
+    const doc = await this.collection.findOne(filter);
     if (!doc) return null;
     return doc as IPeerReviewAssignment;
   }
@@ -93,8 +99,14 @@ export class PeerReviewAssignmentRepository {
     submissionId: string,
   ): Promise<IPeerReviewAssignment[]> {
     await this.init();
+    const filter: any = {};
+    if (typeof submissionId === 'string' && /^[0-9a-fA-F]{24}$/.test(submissionId)) {
+      filter.submissionId = new ObjectId(submissionId);
+    } else {
+      filter.submissionId = submissionId as any;
+    }
     const docs = await this.collection
-      .find({ submissionId: submissionId as any })
+      .find(filter)
       .toArray();
     return docs as IPeerReviewAssignment[];
   }
@@ -116,8 +128,14 @@ export class PeerReviewAssignmentRepository {
     reviewerId: string,
   ): Promise<IPeerReviewAssignment[]> {
     await this.init();
+    const filter: any = {};
+    if (typeof reviewerId === 'string' && /^[0-9a-fA-F]{24}$/.test(reviewerId)) {
+      filter.reviewerId = new ObjectId(reviewerId);
+    } else {
+      filter.reviewerId = reviewerId as any;
+    }
     const docs = await this.collection
-      .find({ reviewerId: reviewerId as any })
+      .find(filter)
       .toArray();
     return docs as IPeerReviewAssignment[];
   }

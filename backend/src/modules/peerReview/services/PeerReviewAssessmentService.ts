@@ -176,6 +176,28 @@ export class PeerReviewAssessmentService extends BaseService {
         session,
       );
 
+      // 4. Stamp the item's `details` blob with the freshly-created
+      //    assessmentId so the student/teacher renderers can look up
+      //    the full assessment via the item record. Without this, the
+      //    ItemContainer's PeerReviewItemBody hits `useGetPeerReviewAssessment(undefined)`
+      //    and silently renders the "not linked to an item" empty state.
+      const itemDetails = {
+        assessmentId,
+        totalMaxPoints: totalMax,
+        submissionDeadline: submissionDeadline.toISOString(),
+        reviewDeadline: reviewDeadline.toISOString(),
+        rubricSummary: assessment.rubric.map((r) => ({
+          criterionId: r.criterionId,
+          label: r.label,
+          maxPoints: r.maxPoints,
+        })),
+      };
+      await this.itemRepo.updatePeerReviewItemDetails(
+        itemObjectId.toString(),
+        itemDetails,
+        session,
+      );
+
       return { assessmentId, itemId };
     });
   }

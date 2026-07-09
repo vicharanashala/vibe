@@ -1,4 +1,5 @@
 import { injectable, inject } from 'inversify';
+import cron from 'node-cron';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { PEERREVIEW_TYPES } from '../types.js';
 import { PeerReviewAssessmentRepository } from '../repositories/providers/mongodb/PeerReviewAssessmentRepository.js';
@@ -82,8 +83,7 @@ export class ReassignmentRunner {
   }
 
   scheduleCron(): void {
-    const cron = require('node-cron');
-    cron.schedule('*/30 * * * *', async () => {
+    cron.schedule('* * * * *', async () => {
       try {
         const r = await this.runNow();
         if (r.reassigned > 0 || r.flagged > 0) {

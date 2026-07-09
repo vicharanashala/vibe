@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { injectable, inject } from 'inversify';
-import { ClientSession, Collection } from 'mongodb';
+import { ClientSession, Collection, ObjectId } from 'mongodb';
 import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
 import { InternalServerError } from 'routing-controllers';
 import { GLOBAL_TYPES } from '#root/types.js';
@@ -37,14 +37,30 @@ export class PeerReviewAssessmentRepository {
 
   async findById(id: string): Promise<IPeerReviewAssessment | null> {
     await this.init();
-    const doc = await this.collection.findOne({ _id: id as any });
+    // _id is an ObjectId; coerce from string if needed so the query matches.
+    const filter: any = {};
+    if (typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id)) {
+      filter._id = new ObjectId(id);
+    } else {
+      filter._id = id as any;
+    }
+    const doc = await this.collection.findOne(filter);
     if (!doc) return null;
     return doc as IPeerReviewAssessment;
   }
 
   async findByItemId(itemId: string): Promise<IPeerReviewAssessment | null> {
     await this.init();
-    const doc = await this.collection.findOne({ itemId: itemId as any });
+    // The assessment's itemId is stored as an ObjectId (the Item record
+    // in peerReviewItems uses ObjectId for _id). If we receive a string
+    // from the URL, coerce to ObjectId so the query matches.
+    const filter: any = { isDeleted: { $ne: true } };
+    if (typeof itemId === 'string' && /^[0-9a-fA-F]{24}$/.test(itemId)) {
+      filter.itemId = new ObjectId(itemId);
+    } else {
+      filter.itemId = itemId as any;
+    }
+    const doc = await this.collection.findOne(filter);
     if (!doc) return null;
     return doc as IPeerReviewAssessment;
   }
@@ -127,8 +143,14 @@ export class PeerReviewAssessmentRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
+    const filter: any = {};
+    if (typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id)) {
+      filter._id = new ObjectId(id);
+    } else {
+      filter._id = id as any;
+    }
     await this.collection.updateOne(
-      { _id: id as any },
+      filter,
       { $set: { assignmentRunAt: when, updatedAt: new Date() } },
       { session },
     );
@@ -140,8 +162,14 @@ export class PeerReviewAssessmentRepository {
     session?: ClientSession,
   ): Promise<void> {
     await this.init();
+    const filter: any = {};
+    if (typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id)) {
+      filter._id = new ObjectId(id);
+    } else {
+      filter._id = id as any;
+    }
     await this.collection.updateOne(
-      { _id: id as any },
+      filter,
       { $set: { closedAt: when, updatedAt: new Date() } },
       { session },
     );

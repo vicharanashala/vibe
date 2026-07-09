@@ -129,11 +129,15 @@ export class PeerReviewSubmissionService extends BaseService {
     const isLate = now > assessment.submissionDeadline;
 
     // 7. Idempotent upsert.
+    //
+    // Don't include `studentId` in the $set payload — the repository
+    // already sets it via $setOnInsert for the unique-index path, and
+    // Mongo rejects $set+$setOnInsert on the same path with
+    // "Updating the path 'studentId' would create a conflict".
     const submissionId = await this.submissionRepo.upsertForStudent(
       assessmentId,
       student._id!.toString(),
       {
-        studentId: new ObjectId(student._id!.toString()) as any,
         cohortId: assessment.cohortId,
         courseId: assessment.courseId,
         courseVersionId: assessment.courseVersionId,
