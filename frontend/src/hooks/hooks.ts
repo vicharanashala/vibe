@@ -1429,6 +1429,30 @@ export function useCreatePeerReviewAssessment(): {
   };
 }
 
+// GET /peer-review-assessments/:id
+//
+// Returns the full peer-review assessment doc (rubric, instructor
+// attachments, deadlines, cohortId). Used by the student course-page
+// renderer when an item has type === 'PEER_REVIEW_ASSESSMENT' to load
+// the data the submission form needs. Same `as any` cast story as the
+// create hook — regen schema when convenient.
+export function useGetPeerReviewAssessment(assessmentId: string | undefined) {
+  const result = (api as any).useQuery(
+    'get',
+    '/peer-review-assessments/{id}',
+    assessmentId
+      ? { params: { path: { id: assessmentId } } }
+      : (undefined as any),
+    { enabled: !!assessmentId, refetchOnWindowFocus: false },
+  );
+  return {
+    data: result.data as any,
+    isLoading: result.isLoading as boolean,
+    error: result.error ? (result.error as any).message : null,
+    refetch: result.refetch,
+  };
+}
+
 // PATCH /peer-review-assessments/:id
 export function useUpdatePeerReviewAssessment(): {
   mutate: (variables: { params: { path: { id: string } }, body: any }) => void,
@@ -1466,6 +1490,88 @@ export function useClosePeerReviewAssessment(): {
   return {
     ...result,
     error: result.error ? (result.error.message || 'Close failed') : null,
+  };
+}
+
+// GET /peer-review-assessments/:id/submissions  (teacher only)
+//
+// Returns all student submissions for the given assessment, including
+// per-submission reviewer assignment metadata. Used by the teacher
+// manage page so the teacher can spot missing reviews / late submissions.
+export function useListPeerReviewSubmissions(assessmentId: string | undefined) {
+  const result = (api as any).useQuery(
+    'get',
+    '/peer-review-assessments/{id}/submissions',
+    assessmentId
+      ? { params: { path: { id: assessmentId } } }
+      : (undefined as any),
+    { enabled: !!assessmentId, refetchOnWindowFocus: false },
+  );
+  return {
+    data: (result.data as any)?.submissions as any[] | undefined,
+    isLoading: result.isLoading as boolean,
+    error: result.error ? (result.error as any).message : null,
+    refetch: result.refetch,
+  };
+}
+
+// GET /peer-review-assessments/:id/reviews  (teacher only)
+//
+// Returns all submitted peer reviews for the assessment. Used alongside
+// useListPeerReviewSubmissions on the manage page so the teacher can see
+// scores per criterion, identify outliers, and trigger teacher-override.
+export function useListPeerReviewReviews(assessmentId: string | undefined) {
+  const result = (api as any).useQuery(
+    'get',
+    '/peer-review-assessments/{id}/reviews',
+    assessmentId
+      ? { params: { path: { id: assessmentId } } }
+      : (undefined as any),
+    { enabled: !!assessmentId, refetchOnWindowFocus: false },
+  );
+  return {
+    data: (result.data as any)?.reviews as any[] | undefined,
+    isLoading: result.isLoading as boolean,
+    error: result.error ? (result.error as any).message : null,
+    refetch: result.refetch,
+  };
+}
+
+// PATCH /peer-reviews/:id/teacher-override  (teacher only)
+//
+// Allows the teacher to override a single reviewer's score per criterion
+// (or just attach an override comment with no score change). Reason of
+// at least 20 chars is enforced by the backend.
+export function useTeacherOverrideReview(): {
+  mutate: (variables: {
+    params: { path: { id: string } };
+    body: {
+      scores?: Array<{ criterionId: string; score: number }>;
+      overallComment?: string;
+      reason: string;
+    };
+  }) => void,
+  mutateAsync: (variables: {
+    params: { path: { id: string } };
+    body: {
+      scores?: Array<{ criterionId: string; score: number }>;
+      overallComment?: string;
+      reason: string;
+    };
+  }) => Promise<any>,
+  data: any,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'failed' | 'error'
+} {
+  const result = (api as any).useMutation('patch', '/peer-reviews/{id}/teacher-override');
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Override failed') : null,
   };
 }
 
@@ -6682,6 +6788,13 @@ export function useHpCohorts(courseVersionId: string) {
     enabled: !!courseVersionId,
     refetchOnWindowFocus: false,
   });
+
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
 
 export function useCourseDetails(versionId?: string) {
