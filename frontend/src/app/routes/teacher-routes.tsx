@@ -27,6 +27,7 @@ import HpSystemDashboard from "../pages/teacher/hp-system/CohortDetails";
 import StudentLedgerPage from "../pages/teacher/hp-system/student-ledger";
 import StudentSubmissionsPage from "../pages/teacher/hp-system/student-submissions";
 import SubmissionDetailsPage from "../pages/teacher/hp-system/submission-details";
+import PeerReviewManagePage from "../pages/teacher/PeerReviewManagePage";
 const teacherRoutes: RouteObject = {
   path: "/teacher",
   element: <TeacherLayout />,
@@ -96,6 +97,10 @@ const teacherRoutes: RouteObject = {
     {
       path: "courses/create",
       element: <AddCoursePage />,
+    },
+    {
+      path: "peer-review/:assessmentId",
+      element: <PeerReviewManagePage />,
     },
     {
       path: "ai-section",
