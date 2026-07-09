@@ -7,7 +7,8 @@ import type { ArticleRef } from "@/types/article.types";
 import type { QuizRef } from "@/types/quiz.types";
 import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
-import { useSubmitFeedback } from '@/hooks/hooks';
+import { useSubmitFeedback, useGetPeerReviewAssessment } from '@/hooks/hooks';
+import { PeerReviewSubmissionForm } from '@/app/pages/student/peer-review/PeerReviewSubmissionForm';
 
 export interface ISubmitFeedbackBody {
   details: Record<string, any>;
@@ -156,6 +157,32 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           previousItem = {previousItem}
         />;
 
+      case 'peer_review_assessment': {
+        // Student-side rendering of a peer-review assessment item. The Item
+        // record itself only carries a slim details blob (assessmentId,
+        // rubric summary, deadlines) — the full assessment doc (rubric,
+        // instructor attachments, cohort) lives in `peer_review_assessments`
+        // and is fetched on demand via useGetPeerReviewAssessment. We
+        // forward both courseId/versionId/itemId so the form's submission
+        // POST has everything it needs.
+        const assessmentId = (item as any)?.details?.assessmentId as
+          | string
+          | undefined;
+        const submissionDeadlineStr = (item as any)?.details
+          ?.submissionDeadline as string | undefined;
+        return (
+          <PeerReviewItemBody
+            key={item._id.toString()}
+            courseId={courseId}
+            versionId={versionId}
+            itemId={item._id.toString()}
+            assessmentId={assessmentId}
+            submissionDeadlineStr={submissionDeadlineStr}
+            onNext={onNext}
+          />
+        );
+      }
+
       default:
         return (
           <div className="flex items-center justify-center h-64">
@@ -173,5 +200,63 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
 });
 
 ItemContainer.displayName = 'ItemContainer';
+
+/**
+ * Body for the `peer_review_assessment` case. Keeps the JSX out of the
+ * giant renderContent switch so the switch stays readable. Loads the
+ * full assessment doc, then renders PeerReviewSubmissionForm with
+ * everything the form needs.
+ */
+function PeerReviewItemBody({
+  courseId,
+  versionId,
+  itemId,
+  assessmentId,
+  submissionDeadlineStr,
+  onNext,
+}: {
+  courseId: string;
+  versionId: string;
+  itemId: string;
+  assessmentId?: string;
+  submissionDeadlineStr?: string;
+  onNext?: () => void;
+}) {
+  const { data: assessment, isLoading, error } = useGetPeerReviewAssessment(assessmentId);
+
+  if (!assessmentId) {
+    return (
+      <div className="p-6 text-sm text-muted-foreground">
+        This peer-review assessment has not been linked to an item yet.
+        Please contact your teacher.
+      </div>
+    );
+  }
+  if (isLoading) {
+    return (
+      <div className="p-6 text-sm text-muted-foreground">
+        Loading peer-review assessment…
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="p-6 text-sm text-destructive">
+        Failed to load peer-review assessment: {error}
+      </div>
+    );
+  }
+  return (
+    <PeerReviewSubmissionForm
+      courseId={courseId}
+      versionId={versionId}
+      itemId={itemId}
+      assessment={assessment}
+      submissionDeadline={
+        submissionDeadlineStr ? new Date(submissionDeadlineStr) : undefined
+      }
+    />
+  );
+}
 
 export default ItemContainer;

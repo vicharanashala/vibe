@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics } from '@/hooks/hooks';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics, useHpCohorts } from '@/hooks/hooks';
 import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, LockOpen, Lock } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -58,6 +58,7 @@ import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
 import { PeerReviewAssessmentForm } from "./components/PeerReviewAssessmentForm";
+import { PeerReviewCohortPicker } from "./components/PeerReviewCohortPicker";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -98,14 +99,15 @@ const getItemIcon = (type: string) => {
     case "VIDEO": return <VideoIcon className="h-3 w-3" />;
     case "QUIZ": return <ListChecks className="h-3 w-3" />;
     case "PROJECT": return <FolderKanban className="h-3 w-3" />;
-    case "FEEDBACK": return <MessageSquare className="h-3 w-3" />
+    case "FEEDBACK": return <MessageSquare className="h-3 w-3" />;
+    case "PEER_REVIEW_ASSESSMENT": return <Users className="h-3 w-3" />;
     default: return null;
   }
 };
 
 interface LabelOptions {
   itemId: string;
-  itemType: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
+  itemType: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK" | "PEER_REVIEW_ASSESSMENT";
   sectionItems: Record<string, any[]>;
   sectionId: string;
 }
@@ -149,12 +151,14 @@ function TeacherCourseContent() {
   // Phase 2.2.4: peer-review assessment form modal context. When non-null,
   // a modal with PeerReviewAssessmentForm is rendered; on save, the modal
   // closes and the item list is refetched.
+  // cohortId is optional — when absent the modal renders a cohort picker
+  // first; once the teacher picks a cohort we patch it back into the context.
   const [peerReviewFormContext, setPeerReviewFormContext] = useState<
     | null
     | {
         moduleId: string;
         sectionId: string;
-        cohortId: string;
+        cohortId?: string;
       }
   >(null);
 
@@ -1093,16 +1097,11 @@ function TeacherCourseContent() {
     // because they need their own endpoints, audit logging, and the full
     // assessment config (rubric, deadlines, cohort). The simple item-record
     // POST is insufficient. We open the PeerReviewAssessmentForm modal here.
+    // Cohort is selected inside the modal from the actual cohort list — the
+    // form is gated on a chosen cohortId so we don't need to ask the teacher
+    // for a raw ObjectId here.
     if (type === 'peer-review') {
-      const cohortId = (window.prompt(
-        'Cohort ID for this assessment:',
-        ''
-      ) ?? '').trim();
-      if (!cohortId) {
-        toast.error('Cohort ID is required to create a peer-review assessment.');
-        return;
-      }
-      setPeerReviewFormContext({ moduleId, sectionId, cohortId });
+      setPeerReviewFormContext({ moduleId, sectionId });
       return;
     }
 
@@ -2079,7 +2078,7 @@ function TeacherCourseContent() {
                                                           },
                                                         });
 
-                                                        if (checkScreenSize() && (item.type === 'VIDEO' || item.type === 'QUIZ' || item.type === 'BLOG')) {
+                                                        if (checkScreenSize() && (item.type === 'VIDEO' || item.type === 'QUIZ' || item.type === 'BLOG' || item.type === 'PEER_REVIEW_ASSESSMENT')) {
                                                           setOpenMobile(false);
                                                           setOpen(false);
                                                         }
@@ -2329,6 +2328,7 @@ function TeacherCourseContent() {
                                                 >
                                                   {hasExistingProject ? 'Project (Limit 1 per course)' : 'Project'}
                                                 </option>
+                                                <option value="peer-review">Peer Review Assessment</option>
                                                 <option value="csv_upload">Upload CSV</option>
 
                                               </select>
@@ -4046,7 +4046,10 @@ export function UserAnalytics({
 
         {/* Phase 2.2.4: Peer-review assessment creation modal. Triggered from
             handleAddItem when the teacher picks 'peer-review'. Renders
-            PeerReviewAssessmentForm and refreshes the item list on save. */}
+            PeerReviewAssessmentForm and refreshes the item list on save.
+            The modal first asks the teacher to pick a cohort (loaded from
+            the HP cohorts endpoint); once chosen we patch cohortId back into
+            the context and the full form renders. */}
         <Dialog
           open={peerReviewFormContext !== null}
           onOpenChange={open => {
@@ -4057,7 +4060,16 @@ export function UserAnalytics({
             <DialogHeader>
               <DialogTitle>Peer-Review Assessment</DialogTitle>
             </DialogHeader>
-            {peerReviewFormContext && (
+            {peerReviewFormContext && !peerReviewFormContext.cohortId && (
+              <PeerReviewCohortPicker
+                courseVersionId={versionId!}
+                onPicked={(cohortId) =>
+                  setPeerReviewFormContext({ ...peerReviewFormContext, cohortId })
+                }
+                onCancel={() => setPeerReviewFormContext(null)}
+              />
+            )}
+            {peerReviewFormContext && peerReviewFormContext.cohortId && (
               <PeerReviewAssessmentForm
                 courseId={courseId}
                 courseVersionId={versionId!}
