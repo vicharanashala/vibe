@@ -49,6 +49,9 @@ import CourseIssueReports from '../pages/student/FlagResponse'
 import FeedbackFormEditor from '../pages/teacher/FeedbackFormEditor'
 import TeacherAnnouncements from '../pages/teacher/announcements'
 import Leaderboard from '../pages/student/leaderboard'
+import ReviewerDashboard from '@/app/pages/student/peer-review/ReviewerDashboard'
+import ReviewPage from '@/app/pages/student/peer-review/ReviewPage'
+import MyScore from '@/app/pages/student/peer-review/MyScore'
 import ForgotPasswordPage from '../pages/ForgotPasswordPage'
 import ResetPasswordPage from '../pages/ResetPasswordPage'
 import StudentLogin from '../pages/student/StudentLogin'
@@ -567,6 +570,28 @@ const studentHpSystemActivitiesDetailRoute = new Route({
   path: '/hp-system/$courseVersionId/$cohortId/activities/$activityId',
   component: StudentActivityDetail,
 });
+
+// Student peer-review routes. The student sidebar nav links to
+// "/student/peer-review", so without these the router falls through to
+// NotFoundRoute and the user sees the 404 page. These were missing in
+// the original peer-review feature delivery.
+const studentPeerReviewRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/peer-review',
+  component: ReviewerDashboard,
+});
+
+const studentPeerReviewReviewRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/peer-review/review/$assignmentId',
+  component: ReviewPage,
+});
+
+const studentPeerReviewMyScoreRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/peer-review/my-score',
+  component: MyScore,
+});
 // export const studentCourseInviteRegistration = new Route({
 //   getParentRoute: () => studentLayoutRoute,
 //   path: "/course-registration/$versionId",
@@ -718,6 +743,9 @@ const routeTree = rootRoute.addChildren([
     studentLeaderboardRoute,
     studentAnnouncementsRoute,
     studentMySubmissionsRoute,
+    studentPeerReviewRoute,
+    studentPeerReviewReviewRoute,
+    studentPeerReviewMyScoreRoute,
     studentHpSystemCohortsRoute,
     studentHpSystemActivitiesRoute,
     studentHpSystemActivitiesDetailRoute,
