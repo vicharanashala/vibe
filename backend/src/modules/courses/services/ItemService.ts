@@ -39,6 +39,7 @@ import {
   EnrollmentRepository,
   IBaseItem,
   ICourseVersion,
+  IModule,
   IQuizDetails,
   ItemType,
   Priority,
@@ -1085,6 +1086,13 @@ export class ItemService extends BaseService {
         versionId: version._id.toString(),
       };
     });
+  }
+
+  public async getModuleById(
+    versionId: string,
+    moduleId: string,
+  ): Promise<IModule | null> {
+    return this.courseRepo.getModulebyId(versionId, moduleId);
   }
 
   public async exportFeedbackSubmissions(courseId: string, itemId: string) {

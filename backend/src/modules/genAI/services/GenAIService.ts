@@ -31,6 +31,8 @@ import {
 import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
 import { CreateItemBody } from '#root/modules/courses/classes/index.js';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import { NOTES_TYPES } from '#root/modules/notes/types.js';
+import { NotesService } from '#root/modules/notes/services/NotesService.js';
 import { ItemService } from '#root/modules/courses/services/ItemService.js';
 import { QuestionBank } from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
@@ -69,6 +71,9 @@ export class GenAIService extends BaseService {
 
     @inject(COURSES_TYPES.ItemService)
     private readonly itemService: ItemService,
+
+    @inject(NOTES_TYPES.NotesService)
+    private readonly notesService: NotesService,
 
     @inject(QUIZZES_TYPES.QuestionBankService)
     private readonly questionBankService: QuestionBankService,
@@ -1562,6 +1567,50 @@ export class GenAIService extends BaseService {
         });
         await this.genAIRepository.updateTaskData(jobId, taskDAta, session);
         await this.genAIRepository.update(jobId, jobData, session);
+
+        // Fire‑and‑forget notes generation after content upload completes
+        (async () => {
+          try {
+            const lastTranscript = taskDAta.transcriptGeneration?.[taskDAta.transcriptGeneration.length - 1];
+            if (lastTranscript && lastTranscript.fileName) {
+              const bucket = this.storage.bucket(storageConfig.googleCloud.aiServerBucketName);
+              const [fileBuffer] = await bucket.file(lastTranscript.fileName).download();
+              const transcriptJson = JSON.parse(fileBuffer.toString('utf-8'));
+              let transcriptText = '';
+              if (transcriptJson.chunks && Array.isArray(transcriptJson.chunks)) {
+                transcriptText = transcriptJson.chunks.map((c: any) => c.text).join(' ');
+              } else if (typeof transcriptJson.text === 'string') {
+                transcriptText = transcriptJson.text;
+              } else {
+                transcriptText = fileBuffer.toString('utf-8');
+              }
+
+              if (transcriptText) {
+                const uploadParams = (jobState.parameters as UploadParameters) || jobData.uploadParameters;
+                const versionId = uploadParams.versionId;
+                const moduleId = uploadParams.moduleId || '';
+                
+                let moduleName = 'Module';
+                if (versionId && moduleId) {
+                  const module = await this.itemService.getModuleById(versionId, moduleId);
+                  if (module && module.name) {
+                    moduleName = module.name;
+                  }
+                }
+
+                await this.notesService.generateNotesFromText(
+                  transcriptText,
+                  versionId,
+                  moduleId,
+                  moduleName,
+                );
+              }
+            }
+          } catch (e) {
+            console.error('Failed to generate notes after content upload:', e);
+          }
+        })();
+
         return {
           message:
             'Video items, Quiz items, and Question banks for segments generated successfully from video.',
