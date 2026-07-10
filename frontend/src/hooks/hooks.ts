@@ -4003,10 +4003,12 @@ export function useSubmitProject(): {
 
 // Custom hook to fetch project submissions for a course version
 export interface ProjectSubmissionUserInfo {
+  submissionId?: string;
   firstName?: string;
   lastName?: string;
   email?: string;
   submissionURL: string;
+  featured?: boolean;
 }
 
 export interface ProjectSubmissionsResponse {
@@ -4037,6 +4039,89 @@ export function useProjectSubmissions(courseId: string, versionId: string, cohor
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch project submissions') : null,
     refetch: result.refetch
+  };
+}
+
+export interface GallerySubmission {
+  submissionId: string;
+  projectId: string;
+  submissionURL: string;
+  comment?: string;
+}
+
+export function useProjectGallery(
+  projectId: string,
+  courseId: string,
+  versionId: string,
+  cohortId?: string,
+): {
+  data: GallerySubmission[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = useQuery({
+    queryKey: ['projectGallery', projectId, courseId, versionId, cohortId],
+    queryFn: async () => {
+      const base = import.meta.env.VITE_BASE_URL;
+      const token = localStorage.getItem('token');
+      const url = new URL(
+        `${base}/project/${projectId}/course/${courseId}/version/${versionId}/gallery`,
+      );
+      if (cohortId) url.searchParams.set('cohortId', cohortId);
+      const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch gallery');
+      return res.json() as Promise<GallerySubmission[]>;
+    },
+    enabled: !!projectId && !!courseId && !!versionId,
+    staleTime: 30_000,
+  });
+  return {
+    data: result.data ?? [],
+    isLoading: result.isLoading,
+    error: result.error ? (result.error as Error).message : null,
+    refetch: result.refetch,
+  };
+}
+
+export function useSetFeaturedSubmission(): {
+  mutateAsync: (variables: { submissionId: string; featured: boolean }) => Promise<{ message: string }>;
+  isPending: boolean;
+  error: string | null;
+} {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async ({ submissionId, featured }: { submissionId: string; featured: boolean }) => {
+      const base = import.meta.env.VITE_BASE_URL;
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${base}/project/submission/${submissionId}/featured`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ featured }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to update featured status');
+      }
+      return res.json() as Promise<{ message: string }>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projectGallery'] });
+      toast.success('Featured status updated');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to update featured status');
+    },
+  });
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    error: mutation.error ? (mutation.error as Error).message : null,
   };
 }
 

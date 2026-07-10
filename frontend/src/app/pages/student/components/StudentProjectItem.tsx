@@ -3,9 +3,9 @@ import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
 import { Textarea } from '../../../../components/ui/textarea';
-import { CheckCircle, Link as LinkIcon } from 'lucide-react';
+import { CheckCircle, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSubmitProject, SubmitProjectBody, useStartItem, useStopItem } from '../../../../hooks/hooks';
+import { useSubmitProject, SubmitProjectBody, useStartItem, useStopItem, useProjectGallery, GallerySubmission } from '../../../../hooks/hooks';
 import { useCourseStore } from '../../../../store/course-store';
 
 // This file is a student-side ProjectItem component for project submission
@@ -252,6 +252,13 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
     );
   }
 
+  const { data: galleryItems, isLoading: galleryLoading } = useProjectGallery(
+    item._id,
+    currentCourse?.courseId ?? '',
+    currentCourse?.versionId ?? '',
+    currentCourse?.cohortId ?? undefined,
+  );
+
   return (
     <div className="h-full w-full overflow-auto">
       <div className="max-w-2xl mx-auto p-6">
@@ -312,6 +319,47 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
               </Button>
             </div>
           </form>
+
+          {/* Project Showcase Gallery */}
+          {!galleryLoading && (
+            <div className="pt-4 border-t border-border">
+              <h3 className="text-base font-semibold mb-3">Project Showcase Gallery</h3>
+              {galleryItems.length > 0 ? (
+                <>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Curated featured submissions for this project.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {galleryItems.map((entry: GallerySubmission) => (
+                      <div
+                        key={entry.submissionId}
+                        className="rounded-lg border border-border bg-muted/30 p-4 space-y-2"
+                      >
+                        {entry.comment && (
+                          <p className="text-sm text-foreground line-clamp-3">{entry.comment}</p>
+                        )}
+                        <a
+                          href={entry.submissionURL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
+                        >
+                          View submission <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-sm font-medium text-muted-foreground">No featured submissions yet.</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Check back after your instructor curates the gallery.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

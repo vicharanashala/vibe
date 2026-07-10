@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { PDFDownloadLink, Page, Text, View, Document, StyleSheet, Link } from '@react-pdf/renderer';
 import { Button } from '@/components/ui/button';
-import { Download, ScanEyeIcon, ChevronDown } from 'lucide-react';
-import { useProjectSubmissions, ProjectSubmissionUserInfo } from '@/hooks/hooks';
+import { Download, ScanEyeIcon, ChevronDown, Star, StarOff, X, ExternalLink } from 'lucide-react';
+import { useProjectSubmissions, ProjectSubmissionUserInfo, useSetFeaturedSubmission } from '@/hooks/hooks';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,6 +65,114 @@ const ProjectSubmissionsPDF: React.FC<ProjectSubmissionsPDFProps> = ({ course, c
     </Page>
   </Document>
 );
+
+// ─── Curation Dialog ──────────────────────────────────────────────────────────
+
+interface CurationDialogProps {
+  userInfo: ProjectSubmissionUserInfo[];
+  onClose: () => void;
+}
+
+const CurationDialog: React.FC<CurationDialogProps> = ({ userInfo, onClose }) => {
+  const { mutateAsync: setFeatured, isPending } = useSetFeaturedSubmission();
+  // Track optimistic featured state keyed by submissionId
+  const [featuredMap, setFeaturedMap] = useState<Record<string, boolean>>(() => {
+    const map: Record<string, boolean> = {};
+    userInfo.forEach(u => {
+      if (u.submissionId) map[u.submissionId] = u.featured ?? false;
+    });
+    return map;
+  });
+
+  const handleToggle = async (submissionId: string) => {
+    const next = !featuredMap[submissionId];
+    setFeaturedMap(prev => ({ ...prev, [submissionId]: next }));
+    try {
+      await setFeatured({ submissionId, featured: next });
+    } catch {
+      // revert on failure
+      setFeaturedMap(prev => ({ ...prev, [submissionId]: !next }));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
+          <h2 className="text-lg font-semibold">Review &amp; Curate Submissions</h2>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0 rounded-full">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-auto flex-1">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium">Student</th>
+                <th className="text-left px-4 py-3 font-medium">Comment</th>
+                <th className="text-left px-4 py-3 font-medium">Link</th>
+                <th className="text-center px-4 py-3 font-medium">Featured</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {userInfo.map((u, idx) => {
+                const sid = u.submissionId;
+                const isFeatured = sid ? featuredMap[sid] ?? false : false;
+                return (
+                  <tr key={sid ?? idx} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {(u.firstName || '') + ' ' + (u.lastName || '')}
+                    </td>
+                    <td className="px-4 py-3 max-w-[220px] truncate text-muted-foreground">
+                      {(u as any).comment || '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <a
+                        href={u.submissionURL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
+                      >
+                        View <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {sid ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggle(sid)}
+                          disabled={isPending}
+                          className="h-8 w-8 p-0 rounded-full"
+                          title={isFeatured ? 'Remove from gallery' : 'Add to gallery'}
+                        >
+                          {isFeatured
+                            ? <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            : <StarOff className="h-4 w-4 text-muted-foreground" />}
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {userInfo.length === 0 && (
+            <p className="text-center text-muted-foreground py-12">No submissions found.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 interface ProjectSubmissionsDownloadButtonProps {
   courseId: string;
@@ -138,6 +246,7 @@ export const ProjectSubmissionsDownloadButton: React.FC<ProjectSubmissionsDownlo
 
 const ProjectSubmissionsFetcher: React.FC<{ courseId: string; versionId: string; projectName?: string; cohortId?: string }> = ({ courseId, versionId, projectName, cohortId }) => {
   const { data: projectSubmissions, isLoading } = useProjectSubmissions(courseId, versionId, cohortId);
+  const [showCuration, setShowCuration] = useState(false);
 
   if (isLoading) {
     return (
@@ -158,16 +267,28 @@ const ProjectSubmissionsFetcher: React.FC<{ courseId: string; versionId: string;
   }
 
   return (
-    <PDFDownloadLink
-      document={<ProjectSubmissionsPDF {...projectSubmissions} projectName={projectName} />}
-      fileName={getFileName()}
-    >
-      {({ loading }: { loading: boolean }) => (
-        <Button variant="outline" size="sm" disabled={loading}>
-          <Download className="h-4 w-4 mr-2" />
-          {loading ? "Generating PDF..." : "Download Submissions"}
-        </Button>
+    <>
+      {showCuration && (
+        <CurationDialog
+          userInfo={projectSubmissions.userInfo}
+          onClose={() => setShowCuration(false)}
+        />
       )}
-    </PDFDownloadLink>
+      <Button variant="outline" size="sm" onClick={() => setShowCuration(true)}>
+        <Star className="h-4 w-4 mr-2" />
+        Curate Gallery
+      </Button>
+      <PDFDownloadLink
+        document={<ProjectSubmissionsPDF {...projectSubmissions} projectName={projectName} />}
+        fileName={getFileName()}
+      >
+        {({ loading }: { loading: boolean }) => (
+          <Button variant="outline" size="sm" disabled={loading}>
+            <Download className="h-4 w-4 mr-2" />
+            {loading ? "Generating PDF..." : "Download Submissions"}
+          </Button>
+        )}
+      </PDFDownloadLink>
+    </>
   );
 };
