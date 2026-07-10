@@ -644,7 +644,22 @@ class AttemptService extends BaseService {
           }
         }
       }
-      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId, quizModuleId, quizSectionId);
+      const failedQuestionIds = gradingResult.overallFeedback
+        .filter((each: any) => each.status === "INCORRECT" || each.status === "PARTIAL")
+        .map((each: any) => each.questionId.toString());
+
+      await this.progressService.handleQuizeProgressAfterSubmission(
+        userId,
+        quizId,
+        courseId,
+        courseVersionId,
+        isPassed,
+        watchItemId,
+        cohortId,
+        quizModuleId,
+        quizSectionId,
+        failedQuestionIds,
+      );
     }
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */

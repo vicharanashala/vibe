@@ -2423,7 +2423,42 @@ class ProgressService extends BaseService {
         );
       }
 
-      let isCompleted = !nextItem;
+      let isRecoveryAutoReturn = false;
+      if (progress.recoveryState?.isActive === true && itemId === progress.recoveryState.reviewItemId) {
+        isRecoveryAutoReturn = true;
+        const targetQuizId = progress.recoveryState.targetQuizId;
+        
+        let quizModuleId = progress.currentModule.toString();
+        let quizSectionId = progress.currentSection.toString();
+        
+        let foundQuiz = false;
+        if (courseVersion.modules) {
+          for (const m of courseVersion.modules) {
+            if (m.sections) {
+              for (const s of m.sections) {
+                if (s.itemsGroupId) {
+                  const ig = await this.itemRepo.readItemsGroup(s.itemsGroupId.toString(), session);
+                  if (ig.items && ig.items.some((it: any) => it._id?.toString() === targetQuizId)) {
+                    quizModuleId = m.moduleId?.toString() || quizModuleId;
+                    quizSectionId = s.sectionId?.toString() || quizSectionId;
+                    foundQuiz = true;
+                    break;
+                  }
+                }
+              }
+            }
+            if (foundQuiz) break;
+          }
+        }
+        
+        nextItem = {
+          moduleId: quizModuleId,
+          sectionId: quizSectionId,
+          itemId: targetQuizId,
+        };
+      }
+
+      let isCompleted = isRecoveryAutoReturn ? false : !nextItem;
 
       // ----------------------------------------------------
       // 3. COURSE ITEM METADATA
@@ -2496,6 +2531,17 @@ class ProgressService extends BaseService {
           currentItem: nextItem.itemId,
           ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         };
+
+      if (isRecoveryAutoReturn) {
+        newProgress = {
+          completed: false,
+          currentModule: nextItem.moduleId,
+          currentSection: nextItem.sectionId,
+          currentItem: nextItem.itemId,
+          recoveryState: null,
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        };
+      }
 
       // ----------------------------------------------------
       // 6. QUIZ-SPECIFIC LOGIC
@@ -3188,23 +3234,24 @@ class ProgressService extends BaseService {
     cohortId?: string,
     quizModuleId?: string,
     quizSectionId?: string,
+    failedQuestionIds?: string[],
   ) {
     return this._withTransaction(async session => {
       // Fetch progress and course version in parallel
       const [progress, courseVersion] = await Promise.all([
         this.progressRepository.findProgress(userId, courseId, courseVersionId, cohortId, session),
         this.courseRepo.readVersion(courseVersionId),
-    ]);
+      ]);
 
-    if (!progress || !courseVersion) {
-      throw new NotFoundError('Progress or Course Version not found');
-    }
+      if (!progress || !courseVersion) {
+        throw new NotFoundError('Progress or Course Version not found');
+      }
 
-    // const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+      // const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
       if (isPassed) {
         // Prefer the quiz's actual module/section over the cursor's current
-        // position — the cursor can be stale if it drifted ahead via optimistic
+        // position — the cursor can be drift ahead via optimistic
         // UI, which would make getNextItemInSequence check "is this the last
         // item" against the wrong section and silently fail to roll over into
         // the next module.
@@ -3215,73 +3262,174 @@ class ProgressService extends BaseService {
           quizId,
         );
 
-      if (!nextItemDetails) {
-        // Course completed → reset to first item
-        const initialProgress = await this.initializeProgress(
-          userId.toString(),
-          courseId,
-          courseVersionId,
-          courseVersion,
-        );
+        if (!nextItemDetails) {
+          // Course completed → reset to first item
+          const initialProgress = await this.initializeProgress(
+            userId.toString(),
+            courseId,
+            courseVersionId,
+            courseVersion,
+          );
 
-        const newProgress = {
-          completed: true,
-          completedAt: new Date(),
-          currentModule: initialProgress.currentModule,
-          currentSection: initialProgress.currentSection,
-          currentItem: initialProgress.currentItem,
-          skippedBlankQuizIds: [],
-        };
+          const newProgress = {
+            completed: true,
+            completedAt: new Date(),
+            currentModule: initialProgress.currentModule,
+            currentSection: initialProgress.currentSection,
+            currentItem: initialProgress.currentItem,
+            skippedBlankQuizIds: [],
+            recoveryState: null,
+          };
 
-        await this.progressRepository.updateProgress(
-          userId.toString(),
-          courseId,
-          courseVersionId,
-          newProgress,
-          cohortId,
-          session,
-        );
+          await this.progressRepository.updateProgress(
+            userId.toString(),
+            courseId,
+            courseVersionId,
+            newProgress,
+            cohortId,
+            session,
+          );
+        } else {
+          const newProgress = {
+            currentModule: nextItemDetails.moduleId,
+            currentSection: nextItemDetails.sectionId,
+            currentItem: nextItemDetails.itemId,
+            recoveryState: null,
+          };
+
+          await this.progressRepository.updateProgress(
+            userId,
+            courseId,
+            courseVersionId,
+            newProgress,
+            cohortId,
+            session,
+          );
+        }
       } else {
-        const newProgress = {
-          currentModule: nextItemDetails.moduleId,
-          currentSection: nextItemDetails.sectionId,
-          currentItem: nextItemDetails.itemId,
-        };
+        let failedTags: string[] = [];
+        if (failedQuestionIds && failedQuestionIds.length > 0) {
+          const questionBankCol = await this.database.getCollection<any>('questionBanks');
+          const objectIds = failedQuestionIds.map(id => new ObjectId(id));
+          const qBanks = await questionBankCol.find({
+            questions: { $in: objectIds },
+            isDeleted: { $ne: true }
+          }, { session }).toArray();
 
-        await this.progressRepository.updateProgress(
-          userId,
-          courseId,
-          courseVersionId,
-          newProgress,
-          cohortId,
-          session,
-        );
+          const tagSet = new Set<string>();
+          for (const qb of qBanks) {
+            if (qb.tags && Array.isArray(qb.tags)) {
+              for (const tag of qb.tags) {
+                if (tag) tagSet.add(tag.toLowerCase().trim());
+              }
+            }
+          }
+          failedTags = Array.from(tagSet);
+        }
+
+        const currentModuleIdStr = progress.currentModule.toString();
+        const currentSectionIdStr = progress.currentSection.toString();
+
+        const module = courseVersion.modules?.find((m: any) => (m.moduleId?.toString() || m._id?.toString()) === currentModuleIdStr);
+        const section = module?.sections?.find((s: any) => (s.sectionId?.toString() || s._id?.toString()) === currentSectionIdStr);
+
+        let matchedItem: any = null;
+
+        if (section && section.itemsGroupId) {
+          const itemsGroup = await this.itemRepo.readItemsGroup(section.itemsGroupId.toString(), session);
+          const nonQuizItems = itemsGroup.items?.filter((it: any) => it.type !== 'QUIZ' && !it.isHidden) || [];
+
+          // Fetch full docs for non-quiz items to inspect tags and description
+          const fullItems = [];
+          for (const itemRef of nonQuizItems) {
+            let collectionName = '';
+            if (itemRef.type === 'VIDEO') collectionName = 'videos';
+            else if (itemRef.type === 'BLOG') collectionName = 'blogs';
+            else if (itemRef.type === 'PROJECT') collectionName = 'projects';
+
+            if (collectionName) {
+              const col = await this.database.getCollection<any>(collectionName);
+              const fullDoc = await col.findOne({ _id: new ObjectId(itemRef._id), isDeleted: { $ne: true } }, { session });
+              if (fullDoc) {
+                fullItems.push({
+                  _id: itemRef._id.toString(),
+                  type: itemRef.type,
+                  name: fullDoc.name || fullDoc.title || '',
+                  description: fullDoc.description || '',
+                  tags: fullDoc.tags || fullDoc.details?.tags || []
+                });
+              }
+            }
+          }
+
+          if (failedTags.length > 0) {
+            // 1. Exact Tag Matching (First Preference)
+            for (const item of fullItems) {
+              const itemTags = item.tags.map((t: string) => t.toLowerCase().trim());
+              const hasExactMatch = failedTags.some(ft => itemTags.includes(ft));
+              if (hasExactMatch) {
+                matchedItem = item;
+                break;
+              }
+            }
+
+            // 2. Substring matching as fallback
+            if (!matchedItem) {
+              for (const item of fullItems) {
+                const nameLower = item.name.toLowerCase();
+                const descLower = item.description.toLowerCase();
+                const hasSubstringMatch = failedTags.some(ft => nameLower.includes(ft) || descLower.includes(ft));
+                if (hasSubstringMatch) {
+                  matchedItem = item;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        let reviewItemId = matchedItem?._id;
+        let reviewModuleId = progress.currentModule.toString();
+        let reviewSectionId = progress.currentSection.toString();
+
+        if (!reviewItemId) {
+          // Fall back to preceding item in sequence
+          const previousDetails = await this.getPreviousItemInSequence(
+            courseVersion,
+            progress.currentModule.toString(),
+            progress.currentSection.toString(),
+            quizId,
+          );
+          if (previousDetails) {
+            reviewItemId = previousDetails.itemId;
+            reviewModuleId = previousDetails.moduleId;
+            reviewSectionId = previousDetails.sectionId;
+          }
+        }
+
+        if (reviewItemId) {
+          const recoveryProgress = {
+            currentModule: reviewModuleId,
+            currentSection: reviewSectionId,
+            currentItem: reviewItemId,
+            recoveryState: {
+              isActive: true,
+              targetQuizId: quizId,
+              reviewItemId: reviewItemId,
+              failedTags: failedTags,
+            },
+          };
+
+          await this.progressRepository.updateProgress(
+            userId,
+            courseId,
+            courseVersionId,
+            recoveryProgress,
+            cohortId,
+            session,
+          );
+        }
       }
-    } else {
-      const previousDetails = await this.getPreviousItemInSequence(
-        courseVersion,
-        progress.currentModule.toString(),
-        progress.currentSection.toString(),
-        quizId,
-      );
-
-      if (previousDetails) {
-        const previousProgress = {
-          currentModule: previousDetails.moduleId,
-          currentSection: previousDetails.sectionId,
-          currentItem: previousDetails.itemId,
-        };
-
-        await this.progressRepository.updateProgress(
-          userId,
-          courseId,
-          courseVersionId,
-          previousProgress,
-          cohortId,
-          session,
-        );
-      }
-    }
     // if we refresh the quiz page after passing then the student will land on next item
     //  and as the stop item is not called for that quiz endtime will never be created
     // Only mark quiz as completed (set endTime) if it was actually passed
