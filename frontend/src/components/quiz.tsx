@@ -384,18 +384,25 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             break;
           case 'SELECT_MANY_IN_LOT':
             if (Array.isArray(userAnswer) && userAnswer.length > 0 && question.lotItems) {
-              saveAnswer.lotItemIds = (userAnswer as number[]).map((index: number) => {
+              const resolvedIds = (userAnswer as number[]).map((index: number) => {
                 const lotItem = question.lotItems?.[index];
                 if (lotItem && lotItem._id) {
                   if (typeof lotItem._id === 'string') {
                     return lotItem._id;
                   } else if (lotItem._id.buffer && lotItem._id) {
-                    const buffer = lotItem._id;
-                    return bufferToHex(buffer);
+                    return bufferToHex(lotItem._id);
                   }
                 }
-                return index.toString();
-              }).filter(id => !id.match(/^\d+$/)); // Filter out failed conversions
+                console.warn(`[quiz] Could not resolve _id for lotItem at index ${index}. Answer may be incorrect.`);
+                return null;
+              });
+              const validIds = resolvedIds.filter((id): id is string => id !== null);
+              if (validIds.length > 0) {
+                saveAnswer.lotItemIds = validIds;
+                if (validIds.length < resolvedIds.length) {
+                  console.warn(`[quiz] Some answers could not be resolved for question ${question.id}. Submitting ${validIds.length} of ${resolvedIds.length} selected answers.`);
+                }
+              }
             }
             break;
           case 'DESCRIPTIVE':
