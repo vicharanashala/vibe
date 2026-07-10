@@ -10,6 +10,7 @@ export interface IProjectSubmission {
   comment?: string;
   createdAt: Date;
   featured?: boolean;
+  cohortId?: ID;
 }
 export interface IProjectSubmissionWithUser {
   course: {name: string};
