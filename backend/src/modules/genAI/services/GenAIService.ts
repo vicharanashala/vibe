@@ -1151,15 +1151,20 @@ export class GenAIService extends BaseService {
         }> = [];
 
         let previousSegmentEndTime = 0.0;
+        let segmentIndex = 1;
 
         for (const currentSegmentId of jobState.segmentMap) {
           const segmentStartTime = previousSegmentEndTime;
           const currentSegmentEndTime = currentSegmentId;
 
           // Create Video Item for the segment
-          const videoSegName = jobData.uploadParameters.videoItemBaseName
+          const baseName = jobData.uploadParameters.videoItemBaseName &&
+            jobData.uploadParameters.videoItemBaseName !== 'video_item'
             ? jobData.uploadParameters.videoItemBaseName
-            : `Video`;
+            : 'Video';
+          const videoSegName = jobState.segmentMap.length > 1
+            ? `${baseName} ${segmentIndex}`
+            : baseName;
 
           const videoItemBody: CreateItemBody = {
             name: videoSegName,
@@ -1361,9 +1366,13 @@ export class GenAIService extends BaseService {
                 });
               }
 
-            const quizSegName = jobData.uploadParameters.quizItemBaseName
+            const quizBaseName = jobData.uploadParameters.quizItemBaseName &&
+              jobData.uploadParameters.quizItemBaseName !== 'quiz_item'
               ? jobData.uploadParameters.quizItemBaseName
-              : `Quiz`;
+              : 'Quiz';
+            const quizSegName = jobState.segmentMap.length > 1
+              ? `${quizBaseName} ${segmentIndex}`
+              : quizBaseName;
 
             const quizItemBody: CreateItemBody = {
               name: quizSegName,
@@ -1488,9 +1497,13 @@ export class GenAIService extends BaseService {
                 }
               }
 
-              const legacyQuizName = jobData.uploadParameters.quizItemBaseName
+              const legacyQuizBaseName = jobData.uploadParameters.quizItemBaseName &&
+                jobData.uploadParameters.quizItemBaseName !== 'quiz_item'
                 ? jobData.uploadParameters.quizItemBaseName
-                : `Quiz`;
+                : 'Quiz';
+              const legacyQuizName = jobState.segmentMap.length > 1
+                ? `${legacyQuizBaseName} ${segmentIndex}`
+                : legacyQuizBaseName;
 
               const legacyQuizItemBody: CreateItemBody = {
                 name: legacyQuizName,
@@ -1548,6 +1561,7 @@ export class GenAIService extends BaseService {
           }
 
           previousSegmentEndTime = currentSegmentEndTime;
+          segmentIndex++;
         }
         jobData.jobStatus.uploadContent = TaskStatus.COMPLETED;
         const taskDAta = await this.genAIRepository.getTaskDataByJobId(
