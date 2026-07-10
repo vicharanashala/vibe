@@ -1,51 +1,30 @@
-import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react"; ExternalLink
+import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
-  SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
-  SidebarInset, SidebarProvider, SidebarTrigger, SidebarFooter, useSidebar
-} from "@/components/ui/sidebar";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useProctoringSettings, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress, useInvites, useAcceptInvite } from "@/hooks/hooks";
+import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress, useInvites, useAcceptInvite } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
+import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
 const LazyStudentTimeslotModal = lazy(() => import("@/components/course/StudentTimeslotModal"));
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import type { PendingStudentQuestionContext } from "@/types/student-question.types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AuroraText } from "@/components/magicui/aurora-text";
 import confetti from "canvas-confetti";
 import {
   ChevronRight,
   BookOpen,
-  Play,
-  FileText,
-  HelpCircle,
   Target,
-  Home,
-  GraduationCap,
   AlertCircle,
-  ArrowLeft,
   CheckCircle,
-  FlagTriangleRightIcon,
-  FileEdit,
   XCircle,
   X,
   CircleCheckIcon,
-  Headphones,
-  ExternalLink, Menu
+  Maximize2,
 } from "lucide-react";
-import FloatingVideo, { FloatingVideoPlaceholder } from "@/components/floating-video";
+import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
 import { StudentProctoringSettings } from "@/types/video.types";
@@ -53,34 +32,30 @@ import { FlagModal } from "@/components/FlagModal";
 import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
-import logo from "../../../../public/img/vibe_logo_img.ico"
 import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileFallbackScreen from "@/components/MobileFallbackScreen";
-import { EmotionSelector, EmotionType } from "@/components/EmotionSelector";
+import { EmotionType } from "@/components/EmotionSelector";
 import { useSubmitEmotion } from "@/hooks/use-emotion";
 
 import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 import { EthicsConsentModal } from "./components/policies/EthicsConsentModal";
 import { useGetEthicsConsent } from "@/hooks/system-notification-hooks";
-// Helper function to get icon for item type
-const getItemIcon = (type: string) => {
-  switch (type.toLowerCase()) {
-    case 'video':
-      return <Play className="h-3 w-3" />;
-    case 'blog':
-    case 'article':
-      return <FileText className="h-3 w-3" />;
-    case 'quiz':
-      return <HelpCircle className="h-3 w-3" />;
-    case 'form':
-      return <FileEdit className="h-3 w-3" />;
-    default:
-      return <FileText className="h-3 w-3" />;
-  }
-};
+// Focused learn-page UI
+import { FloatingBackButton } from "@/components/learn/FloatingBackButton";
+import { FloatingCameraButton } from "@/components/learn/FloatingCameraButton";
+import { AiCompanion } from "@/components/learn/AiCompanion";
+import { AiActionSheet } from "@/components/learn/AiActionSheet";
+import { InitialWebcamPopup } from "@/components/learn/InitialWebcamPopup";
+import { ProctorAlertOverlay } from "@/components/learn/ProctorAlertOverlay";
+import { NoiseIndicator } from "@/components/learn/NoiseIndicator";
+import { AwayOverlay } from "@/components/learn/AwayOverlay";
+import { CourseDrawer } from "@/components/learn/CourseDrawer";
 
+// Proctoring anomalies that should block the video and surface the buttonless
+// alert (with webcam) — covers "no person" (noFace) and "more than one person".
+const BLOCKING_ANOMALIES = ["noFace", "faceCountDetection", "multipleFaces", "faceRecognition"];
 
 // Helper function to sort items by order property
 const sortItemsByOrder = (items: any[]) => {
@@ -91,19 +66,6 @@ const sortItemsByOrder = (items: any[]) => {
   });
 };
 
-/**
- * Keeps the navigation sidebar collapsed while focus mode is active.
- * Collapsing (rather than unmounting) the sidebar keeps the proctoring
- * camera (FloatingVideo in the sidebar footer) mounted and decoding, so
- * detection keeps running even though the camera is not shown.
- */
-function SidebarFocusSync({ focusMode }: { focusMode: boolean }) {
-  const { setOpen } = useSidebar();
-  useEffect(() => {
-    setOpen(!focusMode);
-  }, [focusMode, setOpen]);
-  return null;
-}
 
 export default function CoursePage() {
   useEffect(() => {
@@ -140,7 +102,6 @@ export default function CoursePage() {
   const { mutateAsync: submitFlagAsyncMutate, isPending } = useSubmitFlag();
   const { mutateAsync: skipItemAsync, isPending: isSkipping } = useSkipOptionalItem();
   const { mutateAsync: recalculateStudentProgressAsync } = useRecalculateStudentProgress();
-  const [closing, setClosing] = useState(false);
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -243,16 +204,6 @@ export default function CoursePage() {
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [doGesture, setDoGesture] = useState<boolean>(false);
-  // Focus mode: video plays maximized with the sidebar + surrounding chrome hidden.
-  // Single control model: the immersive view is driven entirely by the video's
-  // fullscreen button (bottom-right). focusMode simply mirrors native fullscreen,
-  // so entering/leaving fullscreen (or pressing Esc) is the one way in and out.
-  const [focusMode, setFocusMode] = useState<boolean>(false);
-  useEffect(() => {
-    const onFsChange = () => setFocusMode(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', onFsChange);
-    return () => document.removeEventListener('fullscreenchange', onFsChange);
-  }, []);
   const [isItemForbidden, setIsItemForbidden] = useState<boolean>(false);
   // Time-slot / commitment gate block (distinct from linear-progression ForbiddenError).
   const [timeSlotBlock, setTimeSlotBlock] = useState<string | null>(null);
@@ -264,18 +215,63 @@ export default function CoursePage() {
   const [anomalies, setAnomalies] = useState<string[]>([]);
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
   const [readyToDetect, setReadyToDetect] = useState(false);
+
+  // --- Focused learn-page UI state ---
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [aiExpanded, setAiExpanded] = useState(false);
+  const [aiSheet, setAiSheet] = useState<"chat" | "talk" | "discussion" | null>(null);
+  const [camPinned, setCamPinned] = useState(false);
+  const [camHover, setCamHover] = useState(false);
+  const [pauseSignal, setPauseSignal] = useState(0);
+  // Cursor stepped off the page → pause; auto-resumes on return (handled in the player).
+  const [awayPaused, setAwayPaused] = useState(false);
+  // Pause the lesson video imperatively (without the anomaly overlay) whenever a
+  // floating control is used.
+  const pauseVideoForControl = useCallback(() => setPauseSignal((n) => n + 1), []);
+
+  // Fullscreen is entered from the "Continue" click that brings the student here.
+  // Exit it when they leave the learn page so fullscreen is scoped to this page only.
+  useEffect(() => {
+    return () => exitFullscreen();
+  }, []);
+
+  // Strict fullscreen enforcement. The Fullscreen API only grants a request made
+  // inside a user gesture, so we can't silently re-enter after a reload or an Esc.
+  // Instead we track fullscreen state and, when the lesson is active but we're not
+  // fullscreen, show a blocking overlay + pause the video until the student clicks
+  // to go back into fullscreen (a valid gesture).
+  const [isPageFullscreen, setIsPageFullscreen] = useState(!!document.fullscreenElement);
+  useEffect(() => {
+    const onChange = () => setIsPageFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  // Only gate once past the consent + proctoring-declaration dialogs (they run
+  // their own flow); then fullscreen is required for the focused learn stage.
+  const needsFullscreen = consentSatisfied && !showProctorDialog && !isPageFullscreen;
+
+  // Debounced "blocking anomaly" (no person / multiple people / identity / etc.).
+  // Face detection is noisy, so require the anomaly to persist briefly before we
+  // block + show the alert; clear instantly when it resolves to avoid flicker.
+  const [blockingActive, setBlockingActive] = useState(false);
+  // Anomaly alert is held on screen for a minimum duration once shown (no flashes).
+  const [alertVisible, setAlertVisible] = useState(false);
+  const alertShownAtRef = useRef(0);
+  const rawBlocking =
+    !showProctorDialog &&
+    !allProctorsDisabled &&
+    (anomalies || []).some((a) => BLOCKING_ANOMALIES.includes(a));
+  useEffect(() => {
+    if (rawBlocking) {
+      const t = setTimeout(() => setBlockingActive(true), 400);
+      return () => clearTimeout(t);
+    }
+    setBlockingActive(false);
+  }, [rawBlocking]);
   const [isNavigatingToPrev, setIsNavigatingToPrev] = useState<boolean>(false);
   const [pendingStudentQuestionContext, setPendingStudentQuestionContext] = useState<PendingStudentQuestionContext | null>(null);
   const completedItemIdsRef = useRef<Set<string>>(new Set());
-  // State for sidebar visibility
-  const [isDesktopSidebarVisible, setIsDesktopSidebarVisible] = useState(true);
 
-    // Separate state purely for pre-loading the next section in the background.
-// Must NOT share activeSectionInfo — that state drives useItemById for the current item.
-const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
-  moduleId: string;
-  sectionId: string;
-} | null>(null);
   const [isGoingToNext, setIsGoingToNext] = useState(false);
 
 
@@ -1598,18 +1594,27 @@ const [backgroundSectionInfo, setBackgroundSectionInfo] = useState<{
     updateCourseNavigation,
   ]);
 
-  // Handle going back to courses
-  const handleGoBack = () => {
-    // Stop current item before navigating away
-    if (itemContainerRef.current) {
-      console.log("Handle go back is called....")
-      itemContainerRef.current.stopCurrentItem();
-    }
-    // Navigate back to courses page
-    window.history.back();
-  };
-  
 const nextItemInfo = findNextItem();
+
+const proctorAlertActive =
+  blockingActive || (!showProctorDialog && !allProctorsDisabled && (pauseVid || rewindVid));
+
+// Hold the alert visible for at least 2s once it appears, even if the anomaly
+// clears sooner — prevents a jarring flash.
+useEffect(() => {
+  if (proctorAlertActive) {
+    if (!alertVisible) {
+      alertShownAtRef.current = Date.now();
+      setAlertVisible(true);
+    }
+    return;
+  }
+  if (alertVisible) {
+    const remaining = Math.max(0, 2000 - (Date.now() - alertShownAtRef.current));
+    const t = setTimeout(() => setAlertVisible(false), remaining);
+    return () => clearTimeout(t);
+  }
+}, [proctorAlertActive, alertVisible]);
 
 const isCurrentItemCompleted = Boolean((currentItem as any)?.isCompleted);
 
@@ -1665,12 +1670,12 @@ const handleGoToNextItem = async () => {
 
   if (versionLoading || progressLoading || proctoringLoading || ethicsConsentLoading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center">
+      <div className="flex justify-center items-center h-[80vh]">
         <div className="flex items-center space-x-4">
-          <Skeleton className="h-12 w-12 rounded-full" />
+          <Skeleton className="rounded-full w-12 h-12" />
           <div className="space-y-2">
-            <Skeleton className="h-4 w-[250px]" />
-            <Skeleton className="h-4 w-[200px]" />
+            <Skeleton className="w-[250px] h-4" />
+            <Skeleton className="w-[200px] h-4" />
           </div>
         </div>
       </div>
@@ -1684,13 +1689,13 @@ const handleGoToNextItem = async () => {
 
     return (
       <Card className="mx-auto max-w-md">
-        <CardContent className="flex h-64 items-center justify-center">
+        <CardContent className="flex justify-center items-center h-64">
           <div className="text-center">
-            <div className="text-destructive mb-2">
-              <Target className="h-8 w-8 mx-auto"></Target>
+            <div className="mb-2 text-destructive">
+              <Target className="mx-auto w-8 h-8"></Target>
             </div>
-            <p className="text-destructive font-medium">Error loading course data</p>
-            <p className="text-muted-foreground text-sm mt-1">Please try again later</p>
+            <p className="font-medium text-destructive">Error loading course data</p>
+            <p className="mt-1 text-muted-foreground text-sm">Please try again later</p>
             <Button asChild className="mt-4">
               <Link to="/student">Go to Dashboard</Link>
             </Button>
@@ -1777,13 +1782,13 @@ return false;
           }
         }}
       >
-        <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)] max-w-full text-center">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-full sm:max-w-lg text-center">
           <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold">
+            <DialogTitle className="font-extrabold text-xl">
               🎉 You've unlocked a new course!
             </DialogTitle>
           </DialogHeader>
-          <p className="text-base text-foreground mt-2 mb-6">
+          <p className="mt-2 mb-6 text-foreground text-base">
             Congratulations on completing this course. You've earned an exclusive
             spot in{" "}
             <span className="font-semibold">
@@ -1791,7 +1796,7 @@ return false;
             </span>
             . Claim it now to get started.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex sm:flex-row flex-col justify-center gap-3">
             <Button
               className="font-semibold"
               onClick={async () => {
@@ -1824,11 +1829,11 @@ return false;
           router.navigate({ to: '/student' });
         }
       }}>
-        <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)] max-w-full">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-full sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-lg font-extrabold">Declaration</DialogTitle>
+            <DialogTitle className="font-extrabold text-lg">Declaration</DialogTitle>
           </DialogHeader>
-          <ul className="text-base text-foreground mb-4 list-disc pl-6 space-y-2">
+          <ul className="space-y-2 mb-4 pl-6 text-foreground text-base list-disc">
             <li>
               I understand that my camera and microphone will be used during this course for proctoring.
             </li>
@@ -1839,753 +1844,365 @@ return false;
               I acknowledge that the microphone is used for monitoring purposes only, and that no audio or video will be recorded or stored elsewhere.
             </li>
           </ul>
-          <div className="w-full flex justify-end">
-            <Button onClick={() => { setShowProctorDialog(false) }} className="w-full">ACCEPT</Button>
+          <div className="flex justify-end w-full">
+            <Button onClick={() => { enterFullscreen(); setShowProctorDialog(false); }} className="w-full">ACCEPT</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      <SidebarProvider defaultOpen={true}>
-        <SidebarFocusSync focusMode={focusMode} />
-        <ResizablePanelGroup direction="horizontal" className="h-screen w-full">
-          {/* Enhanced Course Navigation Sidebar */}
-          {/* {isDesktopSidebarVisible && ( */}
-          <SidebarResizablePanel
-          // defaultSize={20}
-          // minSize={useSidebar().state=="collapsed"?0:5}
-          // maxSize={useSidebar().state=="collapsed"?0:40}
-          // className="hidden md:block "
-          >
-            <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
-              {/* <Sidebar variant="inset" className="border-r border-border/40 bg-sidebar/50 backdrop-blur-sm"> */}
-              <Sidebar variant="inset" collapsible="none" className="h-screen w-full">
-                <SidebarHeader className="border-b border-border/40 bg-gradient-to-b from-sidebar/80 to-sidebar/60">
-                  {/* Vibe Logo and Brand */}
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-lg overflow-hidden">
-                      <img
-                        src={logo}
-                        alt="Vibe Logo"
-                        className="h-8 w-8 object-contain"
-                      />
-                    </div>
-                    <div className="flex flex-col leading-tight">
-                      <span className="text-[1.15rem] font-bold leading-none">
-                        <AuroraText colors={["#A07CFE", "#FE8FB5", "#FFBE7B"]}><b>ViBe</b></AuroraText>
-                      </span>
-                      <p className="text-xs text-muted-foreground">Learning Platform</p>
-                    </div>
-                  </div>
+      {/* Hidden proctoring engine — kept mounted (clipped to 1px) so the webcam
+          keeps decoding and anomaly detection keeps running off-screen. */}
+      {!showProctorDialog && (
+        <div
+          aria-hidden
+          className="bottom-0 left-0 z-0 fixed opacity-0 w-px h-px overflow-hidden pointer-events-none"
+        >
+          <FloatingVideo
+            isVisible={!allProctorsDisabled}
+            onClose={() => { }}
+            onAnomalyDetected={() => { }}
+            setDoGesture={setDoGesture}
+            settings={proctoringData || {
+              _id: "",
+              studentId: "",
+              versionId: "",
+              courseId: "",
+              settings: {
+                proctors: {
+                  detectors: []
+                },
+                linearProgressionEnabled: true
+              }
+            }}
+            anomalies={anomalies}
+            readyToDetect={readyToDetect}
+            setReadyToDetect={setReadyToDetect}
+            setAnomalies={setAnomalies}
+            rewindVid={rewindVid}
+            setRewindVid={setRewindVid}
+            pauseVid={pauseVid}
+            setPauseVid={setPauseVid}
+          />
+        </div>
+      )}
 
-                  <Separator className="opacity-50" />
+      {/* Focused cinematic stage */}
+      <main
+        className="fixed inset-0 flex flex-col bg-stage overflow-hidden text-stage-foreground"
+        onClick={() => setAiExpanded(false)}
+      >
+        {/* Lesson content */}
+        {currentItem ? (
+          currentItem.type === "PROJECT" ? (
+            <div className="z-30 absolute inset-0 px-3 sm:px-6 py-16 overflow-y-auto">
+              <div className="mx-auto w-full max-w-5xl">
+                <StudentProjectItem
+                  item={currentItem}
+                  onNext={handleNext}
+                  isProgressUpdating={isNavigatingToNext || itemLoading}
+                  completedItemIdsRef={completedItemIdsRef}
+                  isAlreadyWatched={currentItem.isAlreadyWatched}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className={currentItem.type === "VIDEO" ? "contents" : "absolute inset-0 z-30 overflow-y-auto"}>
+              <div
+                className={
+                  currentItem.type === "VIDEO"
+                    ? "contents"
+                    : "mx-auto min-h-full w-full max-w-5xl bg-card text-card-foreground sm:my-6 sm:min-h-[calc(100%-3rem)] sm:rounded-2xl sm:shadow-2xl"
+                }
+              >
+                <ItemContainer
+                  ref={itemContainerRef}
+                  item={currentItem}
+                  focusMode={currentItem.type === "VIDEO"}
+                  doGesture={doGesture}
+                  onNext={handleNext}
+                  onPrevVideo={handlePrevVideo}
+                  isProgressUpdating={isNavigatingToNext || itemLoading}
+                  isNavigatingToPrev={isNavigatingToPrev}
+                  attemptId={attemptId || undefined}
+                  setAttemptId={setAttemptId}
+                  rewindVid={rewindVid}
+                  readyToDetect={readyToDetect}
+                  pauseVid={pauseVid || showProctorDialog || alertVisible}
+                  pauseSignal={pauseSignal}
+                  awayPaused={awayPaused || drawerOpen || needsFullscreen}
+                  displayNextLesson={false}
+                  setQuizPassed={setQuizPassed}
+                  anomalies={anomalies}
+                  keyboardLockEnabled={!isFlagModalOpen && !drawerOpen && !aiSheet}
+                  linearProgressionEnabled={proctoringData?.settings.linearProgressionEnabled || true}
+                  seekForwardEnabled={proctoringData?.settings.seekForwardEnabled || false}
+                  setIsQuizSkipped={setIsQuizSkipped}
+                  courseId={COURSE_ID}
+                  versionId={VERSION_ID}
+                  sectionId={sectionId}
+                  completedItemIdsRef={completedItemIdsRef}
+                  nextItem={findNextItem()}
+                  cohortId={COHORT_ID}
+                  cohortName={COHORT_NAME}
+                  pendingStudentQuestionContext={pendingStudentQuestionContext}
+                  clearPendingStudentQuestionContext={() => setPendingStudentQuestionContext(null)}
+                />
+              </div>
+            </div>
+          )
+        ) : (
+          <div className="z-30 absolute inset-0 place-items-center grid px-6 text-center">
+            <div className="max-w-md">
+              <div className="place-items-center grid bg-glass mx-auto mb-5 ring-glass-border rounded-2xl ring-1 w-16 h-16">
+                <BookOpen className="w-7 h-7 text-warm" />
+              </div>
+              <h3 className="font-semibold text-xl">Ready to learn?</h3>
+              <p className="mt-2 text-stage-foreground/70 text-sm">
+                Open the course panel to choose a lesson and begin.
+              </p>
+              <button
+                onClick={(e) => { e.stopPropagation(); pauseVideoForControl(); setDrawerOpen(true); }}
+                className="inline-flex items-center gap-2 bg-warm hover:opacity-90 mt-5 px-5 py-2 rounded-full font-medium text-warm-foreground text-sm transition"
+              >
+                <Target className="w-4 h-4" /> Browse lessons
+              </button>
+            </div>
+          </div>
+        )}
 
-                  {/* Course Info */}
-                  {/* <div className="flex items-center gap-2 px-4 py-3">
-                <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary/15 to-primary/5">
-                  <BookOpen className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-sm font-semibold text-foreground truncate">
-                    {courseVersionData?.name || "Course Content"}
-                  </h2>
-                  <p className="text-xs text-muted-foreground">
-                    {modules.length} modules • Learning Progress
+        {/* Floating chrome */}
+        <FloatingBackButton onClick={() => { pauseVideoForControl(); setDrawerOpen(true); }} />
+        <AiCompanion
+          expanded={aiExpanded}
+          onExpandedChange={setAiExpanded}
+          onIconClick={pauseVideoForControl}
+          onAction={(id) => {
+            pauseVideoForControl();
+            setAiExpanded(false);
+            if (id === "report") {
+              if (isFlagSubmitted) {
+                toast.info("You've already flagged this item.", { position: "top-right" });
+                return;
+              }
+              setIsFlagModalOpen(true);
+            } else {
+              setAiSheet(id);
+            }
+          }}
+        />
+        {!allProctorsDisabled && !showProctorDialog && (
+          <FloatingCameraButton
+            open={camPinned || camHover}
+            pinned={camPinned}
+            onToggle={() => { pauseVideoForControl(); setCamPinned((p) => !p); }}
+            onHoverChange={setCamHover}
+            anomaly={pauseVid || rewindVid}
+          />
+        )}
+
+        {/* Contextual skip / go-to-next (middle-right) */}
+        {currentItem && ((currentItem as any)?.isOptional || showGoToNextButton) && (
+          <div className="top-1/2 right-4 sm:right-6 z-50 absolute flex flex-col items-end gap-2 -translate-y-1/2">
+            {(currentItem as any)?.isOptional && (
+              <button
+                onClick={() => { pauseVideoForControl(); handleSkipItem(); }}
+                disabled={isSkippingItem || isSkipping}
+                className="inline-flex items-center gap-1.5 bg-glass hover:bg-white/15 disabled:opacity-50 backdrop-blur-md px-3.5 py-2 ring-glass-border rounded-full ring-1 font-medium text-stage-foreground text-xs transition"
+              >
+                Skip <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {showGoToNextButton && (
+              <button
+                onClick={() => { pauseVideoForControl(); handleGoToNextItem(); }}
+                disabled={isGoingToNext}
+                className="inline-flex items-center gap-1.5 bg-warm hover:opacity-90 disabled:opacity-50 shadow-lg px-3.5 py-2 rounded-full font-medium text-warm-foreground text-xs transition"
+              >
+                <CircleCheckIcon className="w-3.5 h-3.5" /> Next <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Initial webcam popup — first ~11s while the camera sets up */}
+        {!allProctorsDisabled && !showProctorDialog && <InitialWebcamPopup seconds={15} />}
+
+        {/* Transient notifications */}
+        <div className="top-4 left-1/2 z-90 fixed flex flex-col gap-2 w-[min(92vw,420px)] -translate-x-1/2 pointer-events-none">
+          {isItemForbidden && (
+            <div className="bg-red-600/95 shadow-xl backdrop-blur-md p-4 border border-red-400/40 rounded-2xl text-red-50 animate-vibe-slide-up pointer-events-auto">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 w-5 h-5 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">Lesson locked</p>
+                  <p className="mt-0.5 text-red-50/90 text-xs leading-relaxed">
+                    ViBe lessons unlock in order. Please finish your current lesson to continue.
                   </p>
                 </div>
-              </div> */}
-                </SidebarHeader>
-
-                <SidebarContent className="bg-card/50 pl-2 shadow-sm border border-border/30">
-                  <ScrollArea className="flex-1 transition-colors">
-                    <SidebarMenu className="space-y-1 text-sm pr-0">
-                      {modules.map((module: any) => {
-                        const moduleId = module.moduleId;
-                        const progress = moduleProgressMap.get(moduleId);
-                        const isModuleExpanded = expandedModules[moduleId];
-                        const isCurrentModule = moduleId === selectedModuleId;
-
-                        return (
-                          <SidebarMenuItem 
-                          key={moduleId}
-                          data-testid="course-module"
-                          data-module-id={moduleId}
-                          >
-                            <SidebarMenuButton
-                              data-testid="course-module-toggle"
-                              data-module-id={moduleId} 
-                              onClick={() => toggleModule(moduleId)}
-                              isActive={isCurrentModule}
-                              aria-expanded={isModuleExpanded}
-                              data-state={isModuleExpanded ? 'open' : 'closed'}
-                              className="group relative h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/15 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm"
-                            >
-                              <ChevronRight
-                                className={`h-3.5 w-3.5 transition-transform duration-200 flex-shrink-0 ${isModuleExpanded ? 'rotate-90' : ''
-                                  }`}
-                              />
-                              <div className="flex-1 text-left min-w-0 ml-2">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div className="flex gap-4 items-center justify-between">
-
-                                      <div className="font-medium text-xs truncate">
-                                        {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
-                                      </div>
-                                      <div className={`text-[10px] ${(progress?.completedItems === progress?.totalItems && progress?.totalItems > 0) ? `dark:text-green-500 text-green-600 ` : ` text-muted-foreground`}`}>
-                                        {moduleProgressLoading
-                                          ? "..."
-                                          : `${progress?.completedItems ?? 0}/${progress?.totalItems ?? 0} completed`
-                                        }
-                                      </div>
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="right" align="center">
-                                    {module.name}
-                                  </TooltipContent>
-                                </Tooltip>
-                                <div className="text-[10px] text-muted-foreground truncate">
-                                  {module.sections?.length || 0} sections
-                                </div>
-
-                              </div>
-                            </SidebarMenuButton>
-
-                            {isModuleExpanded && module.sections && (
-                              <SidebarMenuSub className="ml-0 mt-1 space-y-1">
-                                {module.sections.map((section: any) => {
-                                  const sectionId = section.sectionId;
-                                  const isSectionExpanded = expandedSections[sectionId];
-                                  const isCurrentSection = sectionId === selectedSectionId;
-                                  const isLoadingItems = activeSectionInfo?.sectionId === sectionId && itemsLoading;
-
-                                  return (
-                                    <SidebarMenuSubItem 
-                                      key={sectionId}
-                                      data-testid="course-section"
-                                      data-section-id={sectionId}
-                                      data-module-id={moduleId}
-                                    >
-                                      <SidebarMenuSubButton
-                                        data-testid="course-section-toggle"
-                                        data-section-id={sectionId}
-                                        data-module-id={moduleId}
-                                        onClick={() => toggleSection(moduleId, sectionId)}
-                                        isActive={isCurrentSection}
-                                        aria-expanded={isSectionExpanded}
-                                        data-state={isSectionExpanded ? 'open' : 'closed'}
-                                        className="group relative h-8 px-3 w-full rounded-md text-xs transition-all duration-200 hover:bg-accent/10 hover:text-accent-foreground data-[state=active]:bg-accent/15 data-[state=active]:text-accent-foreground"
-                                      >
-                                        <ChevronRight
-                                          className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 ${isSectionExpanded ? 'rotate-90' : ''
-                                            }`}
-                                        />
-                                        <div className="font-medium truncate flex-1 min-w-0 ml-2 ">
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <div className="font-medium text-xs truncate">
-                                                {section.name.length > 27 ? `${section.name.substring(0, 24)}...` : section.name}
-                                              </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="right" align="center">
-                                              {section.name}
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        </div>
-                                      </SidebarMenuSubButton>
-                                      {isSectionExpanded && (
-                                        <SidebarMenuSub className="ml-0 mt-1 space-y-0.5">
-                                          {isLoadingItems ? (
-                                            <div className="space-y-1 p-2">
-                                              <Skeleton className="h-4 w-full rounded" />
-                                              <Skeleton className="h-4 w-4/5 rounded" />
-                                            </div>
-                                          ) : sectionItems[sectionId] ? (
-                                            (shouldRandomize
-                                              ? sectionItems[sectionId]
-                                              : sortItemsByOrder(sectionItems[sectionId])
-                                            ).map((item: any) => {
-                                              const itemId = item._id;
-                                              const isCurrentItem = itemId === selectedItemId;
-                                              const locked = isItemLocked(moduleId, sectionId, itemId);
-
-                                              return (
-                                                <SidebarMenuSubItem 
-                                                key={itemId}
-                                                data-testid="course-item"
-                                                data-item-id={itemId}
-                                                data-section-id={sectionId}
-                                                data-module-id={moduleId}
-                                                data-item-type={item.type?.toLowerCase()}
-                                                >
-                                                  <SidebarMenuSubButton
-                                                    disabled={locked}
-                                                    onClick={() => !locked && handleSelectItem(moduleId, sectionId, itemId)}
-                                                    isActive={isCurrentItem}
-                                                    className={`group relative h-8 px-3 w-full rounded-md transition-all duration-200 hover:bg-accent/10 dark:data-[state=active]:bg-primary/10 data-[state=active]:bg-primary/10 data-[state=active]:text-primary justify-start ${locked ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
-                                                    // Assign ref only to the selected item for autoscroll
-                                                    ref={isCurrentItem ? selectedItemRef : undefined}
-                                                  >
-                                                    <div className="flex items-center gap-2 w-full min-w-0">
-                                                      <div className={`p-0.5 rounded transition-colors flex-shrink-0 ${isCurrentItem
-                                                        ? "dark:bg-primary/15 dark:text-primary bg-primary/50 text-white/80"
-                                                        : "bg-accent/15 text-accent-foreground group-hover:bg-accent/25"
-                                                        }`}>
-                                                        {locked ? <span className="h-3 w-3">🔒</span> : getItemIcon(item.type)}
-                                                      </div>
-                                                      <div className="flex-1 text-left min-w-0">
-                                                        <div className="text-xs font-medium truncate w-full " title={currentItem?.name || 'Loading...'}>
-                                                          {(() => {
-                                                            // Show loading state if this is the selected item and it's loading
-                                                            if (selectedItemId === itemId && itemLoading) {
-                                                              return 'Loading...';
-                                                            }
-
-                                                            // Always show the actual item name, truncated if necessary
-                                                            const itemName = item?.name || item?.title || 'Untitled';
-                                                            return itemName.length > 18 ? `${itemName.substring(0, 15)}...` : itemName;
-                                                          })()}
-                                                        </div>
-                                                        {item.isCompleted && (
-                                                          <div className={`text-[10px] dark:text-green-500 text-green-600 font-medium mt-0.5 flex items-center gap-1 ${selectedItemId === itemId ? "text-green-900" : ""} `}>
-                                                            <CheckCircle className="h-3 w-3" />
-                                                            Completed
-                                                          </div>
-                                                        )}
-                                                      </div>
-                                                    </div>
-                                                  </SidebarMenuSubButton>
-                                                </SidebarMenuSubItem>
-                                              );
-                                            })
-                                          ) : (
-                                            <div className="p-3 text-center">
-                                              <div className="text-xs text-muted-foreground">No items found</div>
-                                            </div>
-                                          )}
-                                        </SidebarMenuSub>
-                                      )}
-                                    </SidebarMenuSubItem>
-                                  );
-                                })}
-                              </SidebarMenuSub>
-                            )}
-                          </SidebarMenuItem>
-                        );
-                      })}
-                    </SidebarMenu>
-                  </ScrollArea>
-                </SidebarContent>
-                <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60 ">
-                  {!showProctorDialog ?
-                    <FloatingVideo
-                      isVisible={!allProctorsDisabled}
-                      onClose={() => { }}
-                      onAnomalyDetected={() => { }}
-                      setDoGesture={setDoGesture}
-                      settings={proctoringData || {
-                        _id: "",
-                        studentId: "",
-                        versionId: "",
-                        courseId: "",
-                        settings: {
-                          proctors: {
-                            detectors: []
-                          },
-                          linearProgressionEnabled: true
-                        }
-                      }}
-                      anomalies={anomalies}
-                      readyToDetect={readyToDetect}
-                      setReadyToDetect={setReadyToDetect}
-                      setAnomalies={setAnomalies}
-                      rewindVid={rewindVid}
-                      setRewindVid={setRewindVid}
-                      pauseVid={pauseVid}
-                      setPauseVid={setPauseVid}
-                    /> :
-                    <FloatingVideoPlaceholder />}
-                </SidebarFooter>
-                {/* Navigation Footer */}
-                <SidebarFooter className="border-t border-border/40 bg-gradient-to-t from-sidebar/80 to-sidebar/60">
-                  <SidebarMenu className="space-y-1 pl-2 py-3">
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                      >
-                        <Link to="/student" className="flex items-center gap-3">
-                          <div className="p-1 rounded-md bg-accent/15">
-                            <Home className="h-4 w-4 text-accent-foreground" />
-                          </div>
-                          <span className="text-sm font-medium">Dashboard</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                      >
-                        <Link to="/student/courses" className="flex items-center gap-3">
-                          <div className="p-1 rounded-md bg-accent/15">
-                            <GraduationCap className="h-4 w-4 text-accent-foreground" />
-                          </div>
-                          <span className="text-sm font-medium">Courses</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    {(courseVersionData as any)?.supportLink && (() => {
-                      const link = (courseVersionData as any).supportLink;
-                      const isEmail = link.startsWith('mailto:') || (!link.startsWith('http://') && !link.startsWith('https://') && !link.startsWith('//') && link.includes('@'));
-                      const href = link.startsWith('mailto:')
-                        ? link
-                        : link.startsWith('http://') || link.startsWith('https://') || link.startsWith('//')
-                          ? link
-                          : link.includes('@')
-                            ? `mailto:${link}`
-                            : link;
-                      return (
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            asChild
-                            className="h-9 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                          >
-                            <a
-                              href={href}
-                              target={isEmail ? undefined : "_blank"}
-                              rel={isEmail ? undefined : "noopener noreferrer"}
-                              className="flex items-center gap-3"
-                            >
-                              <div className="p-1 rounded-md bg-accent/15">
-                                <Headphones className="h-4 w-4 text-accent-foreground" />
-                              </div>
-                              <span className="text-sm font-medium">Get Support</span>
-                              <ExternalLink className="h-3 w-3 text-muted-foreground ml-auto" />
-                            </a>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      );
-                    })()}
-
-                    <Separator className="my-2 opacity-50" />
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        className="h-10 px-3 w-full rounded-lg transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/20 hover:to-accent/5 hover:shadow-sm"
-                      >
-                        <Link to="/student/profile" className="flex items-center gap-3">
-                          <Avatar className="h-6 w-6 border border-border/20">
-                            <AvatarImage src={user?.avatar} alt={user?.name} />
-                            <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/5 text-primary font-bold text-xs">
-                              {user?.name?.charAt(0).toUpperCase() || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 text-left min-w-0">
-                            <div className="text-sm font-medium truncate" title={user?.name || 'Profile'}>{user?.name || 'Profile'}</div>
-                            <div className="text-xs text-muted-foreground">View Profile</div>
-                          </div>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </SidebarMenu>
-                </SidebarFooter>
-              </Sidebar>
-            </div>
-          </SidebarResizablePanel>
-          {/* // )} */}
-          {/* {isDesktopSidebarVisible &&  */}
-          <ResizableHandle className={`${focusMode ? 'hidden' : 'hidden md:flex'} h-screen`} />
-          {/* } */}
-          <ResizablePanel defaultSize={80} className="min-w-0 min-h-screen">
-            {/* Main Content Area */}
-            <SidebarInset className="flex-1  bg-gradient-to-br from-background via-background to-background/95 peer-data-[variant=inset]:!m-0">
-              {!focusMode && (
-              <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/20 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4">
-                {/* <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsDesktopSidebarVisible((p) => !p)}
-                  className="hidden md:inline-flex"
-                > */}
-                {/* <Menu className="h-5 w-5" /> */}
-                <SidebarTrigger />
-                {/* </Button> */}
-                <Separator orientation="vertical" className="mr-2 h-4" />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleGoBack}
-                  className="relative h-10 w-10 p-0 mr-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 hover:text-accent-foreground hover:shadow-lg hover:shadow-accent/10 before:absolute before:inset-0 before:rounded-md before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 hover:before:opacity-100 before:transition-opacity before:duration-300"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div 
-                  data-testid="current-item-title"
-                  data-item-id={currentItem?._id ?? ""}
-                  className="text-xl font-medium text-foreground truncate"
-                  title={currentItem ? currentItem.name : 'Select content to begin learning'}>
-                    <b>{currentItem ? currentItem.name : 'Select content to begin learning'}</b>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 ml-auto">
-                  <ThemeToggle />
-                </div>
-              </header>
-              )}
-
-              {/* Emotion Selector Bar */}
-              {currentItem && !focusMode && (
-                <div className="border-b border-border/20 bg-background/50 backdrop-blur-sm px-4 py-2">
-                  <EmotionSelector
-                    itemId={currentItem._id}
-                    onEmotionSelect={handleEmotionSubmit}
-                    disabled={false}
-                    selectedEmotion={selectedEmotion[currentItem._id] || null}
-                  />
-                </div>
-              )}
-
-              <div className="flex-1 overflow-hidden relative">
-                {/* Ambient background effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.01] via-transparent to-secondary/[0.01] pointer-events-none" />
-
-                {/* Notification Stack */}
-                <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 w-90 ">
-                  {/* ✅ Item Access Error Notification */}
-                  {isItemForbidden && (
-                    <Card className="border border-red-400/40 bg-red-600/95 text-red-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
-                      <CardContent className="flex items-center gap-3 px-4 py-0">
-                        <div className="flex h-22 w-22 items-center justify-center rounded-l border-red-50/30 bg-red-50/10 text-4xl p-4">
-                          <AlertCircle className="h-16 w-16" />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          {/* 
-                          <Badge variant="outline" className="border-red-50/30 bg-red-50/10 text-red-50 text-lg font-bold">
-                            Access Restricted
-                          </Badge>
-                          <p className="text-md font-medium leading-relaxed">
-                            {itemError && itemErrorName === "ForbiddenError"
-                              ? itemError
-                              : previousValidItem
-                                ? "Returning to previous valid content."
-                                : "Complete current item first to access this content."
-                            }
-                          </p>
-                          */}
-                          <Badge variant="outline" className="border-red-50/30 bg-red-50/10 text-red-50 text-lg font-bold">
-                            Lesson Locked
-                          </Badge>
-                          <p className="text-md font-medium leading-relaxed">
-                            ViBe lessons unlock in order, so you build each concept on the previous one. Please finish your current lesson to continue.
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setIsItemForbidden(false)}
-                          className="h-6 w-6 p-0 text-red-50 hover:bg-red-50/10"
-                        >
-                          ×
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* ⏰ Time-slot / commitment gate notice */}
-                  {timeSlotBlock && (
-                    <Card className="border border-amber-400/40 bg-amber-600/95 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
-                      <CardContent className="flex items-start gap-3 px-4 py-3">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-amber-50/10 p-2">
-                          <AlertCircle className="h-7 w-7" />
-                        </div>
-                        <div className="flex-1 space-y-2">
-                          <Badge variant="outline" className="border-amber-50/30 bg-amber-50/10 text-amber-50 text-base font-bold">
-                            {/book a time slot|choose a slot/i.test(timeSlotBlock) ? 'Book a time slot' : 'Outside your study window'}
-                          </Badge>
-                          <p className="text-sm font-medium leading-relaxed">{timeSlotBlock}</p>
-                          <div className="flex gap-2 pt-1">
-                            {/book a time slot|choose a slot/i.test(timeSlotBlock) && (
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => setShowTimeslotPicker(true)}
-                              >
-                                Pick a slot
-                              </Button>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-amber-50 hover:bg-amber-50/10"
-                              onClick={() => setTimeSlotBlock(null)}
-                            >
-                              Dismiss
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {showTimeslotPicker && (
-                    <Suspense fallback={null}>
-                      <LazyStudentTimeslotModal
-                        isOpen={showTimeslotPicker}
-                        onClose={() => { setShowTimeslotPicker(false); setTimeSlotBlock(null); }}
-                        courseId={COURSE_ID}
-                        courseVersionId={VERSION_ID}
-                        currentUserId={""}
-                        hasAssignedTimeslot={false}
-                      />
-                    </Suspense>
-                  )}
-
-                  {/* Gesture Notification — also shown for VIDEO in focus mode,
-                      since the in-sidebar camera (which normally shows this) is hidden. */}
-                  {doGesture && (currentItem?.type !== 'VIDEO' || focusMode) && (
-                    <Card className="border border-amber-400/20 bg-amber-600/90 text-amber-50 shadow-lg backdrop-blur-md animate-in slide-in-from-right-3 duration-300">
-                      <CardContent className="flex items-center gap-3 px-4 py-0">
-                        <div className="flex h-22 w-22 items-center justify-center rounded-lg bg-white text-4xl p-4">
-                          <img src="https://em-content.zobj.net/source/microsoft/309/thumbs-up_1f44d.png" className="w-auto h-full" />
-                        </div>
-                        <div className="flex-1 space-y-1 py-3">
-                          <Badge variant="outline" className="border-amber-50/30 bg-amber-50/10 text-amber-50 text-xl font-bold">
-                            Gesture Required
-                          </Badge>
-                          <p className="text-lg font-medium leading-relaxed m-1">
-                            Show a <strong>thumbs up</strong>!
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Quiz Passed/Failed */}
-
-                  {quizPassed !== 2 && quizPassed !== 3 && !isQuizSkipped && (
-                    <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-5 fade-in duration-200">
-                      <div
-                        className={`relative w-[380px] rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 
-        ${quizPassed === 1
-                            ? 'bg-gradient-to-br from-emerald-500 to-green-600'
-                            : 'bg-gradient-to-br from-rose-500 to-red-600'
-                          }`}
-                      >
-                        {/* Close Button */}
-                        <button
-                          onClick={() => {
-                            setClosing(true)
-                            // setQuizPassed(2)
-                            setTimeout(() => setQuizPassed(2), 300)
-                          }}
-                          className="absolute top-3 right-3 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors duration-200 group"
-                          aria-label="Close"
-                        >
-                          <X className="h-5 w-5 text-white group-hover:rotate-90 transition-transform duration-200" />
-                        </button>
-
-                        <div className="p-6 space-y-4">
-                          {/* Icon + Title */}
-                          <div className="flex items-center gap-4">
-                            <div className="relative">
-                              <div
-                                className={`absolute inset-0 rounded-full blur-xl opacity-50 
-              ${quizPassed === 1 ? 'bg-emerald-200' : 'bg-rose-200'}`}
-                              />
-                              <div className="relative bg-white/20 backdrop-blur-sm rounded-full p-4 border border-white/40">
-                                {quizPassed === 1 ? (
-                                  <CheckCircle className="h-12 w-12 text-white" strokeWidth={2.5} />
-                                ) : (
-                                  <XCircle className="h-12 w-12 text-white" strokeWidth={2.5} />
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex-1 space-y-1">
-                              <h2 className="text-xl font-bold text-white">
-                                {quizPassed === 1 ? 'Quiz Passed!' : 'Quiz Failed'}
-                              </h2>
-                              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm border border-white/30">
-                                <div
-                                  className={`h-2 w-2 rounded-full animate-pulse 
-                ${quizPassed === 1 ? 'bg-emerald-200' : 'bg-rose-200'}`}
-                                />
-                                <span className="text-xs font-medium text-white/90">
-                                  {quizPassed === 1 ? 'Great job!' : 'Keep learning'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Redirect Indicator */}
-                          <div className="flex items-center gap-2 pt-1">
-                            <div className="flex gap-1">
-                              <div className="h-2 w-2 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: '0ms' }} />
-                              <div className="h-2 w-2 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-                              <div className="h-2 w-2 rounded-full bg-white/60 animate-bounce" style={{ animationDelay: '300ms' }} />
-                            </div>
-                            <p className="text-white/90 text-xs font-medium">
-                              {quizPassed === 1 ? 'Moving to the next video' : 'Redirecting to the previous video'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-
-                </div>
-                <FlagModal
-                  open={isFlagModalOpen}
-                  onOpenChange={setIsFlagModalOpen}
-                  onSubmit={handleFlagSubmit}
-                  isSubmitting={isPending}
-                />
-                {currentItem ? (
-                  <div className="relative z-10 h-full flex flex-col mb-2  sm:mb-1">
-                    {anomalies.includes("faceRecognition") && (
-                      <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-[9999] flex flex-col items-center justify-center p-6 text-center select-none rounded-lg border border-red-500/20">
-                        <div className="max-w-md space-y-6 animate-in fade-in zoom-in duration-300">
-                          <div className="mx-auto w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/30">
-                            <AlertCircle className="w-10 h-10 text-red-500 animate-pulse" />
-                          </div>
-                          <div className="space-y-2">
-                            <h2 className="text-2xl font-bold text-red-500">Identity Mismatch Paused</h2>
-                            <p className="text-gray-300 text-sm leading-relaxed">
-                              The camera detects a different face or an unknown person. Please ensure the registered student is watching the course to continue.
-                            </p>
-                          </div>
-                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20">
-                            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                            <span className="text-xs font-semibold text-red-400">Verifying live via camera...</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <div className={`${focusMode ? 'hidden' : 'flex'} justify-end mb-1 me-10 gap-2 `}>
-                      {!isFlagSubmitted &&
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="text-xs gap-1"
-                          title="Flag this content"
-                          onClick={() => setIsFlagModalOpen(true)}
-                        >
-                          <FlagTriangleRightIcon className="h-4 w-4" />
-                          <span className="max-sm:hidden">Submit Flag</span>
-                        </Button>
-                      }
-               
-{(currentItem as any)?.isOptional && (
-  <Button
-    size="sm"
-    variant="outline"
-    className="text-xs gap-1 border-amber-500 text-amber-500 hover:bg-amber-50 hover:text-amber-600"
-    title="Skip this optional item"
-    onClick={handleSkipItem}
-    disabled={isSkippingItem || isSkipping}
-  >
-    <span className="max-sm:hidden">Skip</span>
-    <ChevronRight className="h-4 w-4" />
-  </Button>
-)}
-
-{showGoToNextButton && (
-  <Button
-    size="sm"
-    variant="outline"
-    className="text-xs gap-1 border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
-    title="Go to next item"
-    onClick={handleGoToNextItem}
-    disabled={isGoingToNext}
-  >
-    <CircleCheckIcon className="h-4 w-4" />
-    <span className="max-sm:hidden">Go to Next Item</span>
-    <ChevronRight className="h-4 w-4" />
-  </Button>
-)}
-
-
-
-                    </div>
-                    {currentItem?.type === 'PROJECT' ? (
-                      <StudentProjectItem
-                        item={currentItem}
-                        onNext={handleNext}
-                        isProgressUpdating={isNavigatingToNext || itemLoading}
-                        completedItemIdsRef={completedItemIdsRef}
-                        isAlreadyWatched={currentItem.isAlreadyWatched}
-                      />
-                    ) : (
-
-                      <ItemContainer
-                        ref={itemContainerRef}
-                        item={currentItem}
-                        focusMode={focusMode}
-                        doGesture={doGesture}
-                        onNext={handleNext}
-                        onPrevVideo={handlePrevVideo}
-                        isProgressUpdating={isNavigatingToNext || itemLoading}
-                        isNavigatingToPrev={isNavigatingToPrev}
-                        attemptId={attemptId || undefined}
-                        setAttemptId={setAttemptId}
-                        rewindVid={rewindVid}
-                        readyToDetect={readyToDetect}
-                        pauseVid={pauseVid || showProctorDialog}
-                        displayNextLesson={false}
-                        setQuizPassed={setQuizPassed}
-                        anomalies={anomalies}
-                        keyboardLockEnabled={!isFlagModalOpen}
-                        linearProgressionEnabled={proctoringData?.settings.linearProgressionEnabled || true}
-                        seekForwardEnabled={proctoringData?.settings.seekForwardEnabled || false}
-                        setIsQuizSkipped={setIsQuizSkipped}
-                        courseId={COURSE_ID}
-                        versionId={VERSION_ID}
-                        sectionId={sectionId}
-                        completedItemIdsRef={completedItemIdsRef}
-                        nextItem={findNextItem()}
-                        cohortId={COHORT_ID}
-                        cohortName={COHORT_NAME}
-                        pendingStudentQuestionContext={pendingStudentQuestionContext}
-                        clearPendingStudentQuestionContext={() => setPendingStudentQuestionContext(null)}
-                      />
-                    )}
-
-                  </div>
-                ) : (
-                  <div className="h-full flex items-center justify-center relative z-10">
-                    <div className="text-center max-w-md">
-                      <div className="relative mb-6">
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 rounded-full blur-xl opacity-60" />
-                        <div className="relative p-6 rounded-full bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20">
-                          <BookOpen className="h-12 w-12 text-primary mx-auto" />
-                        </div>
-                      </div>
-                      <h3 className="text-xl font-bold mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                        Ready to Learn?
-                      </h3>
-                      <p className="text-muted-foreground mb-6 leading-relaxed">
-                        Select an item from the course navigation to begin your learning journey and unlock new knowledge.
-                      </p>
-                      <Button
-                        variant="outline"
-                        className="transition-all duration-200 hover:bg-gradient-to-r hover:from-accent/10 hover:to-accent/5 hover:border-accent/30 hover:shadow-lg hover:shadow-accent/10"
-                      >
-                        <Target className="h-4 w-4 mr-2" />
-                        Browse Content
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                <button onClick={() => setIsItemForbidden(false)} className="text-red-50/80 hover:text-white">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-            </SidebarInset>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </SidebarProvider>
+            </div>
+          )}
+
+          {timeSlotBlock && (
+            <div className="bg-amber-600/95 shadow-xl backdrop-blur-md p-4 border border-amber-400/40 rounded-2xl text-amber-50 animate-vibe-slide-up pointer-events-auto">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 w-5 h-5 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">
+                    {/book a time slot|choose a slot/i.test(timeSlotBlock) ? "Book a time slot" : "Outside your study window"}
+                  </p>
+                  <p className="mt-0.5 text-amber-50/90 text-xs leading-relaxed">{timeSlotBlock}</p>
+                  <div className="flex gap-2 mt-2">
+                    {/book a time slot|choose a slot/i.test(timeSlotBlock) && (
+                      <button onClick={() => setShowTimeslotPicker(true)} className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full font-medium text-xs">
+                        Pick a slot
+                      </button>
+                    )}
+                    <button onClick={() => setTimeSlotBlock(null)} className="hover:bg-white/10 px-3 py-1 rounded-full font-medium text-xs">
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {doGesture && currentItem?.type !== "VIDEO" && (
+            <div className="bg-amber-600/95 shadow-xl backdrop-blur-md p-4 border border-amber-400/30 rounded-2xl text-amber-50 animate-vibe-slide-up pointer-events-auto">
+              <div className="flex items-center gap-3">
+                <img src="https://em-content.zobj.net/source/microsoft/309/thumbs-up_1f44d.png" className="w-8 h-8" alt="thumbs up" />
+                <div>
+                  <p className="font-semibold text-sm">Gesture required</p>
+                  <p className="text-xs">Show a <strong>thumbs up</strong> to continue.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {quizPassed !== 2 && quizPassed !== 3 && !isQuizSkipped && (
+            <div
+              className={`pointer-events-auto animate-vibe-slide-up overflow-hidden rounded-2xl p-4 text-white shadow-xl ${
+                quizPassed === 1
+                  ? "bg-gradient-to-br from-emerald-500 to-green-600"
+                  : "bg-gradient-to-br from-rose-500 to-red-600"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                {quizPassed === 1 ? <CheckCircle className="w-8 h-8" /> : <XCircle className="w-8 h-8" />}
+                <div className="flex-1">
+                  <p className="font-bold text-sm">{quizPassed === 1 ? "Quiz passed!" : "Quiz failed"}</p>
+                  <p className="text-white/90 text-xs">
+                    {quizPassed === 1 ? "Moving to the next video" : "Redirecting to the previous video"}
+                  </p>
+                </div>
+                <button onClick={() => setTimeout(() => setQuizPassed(2), 300)} className="text-white/80 hover:text-white">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Course progress / navigation drawer (opened by the back button) */}
+      <CourseDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        courseName={(courseVersionData as any)?.name}
+        supportLink={(courseVersionData as any)?.supportLink}
+        user={user}
+        modules={modules}
+        moduleProgressMap={moduleProgressMap}
+        moduleProgressLoading={moduleProgressLoading}
+        expandedModules={expandedModules}
+        expandedSections={expandedSections}
+        selectedModuleId={selectedModuleId}
+        selectedSectionId={selectedSectionId}
+        selectedItemId={selectedItemId}
+        sectionItems={sectionItems}
+        activeSectionInfo={activeSectionInfo}
+        itemsLoading={itemsLoading}
+        itemLoading={itemLoading}
+        shouldRandomize={shouldRandomize}
+        onToggleModule={toggleModule}
+        onToggleSection={toggleSection}
+        onSelectItem={(m, s, i) => { handleSelectItem(m, s, i); setDrawerOpen(false); }}
+        isItemLocked={isItemLocked}
+        emotion={
+          currentItem
+            ? {
+                itemId: currentItem._id,
+                onEmotionSelect: handleEmotionSubmit,
+                selectedEmotion: selectedEmotion[currentItem._id] || null,
+              }
+            : null
+        }
+      />
+
+      {/* AI companion placeholder surfaces (chat / talk / discussion) */}
+      <AiActionSheet active={aiSheet} onClose={() => setAiSheet(null)} />
+
+      {/* Report (flag) — real, existing feature */}
+      <FlagModal
+        open={isFlagModalOpen}
+        onOpenChange={setIsFlagModalOpen}
+        onSubmit={handleFlagSubmit}
+        isSubmitting={isPending}
+      />
+
+      {/* Time-slot picker (lazy) */}
+      {showTimeslotPicker && (
+        <Suspense fallback={null}>
+          <LazyStudentTimeslotModal
+            isOpen={showTimeslotPicker}
+            onClose={() => { setShowTimeslotPicker(false); setTimeSlotBlock(null); }}
+            courseId={COURSE_ID}
+            courseVersionId={VERSION_ID}
+            currentUserId={""}
+            hasAssignedTimeslot={false}
+          />
+        </Suspense>
+      )}
+
+      {/* Cursor left the page for 5s+ → pause + blur; auto-resumes on return */}
+      <AwayOverlay onAwayChange={setAwayPaused} />
+
+      {/* Speaking / background-noise indicator — top center, non-blocking */}
+      <NoiseIndicator
+        active={!showProctorDialog && !allProctorsDisabled && (anomalies || []).includes("voiceDetection")}
+      />
+
+      {/* Buttonless anomaly alert — covers the video until it clears (incl. no/multiple person) */}
+      <ProctorAlertOverlay active={alertVisible} anomalies={anomalies} />
+
+      {/* Fullscreen gate — after a reload or an Esc, a request can only succeed
+          inside a click, so block the lesson until the student clicks to re-enter. */}
+      {needsFullscreen && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-5 bg-black/80 backdrop-blur-sm text-center px-6"
+          role="dialog"
+          aria-modal="true"
+        >
+          <Maximize2 className="h-10 w-10 text-white/90" />
+          <div className="max-w-md space-y-1.5">
+            <h2 className="text-xl font-semibold text-white">Fullscreen required</h2>
+            <p className="text-sm text-white/70">
+              This lesson runs in fullscreen. Your video is paused — click below to continue.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => enterFullscreen()}
+            className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-white/90"
+          >
+            Enter fullscreen
+          </button>
+        </div>
+      )}
+
     </>
   );
 };
