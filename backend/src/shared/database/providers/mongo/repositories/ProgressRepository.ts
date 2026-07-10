@@ -9,7 +9,7 @@ import { ActiveUserDto, Course, CourseVersion, VideoUserAnalytics, VideoUserAnal
 
 type CurrentProgress = Pick<
   IProgress,
-  'currentModule' | 'currentSection' | 'currentItem' | 'completed'
+  'currentModule' | 'currentSection' | 'currentItem' | 'completed' | 'recoveryState'
 >;
 
 @injectable()
@@ -543,6 +543,12 @@ class ProgressRepository {
           : progress.currentItem,
     };
 
+    const updatePayload: any = { $set: normalizedProgress };
+    if (progress.hasOwnProperty('recoveryState') && (progress.recoveryState === undefined || progress.recoveryState === null)) {
+      updatePayload.$unset = { recoveryState: '' };
+      delete normalizedProgress.recoveryState;
+    }
+
     const result = await this.progressCollection.findOneAndUpdate(
       {
         userId: { $in: [new ObjectId(userId), userId] },
@@ -551,7 +557,7 @@ class ProgressRepository {
         ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         isDeleted: { $ne: true },
       },
-      { $set: normalizedProgress },
+      updatePayload,
       { returnDocument: 'after', session },
     );
     return result;

@@ -451,6 +451,14 @@ export interface IProgress {
   completed: boolean;
   completedAt?: Date;
   cohort?: string;
+
+  // New ACRE V1 fields
+  recoveryState?: {
+    isActive: boolean;
+    targetQuizId: string;
+    reviewItemId: string;
+    failedTags: string[];
+  };
 }
 
 export interface ICurrentProgressPath {
