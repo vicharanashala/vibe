@@ -62,10 +62,10 @@
 
 /* LIGHT MODE THEME */
 :root {
-  --background: 48 100% 98%;      /* Very light yellow background */
-  --card: 42 100% 96%;            /* Slightly deeper, warm light yellow for cards/boxes */
+  --background: 0 0% 100%;        /* White background */
+  --card: 0 0% 100%;              /* White cards/boxes */
   --card-foreground: 24 8% 12%;      /* Slightly deeper for cards */
-  --popover: 48 100% 98%;
+  --popover: 0 0% 100%;
  
   --popover-foreground: 20 14.3% 4.1%;
 
@@ -108,7 +108,7 @@
 
 /* DARK MODE */
 .dark {
-  --background: 30 100% 4% / 1;
+  --background: 240 6% 7%;        /* Neutral dark background */
   --foreground: 60 9.1% 97.8%;
   --card: 20 14.3% 4.1%;
   --card-foreground: 60 9.1% 97.8%;
@@ -156,6 +156,12 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* Smoother in-page scrolling (respects reduced-motion preferences) */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
   .card, .popover, .student-course-card {
     background-color: hsl(var(--card));

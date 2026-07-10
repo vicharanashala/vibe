@@ -457,10 +457,7 @@ export class EnrollmentController {
       );
     }
 
-    await this.userService.editUser(userId, {
-      profileImage: null as any,
-      faceEmbedding: null as any,
-    });
+    await this.userService.updateFaceReference(userId, null, null);
 
     setAuditTrail(req, {
       category: AuditCategory.ENROLLMENT,
