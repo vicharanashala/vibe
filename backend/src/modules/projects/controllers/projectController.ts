@@ -4,8 +4,11 @@ import {
   HttpCode,
   JsonController,
   Params,
+  Param,
+  Patch,
   Post,
   ForbiddenError,
+  NotFoundError,
   Body,
   Get,
   QueryParam,
@@ -23,6 +26,9 @@ import {
 } from '../abilities/projectAbilites.js';
 import {
   CourseVersionParams,
+  GalleryParams,
+  GallerySubmissionDto,
+  SetFeaturedBody,
   SubmissionResponse,
   SubmitProjectBody,
   SuccessResponse,
@@ -166,5 +172,96 @@ export class ProjectController {
   }
 
 
-  
+  @OpenAPI({
+    summary: 'Set featured status of a submission',
+    description:
+      'Allows an instructor to mark a submission as featured or unfeatured for the gallery.',
+  })
+  @Authorized()
+  @Patch('/submission/:submissionId/featured')
+  @HttpCode(200)
+  @ResponseSchema(SuccessResponse, {
+    description: 'Featured status updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {statusCode: 400})
+  @ResponseSchema(AttemptNotFoundErrorResponse, {statusCode: 404})
+  async setFeatured(
+    @Param('submissionId') submissionId: string,
+    @Ability(projectAbility) {ability, user},
+    @Body() body: SetFeaturedBody,
+  ): Promise<SuccessResponse> {
+    // Load submission first — do NOT trust caller-supplied courseId
+    const submission = await this._projectService.getSubmissionById(submissionId);
+    if (!submission) {
+      throw new NotFoundError('Submission not found.');
+    }
+
+    // Authorize against the submission's own courseId and courseVersionId
+    const projectSubject = subject(ProjectSubject, {
+      courseId: submission.courseId.toString(),
+      versionId: submission.courseVersionId.toString(),
+    });
+
+    if (!ability.can(ProjectActions.FeatureSubmission, projectSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to curate submissions for this course.',
+      );
+    }
+
+    const updated = await this._projectService.setFeatured(submissionId, body.featured);
+    if (!updated) {
+      throw new NotFoundError('Submission not found or could not be updated.');
+    }
+
+    return { message: `Submission ${body.featured ? 'featured' : 'unfeatured'} successfully.` };
+  }
+
+  @OpenAPI({
+    summary: 'Get featured project gallery',
+    description:
+      'Returns the curated gallery of featured submissions for a project within a course version.',
+  })
+  @Authorized()
+  @Get('/:projectId/course/:courseId/version/:versionId/gallery')
+  @HttpCode(200)
+  @ResponseSchema(GallerySubmissionDto, {
+    description: 'List of featured submissions',
+    statusCode: 200,
+    isArray: true,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {statusCode: 400})
+  async getGallery(
+    @Params() params: GalleryParams,
+    @Ability(projectAbility) {ability, user},
+    @QueryParam('cohortId') cohortId?: string,
+  ): Promise<GallerySubmissionDto[]> {
+    const {projectId, courseId, versionId} = params;
+
+    const projectSubject = subject(ProjectSubject, {
+      courseId,
+      versionId,
+    });
+
+    if (!ability.can(ProjectActions.ViewGallery, projectSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to view the project gallery.',
+      );
+    }
+
+    const submissions = await this._projectService.getFeaturedSubmissions(
+      projectId,
+      courseId,
+      versionId,
+      cohortId,
+    );
+
+    // Map to sanitized DTO — no email, grades, feedback, or internal fields
+    return submissions.map(s => ({
+      submissionId: s._id!.toString(),
+      projectId: s.projectId.toString(),
+      submissionURL: s.submissionURL,
+      comment: s.comment,
+    }));
+  }
 }

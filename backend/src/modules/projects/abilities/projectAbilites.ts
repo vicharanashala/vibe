@@ -11,6 +11,8 @@ export enum ProjectActions {
   Update = 'update',
   Submit = 'submit',
   Manage = 'manage',
+  FeatureSubmission = 'feature_submission',
+  ViewGallery = 'view_gallery',
 }
 
 export const ProjectSubject = 'Project';
@@ -39,12 +41,15 @@ export const setupProjectAbilities = (
     switch (enrollment.role) {
       case 'STUDENT':
         can(ProjectActions.Submit, ProjectSubject, userBounded);
+        can(ProjectActions.ViewGallery, ProjectSubject, courseVersionBounded);
         break;
 
       case 'INSTRUCTOR':
         can(ProjectActions.Create, ProjectSubject, userBounded);
         can(ProjectActions.Update, ProjectSubject, userBounded);
         can(ProjectActions.View, ProjectSubject, userBounded);
+        can(ProjectActions.ViewGallery, ProjectSubject, courseVersionBounded);
+        can(ProjectActions.FeatureSubmission, ProjectSubject, courseVersionBounded);
         break;
 
       case 'MANAGER':

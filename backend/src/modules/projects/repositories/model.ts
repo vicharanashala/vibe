@@ -9,9 +9,17 @@ export interface IProjectSubmission {
   submissionURL: string;
   comment?: string;
   createdAt: Date;
+  featured?: boolean;
 }
 export interface IProjectSubmissionWithUser {
   course: {name: string};
   courseVersion: {name: string};
-  userInfo: Array<Partial<IUser> & {submissionURL: string; comment?: string}>;
+  userInfo: Array<
+    Partial<IUser> & {
+      submissionId: string;
+      submissionURL: string;
+      comment?: string;
+      featured: boolean;
+    }
+  >;
 }

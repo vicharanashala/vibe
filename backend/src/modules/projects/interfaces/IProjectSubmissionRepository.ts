@@ -7,6 +7,11 @@ import { SubmitProjectBody } from '../classes/validators/ProjectValidators.js';
 import { ID } from '#root/shared/index.js';
 
 export interface IProjectSubmissionRepository {
+  getById(
+    submissionId: string,
+    session?: ClientSession,
+  ): Promise<IProjectSubmission | null>;
+
   getByUser(
     userId: string,
     versionId: string,
@@ -52,4 +57,18 @@ export interface IProjectSubmissionRepository {
     courseVersionId: string,
     session?: ClientSession,
   ): Promise<boolean>;
+
+  setFeatured(
+    submissionId: string,
+    featured: boolean,
+    session?: ClientSession,
+  ): Promise<IProjectSubmission | null>;
+
+  getFeaturedSubmissions(
+    projectId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IProjectSubmission[]>;
 }

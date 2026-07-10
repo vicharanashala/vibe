@@ -6,6 +6,7 @@ import {
   IsDate,
   IsNotEmpty,
   IsArray,
+  IsBoolean,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 
@@ -84,9 +85,44 @@ export class SubmissionResponse {
   }>;
 }
 
+export class SetFeaturedBody {
+  @JSONSchema({ description: 'Set featured status for a submission' })
+  @IsBoolean({ message: 'featured must be a boolean' })
+  featured!: boolean;
+}
+
+export class GallerySubmissionDto {
+  @IsString()
+  submissionId!: string;
+
+  @IsString()
+  projectId!: string;
+
+  @IsUrl()
+  submissionURL!: string;
+
+  @IsOptional()
+  @IsString()
+  comment?: string;
+}
+
+export class GalleryParams {
+  @IsString()
+  projectId!: string;
+
+  @IsString()
+  courseId!: string;
+
+  @IsString()
+  versionId!: string;
+}
+
 export const PROJECT_VALIDATORS = [
   SubmitProjectBody,
   SubmissionResponse,
   SuccessResponse,
   CourseVersionParams,
+  SetFeaturedBody,
+  GallerySubmissionDto,
+  GalleryParams,
 ];

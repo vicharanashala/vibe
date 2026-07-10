@@ -122,4 +122,30 @@ export class ProjectService extends BaseService {
       throw new InternalServerError(`Failed to get projects /More: ${error}`);
     }
   }
+
+  async getSubmissionById(submissionId: string) {
+    return this._projectSubmissionRepository.getById(submissionId);
+  }
+
+  async setFeatured(submissionId: string, featured: boolean) {
+    const result = await this._projectSubmissionRepository.setFeatured(
+      submissionId,
+      featured,
+    );
+    return result;
+  }
+
+  async getFeaturedSubmissions(
+    projectId: string,
+    courseId: string,
+    versionId: string,
+    cohortId?: string,
+  ) {
+    return this._projectSubmissionRepository.getFeaturedSubmissions(
+      projectId,
+      courseId,
+      versionId,
+      cohortId,
+    );
+  }
 }

@@ -17,6 +17,20 @@ export class ProjectSubmissionRepository
       await this.db.getCollection<IProjectSubmission>('project_submissions');
   }
 
+  async getById(
+    submissionId: string,
+    session?: ClientSession,
+  ): Promise<IProjectSubmission | null> {
+    if (!ObjectId.isValid(submissionId)) {
+      return null;
+    }
+    await this.init();
+    return await this._projectSubmissionCollection.findOne(
+      { _id: new ObjectId(submissionId) },
+      { session },
+    );
+  }
+
   async getByUser(
     userId: string,
     versionId: string,
@@ -107,12 +121,14 @@ export class ProjectSubmissionRepository
               cohort: { $first: '$cohort' },
               userInfo: {
                 $push: {
+                  submissionId: { $toString: '$_id' },
                   firstName: { $arrayElemAt: ['$userInfo.firstName', 0] },
                   lastName: { $arrayElemAt: ['$userInfo.lastName', 0] },
                   email: { $arrayElemAt: ['$userInfo.email', 0] },
                   submissionURL: '$submissionURL',
                   comment: '$comment',
                   cohortName: { $arrayElemAt: ['$cohort.name', 0] },
+                  featured: { $ifNull: ['$featured', false] },
                 },
               },
             },
@@ -164,7 +180,8 @@ export class ProjectSubmissionRepository
         submissionURL,
         comment,
         createdAt: new Date(),
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}), 
+        featured: false,
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
       },
       { session },
     );
@@ -232,5 +249,44 @@ export class ProjectSubmissionRepository
       { session },
     );
     return result.deletedCount > 0;
+  }
+
+  async setFeatured(
+    submissionId: string,
+    featured: boolean,
+    session?: ClientSession,
+  ): Promise<IProjectSubmission | null> {
+    if (!ObjectId.isValid(submissionId)) {
+      return null;
+    }
+    await this.init();
+    const result = await this._projectSubmissionCollection.findOneAndUpdate(
+      { _id: new ObjectId(submissionId) },
+      { $set: { featured, updatedAt: new Date() } },
+      { session, returnDocument: 'after' },
+    );
+    return result || null;
+  }
+
+  async getFeaturedSubmissions(
+    projectId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IProjectSubmission[]> {
+    await this.init();
+    const filter: Record<string, unknown> = {
+      projectId: new ObjectId(projectId),
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      featured: true,
+    };
+    if (cohortId) {
+      filter.cohortId = new ObjectId(cohortId);
+    }
+    return await this._projectSubmissionCollection
+      .find(filter, { session })
+      .toArray();
   }
 }
