@@ -4,6 +4,7 @@ const TYPES = {
   WebhookService: Symbol.for('WebhookService'),
   SseService: Symbol.for('SseService'),
   ConceptMapService: Symbol.for('ConceptMapService'),
+  ConceptMapRepo: Symbol.for('ConceptMapRepo'),
 };
 
 export { TYPES as GENAI_TYPES };

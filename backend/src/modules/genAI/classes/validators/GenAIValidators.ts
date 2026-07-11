@@ -1056,6 +1056,124 @@ class TaskStatusdetailsResponse{
   data: audioData | trascriptGenerationData | segmentationData | questionGenerationData | contentUploadData;
 }
 
+class ConceptMapSectionParams {
+  @JSONSchema({
+    description: 'Course version ID the section belongs to',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+
+  @JSONSchema({
+    description: 'Section ID to fetch published concept maps for',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  sectionId: string;
+}
+
+class ConceptMapJobParams {
+  @JSONSchema({
+    description: 'GenAI job ID to preview the in-pipeline concept map of',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  jobId: string;
+}
+
+@JSONSchema({ title: 'ConceptMapNodeResponse' })
+class ConceptMapNodeResponse {
+  @JSONSchema({ description: 'Stable node id, unique within the map', type: 'string' })
+  @IsNotEmpty()
+  @IsString()
+  id: string;
+
+  @JSONSchema({ description: 'Concept label shown on the node', type: 'string' })
+  @IsNotEmpty()
+  @IsString()
+  label: string;
+
+  @JSONSchema({ description: 'One-sentence description (hover text)', type: 'string' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @JSONSchema({ description: 'Segment end-boundary the concept is anchored to', type: 'number' })
+  @IsNumber()
+  segmentEnd: number;
+
+  @JSONSchema({ description: 'Video item created from that segment (published maps only)', type: 'string' })
+  @IsOptional()
+  @IsString()
+  videoItemId?: string;
+
+  @JSONSchema({ description: 'Seconds into that video item where the concept is explained', type: 'number' })
+  @IsOptional()
+  @IsNumber()
+  offsetSeconds?: number;
+}
+
+@JSONSchema({ title: 'ConceptMapEdgeResponse' })
+class ConceptMapEdgeResponse {
+  @JSONSchema({ description: 'Prerequisite concept id (understand first)', type: 'string' })
+  @IsNotEmpty()
+  @IsString()
+  from: string;
+
+  @JSONSchema({ description: 'Dependent concept id', type: 'string' })
+  @IsNotEmpty()
+  @IsString()
+  to: string;
+}
+
+@JSONSchema({ title: 'ConceptMapResponse' })
+class ConceptMapResponse {
+  @JSONSchema({ description: 'GenAI job (original lecture) this map was generated from', type: 'string' })
+  @IsOptional()
+  @IsString()
+  jobId?: string;
+
+  @JSONSchema({ description: 'Course ID', type: 'string' })
+  @IsOptional()
+  @IsString()
+  courseId?: string;
+
+  @JSONSchema({ description: 'Course version ID', type: 'string' })
+  @IsOptional()
+  @IsString()
+  versionId?: string;
+
+  @JSONSchema({ description: 'Module ID the lecture was published into', type: 'string' })
+  @IsOptional()
+  @IsString()
+  moduleId?: string;
+
+  @JSONSchema({ description: 'Section ID the lecture was published into', type: 'string' })
+  @IsOptional()
+  @IsString()
+  sectionId?: string;
+
+  @JSONSchema({ description: 'Concept nodes', type: 'array' })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ConceptMapNodeResponse)
+  nodes: ConceptMapNodeResponse[];
+
+  @JSONSchema({ description: 'Prerequisite edges (from must be understood before to)', type: 'array' })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ConceptMapEdgeResponse)
+  edges: ConceptMapEdgeResponse[];
+
+  @JSONSchema({ description: 'True when produced by the deterministic no-LLM fallback', type: 'boolean' })
+  @IsOptional()
+  @IsBoolean()
+  fallback?: boolean;
+}
+
 export {
   JobType,
   GenAIResponse,
@@ -1072,11 +1190,21 @@ export {
   EditQuestionData,
   EditTranscript,
   TaskStatusdetailsResponse,
+  ConceptMapSectionParams,
+  ConceptMapJobParams,
+  ConceptMapNodeResponse,
+  ConceptMapEdgeResponse,
+  ConceptMapResponse,
 };
 
 export const GENAI_VALIDATORS = [
   JobType,
   ConceptMapParameters,
+  ConceptMapSectionParams,
+  ConceptMapJobParams,
+  ConceptMapNodeResponse,
+  ConceptMapEdgeResponse,
+  ConceptMapResponse,
   GenAIResponse,
   JobStatusResponse,
   JobBody,

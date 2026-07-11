@@ -207,6 +207,7 @@ ${numberedTranscript}`;
         description:
           typeof c.description === 'string' ? c.description.trim() : undefined,
         segmentEnd: this.segmentForChunk(chunks[chunkIndex], segmentMap),
+        anchorSeconds: chunks[chunkIndex].timestamp?.[0] ?? 0,
       });
     }
     const edges: ConceptMapEdgeData[] = rawEdges
@@ -310,6 +311,7 @@ ${numberedTranscript}`;
         label: this.labelFromText(chunk?.text ?? `Segment ${i + 1}`),
         description: this.sentenceFromText(chunk?.text ?? ''),
         segmentEnd,
+        anchorSeconds: chunk?.timestamp?.[0] ?? segmentStart,
       };
     });
 

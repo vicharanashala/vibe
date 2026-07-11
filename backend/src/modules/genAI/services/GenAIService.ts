@@ -31,6 +31,8 @@ import {
   UploadParameters,
 } from '../classes/transformers/GenAI.js';
 import { ConceptMapService } from './ConceptMapService.js';
+import { ConceptMapRepository } from '../repositories/providers/mongodb/ConceptMapRepository.js';
+import { ConceptMap } from '../classes/transformers/ConceptMap.js';
 import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
 import { CreateItemBody } from '#root/modules/courses/classes/index.js';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
@@ -69,6 +71,9 @@ export class GenAIService extends BaseService {
 
     @inject(GENAI_TYPES.ConceptMapService)
     private readonly conceptMapService: ConceptMapService,
+
+    @inject(GENAI_TYPES.ConceptMapRepo)
+    private readonly conceptMapRepository: ConceptMapRepository,
 
     @inject(GENAI_TYPES.GenAIRepository)
     private readonly genAIRepository: GenAIRepository,
@@ -1666,6 +1671,26 @@ export class GenAIService extends BaseService {
           jobId,
           session,
         );
+
+        // Publish the approved concept map (if this job generated one):
+        // resolve each node's segment anchor to the video item that segment
+        // just became. Failure here must never fail the upload itself.
+        try {
+          await this.publishConceptMap(
+            jobId,
+            jobData,
+            jobState,
+            taskDAta,
+            createdVideoItemsInfo,
+            session,
+          );
+        } catch (error) {
+          console.error(
+            `Failed to publish concept map for job ${jobId} (upload unaffected):`,
+            error,
+          );
+        }
+
         if (!taskDAta.uploadContent) {
           taskDAta.uploadContent = [{ status: TaskStatus.COMPLETED }];
         }
@@ -1718,5 +1743,83 @@ export class GenAIService extends BaseService {
         );
       }
     });
+  }
+
+  private async publishConceptMap(
+    jobId: string,
+    jobData: GenAIBody,
+    jobState: JobState,
+    taskData: TaskData,
+    createdVideoItemsInfo: Array<{ id?: string; segmentId: string }>,
+    session: any,
+  ): Promise<void> {
+    const latestMap = taskData.conceptMap
+      ?.filter(m => m.status === TaskStatus.COMPLETED && m.nodes?.length)
+      .pop();
+    if (!latestMap) {
+      return; // job has no approved map — feature is additive, skip silently
+    }
+    const uploadParams =
+      (jobState.parameters as UploadParameters) ?? jobData.uploadParameters;
+
+    // Nodes are anchored to the SEGMENTATION task's map; the upload loop may
+    // run on a slightly different rendering of the same boundaries (e.g.
+    // rounded values in segmentMapUsed). Segment ORDER is the stable
+    // identity, so resolve node → item by segment index in the map the
+    // concepts were generated against, falling back to nearest-boundary if
+    // the counts ever diverge (e.g. teacher edited the segment map between
+    // tasks).
+    const conceptSegMap =
+      taskData.segmentation?.[taskData.segmentation.length - 1]
+        ?.segmentationMap ?? jobState.segmentMap ?? [];
+    const uploadSegMap = jobState.segmentMap ?? [];
+
+    const itemForNode = (segmentEnd: number): string | undefined => {
+      let index = conceptSegMap.findIndex(v => v === segmentEnd);
+      if (index < 0 || index >= createdVideoItemsInfo.length) {
+        let best = -1;
+        let bestDist = Number.POSITIVE_INFINITY;
+        uploadSegMap.forEach((v, i) => {
+          const dist = Math.abs(Number(v) - segmentEnd);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = i;
+          }
+        });
+        index = best;
+      }
+      return index >= 0 ? createdVideoItemsInfo[index]?.id : undefined;
+    };
+    const conceptSegStart = (segmentEnd: number): number => {
+      const index = conceptSegMap.findIndex(v => v === segmentEnd);
+      return index > 0 ? Number(conceptSegMap[index - 1]) : 0;
+    };
+
+    const map: ConceptMap = {
+      jobId,
+      courseId: uploadParams.courseId,
+      versionId: uploadParams.versionId,
+      moduleId: uploadParams.moduleId,
+      sectionId: uploadParams.sectionId,
+      nodes: latestMap.nodes.map(n => {
+        const offset =
+          typeof n.anchorSeconds === 'number'
+            ? Math.max(0, n.anchorSeconds - conceptSegStart(n.segmentEnd))
+            : 0;
+        return {
+          id: n.id,
+          label: n.label,
+          description: n.description,
+          segmentEnd: n.segmentEnd,
+          videoItemId: itemForNode(n.segmentEnd),
+          offsetSeconds: Math.round(offset * 1000) / 1000,
+        };
+      }),
+      edges: (latestMap.edges ?? []).map(e => ({ from: e.from, to: e.to })),
+      fallback: latestMap.fallback,
+      modelUsed: latestMap.modelUsed,
+      createdAt: new Date(),
+    };
+    await this.conceptMapRepository.upsertForJob(map, session);
   }
 }

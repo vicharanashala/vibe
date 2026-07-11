@@ -7,8 +7,12 @@ export enum GenAIActions {
   Create = 'create',
   Modify = 'modify',
 }
-export type GenAIActionsType = GenAIActions | 'manage';
-export type GenAISubjectType = GenAIScope | 'GenAI';
+export enum ConceptMapActions {
+  View = 'view',
+  Preview = 'preview',
+}
+export type GenAIActionsType = GenAIActions | ConceptMapActions | 'manage';
+export type GenAISubjectType = GenAIScope | 'GenAI' | 'ConceptMap';
 export type GenAIAbility = [GenAIActionsType, GenAISubjectType];
 
 /**
@@ -22,6 +26,7 @@ export function setupGenAIAbilities(
 
   if (user.globalRole === 'admin') {
     can('manage', 'GenAI');
+    can('manage', 'ConceptMap');
     return;
   }
 
@@ -31,17 +36,26 @@ export function setupGenAIAbilities(
         const courseBounded = { courseId: enrollment.courseId };
         const versionBounded = { courseId: enrollment.courseId, versionId: enrollment.versionId };
 
+        // Any enrollment (students included) may view the published concept
+        // maps of that course version.
+        can(ConceptMapActions.View, 'ConceptMap', {
+          versionId: enrollment.versionId,
+        });
+
         switch (enrollment.role) {
             case 'MANAGER':
                 can('manage', 'GenAI', courseBounded);
+                can(ConceptMapActions.Preview, 'ConceptMap', courseBounded);
                 break;
             case 'INSTRUCTOR':
                 // Instructor == admin, scoped to their own courses.
                 can('manage', 'GenAI', courseBounded);
+                can(ConceptMapActions.Preview, 'ConceptMap', courseBounded);
                 break;
             case 'TA':
                 can(GenAIActions.Create, 'GenAI', versionBounded);
                 can(GenAIActions.Modify, 'GenAI', versionBounded);
+                can(ConceptMapActions.Preview, 'ConceptMap', versionBounded);
                 break;
             case 'STUDENT':
                 break;

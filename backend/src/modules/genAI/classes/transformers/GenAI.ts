@@ -132,6 +132,12 @@ export interface ConceptMapNodeData {
 	 * video item at UPLOAD_CONTENT time.
 	 */
 	segmentEnd: number;
+	/**
+	 * Absolute time (seconds into the original lecture) where the concept
+	 * is first explained — the start of its transcript chunk. Used at
+	 * publish time to compute the offset within the created video item.
+	 */
+	anchorSeconds?: number;
 }
 
 export interface ConceptMapEdgeData {
