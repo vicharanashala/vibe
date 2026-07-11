@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics } from '@/hooks/hooks';
-import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, LockOpen, Lock } from 'lucide-react';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics, useClosePeerReviewAssessment, usePeerReviewAssessmentByItemId, useUpdatePeerReviewAssessment, useTeacherSubmissionsForAssessment, useTeacherReviewsForAssessment, useTeacherOverrideReview } from '@/hooks/hooks';
+import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, LockOpen, Lock, ExternalLink } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
@@ -9,7 +9,7 @@ const MAX_DESCRIPTION_LENGTH = 1000;
 
 import {
   Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem,
-  SidebarMenuButton, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton,
+  SidebarMenuButton, SidebarMenuSub, SidebarMenuSubButton,
   SidebarInset, SidebarProvider, SidebarFooter, useSidebar,
   SidebarTrigger
 } from "@/components/ui/sidebar";
@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Reorder } from "motion/react";
+import { Reorder, AnimatePresence, motion } from "motion/react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,7 @@ import { toast } from "sonner";
 import Loader from "@/components/Loader";
 import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
+import { PeerReviewAssessmentForm } from "./components/PeerReviewAssessmentForm";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -144,8 +145,6 @@ function TeacherCourseContent() {
   const invitesRef = useRef<HTMLDivElement | null>(null);
   const [videoTab, setVideoTab] = useState("video");
   const [isReorderEnabled, setIsReorderEnabled] = useState(false);
-
-
 
   const handleLogout = () => {
     logout();
@@ -1062,18 +1061,292 @@ function TeacherCourseContent() {
     }
   }
 
+  /**
+   * Imperatively open a peer-review-assessment creation modal as plain DOM
+   * appended to document.body. Bypasses React's render cycle, useState,
+   * createPortal, and all the upstream-tree issues that were blocking the
+   * React-managed modal from rendering after a click.
+   *
+   * Step 1: backdrop + panel mounted imperatively to <body>.
+   * Step 2: fetch cohorts for the current course version from
+   *         /api/courses/{id}/versions/{id}/cohorts.
+   * Step 3: render a select. On select, render a minimal create form.
+   * Step 4: on submit, POST to /api/peer-review-assessments.
+   *
+   * If anything goes wrong an error string is shown inside the panel.
+   */
+  async function openPeerReviewAssessmentModalImperatively(args: {
+    moduleId: string;
+    sectionId: string;
+    courseId: string | null | undefined;
+    versionId: string | null | undefined;
+  }): Promise<void> {
+    const { moduleId, sectionId, courseId, versionId } = args;
+    // Ensure we're on the client.
+    if (typeof document === 'undefined' || typeof window === 'undefined') return;
+
+    const BACKEND_BASE = 'http://localhost:3141/api';
+    const token =
+      localStorage.getItem('firebase-auth-token') ||
+      (window as any).__authToken ||
+      '';
+
+    // Tear down any prior modal from previous clicks.
+    document.getElementById('__pr_imperative_modal__')?.remove();
+
+    // Build the backdrop + panel skeleton.
+    const overlay = document.createElement('div');
+    overlay.id = '__pr_imperative_modal__';
+    overlay.style.cssText = [
+      'position: fixed',
+      'inset: 0',
+      'background: rgba(15, 23, 42, 0.6)',
+      'z-index: 2147483647',
+      'display: flex',
+      'align-items: center',
+      'justify-content: center',
+      'padding: 1rem',
+      'overflow-y: auto',
+    ].join(';');
+
+    const panel = document.createElement('div');
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-label', 'Peer-Review Assessment');
+    panel.style.cssText = [
+      'background: white',
+      'border-radius: 12px',
+      'width: 100%',
+      'max-width: 800px',
+      'max-height: 90vh',
+      'overflow-y: auto',
+      'padding: 24px',
+      'box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25)',
+    ].join(';');
+
+    panel.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;font-size:20px;font-weight:600;">Peer-Review Assessment</h2>
+        <button type="button" id="__pr_imperative_modal_close__" aria-label="Close"
+          style="background:transparent;border:none;font-size:24px;cursor:pointer;line-height:1;padding:4px;">×</button>
+      </div>
+      <div id="__pr_imperative_modal_body__"><p>Loading...</p></div>
+    `;
+
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    // Close on backdrop or × click.
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.remove();
+    });
+    panel.querySelector('#__pr_imperative_modal_close__')?.addEventListener('click', () => overlay.remove());
+
+    const body = panel.querySelector('#__pr_imperative_modal_body__') as HTMLElement;
+    body.innerHTML = '<p>Loading cohorts...</p>';
+
+    // Step 1: require a versionId — without it the modal can't ask the backend for cohorts.
+    if (!versionId) {
+      body.innerHTML = '<p style="color:#b91c1c;">No version selected. Open the course and try again.</p>';
+      return;
+    }
+
+    // Step 2: fetch cohorts.
+    let cohorts: Array<{ id: string; name: string }> = [];
+    try {
+      const cohortsRes = await fetch(
+        `${BACKEND_BASE}/courses/${encodeURIComponent(courseId || '')}/versions/${encodeURIComponent(versionId)}/cohorts`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!cohortsRes.ok) throw new Error(`Cohorts request failed: ${cohortsRes.status}`);
+      const cohortsData = await cohortsRes.json();
+      // The endpoint returns { cohorts: [...] } OR { data: [...] }
+      const list =
+        cohortsData?.cohorts || cohortsData?.data?.cohorts || cohortsData?.data || [];
+      cohorts = list.map((c: any) => ({ id: String(c.id ?? c._id), name: String(c.name) })).filter(c => c.id);
+    } catch (e: any) {
+      body.innerHTML = `<p style="color:#b91c1c;">Failed to load cohorts: ${String(e?.message || e)}</p>
+        <p>The backend at <code>${BACKEND_BASE}</code> may be unreachable or your session may have expired. Refresh the page and try again.</p>`;
+      return;
+    }
+
+    // Step 3: render form.
+    if (cohorts.length === 0) {
+      body.innerHTML = `
+        <p style="color:#b91c1c;">No cohorts exist on this course version yet.</p>
+        <p>Create a cohort first (Course → HP System → Cohorts), then come back here.</p>`;
+      return;
+    }
+
+    const defaultTitle = 'Peer-Review Assessment';
+    const defaultDesc = '';
+    const sevenDaysFromNow = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16);
+
+    body.innerHTML = `
+      <p style="margin:0 0 16px 0;color:#475569;font-size:14px;">Creating a peer-review assessment in this section. Students in the chosen cohort will be paired to review each other.</p>
+      <label style="display:block;margin-bottom:12px;">
+        <span style="display:block;font-weight:600;margin-bottom:4px;">Title</span>
+        <input id="__pr_title__" type="text" value="${defaultTitle}"
+          style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;" />
+      </label>
+      <label style="display:block;margin-bottom:12px;">
+        <span style="display:block;font-weight:600;margin-bottom:4px;">Description</span>
+        <textarea id="__pr_desc__" rows="3"
+          style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">${defaultDesc}</textarea>
+      </label>
+      <label style="display:block;margin-bottom:12px;">
+        <span style="display:block;font-weight:600;margin-bottom:4px;">Cohort</span>
+        <select id="__pr_cohort__" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
+          ${cohorts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+        </select>
+      </label>
+      <label style="display:block;margin-bottom:12px;">
+        <span style="display:block;font-weight:600;margin-bottom:4px;">Submission deadline</span>
+        <input id="__pr_deadline__" type="datetime-local" value="${sevenDaysFromNow}"
+          style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;" />
+      </label>
+      <label style="display:block;margin-bottom:12px;">
+        <span style="display:block;font-weight:600;margin-bottom:4px;">Reviews per submission (and per reviewer)</span>
+        <input id="__pr_reviews__" type="number" min="1" max="5" value="3"
+          style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;" />
+      </label>
+      <label style="display:block;margin-bottom:12px;">
+        <span style="display:block;font-weight:600;margin-bottom:4px;">Review window (days after deadline)</span>
+        <input id="__pr_window__" type="number" min="1" max="60" value="7"
+          style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;" />
+      </label>
+      <div id="__pr_error__" style="color:#b91c1c;margin-top:8px;display:none;"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+        <button type="button" id="__pr_cancel__"
+          style="padding:8px 16px;border:1px solid #cbd5e1;border-radius:6px;background:white;cursor:pointer;font-size:14px;">Cancel</button>
+        <button type="button" id="__pr_save__"
+          style="padding:8px 16px;border:none;border-radius:6px;background:linear-gradient(135deg,#fbbf24,#ec4899);color:black;font-weight:600;cursor:pointer;font-size:14px;">Create Assessment</button>
+      </div>
+    `;
+
+    body.querySelector('#__pr_cancel__')?.addEventListener('click', () => overlay.remove());
+    const errEl = body.querySelector('#__pr_error__') as HTMLElement;
+
+    body.querySelector('#__pr_save__')?.addEventListener('click', async () => {
+      const titleEl = body.querySelector('#__pr_title__') as HTMLInputElement;
+      const descEl = body.querySelector('#__pr_desc__') as HTMLTextAreaElement;
+      const cohortEl = body.querySelector('#__pr_cohort__') as HTMLSelectElement;
+      const dlEl = body.querySelector('#__pr_deadline__') as HTMLInputElement;
+      const reviewsEl = body.querySelector('#__pr_reviews__') as HTMLInputElement;
+      const windowEl = body.querySelector('#__pr_window__') as HTMLInputElement;
+
+      const title = (titleEl?.value || '').trim() || defaultTitle;
+      const description = (descEl?.value || '').trim();
+      const cohortId = cohortEl?.value || '';
+      const submissionDeadline = dlEl?.value || '';
+      const reviews = Math.max(1, Math.min(5, Number(reviewsEl?.value) || 3));
+      const windowDays = Math.max(1, Math.min(60, Number(windowEl?.value) || 7));
+
+      if (!cohortId || !submissionDeadline) {
+        errEl.textContent = 'Please choose a cohort and a submission deadline.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      errEl.textContent = 'Creating...';
+      errEl.style.color = '#0369a1';
+      errEl.style.display = 'block';
+
+      try {
+        // Step 4: POST the assessment. The endpoint accepts the field name
+        // shape that PeerReviewAssessmentService expects (rubric, deadlines,
+        // cohortId, etc.). Mirror what the React form would have sent.
+        const isoSubmissionDeadline = new Date(submissionDeadline).toISOString();
+        const reviewDeadline = new Date(
+          new Date(submissionDeadline).getTime() + windowDays * 86400000,
+        ).toISOString();
+        const payload = {
+          title,
+          description,
+          itemName: title,
+          itemDescription: description,
+          cohortId,
+          submissionDeadline: isoSubmissionDeadline,
+          reviewDeadline,
+          reviewWindowDays: windowDays,
+          teacherManualReviewEnabled: true,
+          notificationsEnabled: true,
+          latePolicy: 'penalty-only',
+          latePenaltyPercent: 10,
+          antiCollusionMode: 'circular-shift-collision-check',
+          reviewsPerSubmission: reviews,
+          reviewsPerReviewer: reviews,
+          rubric: [
+            { label: 'Code Quality', maxPoints: 25 },
+            { label: 'Functionality', maxPoints: 50 },
+            { label: 'Documentation', maxPoints: 15 },
+            { label: 'Creativity', maxPoints: 10 },
+          ],
+          moduleId,
+          sectionId,
+          courseId,
+          courseVersionId: versionId,
+        };
+        const res = await fetch(`${BACKEND_BASE}/peer-review-assessments`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(`Create failed: ${res.status} — ${txt.slice(0, 300)}`);
+        }
+        const created = await res.json();
+        // Success: tear down the modal and reload the course sections so the
+        // new item shows up in the sidebar.
+        overlay.remove();
+        try { window.location.reload(); } catch {}
+      } catch (e: any) {
+        errEl.textContent = String(e?.message || e);
+        errEl.style.color = '#b91c1c';
+        errEl.style.display = 'block';
+      }
+    });
+  }
+
   // Add Item (handles all item types including video, quiz, article, and project)
   const handleAddItem = (moduleId: string, sectionId: string, type: string, videoData?: any) => {
     if (!versionId) return;
 
-    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
+    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK" | "PEER_REVIEW_ASSESSMENT";
     const typeMap: Record<string, ItemType> = {
       video: "VIDEO",
       quiz: "QUIZ",
       article: "BLOG",
       project: "PROJECT",
-      feedback: "FEEDBACK"
+      feedback: "FEEDBACK",
+      'peer-review': "PEER_REVIEW_ASSESSMENT",
     };
+
+    // Peer-review assessments: render an imperative DOM modal that bypasses
+    // React's render / portal / state cycle entirely. After hours of debugging
+    // a no-op "click does nothing" symptom where state setters ran but JSX
+    // never re-rendered, this is the only path I trust. The modal is plain
+    // HTML attached to document.body directly. It calls the backend REST
+    // endpoints we already have working (cohort list + assessment create).
+    if (type === 'peer-review') {
+      void openPeerReviewAssessmentModalImperatively({ moduleId, sectionId, courseId, versionId });
+      return;
+    }
+
+    // Peer-review assessments: render an imperative DOM modal that bypasses
+    // React's render / portal / state cycle entirely. After hours of debugging
+    // a no-op "click does nothing" symptom where state setters ran but JSX
+    // never re-rendered, this is the only path I trust. The modal is plain
+    // HTML attached to document.body directly. It calls the backend REST
+    // endpoints we already have working (cohort list + assessment create).
+    if (type === 'peer-review') {
+      void openPeerReviewAssessmentModalImperatively({ moduleId, sectionId, courseId, versionId });
+      return;
+    }
 
     // Handle video items
     if (type === "VIDEO" && videoData) {
@@ -1961,16 +2234,25 @@ function TeacherCourseContent() {
                                         <span className="sr-only">Hide Section</span>
                                       </Button>
 
-                                      {expandedSections[section.sectionId] && (
-                                        <Reorder.Group
-                                          axis="y"
-                                          values={sectionItems[section.sectionId] || []}
-                                          onReorder={(newItemOrder) => {
-                                            //
-                                            pendingOrderItems.current[section.sectionId] = newItemOrder;
-                                            //
-                                          }}
-                                        >
+                                      <AnimatePresence initial={false}>
+                                        {expandedSections[section.sectionId] && (
+                                          <motion.div
+                                            key="items"
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.18, ease: 'easeOut' }}
+                                            style={{ overflow: 'hidden' }}
+                                          >
+                                          <Reorder.Group
+                                            axis="y"
+                                            values={sectionItems[section.sectionId] || []}
+                                            onReorder={(newItemOrder) => {
+                                              //
+                                              pendingOrderItems.current[section.sectionId] = newItemOrder;
+                                              //
+                                            }}
+                                          >
                                           <SidebarMenuSub className="ml-4 space-y-1 pt-1">
                                             {itemsLoading && activeSectionInfo?.sectionId === section.sectionId ? (
                                               <div className="flex items-center justify-center py-4">
@@ -2003,8 +2285,19 @@ function TeacherCourseContent() {
                                                     handleMoveItem(module.moduleId, section.sectionId, item._id, versionId);
                                                   }}
                                                 >
-                                                  <SidebarMenuSubItem key={item._id}>
-                                                    <SidebarMenuSubButton
+                                                {/* Inline <SidebarMenuSubItem> attrs here instead of using the
+                                                    component, because <Reorder.Item> already renders an <li>
+                                                    and nesting <SidebarMenuSubItem>'s <li> inside it caused
+                                                    the "In HTML, <li> cannot be a descendant of <li>" hydration
+                                                    error that broke the whole React tree (manifesting as the
+                                                    "Add Item -> Peer Review Assessment" click being a no-op). */}
+                                                <div
+                                                  key={item._id}
+                                                  data-slot="sidebar-menu-sub-item"
+                                                  data-sidebar="menu-sub-item"
+                                                  className="group/menu-sub-item relative"
+                                                >
+                                                  <SidebarMenuSubButton
                                                       className={`justify-start ${selectedItem.name === getItemLabel({
                                                         itemId: item._id,
                                                         itemType: item.type,
@@ -2109,7 +2402,7 @@ function TeacherCourseContent() {
                                                         <span className="sr-only">View student questions</span>
                                                       </Button>
                                                     )}
-                                                  </SidebarMenuSubItem>
+                                                  </div>
                                                 </Reorder.Item>
                                               ))}
                                             <div className="ml-6 mt-2">
@@ -2298,6 +2591,7 @@ function TeacherCourseContent() {
                                                 >
                                                   {hasExistingProject ? 'Project (Limit 1 per course)' : 'Project'}
                                                 </option>
+                                                <option value="peer-review">Peer Review Assessment</option>
                                                 <option value="csv_upload">Upload CSV</option>
 
                                               </select>
@@ -2410,9 +2704,11 @@ function TeacherCourseContent() {
                                               </TooltipProvider>
                                             </div>
 
-                                          </SidebarMenuSub>
-                                        </Reorder.Group>
-                                      )}
+                                           </SidebarMenuSub>
+                                          </Reorder.Group>
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
                                     </div>
                                   </Reorder.Item>
                                 ))}
@@ -3465,6 +3761,21 @@ function TeacherCourseContent() {
                           }}
                         />
                       )}
+                      {selectedEntity.type === "item" && selectedEntity.data.type === "PEER_REVIEW_ASSESSMENT" && (
+                        <PeerReviewTeacherPanel
+                          itemId={selectedEntity.data._id}
+                          itemName={selectedItem.name}
+                          onAfterClose={() => {
+                            refetchVersion();
+                            refetchItems();
+                          }}
+                          onAfterDelete={() => {
+                            refetchVersion();
+                            refetchItems();
+                            setSelectedEntity(null);
+                          }}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -4003,7 +4314,11 @@ export function UserAnalytics({
 
 
 
-          {/* Pagination (buttons should use bg-primary inside your Pagination component) */}
+          {/* Peer-review assessment creation: rendered imperatively via
+              openPeerReviewAssessmentModalImperatively() (called from
+              handleAddItem). The vanilla-DOM modal lives in document.body
+              and does NOT depend on React's render cycle. See the function
+              body for the full rationale + the cohorts/create flow. */}
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -4014,6 +4329,860 @@ export function UserAnalytics({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function PeerReviewTeacherPanel({
+  itemId,
+  itemName,
+  onAfterClose,
+  onAfterDelete,
+}: {
+  itemId: string;
+  itemName: string;
+  onAfterClose?: () => void;
+  onAfterDelete?: () => void;
+}) {
+  const queryResult = usePeerReviewAssessmentByItemId(itemId);
+  const { data: assessment, isLoading } = queryResult as any;
+  const refetchAssessment = (queryResult as any).refetch;
+  const closeMutation = useClosePeerReviewAssessment();
+  const updateMutation = useUpdatePeerReviewAssessment();
+
+  // Local edit state. Initialized from the loaded assessment, kept in
+  // sync via a useEffect when the assessment re-loads after a save.
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editRubric, setEditRubric] = useState<
+    Array<{ criterionId: string; label: string; maxPoints: number }>
+  >([]);
+  const [editSubmissionDeadline, setEditSubmissionDeadline] = useState('');
+  const [editReviewWindowDays, setEditReviewWindowDays] = useState(7);
+  const [editLatePolicy, setEditLatePolicy] = useState<'penalty-only' | 'hard-exclude'>('penalty-only');
+  const [editLatePenaltyPercent, setEditLatePenaltyPercent] = useState(10);
+  const [editTeacherManualReviewEnabled, setEditTeacherManualReviewEnabled] = useState(false);
+  const [editNotificationsEnabled, setEditNotificationsEnabled] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (!assessment || hydrated) return;
+    const a = assessment as any;
+    setEditTitle(a.title ?? '');
+    setEditDescription(a.description ?? '');
+    setEditRubric(
+      Array.isArray(a.rubric)
+        ? a.rubric.map((c: any) => ({
+            criterionId: String(c.criterionId),
+            label: String(c.label ?? ''),
+            maxPoints: Number(c.maxPoints ?? 0),
+          }))
+        : [],
+    );
+    setEditSubmissionDeadline(
+      a.submissionDeadline
+        ? new Date(a.submissionDeadline).toISOString().slice(0, 16)
+        : '',
+    );
+    setEditReviewWindowDays(
+      Number(a.config?.reviewWindowDays ?? 7),
+    );
+    setEditLatePolicy(
+      (a.config?.latePolicy as 'penalty-only' | 'hard-exclude') ??
+        'penalty-only',
+    );
+    setEditLatePenaltyPercent(Number(a.config?.latePenaltyPercent ?? 10));
+    setEditTeacherManualReviewEnabled(
+      !!a.config?.teacherManualReviewEnabled,
+    );
+    setEditNotificationsEnabled(!!a.config?.notificationsEnabled);
+    setHydrated(true);
+  }, [assessment, hydrated]);
+
+  const isClosed = !!(assessment as any)?.closedAt;
+  const submissionCount = (assessment as any)?.submissionsCount;
+
+  const totalRubricPoints = editRubric.reduce(
+    (acc, c) => acc + (Number.isFinite(c.maxPoints) ? c.maxPoints : 0),
+    0,
+  );
+
+  const addRubricRow = () => {
+    setEditRubric(prev => [
+      ...prev,
+      { criterionId: `new-${Date.now()}`, label: '', maxPoints: 10 },
+    ]);
+  };
+
+  const updateRubricRow = (
+    idx: number,
+    patch: Partial<{ label: string; maxPoints: number }>,
+  ) => {
+    setEditRubric(prev =>
+      prev.map((row, i) => (i === idx ? { ...row, ...patch } : row)),
+    );
+  };
+
+  const removeRubricRow = (idx: number) => {
+    setEditRubric(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const canSaveAssessment =
+    editTitle.trim().length >= 3 &&
+    editRubric.length >= 1 &&
+    editRubric.every(c => c.label.trim().length > 0 && c.maxPoints > 0) &&
+    editSubmissionDeadline.length > 0;
+
+  const handleSave = async () => {
+    const aid = (assessment as any)?._id ?? (assessment as any)?.assessmentId;
+    if (!aid) {
+      toast.error('Assessment id missing');
+      return;
+    }
+    try {
+      await updateMutation.mutateAsync({
+        params: { path: { id: String(aid) } },
+        body: {
+          title: editTitle.trim(),
+          description: editDescription,
+          rubric: editRubric.map(c => ({
+            criterionId: c.criterionId.startsWith('new-')
+              ? undefined
+              : c.criterionId,
+            label: c.label,
+            maxPoints: c.maxPoints,
+          })),
+          submissionDeadline: new Date(editSubmissionDeadline).toISOString(),
+          reviewWindowDays: editReviewWindowDays,
+          latePolicy: editLatePolicy,
+          latePenaltyPercent: editLatePenaltyPercent,
+          teacherManualReviewEnabled: editTeacherManualReviewEnabled,
+          notificationsEnabled: editNotificationsEnabled,
+        },
+      } as any);
+      toast.success('Assessment updated');
+      setHydrated(false); // re-hydrate from server response
+      refetchAssessment?.();
+    } catch (e: any) {
+      toast.error('Save failed: ' + (e?.message || 'unknown error'));
+    }
+  };
+
+  const handleClose = async () => {
+    const aid = (assessment as any)?._id ?? (assessment as any)?.assessmentId;
+    if (!aid) {
+      toast.error('Assessment id missing — cannot close');
+      return;
+    }
+    if (
+      !window.confirm(
+        `End the submission window for "${editTitle || itemName}"? This will:\n` +
+          `  • Stamp closedAt on the assessment\n` +
+          `  • Run the peer-review assignment algorithm inline\n` +
+          `  • Send each submitter a "Submissions closed" notification\n` +
+          `  • Send each reviewer a "You have N reviews to complete" notification`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await closeMutation.mutateAsync({
+        params: { path: { id: String(aid) } },
+      } as any);
+      toast.success(
+        'Submissions closed. Reviewer assignments + notifications fired.',
+      );
+      refetchAssessment?.();
+      onAfterClose?.();
+    } catch (e: any) {
+      toast.error('Failed to close: ' + (e?.message || 'unknown error'));
+    }
+  };
+
+  const handleDelete = async () => {
+    const aid = (assessment as any)?._id ?? (assessment as any)?.assessmentId;
+    if (!aid) {
+      toast.error('Assessment id missing — cannot delete');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Delete the peer-review assessment "${editTitle || itemName}"?\n\n` +
+          `This removes the item from the section and deletes its assessment record.\n` +
+          `It is only allowed if no student has submitted yet — once students have submitted, ` +
+          `deletion would break the audit trail and the assessment can no longer be removed.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      const BACKEND_BASE =
+        (import.meta as any).env?.VITE_BACKEND_BASE_URL || '';
+      const token = (useAuthStore.getState() as any)?.token;
+      const res = await fetch(`${BACKEND_BASE}/api/peer-review-assessments/${aid}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token ?? ''}` },
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || `HTTP ${res.status}`);
+      }
+      toast.success('Assessment deleted');
+      onAfterDelete?.();
+      onAfterClose?.();
+    } catch (e: any) {
+      toast.error('Delete failed: ' + (e?.message || 'unknown error'));
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 text-sm text-muted-foreground">Loading assessment…</div>
+    );
+  }
+
+  if (!assessment) {
+    return (
+      <div className="p-6">
+        <div className="rounded-md border border-destructive/20 bg-destructive/5 p-4">
+          <p className="text-sm font-medium text-destructive">
+            No peer-review assessment found for this item.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Delete this item and recreate the assessment via the "Peer Review"
+            add-item flow.
+          </p>
+        </div>
+        <button
+          onClick={handleDelete}
+          className="mt-4 inline-flex items-center justify-center rounded-md border border-destructive/40 text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/5"
+        >
+          Attempt delete (will fail if mismatched)
+        </button>
+      </div>
+    );
+  }
+
+  const submissionDeadlinePreview = editSubmissionDeadline
+    ? new Date(editSubmissionDeadline).toLocaleString()
+    : '—';
+  const reviewDeadlinePreview = editSubmissionDeadline
+    ? new Date(
+        new Date(editSubmissionDeadline).getTime() +
+          editReviewWindowDays * 24 * 60 * 60 * 1000,
+      ).toLocaleString()
+    : '—';
+
+  const aid = (assessment as any)?._id ?? (assessment as any)?.assessmentId;
+
+  return (
+    <div className="p-6 space-y-5">
+      {/* Header — title + description */}
+      <div className="space-y-2">
+        <Label htmlFor="pr-title">Title</Label>
+        <Input
+          id="pr-title"
+          value={editTitle}
+          disabled={isClosed}
+          onChange={e => setEditTitle(e.target.value)}
+          placeholder="Peer-review assessment title"
+          maxLength={200}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="pr-desc">Description</Label>
+        <textarea
+          id="pr-desc"
+          value={editDescription}
+          disabled={isClosed}
+          onChange={e => setEditDescription(e.target.value)}
+          placeholder="Instructions for students"
+          maxLength={2000}
+          className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        />
+      </div>
+
+      {/* Deadlines + window */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+          <Label htmlFor="pr-submission-deadline" className="text-xs uppercase tracking-wide text-muted-foreground">
+            Submission deadline
+          </Label>
+          <Input
+            id="pr-submission-deadline"
+            type="datetime-local"
+            disabled={isClosed}
+            value={editSubmissionDeadline}
+            onChange={e => setEditSubmissionDeadline(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">{submissionDeadlinePreview}</p>
+        </div>
+        <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+          <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+            Review window (days)
+          </Label>
+          <Input
+            type="number"
+            min={1}
+            max={60}
+            disabled={isClosed}
+            value={editReviewWindowDays}
+            onChange={e =>
+              setEditReviewWindowDays(Math.max(1, Number(e.target.value) || 7))
+            }
+          />
+          <p className="text-xs text-muted-foreground">
+            Review deadline: {reviewDeadlinePreview}
+          </p>
+        </div>
+      </div>
+
+      {/* Read-only stats */}
+      <div className="grid grid-cols-3 gap-4 text-sm">
+        <div className="rounded-md border bg-muted/20 p-3">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Reviews per submission
+          </p>
+          <p className="font-medium mt-1">
+            {(assessment as any).config?.reviewsPerSubmission ?? '—'}
+          </p>
+          <p className="text-xs text-muted-foreground">Set at create time</p>
+        </div>
+        <div className="rounded-md border bg-muted/20 p-3">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Submissions
+          </p>
+          <p className="font-medium mt-1">
+            {submissionCount === undefined ? '—' : submissionCount}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {isClosed ? 'Window closed' : 'Updating live'}
+          </p>
+        </div>
+        <div className="rounded-md border bg-muted/20 p-3">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Status
+          </p>
+          <p className="font-medium mt-1">
+            {isClosed ? 'Closed' : 'Open'}
+          </p>
+          {isClosed && (
+            <p className="text-xs text-muted-foreground">
+              {new Date((assessment as any).closedAt).toLocaleString()}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Rubric */}
+      <div className="rounded-md border bg-card p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Rubric ({totalRubricPoints} pts total)
+          </p>
+          <button
+            type="button"
+            onClick={addRubricRow}
+            disabled={isClosed}
+            className="text-xs px-2 py-1 rounded border border-input hover:bg-accent disabled:opacity-50"
+          >
+            + Add criterion
+          </button>
+        </div>
+        {editRubric.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No rubric yet. Add at least one criterion to score by.
+          </p>
+        ) : (
+          <ul className="text-sm space-y-2">
+            {editRubric.map((c, idx) => (
+              <li key={idx} className="flex gap-2 items-center">
+                <Input
+                  value={c.label}
+                  disabled={isClosed}
+                  onChange={e =>
+                    updateRubricRow(idx, { label: e.target.value })
+                  }
+                  placeholder="Criterion label"
+                  className="flex-1"
+                />
+                <Input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  disabled={isClosed}
+                  value={c.maxPoints}
+                  onChange={e =>
+                    updateRubricRow(idx, {
+                      maxPoints: Math.max(1, Number(e.target.value) || 1),
+                    })
+                  }
+                  className="w-24"
+                />
+                <span className="text-xs text-muted-foreground w-8">pts</span>
+                <button
+                  type="button"
+                  onClick={() => removeRubricRow(idx)}
+                  disabled={isClosed}
+                  className="text-xs px-2 py-1 rounded text-destructive border border-destructive/30 hover:bg-destructive/5 disabled:opacity-50"
+                  title="Remove this criterion"
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Late policy + notifications + manual review */}
+      <div className="rounded-md border bg-card p-4 space-y-3">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          Policy
+        </p>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="space-y-2">
+            <Label htmlFor="pr-late-policy">Late submission policy</Label>
+            <select
+              id="pr-late-policy"
+              disabled={isClosed}
+              value={editLatePolicy}
+              onChange={e =>
+                setEditLatePolicy(
+                  e.target.value as 'penalty-only' | 'hard-exclude',
+                )
+              }
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="penalty-only">Penalty only</option>
+              <option value="hard-exclude">Hard exclude from review</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pr-late-percent">Late penalty (%)</Label>
+            <Input
+              id="pr-late-percent"
+              type="number"
+              min={0}
+              max={100}
+              disabled={isClosed || editLatePolicy !== 'penalty-only'}
+              value={editLatePenaltyPercent}
+              onChange={e =>
+                setEditLatePenaltyPercent(
+                  Math.max(0, Math.min(100, Number(e.target.value) || 0)),
+                )
+              }
+            />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 pt-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              disabled={isClosed}
+              checked={editTeacherManualReviewEnabled}
+              onChange={e =>
+                setEditTeacherManualReviewEnabled(e.target.checked)
+              }
+            />
+            <span>
+              Allow teacher manual review (teacher can override scores)
+            </span>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              disabled={isClosed}
+              checked={editNotificationsEnabled}
+              onChange={e => setEditNotificationsEnabled(e.target.checked)}
+            />
+            <span>Send notifications (submitters + reviewers)</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Save button */}
+      <div className="flex items-center justify-between gap-3 sticky bottom-0 bg-background/95 backdrop-blur py-2 -mx-6 px-6 border-t">
+        <div className="text-xs text-muted-foreground">
+          {isClosed
+            ? 'Locked — close time has passed; further edits are disabled.'
+            : 'Edits apply until the submission window closes.'}
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={isClosed || !canSaveAssessment || updateMutation.isPending}
+          className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+
+      {/* Submission window */}
+      <div className="rounded-md border bg-card p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-medium">Submission window</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isClosed
+                ? `Closed at ${new Date((assessment as any).closedAt).toLocaleString()}. Assignments were generated and notifications fired at close time.`
+                : 'Open. When you close, the assignment algorithm runs and every submitter and reviewer gets notified.'}
+            </p>
+          </div>
+          <button
+            onClick={handleClose}
+            disabled={isClosed || closeMutation.isPending}
+            className="shrink-0 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {closeMutation.isPending
+              ? 'Closing…'
+              : isClosed
+                ? 'Closed'
+                : 'Close submissions now'}
+          </button>
+        </div>
+      </div>
+
+      {/* Student Submissions & Scores section */}
+      {aid && (
+        <PeerReviewSubmissionsSection
+          assessmentId={String(aid)}
+          rubric={editRubric}
+          teacherManualReviewEnabled={editTeacherManualReviewEnabled}
+        />
+      )}
+
+      {/* Danger zone */}
+      <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-medium text-destructive">Danger zone</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {submissionCount > 0
+                ? 'Cannot delete — students have already submitted and this assessment is part of their audit trail.'
+                : 'Permanently remove this peer-review assessment from the section. Only allowed before any student has submitted.'}
+            </p>
+          </div>
+          <button
+            onClick={handleDelete}
+            disabled={(submissionCount ?? 0) > 0 || isClosed || updateMutation.isPending}
+            className="shrink-0 inline-flex items-center justify-center rounded-md border border-destructive/50 text-destructive px-4 py-2 text-sm font-medium hover:bg-destructive/10 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Delete assessment
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PeerReviewSubmissionsSection({
+  assessmentId,
+  rubric,
+  teacherManualReviewEnabled,
+}: {
+  assessmentId: string;
+  rubric: Array<{ criterionId: string; label: string; maxPoints: number }>;
+  teacherManualReviewEnabled: boolean;
+}) {
+  const { data, isLoading, error, refetch } = useTeacherSubmissionsForAssessment(assessmentId);
+  const reviewsQueryResult = useTeacherReviewsForAssessment(assessmentId);
+  const overrideMutation = useTeacherOverrideReview();
+  const [expandedSubmissionId, setExpandedSubmissionId] = useState<string | null>(null);
+
+  // Override Form state
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [overrideScores, setOverrideScores] = useState<Record<string, number>>({});
+  const [overrideComment, setOverrideComment] = useState('');
+  const [overrideReason, setOverrideReason] = useState('');
+
+  if (isLoading || reviewsQueryResult.isLoading) {
+    return <div className="text-sm text-muted-foreground p-4">Loading submissions & reviews…</div>;
+  }
+
+  if (error || reviewsQueryResult.error) {
+    return <div className="text-sm text-destructive p-4">Failed to load submissions: {error || reviewsQueryResult.error}</div>;
+  }
+
+  const submissions = data?.submissions ?? [];
+  const reviews = reviewsQueryResult.data?.reviews ?? [];
+
+  const handleStartOverride = (review: any) => {
+    setEditingReviewId(review.reviewId);
+    setOverrideComment(review.overallComment || '');
+    setOverrideReason('');
+    const scoresMap: Record<string, number> = {};
+    for (const s of review.scores || []) {
+      scoresMap[s.criterionId] = s.score;
+    }
+    setOverrideScores(scoresMap);
+  };
+
+  const handleSaveOverride = async (reviewId: string) => {
+    if (overrideReason.trim().length < 20) {
+      toast.error('Override reason must be at least 20 characters.');
+      return;
+    }
+    try {
+      const scoresPayload = Object.entries(overrideScores).map(([cid, val]) => ({
+        criterionId: cid,
+        score: val,
+      }));
+
+      await overrideMutation.mutateAsync({
+        params: { path: { id: reviewId } },
+        body: {
+          scores: scoresPayload,
+          overallComment: overrideComment.trim(),
+          reason: overrideReason.trim(),
+        },
+      });
+
+      toast.success('Score overridden successfully');
+      setEditingReviewId(null);
+      refetch();
+      reviewsQueryResult.refetch();
+    } catch (e: any) {
+      toast.error('Override failed: ' + (e?.message || 'unknown error'));
+    }
+  };
+
+  return (
+    <Card className="border bg-card">
+      <CardHeader>
+        <CardTitle className="text-base font-semibold">Student Submissions & Scores</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {submissions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No student submissions yet.</p>
+        ) : (
+          <div className="divide-y divide-border border rounded-lg bg-background">
+            {submissions.map((sub: any) => {
+              const isExpanded = expandedSubmissionId === sub.submissionId;
+              const subReviews = reviews.filter((r: any) => r.submissionId === sub.submissionId);
+
+              return (
+                <div key={sub.submissionId} className="p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="font-semibold text-sm">{sub.studentName}</h4>
+                      <p className="text-xs text-muted-foreground">{sub.studentEmail}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Submitted: {new Date(sub.submittedAt).toLocaleString()}
+                        {sub.isLate && <Badge variant="destructive" className="ml-2 py-0">Late</Badge>}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="text-xs text-muted-foreground">Review Progress</div>
+                        <div className="text-sm font-medium">
+                          {sub.reviewsCompleted} of {sub.reviewsTotal} reviews
+                        </div>
+                      </div>
+                      <div className="text-right border-l pl-3">
+                        <div className="text-xs text-muted-foreground">Final Score</div>
+                        <div className="text-sm font-bold text-primary font-mono">
+                          {sub.finalScore !== null ? `${sub.finalScore} pts` : 'Pending'}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setExpandedSubmissionId(isExpanded ? null : sub.submissionId)}
+                      >
+                        {isExpanded ? 'Hide' : 'View'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="pl-4 border-l-2 border-primary/20 space-y-4 pt-2">
+                      {/* Submission links/notes */}
+                      <div className="bg-muted/30 rounded p-3 text-xs space-y-1.5">
+                        <p className="font-semibold">Notes:</p>
+                        <p className="whitespace-pre-wrap">{sub.notes || '(No notes provided)'}</p>
+                        {sub.links && sub.links.length > 0 && (
+                          <div className="pt-1.5">
+                            <p className="font-semibold">Links:</p>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {sub.links.map((link: any, idx: number) => (
+                                <a
+                                  key={idx}
+                                  href={link.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 underline hover:text-blue-800 flex items-center gap-1"
+                                >
+                                  {link.label || link.url} <ExternalLink className="h-3 w-3" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Reviews received list */}
+                      <div className="space-y-3">
+                        <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Reviews Received ({subReviews.length})</h5>
+                        {subReviews.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No reviews submitted yet.</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {subReviews.map((rev: any) => {
+                              const isEditing = editingReviewId === rev.reviewId;
+                              return (
+                                <div key={rev.reviewId} className="border rounded p-3 bg-muted/10 space-y-2 text-xs">
+                                  <div className="flex items-center justify-between border-b pb-1.5">
+                                    <div>
+                                      <span className="font-semibold">Reviewer: {rev.reviewerName}</span>
+                                      <span className="text-muted-foreground ml-2">({rev.reviewerEmail})</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {rev.teacherOverridden && <Badge variant="destructive" className="py-0">Overridden</Badge>}
+                                      {rev.isLate && <Badge variant="secondary" className="py-0">Late</Badge>}
+                                      <span className="font-mono font-bold text-sm bg-muted px-2 py-0.5 rounded">
+                                        {rev.totalScore} pts
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <p className="font-semibold text-muted-foreground text-[10px] uppercase">Criterion Breakdown</p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                      {(rev.scores || []).map((s: any, idx: number) => {
+                                        const max = rubric.find(r => r.criterionId === s.criterionId)?.maxPoints ?? 100;
+                                        return (
+                                          <div key={idx} className="bg-background border rounded p-1.5">
+                                            <p className="font-medium text-muted-foreground truncate">{s.criterionId}</p>
+                                            <p className="font-mono font-bold">{s.score} / {max}</p>
+                                            {s.comment && <p className="text-[10px] text-muted-foreground italic mt-0.5 line-clamp-1" title={s.comment}>{s.comment}</p>}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  {rev.overallComment && (
+                                    <div className="bg-background/50 border rounded p-2 italic">
+                                      <span className="font-semibold not-italic">Reviewer Comment: </span>
+                                      "{rev.overallComment}"
+                                    </div>
+                                  )}
+
+                                  {rev.teacherOverridden && rev.teacherOverrideReason && (
+                                    <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded p-2 text-amber-900 dark:text-amber-200">
+                                      <span className="font-semibold">Teacher Override Reason: </span>
+                                      {rev.teacherOverrideReason}
+                                    </div>
+                                  )}
+
+                                  {/* Override Controls */}
+                                  {teacherManualReviewEnabled && (
+                                    <div className="pt-2 border-t flex flex-col gap-2">
+                                      {!isEditing ? (
+                                        <div className="flex justify-end">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 text-[11px]"
+                                            onClick={() => handleStartOverride(rev)}
+                                          >
+                                            Override Scores
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <div className="space-y-3 bg-background border rounded p-3">
+                                          <p className="font-semibold text-xs text-primary">Override Scores for {rev.reviewerName}'s Review</p>
+                                          
+                                          <div className="space-y-2">
+                                            {rubric.map((r: any) => {
+                                              const currentVal = overrideScores[r.criterionId] ?? 0;
+                                              return (
+                                                <div key={r.criterionId} className="flex items-center justify-between gap-4">
+                                                  <Label className="text-xs flex-1">{r.label} (Max {r.maxPoints})</Label>
+                                                  <Input
+                                                    type="number"
+                                                    min={0}
+                                                    max={r.maxPoints}
+                                                    className="w-20 h-8 text-xs font-mono"
+                                                    value={currentVal}
+                                                    onChange={e => {
+                                                      const num = Math.max(0, Math.min(r.maxPoints, Number(e.target.value) || 0));
+                                                      setOverrideScores(prev => ({
+                                                        ...prev,
+                                                        [r.criterionId]: num,
+                                                      }));
+                                                    }}
+                                                  />
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+
+                                          <div className="space-y-1">
+                                            <Label className="text-xs">Overall Comment</Label>
+                                            <Textarea
+                                              rows={2}
+                                              className="text-xs"
+                                              placeholder="Instructor override comments..."
+                                              value={overrideComment}
+                                              onChange={e => setOverrideComment(e.target.value)}
+                                            />
+                                          </div>
+
+                                          <div className="space-y-1">
+                                            <Label className="text-xs flex items-center justify-between">
+                                              <span>Reason for Override (required, min 20 chars)</span>
+                                              <span className="text-[10px] text-muted-foreground font-mono">
+                                                {overrideReason.length} chars
+                                              </span>
+                                            </Label>
+                                            <Input
+                                              className="text-xs"
+                                              placeholder="e.g. Overriding score due to inaccurate rubrics assessment..."
+                                              value={overrideReason}
+                                              onChange={e => setOverrideReason(e.target.value)}
+                                            />
+                                            {overrideReason.length > 0 && overrideReason.length < 20 && (
+                                              <p className="text-[10px] text-destructive">Must be at least 20 characters.</p>
+                                            )}
+                                          </div>
+
+                                          <div className="flex justify-end gap-2 pt-1">
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 text-[11px]"
+                                              onClick={() => setEditingReviewId(null)}
+                                            >
+                                              Cancel
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              className="h-7 text-[11px]"
+                                              disabled={overrideReason.length < 20 || overrideMutation.isPending}
+                                              onClick={() => handleSaveOverride(rev.reviewId)}
+                                            >
+                                              {overrideMutation.isPending ? 'Saving Override…' : 'Save Override'}
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

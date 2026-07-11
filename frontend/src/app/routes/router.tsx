@@ -6,7 +6,8 @@ import {
   createMemoryHistory,
   Outlet,
   NotFoundRoute,
-  useNavigate
+  useNavigate,
+  useParams,
 } from '@tanstack/react-router'
 import { useAuthStore } from '@/store/auth-store'
 import React, { useEffect } from 'react'
@@ -19,6 +20,8 @@ import StudentLayout from '@/layouts/student-layout'
 import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
 import StudentProfile from "@/app/pages/student/profile";
+import ReviewerDashboard from "@/app/pages/student/peer-review/ReviewerDashboard";
+import MyScore from "@/app/pages/student/peer-review/MyScore";
 import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
 import StudentMySubmissions from "../pages/student/StudentMySubmissions";
 import AddCoursePage from '@/app/pages/teacher/AddCoursePage';
@@ -665,6 +668,43 @@ export const selectRoleRoute = new Route({
   component: SelectRolePage
 })
 
+// Peer-review reviewer dashboard — lists the current student's pending
+// peer-review assignments and opens ReviewForm when one is clicked.
+function StudentPeerReviewReviewerPage() {
+  return (
+    <StudentRouteGuard>
+      <div className="p-6 max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold mb-4">Peer Reviews</h1>
+        <ReviewerDashboard />
+      </div>
+    </StudentRouteGuard>
+  )
+}
+const studentPeerReviewReviewerRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/peer-review/reviewer',
+  component: StudentPeerReviewReviewerPage,
+})
+
+// Peer-review my-score page — shows the student's own final scores for a
+// specific assessment once all reviews are in.
+function StudentPeerReviewMyScorePage() {
+  const { assessmentId } = useParams({ strict: false }) as { assessmentId?: string }
+  return (
+    <StudentRouteGuard>
+      <div className="p-6 max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold mb-4">My Score</h1>
+        <MyScore assessmentId={assessmentId} />
+      </div>
+    </StudentRouteGuard>
+  )
+}
+const studentPeerReviewMyScoreRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/peer-review/my-score/$assessmentId',
+  component: StudentPeerReviewMyScorePage,
+})
+
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -724,6 +764,8 @@ const routeTree = rootRoute.addChildren([
     studentHpSystemSubmissionsRoute,
     studentHpSystemLedgerRoute,
     studentNotificationsRoute,
+    studentPeerReviewReviewerRoute,
+    studentPeerReviewMyScoreRoute,
   ]),
   coursePageRoute,
 ]);
