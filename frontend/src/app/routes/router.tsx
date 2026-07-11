@@ -312,6 +312,13 @@ const teacherNotificationsRoute = new Route({
   component: NotificationsPage,
 });
 
+// Teacher courses list route (alias for the index)
+const teacherCoursesListRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/list',
+  component: TeacherCoursesPage,
+});
+
 // Teacher courses page route
 const teacherCoursesPageRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -680,7 +687,9 @@ const routeTree = rootRoute.addChildren([
     // teacherDashboardRoute,
     teacherCreateArticleRoute,
     teacherCoursesPageRoute,
-    teacherViewCourseRoute, teacherCourseFlagsRoute,
+    teacherCoursesListRoute,
+    teacherViewCourseRoute,
+    teacherCourseFlagsRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
     teacherCourseEmotionAnalyticsRoute,

@@ -135,6 +135,21 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   })
 
   const handleContinue = async () => {
+    if ((enrollment as any)?.isDemo) {
+      setCurrentCourse({
+        courseId: courseId,
+        versionId: versionId,
+        moduleId: null,
+        sectionId: null,
+        itemId: null,
+        watchItemId: null,
+        cohortName: null,
+        cohortId: null,
+      });
+      navigate({ to: "/student/learn" });
+      return;
+    }
+
     if (variant === 'available') {
       navigate({
         to: "/student/course-registration/$versionId/{-$cohort}",

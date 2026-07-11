@@ -1473,7 +1473,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null,
     })
-    storePageAndNavigate("/teacher/courses/flags/list")
+    storePageAndNavigate("/teacher/courses/flags")
   }
   const viewAnomalies = () => {
     setCurrentAnomaly({
@@ -1484,7 +1484,7 @@ function VersionCard({
       itemId: null,
       watchItemId: null
     });
-    storePageAndNavigate("/teacher/courses/anomalies/list")
+    storePageAndNavigate("/teacher/courses/anomalies")
   }
   const sendInvites = () => {
     // Set course info in store and navigate to invite page
@@ -1760,11 +1760,6 @@ function VersionCard({
                       <DropdownMenuItem onClick={configureCohorts}>
                         <Layers className="mr-2 h-4 w-4" />
                         Configure Cohorts
-                      </DropdownMenuItem>
-
-                      <DropdownMenuItem onClick={viewAnomalies}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Anomalies
                       </DropdownMenuItem>
 
                       <DropdownMenuSeparator />

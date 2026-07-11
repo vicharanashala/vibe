@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react";
+import TestFullscreen from "./TestFullscreen";
+import { DEMO_COURSE_ID, DEMO_COURSE_VERSION_ID } from "./demoCourseData";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -84,9 +86,10 @@ export default function CoursePage() {
   const VERSION_ID = currentCourse?.versionId || "";
   const COHORT_ID = currentCourse?.cohortId || "";
   const COHORT_NAME = currentCourse?.cohortName || "";
+  const isDemoCourse = currentCourse?.courseId === DEMO_COURSE_ID || currentCourse?.versionId === DEMO_COURSE_VERSION_ID;
   // Ethics consent gate: must be signed once per course before entering content
   const { signed: ethicsConsentSigned, isLoading: ethicsConsentLoading } =
-    useGetEthicsConsent(COURSE_ID, VERSION_ID);
+    useGetEthicsConsent(isDemoCourse ? "" : COURSE_ID, isDemoCourse ? "" : VERSION_ID);
   const [ethicsConsentSignedLocal, setEthicsConsentSignedLocal] = useState(false);
   const consentSatisfied = ethicsConsentSigned || ethicsConsentSignedLocal;
   const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
@@ -114,6 +117,8 @@ export default function CoursePage() {
 
   // Check for microphone and camera access, otherwise redirect to dashboard
   useEffect(() => {
+    if (isDemoCourse) return;
+
     async function checkMediaPermissions() {
       try {
         // Try to get both camera and microphone access
@@ -293,15 +298,15 @@ export default function CoursePage() {
 
   // Fetch course version data
   const { data: courseVersionData, isLoading: versionLoading, error: versionError, refetch: refetchVersion } =
-    useCourseVersionById(VERSION_ID, undefined, COHORT_ID);
+    useCourseVersionById(VERSION_ID, !isDemoCourse && Boolean(VERSION_ID), COHORT_ID);
 
   const shouldRandomize = courseVersionData?.shouldRandomize || false;
 
     // Fetch user progress
   const { data: progressData, isLoading: progressLoading, error: progressError } =
-    useUserProgress(COURSE_ID, VERSION_ID, COHORT_ID);
+    useUserProgress(isDemoCourse ? "" : COURSE_ID, isDemoCourse ? "" : VERSION_ID, COHORT_ID);
   const { data: moduleProgressData, isLoading: moduleProgressLoading } =
-    useModuleProgress(COURSE_ID, VERSION_ID, COHORT_ID);
+    useModuleProgress(isDemoCourse ? "" : COURSE_ID, isDemoCourse ? "" : VERSION_ID, COHORT_ID);
 
 
   // Fetch proctoring settings for the course (fetched once when component loads)
@@ -1667,6 +1672,10 @@ const handleGoToNextItem = async () => {
   useEffect(() => {
     refetchVersion();
   }, [courseVersionData]);
+
+  if (isDemoCourse) {
+    return <TestFullscreen />;
+  }
 
   if (versionLoading || progressLoading || proctoringLoading || ethicsConsentLoading) {
     return (
