@@ -27,7 +27,8 @@
     "#genAI/*.js": "./build/modules/genAI/*.js",
     "#settings/*.js": "./build/modules/settings/*.js",
     "#setting/*.js": "./build/modules/setting/*.js",
-    "#anomalies/*.js": "./build/modules/anomalies/*.js"
+    "#anomalies/*.js": "./build/modules/anomalies/*.js",
+    "#peerReview/*.js": "./build/modules/peerReview/*.js"
   },
   "type": "module",
   "keywords": [],

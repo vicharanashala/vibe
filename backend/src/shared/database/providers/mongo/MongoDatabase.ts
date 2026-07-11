@@ -40,11 +40,16 @@ export class MongoDatabase implements IDatabase<Db> {
       return;
     }
 
+    // [local-dev] TLS is only required for Atlas (mongodb+srv://). Plain
+    // mongodb://localhost has no TLS layer; forcing it makes mongod close the
+    // socket on connect. Allow opt-in via MONGO_TLS=true for any URI that
+    // genuinely needs TLS. Upstream behavior (TLS on for srv) is unchanged.
+    const useTls = uri.startsWith('mongodb+srv://') || process.env.MONGO_TLS === 'true';
     this.client = new MongoClient(uri, {
-      ssl: true,
-      tls: true,
-      tlsAllowInvalidCertificates: false,
-      tlsAllowInvalidHostnames: false,
+      ssl: useTls,
+      tls: useTls,
+      tlsAllowInvalidCertificates: !useTls,
+      tlsAllowInvalidHostnames: !useTls,
 
       retryWrites: true,
 
