@@ -235,6 +235,13 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
     setIsSubmitted(false);
   };
 
+  const { data: galleryItems, isLoading: galleryLoading } = useProjectGallery(
+    item._id,
+    currentCourse?.courseId ?? '',
+    currentCourse?.versionId ?? '',
+    currentCourse?.cohortId ?? undefined,
+  );
+
   if (isSubmitted) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -251,13 +258,6 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
       </div>
     );
   }
-
-  const { data: galleryItems, isLoading: galleryLoading } = useProjectGallery(
-    item._id,
-    currentCourse?.courseId ?? '',
-    currentCourse?.versionId ?? '',
-    currentCourse?.cohortId ?? undefined,
-  );
 
   return (
     <div className="h-full w-full overflow-auto">

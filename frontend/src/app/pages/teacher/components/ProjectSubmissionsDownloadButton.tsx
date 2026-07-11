@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { router } from '@/app/routes/router';
 import { PDFDownloadLink, Page, Text, View, Document, StyleSheet, Link } from '@react-pdf/renderer';
 import { Button } from '@/components/ui/button';
 import { Download, ScanEyeIcon, ChevronDown, Star, StarOff, X, ExternalLink } from 'lucide-react';
@@ -268,13 +269,20 @@ const ProjectSubmissionsFetcher: React.FC<{ courseId: string; versionId: string;
 
   return (
     <>
-      {showCuration && (
-        <CurationDialog
-          userInfo={projectSubmissions.userInfo}
-          onClose={() => setShowCuration(false)}
-        />
-      )}
-      <Button variant="outline" size="sm" onClick={() => setShowCuration(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          const params = new URLSearchParams();
+          params.set('courseId', courseId);
+          params.set('versionId', versionId);
+          if (cohortId) params.set('cohortId', cohortId);
+          if (projectName) params.set('projectName', projectName);
+          router.navigate({
+            to: `/teacher/courses/curate-gallery?${params.toString()}` as any,
+          });
+        }}
+      >
         <Star className="h-4 w-4 mr-2" />
         Curate Gallery
       </Button>

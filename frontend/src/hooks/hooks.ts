@@ -4064,7 +4064,7 @@ export function useProjectGallery(
     queryKey: ['projectGallery', projectId, courseId, versionId, cohortId],
     queryFn: async () => {
       const base = import.meta.env.VITE_BASE_URL;
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('firebase-auth-token');
       const url = new URL(
         `${base}/project/${projectId}/course/${courseId}/version/${versionId}/gallery`,
       );
@@ -4095,7 +4095,7 @@ export function useSetFeaturedSubmission(): {
   const mutation = useMutation({
     mutationFn: async ({ submissionId, featured }: { submissionId: string; featured: boolean }) => {
       const base = import.meta.env.VITE_BASE_URL;
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('firebase-auth-token');
       const res = await fetch(`${base}/project/submission/${submissionId}/featured`, {
         method: 'PATCH',
         headers: {
