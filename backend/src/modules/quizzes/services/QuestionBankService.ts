@@ -9,9 +9,10 @@ import {QuestionBankRepository} from '../repositories/providers/mongodb/Question
 import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository.js';
 import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
+import {IQuestionBank, SelectionContext} from '#root/shared/interfaces/quiz.js';
 import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
 import {ClientSession, ObjectId} from 'mongodb';
+import {AdaptiveQuestionSelector} from './AdaptiveQuestionSelector.js';
 
 @injectable()
 class QuestionBankService extends BaseService {
@@ -27,6 +28,9 @@ class QuestionBankService extends BaseService {
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
+
+    @inject(QUIZZES_TYPES.AdaptiveQuestionSelector)
+    private readonly adaptiveQuestionSelector: AdaptiveQuestionSelector,
   ) {
     super(database);
   }
@@ -308,30 +312,134 @@ class QuestionBankService extends BaseService {
     });
   }
 
-  //Assumes IQuestionBankRef is valid and do not require validation
-  async getQuestions(questionBankRef: IQuestionBankRef): Promise<string[]> {
-    return this._withTransaction(async session => {
-      const {
-        bankId: questionBankId,
-        count,
-        difficulty,
-        tags,
-        type,
-      } = questionBankRef;
-      const questionBank = await this.questionBankRepository.getById(
-        questionBankId.toString(),
+  /**
+   * Selects question IDs from the given question bank for a single quiz attempt.
+   *
+   * In **normal mode** (no active ACRE recovery), the method returns a random
+   * sample of `count` question IDs from the bank.
+   *
+   * In **adaptive mode** (student is in an active ACRE recovery loop), the
+   * method delegates selection to {@link AdaptiveQuestionSelector}, which uses
+   * weighted random sampling to prioritise questions tagged with the student's
+   * failed concepts and to de-prioritise questions they saw in their previous
+   * attempt.
+   *
+   * Adaptive mode is silently disabled — falling back to random selection —
+   * under either of these conditions:
+   * - The pool of candidates is not larger than `count` (no room to be
+   *   selective).
+   * - None of the candidate questions match any failed concept tag (nothing
+   *   to prioritise).
+   *
+   * Transaction ownership stays in the caller (AttemptService).  This method
+   * participates in an existing session but never starts its own transaction.
+   *
+   * @param questionBankRef - The bank reference from the quiz configuration,
+   *   including the bank ID and the number of questions to draw.
+   * @param selectionContext - ACRE context produced by
+   *   {@link AdaptiveSelectionContextBuilder}.  If absent or
+   *   `recoveryActive` is false, random selection is used.
+   * @param session - The MongoDB client session from the surrounding
+   *   AttemptService transaction.
+   * @returns An array of `count` question ID strings.
+   */
+  // Assumes IQuestionBankRef is valid and does not require further validation.
+  async getQuestions(
+    questionBankRef: IQuestionBankRef,
+    selectionContext?: SelectionContext,
+    session?: ClientSession
+  ): Promise<string[]> {
+    const { bankId: questionBankId, count } = questionBankRef;
+
+    const questionBank = await this.questionBankRepository.getById(
+      questionBankId.toString(),
+      session,
+    );
+
+    if (!questionBank) {
+      throw new NotFoundError(`Question bank with ID ${questionBankId} not found`);
+    }
+
+    const candidateCount = questionBank.questions.length;
+    console.log(`[ACRE] Candidate Count: ${candidateCount}`);
+
+    // Determine whether adaptive (ACRE) mode should run for this draw.
+    const recoveryActive = selectionContext?.recoveryActive ?? false;
+    const failedTags = selectionContext?.failedTags ?? [];
+    console.log(`[ACRE] Recovery Active: ${recoveryActive}`);
+    if (recoveryActive && failedTags.length > 0) {
+      console.log(`[ACRE] Failed Tags: ${JSON.stringify(failedTags)}`);
+    }
+
+    let isAdaptive = recoveryActive;
+
+    if (isAdaptive && candidateCount <= count) {
+      // The pool is not larger than the number of questions required, so there
+      // is no benefit to weighted selection — every candidate will be chosen.
+      console.log('[ACRE] Fallback: pool not larger than draw count; using random selection.');
+      isAdaptive = false;
+    }
+
+    if (isAdaptive) {
+      // Fetch full question documents so AdaptiveQuestionSelector can read
+      // Bloom levels and any other per-question metadata.
+      const candidateQuestions = await this.questionRepository.getByIds(
+        questionBank.questions.map(q => q.toString()),
         session,
       );
-      //Return random question ids
-      const shuffledQuestions = questionBank.questions.sort(
-        () => 0.5 - Math.random(),
+
+      // Fetch all banks that reference these questions in a single round-trip
+      // so we can build a question → tag mapping without N+1 queries.
+      const relatedBanks = await this.questionBankRepository.getQuestionBanksByQuestionIds(
+        questionBank.questions.map(q => q.toString()),
+        session,
       );
-      //convert to string if they are ObjectIds
-      const shuffledQuestionsAsString = shuffledQuestions.map(q =>
-        q.toString(),
-      );
-      return shuffledQuestionsAsString.slice(0, count);
-    });
+
+      // Build a map from question ID → set of normalised tags inherited from
+      // every bank that references that question.  Tags are lowercased and
+      // trimmed for case-insensitive comparison with the student's failed tags.
+      const questionTagsMap = new Map<string, Set<string>>();
+      for (const bank of relatedBanks) {
+        const bankTags = (bank.tags ?? []).map((t: string) => t.toLowerCase().trim());
+        for (const qId of bank.questions ?? []) {
+          const qIdStr = qId.toString();
+          if (!questionTagsMap.has(qIdStr)) {
+            questionTagsMap.set(qIdStr, new Set<string>());
+          }
+          bankTags.forEach((t: string) => questionTagsMap.get(qIdStr)!.add(t));
+        }
+      }
+
+      // Only run adaptive selection if at least one candidate actually shares
+      // a tag with the student's failed concepts.  Without a match there is
+      // nothing to prioritise and the algorithm degrades to near-random anyway.
+      const hasTagOverlap = candidateQuestions.some(q => {
+        const qTags = questionTagsMap.get(q._id.toString()) ?? new Set<string>();
+        return failedTags.some(ft => qTags.has(ft));
+      });
+
+      if (!hasTagOverlap) {
+        console.log('[ACRE] Fallback: no tag overlap with failed concepts; using random selection.');
+        isAdaptive = false;
+      } else {
+        // Delegate the weighted sampling entirely to AdaptiveQuestionSelector.
+        // QuestionBankService owns coordination; the selector owns the algorithm.
+        return this.adaptiveQuestionSelector.select(
+          candidateQuestions,
+          questionTagsMap,
+          count,
+          selectionContext,
+        );
+      }
+    }
+
+    // --- Random selection (normal mode or adaptive fallback) ---
+    const shuffled = [...questionBank.questions].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, count).map(q => q.toString());
+
+    console.log(`[ACRE] Final Selected Questions: ${JSON.stringify(selected)}`);
+
+    return selected;
   }
   async replaceQuestionWithDuplicate(
     bankId: string,

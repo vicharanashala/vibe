@@ -8,6 +8,7 @@ import {Collection, ClientSession, ObjectId} from 'mongodb';
 class QuestionBankRepository {
   private questionBankCollection: Collection<IQuestionBank>;
   private questionsCollection: Collection<any>;
+  private initialized = false;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -15,21 +16,24 @@ class QuestionBankRepository {
   ) {}
 
   private async init() {
-    this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
-      'questionBanks',
-    );
+    if (this.initialized) return;
 
+    this.questionBankCollection = await this.db.getCollection<IQuestionBank>('questionBanks');
     this.questionsCollection = await this.db.getCollection<any>('questions');
 
-    // High-priority indexes for read performance
+    // Ensure indexes exist for the most frequent read patterns.
+    // `background: true` prevents the creation from blocking other operations
+    // on the collection while the index is being built.
     await this.questionBankCollection.createIndex(
-      {questions: 1},
-      {name: 'questions_1', background: true},
+      { questions: 1 },
+      { name: 'questions_1', background: true },
     );
     await this.questionBankCollection.createIndex(
-      {courseVersionId: 1},
-      {name: 'courseVersionId_1', background: true},
+      { courseVersionId: 1 },
+      { name: 'courseVersionId_1', background: true },
     );
+
+    this.initialized = true;
   }
 
   async create(
@@ -70,29 +74,27 @@ class QuestionBankRepository {
     session?: ClientSession,
   ): Promise<IQuestionBank | null> {
     await this.init();
-    // Ensure that we do not fetch deleted question banks and questions that are soft deleted
+
     const result = await this.questionBankCollection.findOne(
-      {_id: new ObjectId(questionBankId), isDeleted: {$ne: true}},
-      {session},
+      { _id: new ObjectId(questionBankId), isDeleted: { $ne: true } },
+      { session },
     );
-    if (!result) {
-      return null;
-    }
 
-    // Lookup result.questions against questions collections.
-    // Filter those questions that are soft deleted.
+    if (!result) return null;
 
+    // Re-query the questions collection to filter out any questions that were
+    // soft-deleted after they were added to the bank.  The bank document
+    // stores question references as ObjectIds, so we convert here.
     const questionObjectIds = result.questions.map(qId => new ObjectId(qId));
-
-    const questions = await this.questionsCollection
-      .find({_id: {$in: questionObjectIds}, isDeleted: {$ne: true}}, {session})
+    const activeQuestions = await this.questionsCollection
+      .find({ _id: { $in: questionObjectIds }, isDeleted: { $ne: true } }, { session })
       .toArray();
 
-    result.questions = questions.map(q => q._id);
+    result.questions = activeQuestions.map(q => q._id);
 
     return {
       ...result,
-      questions: result.questions.map(question => question.toString()),
+      questions: result.questions.map(q => q.toString()),
       courseId: result.courseId?.toString(),
       courseVersionId: result.courseVersionId?.toString(),
     };
@@ -170,21 +172,62 @@ class QuestionBankRepository {
     session?: ClientSession,
   ): Promise<IQuestionBank[]> {
     await this.init();
+
+    // Query for both ObjectId and string forms in case the stored type varies
+    // across older and newer documents in the collection.
     const query = {
-      $or: [{questions: new ObjectId(questionId)}, {questions: questionId}],
+      $or: [{ questions: new ObjectId(questionId) }, { questions: questionId }],
     };
-    // const result = await this.questionBankCollection
-    //   .find({questions: new ObjectId(questionId)}, {session})
-    //   .toArray();
     const results = await this.questionBankCollection
-      .find(query, {session})
+      .find(query, { session })
       .toArray();
 
-    if (!results.length) {
-      return null;
-    }
+    if (!results.length) return null;
 
-    // Normalize courseId and courseVersionId
+    return results.map(bank => ({
+      ...bank,
+      questions: bank.questions.map(qn => qn.toString()),
+      courseId: bank.courseId?.toString(),
+      courseVersionId: bank.courseVersionId?.toString(),
+    }));
+  }
+
+  /**
+   * Returns all non-deleted question banks that contain at least one of the
+   * given question IDs.
+   *
+   * This is the batch variant of {@link getQuestionBanksByQuestionId}.  It is
+   * used by the ACRE pipeline after a quiz submission to resolve the concept
+   * tags associated with every incorrectly answered question in a single
+   * database round-trip — rather than issuing one query per question.
+   *
+   * The query covers both ObjectId and string representations of each ID
+   * because the stored type may differ across older and newer documents.
+   *
+   * @param questionIds - The question IDs to look up.  May be strings or
+   *   ObjectIds; both forms are queried simultaneously.
+   * @param session - Optional MongoDB session for transactional reads.
+   * @returns An array of matching question banks with normalised string IDs.
+   *   Returns an empty array when no banks contain any of the given IDs.
+   */
+  async getQuestionBanksByQuestionIds(
+    questionIds: (string | ObjectId)[],
+    session?: ClientSession,
+  ): Promise<IQuestionBank[]> {
+    await this.init();
+
+    const objectIds = questionIds.map(id => new ObjectId(id));
+    const stringIds = questionIds.map(id => id.toString());
+
+    // Include both forms in the $in clause to handle documents where the
+    // `questions` array stores ObjectIds in some entries and strings in others.
+    const results = await this.questionBankCollection
+      .find(
+        { questions: { $in: [...objectIds, ...stringIds] }, isDeleted: { $ne: true } },
+        { session },
+      )
+      .toArray();
+
     return results.map(bank => ({
       ...bank,
       questions: bank.questions.map(qn => qn.toString()),

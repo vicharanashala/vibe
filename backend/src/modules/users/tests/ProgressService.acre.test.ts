@@ -316,7 +316,7 @@ describe('ACRE V1 - Vikram-Betaal Recovery Loop', () => {
       const payload = getUpdatedPayload();
       expect(payload).toBeDefined();
       expect(payload.currentItem).toBe(QUIZ_ID); // Redirected back to quiz
-      expect(payload.recoveryState).toBeNull(); // recoveryState cleared (unsets in repository)
+      expect(payload.recoveryState).toBeUndefined(); // recoveryState preserved (not cleared to null in update progress payload)
     });
   });
 });

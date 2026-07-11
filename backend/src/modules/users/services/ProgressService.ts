@@ -1760,7 +1760,6 @@ class ProgressService extends BaseService {
           session,
         );
 
-        console.log("Existing item found ->", existingWatchTime)
         return '';
       }
 
@@ -2538,7 +2537,6 @@ class ProgressService extends BaseService {
           currentModule: nextItem.moduleId,
           currentSection: nextItem.sectionId,
           currentItem: nextItem.itemId,
-          recoveryState: null,
           ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         };
       }
@@ -3224,6 +3222,35 @@ class ProgressService extends BaseService {
     );
   }
 
+  /**
+   * Updates the student's progress document after a quiz submission.
+   *
+   * - **Passed**: advances the progress cursor to the next item in the course
+   *   sequence.  If the quiz was the final item, the course is marked complete
+   *   and progress is reset to the first item.
+   * - **Failed**: activates ACRE recovery mode by writing a `recoveryState`
+   *   to the progress document.  The recovery state includes the failed concept
+   *   tags and redirects the student to a review item before their next attempt.
+   *
+   * Runs inside its own transaction so that progress and any associated state
+   * are always updated atomically.
+   *
+   * @param userId - The student's user ID.
+   * @param quizId - The quiz that was just submitted.
+   * @param courseId - The course the quiz belongs to.
+   * @param courseVersionId - The specific course version.
+   * @param isPassed - Whether the student passed the quiz.
+   * @param watchItemId - The watch-time item ID, used for progress tracking.
+   * @param cohortId - Optional cohort for cohort-scoped progress records.
+   * @param quizModuleId - The actual module ID of the quiz item.  Passed
+   *   explicitly because the student's progress cursor may have drifted ahead
+   *   of the quiz's real position via optimistic UI updates.
+   * @param quizSectionId - The actual section ID of the quiz item, for the
+   *   same reason as `quizModuleId`.
+   * @param failedQuestionIds - IDs of questions the student answered
+   *   incorrectly or partially; used to resolve the failed concept tags for
+   *   ACRE recovery.
+   */
   async handleQuizeProgressAfterSubmission(
     userId: string | ObjectId,
     quizId: string,
@@ -3246,8 +3273,6 @@ class ProgressService extends BaseService {
       if (!progress || !courseVersion) {
         throw new NotFoundError('Progress or Course Version not found');
       }
-
-      // const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
       if (isPassed) {
         // Prefer the quiz's actual module/section over the cursor's current

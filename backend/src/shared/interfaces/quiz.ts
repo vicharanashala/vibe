@@ -123,6 +123,34 @@ type INATQuizView = QuestionQuizView;
 
 type IDESQuizView = QuestionQuizView;
 
+/**
+ * Immutable snapshot of the student-history data required for ACRE V2 adaptive
+ * question selection.  Assembled by {@link AdaptiveSelectionContextBuilder} at
+ * the start of each quiz attempt and passed unchanged through the selection
+ * pipeline.
+ *
+ * When `recoveryActive` is false, the remaining fields may be empty — callers
+ * should not assume they are populated.
+ */
+export interface SelectionContext {
+  /** True when the student is currently in an active ACRE recovery loop for this quiz. */
+  recoveryActive: boolean;
+  /**
+   * Normalised (lowercase, trimmed) concept tags from the student's previous
+   * failed attempt.  Used to identify candidate questions that address the
+   * same concepts the student struggled with.
+   */
+  failedTags: string[];
+  /**
+   * Question IDs that appeared in the student's most recent attempt.  Used by
+   * the weight policy to apply a repeat-question penalty so that students are
+   * not shown the exact same questions on consecutive attempts.
+   */
+  previousQuestionIds: string[];
+  userId: string;
+  quizId: string;
+}
+
 export {
   IQuestion,
   IQuestionParameter,
