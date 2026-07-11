@@ -73,6 +73,29 @@ class SegmentationParameters {
   noiseId?: number;
 }
 
+@JSONSchema({ title: 'ConceptMapParameters' })
+class ConceptMapParameters {
+  @JSONSchema({
+    title: 'Max Concepts',
+    description: 'Upper bound on extracted concepts (hard cap 25)',
+    example: 15,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  maxConcepts?: number;
+
+  @JSONSchema({
+    title: 'Prompt Hint',
+    description: 'Extra guidance appended to the concept extraction prompt',
+    example: 'Focus on data-structure concepts',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  promptHint?: string;
+}
+
 @JSONSchema({ title: 'SmartBloomDistribution' })
 class SmartBloomDistribution {
   @JSONSchema({
@@ -583,6 +606,27 @@ class JobBody {
   segmentationParameters?: SegmentationParameters;
 
   @JSONSchema({
+    title: 'Concept Map Parameters',
+    description: 'Parameters for concept map extraction',
+    type: 'object',
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        return value; // Let validation handle the error
+      }
+    }
+    return value;
+  })
+  @IsObject()
+  @ValidateNested()
+  @Type(() => ConceptMapParameters)
+  conceptMapParameters?: ConceptMapParameters;
+
+  @JSONSchema({
     title: 'Question Generation Parameters',
     description: 'Parameters for generating questions from the transcript',
     type: 'object',
@@ -688,6 +732,8 @@ class ApproveStartBody {
         return TranscriptParameters;
       case TaskType.SEGMENTATION:
         return SegmentationParameters;
+      case TaskType.CONCEPT_MAP:
+        return ConceptMapParameters;
       case TaskType.QUESTION_GENERATION:
         return QuestionGenerationParameters;
       case TaskType.UPLOAD_CONTENT:
@@ -696,7 +742,7 @@ class ApproveStartBody {
         return Object;
     }
   })
-  parameters?: Partial<TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | PartialUploadParameters>;
+  parameters?: Partial<TranscriptParameters | SegmentationParameters | ConceptMapParameters | QuestionGenerationParameters | PartialUploadParameters>;
 
   @JSONSchema({
     title: 'Use Previous',
@@ -749,6 +795,8 @@ class RerunTaskBody {
         return TranscriptParameters;
       case TaskType.SEGMENTATION:
         return SegmentationParameters;
+      case TaskType.CONCEPT_MAP:
+        return ConceptMapParameters;
       case TaskType.QUESTION_GENERATION:
         return QuestionGenerationParameters;
       case TaskType.UPLOAD_CONTENT:
@@ -757,7 +805,7 @@ class RerunTaskBody {
         return Object;
     }
   })
-  parameters?: Partial<TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | PartialUploadParameters>;
+  parameters?: Partial<TranscriptParameters | SegmentationParameters | ConceptMapParameters | QuestionGenerationParameters | PartialUploadParameters>;
 
   @JSONSchema({
     title: 'Use Previous',
@@ -1028,6 +1076,7 @@ export {
 
 export const GENAI_VALIDATORS = [
   JobType,
+  ConceptMapParameters,
   GenAIResponse,
   JobStatusResponse,
   JobBody,

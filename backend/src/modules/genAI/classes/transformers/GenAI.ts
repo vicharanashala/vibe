@@ -1,4 +1,5 @@
 import { ID } from "#root/shared/index.js";
+import { aiConfig } from "#root/config/ai.js";
 
 // Enum for job types
 export enum JobType {
@@ -11,6 +12,7 @@ export enum TaskType {
   AUDIO_EXTRACTION = 'AUDIO_EXTRACTION',
   TRANSCRIPT_GENERATION = 'TRANSCRIPT_GENERATION',
   SEGMENTATION = 'SEGMENTATION',
+  CONCEPT_MAP = 'CONCEPT_MAP',
   QUESTION_GENERATION = 'QUESTION_GENERATION',
   UPLOAD_CONTENT = 'UPLOAD_CONTENT'
 }
@@ -39,6 +41,13 @@ export interface SegmentationParameters {
 	lam?: number;
 	runs?: number;
 	noiseId?: number;
+}
+
+export interface ConceptMapParameters {
+	/** Upper bound on extracted concepts (validation caps at 25 regardless). */
+	maxConcepts?: number;
+	/** Optional extra guidance appended to the extraction prompt. */
+	promptHint?: string;
 }
 
 export interface QuestionGenerationParameters {
@@ -112,10 +121,46 @@ export interface contentUploadData {
 	error?: string;
 }
 
+export interface ConceptMapNodeData {
+	/** Stable node id (unique within the map). */
+	id: string;
+	label: string;
+	description?: string;
+	/**
+	 * Anchor: the end-boundary value of the segment where this concept is
+	 * taught (same convention as questions[].segmentId). Resolved to a
+	 * video item at UPLOAD_CONTENT time.
+	 */
+	segmentEnd: number;
+}
+
+export interface ConceptMapEdgeData {
+	/** Prerequisite: `from` must be understood before `to`. */
+	from: string;
+	to: string;
+}
+
+export interface conceptMapData {
+	status: TaskStatus;
+	error?: string;
+	nodes?: ConceptMapNodeData[];
+	edges?: ConceptMapEdgeData[];
+	modelUsed?: string;
+	/** True when produced by the deterministic no-LLM fallback. */
+	fallback?: boolean;
+	newParameters?: ConceptMapParameters;
+}
+
 export class JobStatus {
 	audioExtraction: TaskStatus;
 	transcriptGeneration: TaskStatus;
 	segmentation: TaskStatus;
+	/**
+	 * Absent on jobs created before the concept-map feature (or with
+	 * CONCEPT_MAP_ENABLED=false). `undefined` means the task is not part of
+	 * this job and every consumer must skip it — do not default it.
+	 */
+	conceptMap?: TaskStatus;
 	questionGeneration: TaskStatus;
 	uploadContent: TaskStatus;
 
@@ -123,6 +168,9 @@ export class JobStatus {
 		this.audioExtraction = TaskStatus.WAITING;
 		this.transcriptGeneration = TaskStatus.PENDING;
 		this.segmentation = TaskStatus.PENDING;
+		if (aiConfig.CONCEPT_MAP_ENABLED) {
+			this.conceptMap = TaskStatus.PENDING;
+		}
 		this.questionGeneration = TaskStatus.PENDING;
 		this.uploadContent = TaskStatus.PENDING;
 	}
@@ -133,6 +181,7 @@ export class GenAI {
 	url: string;
 	transcriptParameters?: TranscriptParameters;
 	segmentationParameters?: SegmentationParameters;
+	conceptMapParameters?: ConceptMapParameters;
 	questionGenerationParameters?: QuestionGenerationParameters;
 	uploadParameters: UploadParameters;
 }
@@ -152,6 +201,7 @@ export class TaskData {
 	audioExtraction?: audioData[];
 	transcriptGeneration?: trascriptGenerationData[]
 	segmentation?: segmentationData[];
+	conceptMap?: conceptMapData[];
 	questionGeneration?: questionGenerationData[];
 	uploadContent?: contentUploadData[];
 }
@@ -160,7 +210,7 @@ export class JobState {
 	currentTask: TaskType;
 	taskStatus: TaskStatus;
 	url?: string;
-	parameters?: TranscriptParameters | SegmentationParameters | QuestionGenerationParameters | UploadParameters;
+	parameters?: TranscriptParameters | SegmentationParameters | ConceptMapParameters | QuestionGenerationParameters | UploadParameters;
 	file?: string;
 	segmentMap?: Array<number>;
 }

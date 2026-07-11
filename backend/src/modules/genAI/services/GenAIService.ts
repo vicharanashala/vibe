@@ -13,6 +13,8 @@ import {
 } from 'routing-controllers';
 import {
   audioData,
+  conceptMapData,
+  ConceptMapParameters,
   contentUploadData,
   GenAIBody,
   JobState,
@@ -28,6 +30,7 @@ import {
   trascriptGenerationData,
   UploadParameters,
 } from '../classes/transformers/GenAI.js';
+import { ConceptMapService } from './ConceptMapService.js';
 import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
 import { CreateItemBody } from '#root/modules/courses/classes/index.js';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
@@ -63,6 +66,9 @@ export class GenAIService extends BaseService {
   constructor(
     @inject(GENAI_TYPES.WebhookService)
     private readonly webhookService: WebhookService,
+
+    @inject(GENAI_TYPES.ConceptMapService)
+    private readonly conceptMapService: ConceptMapService,
 
     @inject(GENAI_TYPES.GenAIRepository)
     private readonly genAIRepository: GenAIRepository,
@@ -204,6 +210,7 @@ export class GenAIService extends BaseService {
     parameters?: Partial<
       | TranscriptParameters
       | SegmentationParameters
+      | ConceptMapParameters
       | QuestionGenerationParameters
       | UploadParameters
     >,
@@ -256,8 +263,67 @@ export class GenAIService extends BaseService {
         const result = await this.uploadContent(jobId, jobState);
         return result;
       }
+      if (jobState.currentTask === TaskType.CONCEPT_MAP) {
+        // Backend-executed (like UPLOAD_CONTENT): never sent to the AI
+        // server / webhook path.
+        return this.runConceptMapTask(jobId, jobState, session);
+      }
       return this.webhookService.approveTaskStart(jobId, jobState);
     });
+  }
+
+  private async runConceptMapTask(
+    jobId: string,
+    jobState: JobState,
+    session: any,
+  ): Promise<any> {
+    const job = await this.genAIRepository.getById(jobId, session);
+    const taskData = await this.genAIRepository.getTaskDataByJobId(
+      jobId,
+      session,
+    );
+    if (!job || !taskData) {
+      throw new NotFoundError(`Job with ID ${jobId} not found`);
+    }
+    if (!jobState.file) {
+      throw new BadRequestError(
+        'No transcript file available for concept map generation',
+      );
+    }
+    let result: conceptMapData;
+    try {
+      const chunks = await this.conceptMapService.fetchTranscriptChunks(
+        jobState.file,
+      );
+      result = await this.conceptMapService.generate(
+        chunks,
+        jobState.segmentMap ?? [],
+        jobState.parameters as ConceptMapParameters | undefined,
+      );
+    } catch (error: any) {
+      result = {
+        status: TaskStatus.FAILED,
+        error: error?.message || 'Concept map generation failed',
+      };
+    }
+    job.jobStatus.conceptMap = result.status;
+    if (taskData.conceptMap) {
+      taskData.conceptMap.push(result);
+    } else {
+      taskData.conceptMap = [result];
+    }
+    const updatedJob = await this.genAIRepository.update(jobId, job, session);
+    const updatedTaskData = await this.genAIRepository.updateTaskData(
+      jobId,
+      taskData,
+      session,
+    );
+    if (!updatedJob || !updatedTaskData) {
+      throw new InternalServerError(
+        `Failed to store concept map result for job ID ${jobId}`,
+      );
+    }
+    return { message: 'Success', data: result };
   }
 
   async rerunTask(
@@ -267,6 +333,7 @@ export class GenAIService extends BaseService {
     parameters?: Partial<
       | TranscriptParameters
       | SegmentationParameters
+      | ConceptMapParameters
       | QuestionGenerationParameters
       | UploadParameters
     >,
@@ -322,6 +389,9 @@ export class GenAIService extends BaseService {
         const result = await this.uploadContent(jobId, jobState);
         return result;
       }
+      if (jobState.currentTask === TaskType.CONCEPT_MAP) {
+        return this.runConceptMapTask(jobId, jobState, session);
+      }
       return this.webhookService.rerunTask(jobId, jobState);
     });
   }
@@ -335,8 +405,15 @@ export class GenAIService extends BaseService {
       if (job.jobStatus.uploadContent === TaskStatus.COMPLETED) {
       } else if (job.jobStatus.questionGeneration === TaskStatus.COMPLETED) {
         job.jobStatus.uploadContent = TaskStatus.WAITING;
-      } else if (job.jobStatus.segmentation === TaskStatus.COMPLETED) {
+      } else if (job.jobStatus.conceptMap === TaskStatus.COMPLETED) {
         job.jobStatus.questionGeneration = TaskStatus.WAITING;
+      } else if (job.jobStatus.segmentation === TaskStatus.COMPLETED) {
+        // Legacy jobs have no conceptMap field: skip straight to questions.
+        if (job.jobStatus.conceptMap !== undefined) {
+          job.jobStatus.conceptMap = TaskStatus.WAITING;
+        } else {
+          job.jobStatus.questionGeneration = TaskStatus.WAITING;
+        }
       } else if (job.jobStatus.transcriptGeneration === TaskStatus.COMPLETED) {
         job.jobStatus.segmentation = TaskStatus.WAITING;
       } else if (job.jobStatus.audioExtraction === TaskStatus.COMPLETED) {
@@ -438,6 +515,9 @@ export class GenAIService extends BaseService {
           break;
         case TaskType.SEGMENTATION:
           result = taskData.segmentation;
+          break;
+        case TaskType.CONCEPT_MAP:
+          result = taskData.conceptMap;
           break;
         case TaskType.QUESTION_GENERATION:
           result = taskData.questionGeneration;
@@ -703,6 +783,14 @@ export class GenAIService extends BaseService {
               taskData.segmentation = [{ ...(jobData as segmentationData) }];
             }
             break;
+          case TaskType.CONCEPT_MAP:
+            job.jobStatus.conceptMap = jobData.status;
+            if (taskData.conceptMap) {
+              taskData.conceptMap.push({ ...(jobData as conceptMapData) });
+            } else {
+              taskData.conceptMap = [{ ...(jobData as conceptMapData) }];
+            }
+            break;
           case TaskType.QUESTION_GENERATION:
             job.jobStatus.questionGeneration = jobData.status;
             if (taskData.questionGeneration) {
@@ -726,6 +814,9 @@ export class GenAIService extends BaseService {
             break;
           case TaskType.SEGMENTATION:
             job.jobStatus.segmentation = jobData.status;
+            break;
+          case TaskType.CONCEPT_MAP:
+            job.jobStatus.conceptMap = jobData.status;
             break;
           case TaskType.QUESTION_GENERATION:
             job.jobStatus.questionGeneration = jobData.status;
@@ -807,6 +898,25 @@ export class GenAIService extends BaseService {
           ]?.fileUrl;
       }
       if (
+        job.jobStatus.conceptMap !== undefined &&
+        !(
+          job.jobStatus.conceptMap === TaskStatus.PENDING ||
+          job.jobStatus.conceptMap === TaskStatus.RUNNING
+        )
+      ) {
+        jobState.currentTask = TaskType.CONCEPT_MAP;
+        jobState.taskStatus = job.jobStatus.conceptMap;
+        jobState.parameters = job.conceptMapParameters;
+        jobState.file =
+          task.segmentation[
+            usePrevious ? usePrevious : task.segmentation.length - 1
+          ]?.transcriptFileUrl;
+        jobState.segmentMap =
+          task.segmentation[
+            usePrevious ? usePrevious : task.segmentation.length - 1
+          ]?.segmentationMap;
+      }
+      if (
         !(
           job.jobStatus.questionGeneration === TaskStatus.PENDING ||
           job.jobStatus.questionGeneration === TaskStatus.RUNNING
@@ -830,6 +940,8 @@ export class GenAIService extends BaseService {
         job.jobStatus.audioExtraction === TaskStatus.COMPLETED &&
         job.jobStatus.transcriptGeneration === TaskStatus.COMPLETED &&
         job.jobStatus.segmentation === TaskStatus.COMPLETED &&
+        (job.jobStatus.conceptMap === undefined ||
+          job.jobStatus.conceptMap === TaskStatus.COMPLETED) &&
         job.jobStatus.questionGeneration === TaskStatus.COMPLETED &&
         job.jobStatus.uploadContent !== TaskStatus.PENDING
       ) {
