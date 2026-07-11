@@ -18,6 +18,7 @@ export enum AuditCategory {
   ANNOUNCEMENT = 'ANNOUNCEMENT',
   COHORT = 'COHORT',
   EJECTION_POLICY = 'EJECTION_POLICY',
+  PEER_REVIEW = 'PEER_REVIEW',
 }
 
 export enum AuditAction {
@@ -117,6 +118,18 @@ export enum AuditAction {
   EJECTION_POLICY_TOGGLE = 'EJECTION_POLICY_TOGGLE',
   EJECTION_POLICY_DELETE = 'EJECTION_POLICY_DELETE',
   COHORT_MOVE = 'COHORT_MOVE',
+
+  // Peer-Review Assessment (Phase 1 enum only; emissions come in later phases)
+  PEER_REVIEW_ASSESSMENT_CREATE = 'PEER_REVIEW_ASSESSMENT_CREATE',
+  PEER_REVIEW_ASSESSMENT_UPDATE = 'PEER_REVIEW_ASSESSMENT_UPDATE',
+  PEER_REVIEW_SUBMISSION_CREATE = 'PEER_REVIEW_SUBMISSION_CREATE',
+  PEER_REVIEW_ASSIGNMENTS_CREATED = 'PEER_REVIEW_ASSIGNMENTS_CREATED',
+  PEER_REVIEW_REVIEW_SUBMITTED = 'PEER_REVIEW_REVIEW_SUBMITTED',
+  PEER_REVIEW_REASSIGNED = 'PEER_REVIEW_REASSIGNED',
+  PEER_REVIEW_TEACHER_OVERRIDE = 'PEER_REVIEW_TEACHER_OVERRIDE',
+  PEER_REVIEW_ASSESSMENT_CLOSED = 'PEER_REVIEW_ASSESSMENT_CLOSED',
+  PEER_REVIEW_ASSESSMENT_DELETED = 'PEER_REVIEW_ASSESSMENT_DELETED',
+  PEER_REVIEW_SCORE_COMPUTED = 'PEER_REVIEW_SCORE_COMPUTED',
 }
 
 export enum OutComeStatus {
@@ -154,6 +167,11 @@ export interface InstructorAuditTrail {
     userId?: string | ObjectId;
     cohortId?: string | ObjectId;
     policyId?: string | ObjectId;
+    // Peer-review context (used in later phases; harmless to declare now)
+    peerReviewAssessmentId?: string | ObjectId;
+    peerReviewSubmissionId?: string | ObjectId;
+    peerReviewAssignmentId?: string | ObjectId;
+    peerReviewReviewId?: string | ObjectId;
   };
 
   changes?: {

@@ -1059,6 +1059,7 @@ export class SettingRepository implements ISettingRepository {
    }
 
    async shouldRandomize(versionId:string): Promise<boolean>{
+    await this.init();
     const courseVersionId = toObjectId(versionId,"courseVersionId");
     const result = await this.courseSettingsCollection.findOne({courseVersionId:courseVersionId});
     const randomizeItems = result?.settings?.randomizeItems ?? false;

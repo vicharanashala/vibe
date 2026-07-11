@@ -87,16 +87,27 @@ export class UserRepository implements IUserRepository {
 
   /**
    * Finds a user by ID.
+   * Coerces the incoming id so callers can pass a 24-hex string OR an
+   * ObjectId. Falls back to findOne({_id: <id as string>}) when the
+   * coercion fails, matching the working pattern used by
+   * PeerReviewAssessmentRepository.findById / findByItemId.
    */
   async findById(
     id: string | ObjectId,
     session?: ClientSession,
   ): Promise<IUser | null> {
     await this.init();
-    const user = await this.usersCollection.findOne(
-      {_id: new ObjectId(id)},
-      {session},
-    );
+    const filter = (() => {
+      if (typeof id === 'string') {
+        try {
+          return {_id: new ObjectId(id) as any};
+        } catch (_) {
+          return {_id: id as any};
+        }
+      }
+      return {_id: id as any};
+    })();
+    const user = await this.usersCollection.findOne(filter, {session});
     return instanceToPlain(new User(user)) as IUser;
   }
 

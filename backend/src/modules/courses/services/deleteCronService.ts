@@ -60,39 +60,24 @@ export class DeleteCronService extends BaseService {
       console.log(
         `⏰ Running parallel progress cron for ${/*courseVersionMap.length*/''} course versions`,
       );
+      // [local-dev] Run inside the cron closure only — was previously called
+      // at function-scope (i.e. at server boot), which crashed an empty local DB.
+      try {
+        const response =
+          await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
+        console.log(
+          `🎉 Parallel progress cron completed \n        Total count : ${response?.totalCount} \n        Updated count : ${response?.updatedCount}`,
+        );
+      } catch (err) {
+        console.warn(
+          '[DeleteCronService] progress cron skipped:',
+          (err as Error)?.message || err,
+        );
+      }
     });
-
+    // (Lines below are leftover commented-out historical code from upstream —
+    //  left as-is so a future rebasemerge diff is easy to read.)
     // const results = await Promise.allSettled(
-    //   courseVersionMap.map(({ courseId, versionId }) =>
-    //     this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion(
-    //       courseId,
-    //       versionId,
-    //     ),
-    //   ),
-    // );
-    const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
-    // results.forEach((result, index) => {
-    //   const { courseId, versionId } = courseVersionMap[index];
-
-    //   if (result.status === 'fulfilled') {
-    //     console.log(
-    //       `✅ Course ${courseId} | Version ${versionId} completed`,
-    //       `Total count:${result.value.totalCount}`, `Updated count:${result.value.updatedCount}`,
-    //     );
-    //   } else {
-    //     console.error(
-    //       `❌ Course ${courseId} | Version ${versionId} failed`,
-    //       result.reason?.message || result.reason,
-    //     );
-    //   }
-    // });
-
-    console.log(`🎉 Parallel progress cron completed \n
-        Total count : ${response.totalCount} \n
-        Updated count : ${response.updatedCount}`);
-    // });
-
-    // console.log('🗓️ Progress update cron scheduled (hourly, parallel)');
   }
 
 

@@ -310,6 +310,7 @@ export enum ItemType {
   BLOG = 'BLOG',
   PROJECT = 'PROJECT',
   FEEDBACK = 'FEEDBACK',
+  PEER_REVIEW_ASSESSMENT = 'PEER_REVIEW_ASSESSMENT',
 }
 
 export interface IBaseItem {
@@ -318,7 +319,33 @@ export interface IBaseItem {
   description: string;
   type: ItemType;
   order: string;
-  itemDetails: IVideoDetails | IQuizDetails | IBlogDetails | IProjectDetails;
+  itemDetails:
+    | IVideoDetails
+    | IQuizDetails
+    | IBlogDetails
+    | IProjectDetails
+    | IPeerReviewAssessmentDetails;
+}
+
+/**
+ * Shape of the `Item.details` blob for a PEER_REVIEW_ASSESSMENT item.
+ *
+ * This is the subset of `IPeerReviewAssessment` that lives on the Item
+ * doc itself (the course-tree representation). The full assessment doc
+ * (including rubric, deadlines, and per-cohort config) is stored
+ * separately in the `peer_review_assessments` collection; this blob is
+ * enough for the renderer + student-side "what do I submit?" view.
+ */
+export interface IPeerReviewAssessmentDetails {
+  /** Stable id linking back to the full peer_review_assessments row. */
+  assessmentId: string;
+  /** Total max points, denormalized for fast render. */
+  totalMaxPoints: number;
+  /** Cached rubric summary (label + maxPoints only; the full criterion
+   *  list, including descriptions, lives on the assessment doc). */
+  rubricSummary: Array<{ criterionId: string; label: string; maxPoints: number }>;
+  submissionDeadline: string; // ISO date string
+  reviewDeadline: string; // ISO date string
 }
 
 // Add minimal IProjectItemDetails interface for PROJECT type
@@ -438,6 +465,10 @@ export interface IEnrollment {
     reinstatedAt?: Date;
     reinstatedBy?: string | ObjectId;
   }>;
+  // Peer-review assessment counters. Maintained by triggers in modules/peerReview;
+  // default 0 if absent. Used for the "reviews due" badge in the UI.
+  peerReviewsAssigned?: number;
+  peerReviewsCompleted?: number;
 }
 
 export interface IProgress {
@@ -1118,3 +1149,143 @@ export interface IAnnouncement {
 //  itemId: string | ObjectId | null;
 //  action: string;
 // }
+
+// ============================================================================
+// Peer-Review Assessment (Phase 1 — data model only; controllers/services in
+// later phases). See /home/shreyas/peer-based-review.md (design) and
+// /home/shreyas/phase1-implementation-peer-review.md (plan) for context.
+// ============================================================================
+
+export type PeerReviewLinkKind =
+  | 'drive'
+  | 'github'
+  | 'youtube'
+  | 'oneDrive'
+  | 'dropbox'
+  | 'other';
+
+export type PeerReviewAssignmentStatus =
+  | 'PENDING'
+  | 'IN_PROGRESS'
+  | 'SUBMITTED'
+  | 'OVERDUE'
+  | 'REASSIGNED'
+  | 'LINK_REVOKED';
+
+export type PeerReviewAntiCollusionMode =
+  | 'circular-shift-collision-check'
+  | 'uniform-random';
+
+export type PeerReviewLatePolicy = 'penalty-only' | 'hard-exclude';
+
+export interface IPeerReviewRubricCriterion {
+  criterionId: string;
+  label: string;
+  description?: string;
+  maxPoints: number;
+}
+
+export interface IPeerReviewAssessmentConfig {
+  reviewsPerSubmission: number;
+  reviewsPerReviewer: number;
+  antiCollusionMode: PeerReviewAntiCollusionMode;
+  latePolicy: PeerReviewLatePolicy;
+  latePenaltyPercent: number;
+  teacherManualReviewEnabled: boolean;
+  notificationsEnabled: boolean;
+  reviewWindowDays: number;
+}
+
+export interface IPeerReviewAssessment {
+  _id?: ID;
+  courseId: ID;
+  courseVersionId: ID;
+  moduleId: ID;
+  sectionId: ID;
+  itemId: ID;
+  title: string;
+  description: string;
+  instructorAttachments: Array<{ name: string; url: string; kind: PeerReviewLinkKind }>;
+  rubric: IPeerReviewRubricCriterion[];
+  totalMaxPoints: number;
+  submissionDeadline: Date;
+  reviewDeadline: Date;
+  config: IPeerReviewAssessmentConfig;
+  cohortId: ID;
+  createdBy: ID;
+  createdAt: Date;
+  updatedAt: Date;
+  isDeleted: boolean;
+  deletedAt?: Date;
+  assignmentRunAt?: Date;
+  closedAt?: Date;
+}
+
+export interface IPeerReviewLink {
+  url: string;
+  label: string;
+  kind: PeerReviewLinkKind;
+  accessibilityCheckedAt?: Date;
+  lastAccessible: boolean;
+}
+
+export interface IPeerReviewSubmission {
+  _id?: ID;
+  assessmentId: ID;
+  studentId: ID;
+  cohortId: ID;
+  courseId: ID;
+  courseVersionId: ID;
+  notes: string;
+  links: IPeerReviewLink[];
+  submittedAt: Date;
+  isLate: boolean;
+  attachmentsAccessibilityChecked: boolean;
+  reviewAssignmentIds: ID[];
+  reviewsCompleted: number;
+  reviewsTotal: number;
+  finalScore?: number;
+  finalScoreBreakdown?: Array<{ criterionId: string; meanScore: number; maxPoints: number }>;
+  finalScoreLockedAt?: Date;
+  teacherOverridden: boolean;
+  teacherOverrideReason?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IPeerReviewAssignment {
+  _id?: ID;
+  assessmentId: ID;
+  submissionId: ID;
+  reviewerId: ID;
+  cohortId: ID;
+  courseId: ID;
+  courseVersionId: ID;
+  assignedAt: Date;
+  dueAt: Date;
+  status: PeerReviewAssignmentStatus;
+  reassignmentCount: number;
+  submittedReviewId?: ID;
+  reassignedToAssignmentId?: ID;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IPeerReviewReview {
+  _id?: ID;
+  assignmentId: ID;
+  assessmentId: ID;
+  submissionId: ID;
+  reviewerId: ID;
+  cohortId: ID;
+  scores: Array<{ criterionId: string; score: number; maxPoints: number; comment: string }>;
+  overallComment: string;
+  totalScore: number;
+  submittedAt: Date;
+  isLate: boolean;
+  teacherOverridden: boolean;
+  teacherOverrideScores?: Array<{ criterionId: string; score: number; comment: string }>;
+  teacherOverrideReason?: string;
+  teacherOverrideAt?: Date;
+  teacherOverrideBy?: ID;
+}
