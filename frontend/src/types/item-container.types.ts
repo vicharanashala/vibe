@@ -90,6 +90,8 @@ export interface ItemContainerProps {
   previousItem?: object;
   pendingStudentQuestionContext?: PendingStudentQuestionContext | null;
   clearPendingStudentQuestionContext?: () => void;
+  /** Concept-map navigation: seconds into a VIDEO item to land at on load. */
+  initialSeekSeconds?: number;
 }
 
 export interface ItemContainerRef {

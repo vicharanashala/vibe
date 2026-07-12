@@ -336,7 +336,24 @@ export default function CoursePage() {
     return byJob;
   }, [conceptMapProgress]);
   const [conceptMapOpen, setConceptMapOpen] = useState(false);
+  // Concept-map navigation: when a node with a within-item offset is clicked,
+  // the player lands at that offset once the item loads (subject to the seek
+  // rules enforced in video.tsx). `fromItemId` is where the student was when
+  // the seek was armed — navigation is async, so the selection briefly stays
+  // there; the seek is only discarded once the selection settles somewhere
+  // that is neither the origin nor the target.
+  const [pendingSeek, setPendingSeek] = useState<{ itemId: string; seconds: number; fromItemId: string | null } | null>(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (
+      pendingSeek &&
+      selectedItemId !== pendingSeek.itemId &&
+      selectedItemId !== pendingSeek.fromItemId
+    ) {
+      setPendingSeek(null);
+    }
+  }, [pendingSeek, selectedItemId]);
 
   const sectionId = activeSectionInfo?.sectionId ?? '';
 
@@ -1983,6 +2000,7 @@ return false;
                   cohortName={COHORT_NAME}
                   pendingStudentQuestionContext={pendingStudentQuestionContext}
                   clearPendingStudentQuestionContext={() => setPendingStudentQuestionContext(null)}
+                  initialSeekSeconds={pendingSeek && String(currentItem?._id) === pendingSeek.itemId ? pendingSeek.seconds : undefined}
                 />
               </div>
             </div>
@@ -2104,6 +2122,11 @@ return false;
                           }}
                           onNodeClick={(node) => {
                             if (!node.videoItemId || !mapModuleId || !mapSectionId) return;
+                            setPendingSeek(
+                              node.offsetSeconds && node.offsetSeconds > 0
+                                ? { itemId: node.videoItemId, seconds: node.offsetSeconds, fromItemId: selectedItemId }
+                                : null
+                            );
                             handleSelectItem(mapModuleId, mapSectionId, node.videoItemId);
                             setConceptMapOpen(false);
                           }}

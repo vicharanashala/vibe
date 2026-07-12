@@ -40,6 +40,13 @@ export interface VideoProps {
    * video auto-resumes (unless blocked by a proctoring anomaly/gesture).
    */
   awayPaused?: boolean;
+  /**
+   * Concept-map navigation: seconds into this clip to land at when the
+   * player becomes ready. Applied only when the seek rules allow the
+   * forward jump (seekForwardEnabled); otherwise the clip starts at its
+   * beginning as usual.
+   */
+  initialSeekSeconds?: number;
 }
 
 
