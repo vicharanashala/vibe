@@ -15,24 +15,33 @@ class Companion {
     public readonly createdAt: Date,
   ) {}
 
-  /** Build a full ICompanion response by enriching with live ViBe data */
+  /**
+   * Build a full ICompanion response by enriching with live ViBe data.
+   * studying is NOT set here — it is a live signal pushed by the frontend.
+   */
   toJSON(live: {
     realProgress: number;
-    realQuizScore: number;
+    quizScore: number;
     idleDays: number;
     stage: GrowthStage;
     mood: CompanionMood;
+    graduationCap: boolean;
+    studying: boolean;
+    newJourney: boolean;
   }): ICompanion {
     return {
       userId: this.userId,
       animal: this.animal,
       realProgress: live.realProgress,
-      realQuizScore: live.realQuizScore,
+      quizScore: live.quizScore,
       idleDays: live.idleDays,
       stage: live.stage,
       mood: live.mood,
+      studying: live.studying,
+      graduationCap: live.graduationCap,
       lastActiveAt: this.lastActiveAt,
       createdAt: this.createdAt,
+      newJourney: live.newJourney,
     };
   }
 }

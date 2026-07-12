@@ -1,10 +1,31 @@
 export type CompanionAnimal = 'panda' | 'fox' | 'penguin' | 'dog' | 'cat';
 export type GrowthStage = 0 | 1 | 2 | 3 | 4 | 5;
 export type CompanionMood =
-  | 'neutral'
-  | 'studying'
   | 'happy'
+  | 'sad'
+  | 'angry'
+  | 'sleeping'
+  | 'celebrating'
   | 'excited'
-  | 'concerned'
-  | 'worried'
-  | 'sleeping';
+  | 'studying'
+  | 'neutral'
+  | 'newJourney';
+
+// Mirrors backend CompanionMood — kept in sync with
+// backend src/modules/companion/classes/interfaces.ts.
+// Priority: celebrating > sleeping > angry > sad > excited > happy.
+// studying is a LIVE SIGNAL pushed by the frontend; never auto-derived.
+export interface CompanionState {
+  userId: string;
+  animal: CompanionAnimal;
+  realProgress: number;
+  idleDays: number;
+  stage: GrowthStage;
+  mood: CompanionMood;
+  studying: boolean;
+  quizScore: number;
+  graduationCap: boolean;
+  lastActiveAt: string;
+  createdAt: string;
+  newJourney: boolean;
+}

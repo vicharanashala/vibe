@@ -3,9 +3,18 @@
 import {useEffect, useRef, useState} from "react";
 import {useCompanionStore} from "@/store/companion-store";
 import type {CompanionAnimal, CompanionMood} from "@/types/companion";
-import {createCompanionRenderer} from "./companionRenderer";
+import {createCompanionRenderer, MSGS} from "./companionRenderer";
+import {apiClient} from "@/lib/api-client";
+
+type PrototypeMood = keyof typeof MSGS;
 
 // ── Animal + mood config ─────────────────────────────────────────────────
+
+// Stage names + emojis, kept in sync with `STAGES[]` in companionRenderer.js
+// (which mirrors `vibe_companions (2).html`). The dashboard displays the
+// named stage instead of the raw numeric index.
+const STAGE_NAMES = ["Baby", "Toddler", "Child", "Teen", "Young Adult", "Adult"] as const;
+const STAGE_EMOJIS = ["🥚", "🐣", "🌱", "🌿", "🌸", "⭐"] as const;
 
 const ANIMALS: {id: CompanionAnimal; emoji: string; label: string}[] = [
   {id: "panda", emoji: "🐼", label: "Panda"},
@@ -16,21 +25,27 @@ const ANIMALS: {id: CompanionAnimal; emoji: string; label: string}[] = [
 ];
 
 // Backend moods → prototype moods used by the renderer.
-function toPrototypeMood(backendMood: CompanionMood, progress: number): string {
+// Mirrors prototype AMOOD(p,i) priority: celebrating>sleeping>angry>sad>excited>happy.
+// studying is a live signal — the renderer gets it directly when the backend pushes it.
+function toPrototypeMood(backendMood: CompanionMood, progress: number): PrototypeMood {
   if (progress >= 100) return "celebrating";
   switch (backendMood) {
-    case "neutral":
     case "happy":
       return "happy";
-    case "studying":
-      return "studying";
+    case "angry":
+      return "angry";
+    case "sad":
+      return "sad";
     case "excited":
       return "excited";
-    case "concerned":
-    case "worried":
-      return "sad";
     case "sleeping":
       return "sleeping";
+    case "studying":
+      return "studying";
+    case "neutral":
+      return "neutral";
+    case "newJourney":
+      return "newJourney";
   }
 }
 
@@ -141,6 +156,51 @@ function CompanionCanvas({
   );
 }
 
+// ── Message sub-component ───────────────────────────────────────────────
+// Renders a small speech-bubble line under the canvas showing what the
+// companion "says" given the current mood + progress. Auto-updates when:
+//   - the active mood changes (mood or progress crosses a bucket boundary)
+//   - the user makes fresh progress (every 5%-point band change after that)
+//
+// This mirrors the prototype behaviour where each `refresh()` re-rolls a
+// random message from the active mood's array — surfacing variety as the
+// user keeps moving.
+
+function CompanionMessage({
+  mood,
+  progress,
+  override,
+}: {
+  mood: CompanionMood;
+  progress: number;
+  override: string | null;
+}) {
+  const prototypeMood = toPrototypeMood(mood, progress);
+  // Re-roll on (a) mood change, (b) every 5% progress band so the message
+  // visibly tracks activity even when the mood itself hasn't changed yet,
+  // and (c) a fresh `override` string (one-shot "new learning journey"
+  // message after a new enrollment drops the average realProgress).
+  const progressBucket = Math.floor(progress / 5);
+  const [msg, setMsg] = useState<string>("");
+  useEffect(() => {
+    if (override) {
+      setMsg(override);
+      return;
+    }
+    const arr = MSGS[prototypeMood] ?? MSGS.happy;
+    setMsg(arr[Math.floor(Math.random() * arr.length)]);
+  }, [prototypeMood, progressBucket, override]);
+
+  return (
+    <p
+      data-testid="companion-message"
+      className="text-xs italic text-gray-600 text-center max-w-xs px-2 min-h-[1.5rem]"
+    >
+      {msg}
+    </p>
+  );
+}
+
 // ── Component ────────────────────────────────────────────────────────────
 
 export function CompanionWidget() {
@@ -152,6 +212,52 @@ export function CompanionWidget() {
   const error = useCompanionStore((s) => s.error);
   const fetchCompanion = useCompanionStore((s) => s.fetchCompanion);
   const selectAnimal = useCompanionStore((s) => s.selectAnimal);
+
+  // ── "New learning journey" one-shot message ─────────────────────────────
+  // realProgress is averaged across all enrollments, so enrolling a new
+  // course can drop the companion to an earlier stage even though the
+  // student hasn't lost any prior achievement.
+  //
+  // The backend sets companion.newJourney = true when lastKnownProgress
+  // drops by ≥20 points (detected inside updateProgressMeta). The frontend
+  // shows one newJourney message, then calls PATCH /me/new-journey-seen
+  // to clear the flag server-side on the next poll.
+  //
+  // Unlike the old session-ref approach, this persists across page
+  // refreshes and is server-authoritative (not client-only).
+  const [journeyMessage, setJourneyMessage] = useState<string | null>(null);
+  const prevNewJourneyRef = useRef(false);
+  // Remember the progress value at the moment newJourney fired.
+  // The message persists until the user makes forward progress from this point.
+  const journeyBaseProgressRef = useRef<number | null>(null);
+  useEffect(() => {
+    const nj = companion?.newJourney;
+    const cp = companion?.realProgress;
+    if (nj === true && !prevNewJourneyRef.current) {
+      // Fire once — pick a random newJourney message from the renderer
+      const arr = MSGS.newJourney ?? ['A new journey starts today! 🌱'];
+      const msg = arr[Math.floor(Math.random() * arr.length)];
+      setJourneyMessage(msg);
+      journeyBaseProgressRef.current = typeof cp === 'number' ? cp : null;
+    }
+    prevNewJourneyRef.current = nj ?? false;
+  }, [companion?.newJourney]);
+
+  // Auto-clear the newJourney message when the user starts making progress.
+  // journeyBaseProgressRef stores the progress value at the moment newJourney
+  // fired. As soon as realProgress increases (user engaged with the new course),
+  // the message clears and normal mood messages resume.
+  useEffect(() => {
+    if (!journeyMessage) return;
+    const base = journeyBaseProgressRef.current;
+    if (base === null) return;
+    if (typeof companion?.realProgress === 'number' && companion!.realProgress > base) {
+      // User has made forward progress — clear the override and acknowledge
+      setJourneyMessage(null);
+      journeyBaseProgressRef.current = null;
+      apiClient.patch('/companion/me/new-journey-seen', {}).catch(() => {});
+    }
+  }, [companion?.realProgress]);
 
   // Fetch on mount, then auto-poll every 30s so mood/progress/idle stay fresh
   // without a full page reload (matches the polling interval documented in the
@@ -217,7 +323,13 @@ export function CompanionWidget() {
         mood={companion!.mood}
         progress={companion!.realProgress}
         idleDays={companion!.idleDays}
-        quizScore={companion!.realQuizScore}
+        quizScore={companion!.quizScore}
+      />
+
+      <CompanionMessage
+        mood={journeyMessage ? 'newJourney' : companion!.mood}
+        progress={companion!.realProgress}
+        override={journeyMessage}
       />
 
       {pickerOpen && (
@@ -259,9 +371,20 @@ export function CompanionWidget() {
           {companion!.animal}
         </span>
         <span className="text-gray-300">·</span>
-        <span className="capitalize">{companion!.mood}</span>
+        <span className="capitalize">{journeyMessage ? 'new journey' : companion!.mood}</span>
         <span className="text-gray-300">·</span>
-        <span>Stage {companion!.stage}</span>
+        <span>
+          Stage {STAGE_NAMES[companion!.stage] ?? companion!.stage}{" "}
+          {STAGE_EMOJIS[companion!.stage] ?? ""}
+        </span>
+        {companion!.graduationCap && (
+          <>
+            <span className="text-gray-300">·</span>
+            <span title={`Quiz score ${companion!.quizScore} > 85 — graduation cap earned!`}>
+              🎓
+            </span>
+          </>
+        )}
       </div>
       {!pickerOpen && (
         <button

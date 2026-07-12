@@ -7,6 +7,26 @@
  * NOTE: assembled by hand from the prototype. Do not refactor internals.
  */
 
+// ── Mood message table (exported for the React widget to surface messages
+//    alongside the canvas, so the user sees the companion's "voice" as well
+//    as its mood). Same table the in-canvas mood code uses. Keys match
+//    the 7 prototype moods + 'studying_break'. Keep in sync with the
+//    MSGS const below the IIFE — kept duplicated for now because the
+//    factory's internal MSGS is captured in the closure used by every
+//    call to drawX()/loop().
+export const MSGS = {
+  happy: ['Your companion loves you! 💕','One step at a time — you got this!','Looking great! Keep it up! ✨','You make your companion so happy! 🌟'],
+  sad: ['Please come back... I miss you 🥺','Just one tiny lesson? For me?','I\'ll be right here waiting... 💙','Don\'t leave me alone! 😢'],
+  sleeping: ['Zzz... dreaming of your return 💤','So sleepy without you here...','Wake me up when you\'re ready! 😴'],
+  celebrating: ['WE DID IT!! I\'m SO happy!! 🎊','You are absolutely AMAZING!! 🌟','This is the BEST day ever!! 🎉','You\'re my favourite human!! 💖'],
+  excited: ['LET\'S GOOO!! On fire!! 🔥','Your streak is INCREDIBLE!! ⚡','Nothing can stop you now!! 💪'],
+  angry: ['Hey!! Come back and study!! 😤','I\'m upset... but I still love you 😠','Don\'t make me wait too long! ⏰'],
+  studying: ['Shh... deep focus mode! 📖','Reading page after page... 📚','Taking notes like a pro! ✍️','Learning hard, one page at a time! 🤓'],
+  studying_break: ['Go take a break and come back! ☕','Stretch a little — I\'ll wait right here! ☕','Sipping coffee till you\'re back! ☕','Take five, you\'ve earned it. Come back soon 💛'],
+  neutral: ['Ready when you are! 💛','Let\'s start something new! 🌱','Pick a course and I\'ll be right here! ✨','No rush — your journey begins when you\'re ready! 🌟'],
+  newJourney: ['You enrolled a new course — let\'s begin! 🚀','A new journey starts today! 🌟','Fresh start! Let\'s grow together! 🌱','New course, new goals — I\'m right here with you! 💛'],
+};
+
 export function createCompanionRenderer(canvas, opts = {}) {
   // The prototype uses a global `G` for its canvas context (was const cv=...
   // G=cv.getContext('2d') at the top). Replace that with our injected canvas.
@@ -47,14 +67,18 @@ const MSGS={
   excited:['LET\'S GOOO!! On fire!! 🔥','Your streak is INCREDIBLE!! ⚡','Nothing can stop you now!! 💪'],
   angry:['Hey!! Come back and study!! 😤','I\'m upset... but I still love you 😠','Don\'t make me wait too long! ⏰'],
   studying:['Shh... deep focus mode! 📖','Reading page after page... 📚','Taking notes like a pro! ✍️','Learning hard, one page at a time! 🤓'],
-  studying_break:['Go take a break and come back! ☕','Stretch a little — I\'ll wait right here! ☕','Sipping coffee till you\'re back! ☕','Take five, you\'ve earned it. Come back soon 💛']
+  studying_break:['Go take a break and come back! ☕','Stretch a little — I\'ll wait right here! ☕','Sipping coffee till you\'re back! ☕','Take five, you\'ve earned it. Come back soon 💛'],
+  neutral:['Ready when you are! 💛','Let\'s start something new! 🌱','Pick a course and I\'ll be right here! ✨','No rush — your journey begins when you\'re ready! 🌟'],
+  newJourney:['You enrolled a new course — let\'s begin! 🚀','A new journey starts today! 🌟','Fresh start! Let\'s grow together! 🌱','New course, new goals — I\'m right here with you! 💛']
 };
 const MPILLS={
   happy:['#e8f5e9','#2e7d32','😊'],sad:['#fff3e0','#e65100','😢'],
   sleeping:['#ede7f6','#4527a0','😴'],celebrating:['#fce4ec','#880e4f','🎉'],
   excited:['#e1f5fe','#01579b','🔥'],angry:['#ffebee','#b71c1c','😠'],
   studying:['#fff8e1','#8d6e00','📚'],
-  studying_break:['#efebe9','#4e342e','☕']
+  studying_break:['#efebe9','#4e342e','☕'],
+  neutral:['#f0f4f8','#4a5568','🌱'],
+  newJourney:['#e0f7fa','#006064','🚀']
 };
 
 function spawnConf(){conf=[];for(let i=0;i<44;i++)conf.push({x:CX+(Math.random()-.5)*240,y:80,vx:(Math.random()-.5)*7,vy:-10-Math.random()*5,c:['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff','#ff6bb5'][i%6],s:4+Math.random()*5,l:1,d:.011+Math.random()*.008,r:Math.random()*6.28});}
@@ -97,10 +121,26 @@ function drawEye(x,y,open,m,iris,pup,es){
   grad.addColorStop(0,'#ffffff');grad.addColorStop(1,'#f2ece8');
   E(x,y,14*es,15*es,0,grad,'#ddd5cc',1.2);
   if(closed){
-    G.save();G.strokeStyle=iris;G.lineWidth=3;G.lineCap='round';
-    G.beginPath();G.moveTo(x-11*es,y+1);G.quadraticCurveTo(x,y+8*es,x+11*es,y+1);G.stroke();
-    G.lineWidth=2.2;
-    [[x-10*es,y-1,x-14*es,y-7*es],[x,y-2,x,y-9*es],[x+10*es,y-1,x+14*es,y-7*es]].forEach(([x1,y1,x2,y2])=>{G.beginPath();G.moveTo(x1,y1);G.lineTo(x2,y2);G.stroke();});
+    G.save();
+    if(m==='sleeping'){
+      // soft peaceful closed eyes — gentle downward arc with downward lashes, no spikes
+      G.strokeStyle=iris;G.lineWidth=2.8;G.lineCap='round';
+      G.beginPath();G.moveTo(x-12*es,y+3*es);G.quadraticCurveTo(x,y+10*es,x+12*es,y+3*es);G.stroke();
+      // gentle downward lashes — not spiky, just soft curves
+      G.lineWidth=1.8;
+      [[x-8*es,y+2*es,x-11*es,y+8*es],[x,y+1*es,x,y+9*es],[x+8*es,y+2*es,x+11*es,y+8*es]].forEach(([x1,y1,x2,y2])=>{
+        G.beginPath();G.moveTo(x1,y1);G.quadraticCurveTo((x1+x2)/2,(y1+y2)/2+2,x2,y2);G.stroke();
+      });
+      // soft blush circles for sleeping
+      blush(x-30*es,y+8*es,8*es,5*es);
+      blush(x+30*es,y+8*es,8*es,5*es);
+    } else {
+      // other closed states (happy etc.) — simple nice arc
+      G.strokeStyle=iris;G.lineWidth=2.8;G.lineCap='round';
+      G.beginPath();G.moveTo(x-11*es,y+1);G.quadraticCurveTo(x,y+8*es,x+11*es,y+1);G.stroke();
+      G.lineWidth=2.2;
+      [[x-10*es,y-1,x-14*es,y-7*es],[x,y-2,x,y-9*es],[x+10*es,y-1,x+14*es,y-7*es]].forEach(([x1,y1,x2,y2])=>{G.beginPath();G.moveTo(x1,y1);G.lineTo(x2,y2);G.stroke();});
+    }
     G.restore();return;
   }
   if(m==='angry'){
@@ -150,6 +190,9 @@ function drawMouth(x,y,m){
     G.restore();
   } else if(m==='studying'){
     G.beginPath();G.moveTo(x-6,y+3);G.quadraticCurveTo(x,y+6,x+6,y+3);G.stroke();
+  } else if(m==='neutral'){
+    // subtle small smile — encouraging but calm
+    G.beginPath();G.moveTo(x-9,y+4);G.quadraticCurveTo(x,y+10,x+9,y+4);G.stroke();
   }
   G.restore();
 }
@@ -176,6 +219,10 @@ function drawBeak(x,y,m){
   } else if(m==='sleeping'){
     G.strokeStyle='#c07008';G.lineWidth=2.2;
     G.beginPath();G.moveTo(x-9,y+2);G.lineTo(x+9,y+2);G.stroke();
+  } else if(m==='neutral'){
+    // subtle small smile — encouraging but calm
+    G.strokeStyle='#c07008';G.lineWidth=2.2;
+    G.beginPath();G.moveTo(x-10,y+1);G.quadraticCurveTo(x,y+8,x+10,y+1);G.stroke();
   } else {
     G.strokeStyle='#c07008';G.lineWidth=2.2;
     G.beginPath();G.moveTo(x-18,y);G.lineTo(x+18,y);G.stroke();
@@ -633,8 +680,14 @@ function loop(){
   const tail=Math.sin(tailT)*tamp;
   if(m==='celebrating'&&conf.length<6)spawnConf();
   if(m!=='celebrating')conf=[];
-  const sc=STAGES[SI(prog)].s;
+  // SCALE: continuous (gradual) from progress, not bucketed by STAGES[].s.
+  // STAGES[].s is still used for the display name ("Baby", "Adult", etc.) and
+  // for the per-feature lerps inside drawX(), but the global canvas scale
+  // tracks progress directly so the companion grows smoothly as progress
+  // increases (e.g. at p=50% the canvas scale is 0.71, not a discrete 0.68
+  // jump that looked nearly adult-sized too early).
   const stageT=Math.min(1,Math.max(0,prog/100));
+  const sc = 0.42 + 0.58 * stageT;
   headTurnT+=.006;
   const htAmp=m==='sleeping'?.02:.11;
   headTurn=Math.sin(headTurnT)*htAmp;

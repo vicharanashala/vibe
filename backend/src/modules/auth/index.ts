@@ -65,7 +65,9 @@ export const authModuleOptions: RoutingControllersOptions = {
       return null;
     }
     try {
-      return await authService.verifyToken(token);
+      // verifyToken() only returns boolean; getCurrentUserFromToken() returns
+      // the actual IUser object from MongoDB so @CurrentUser gets a real user.
+      return await authService.getCurrentUserFromToken(token);
     } catch (error) {
       return null;
     }

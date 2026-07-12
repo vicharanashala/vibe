@@ -1,11 +1,12 @@
 import {ICompanion} from '../classes/interfaces.js';
 import {CompanionService} from '../services/CompanionService.js';
 import {COMPANION_TYPES} from '../types.js';
-import {SelectAnimalBody} from '../classes/validators/CompanionValidators.js';
+import {SelectAnimalBody, SetStudyingBody} from '../classes/validators/CompanionValidators.js';
 import {
   JsonController,
   Get,
   Post,
+  Patch,
   Body,
   CurrentUser,
   UnauthorizedError,
@@ -37,6 +38,25 @@ class CompanionController {
     @Body() body: SelectAnimalBody,
   ): Promise<ICompanion> {
     return this.companionService.selectAnimal(this._userId(user), body.animal);
+  }
+
+  @Patch('/me/studying')
+  @OpenAPI({summary: 'Push studying live signal (true = in lesson, false = left lesson)'})
+  async setStudying(
+    @CurrentUser({required: true}) user: IUser,
+    @Body() body: SetStudyingBody,
+  ): Promise<{ok: true}> {
+    await this.companionService.setStudying(this._userId(user), body.studying);
+    return {ok: true};
+  }
+
+  @Patch('/me/new-journey-seen')
+  @OpenAPI({summary: 'Clear the newJourney flag after frontend shows the message'})
+  async clearNewJourney(
+    @CurrentUser({required: true}) user: IUser,
+  ): Promise<{ok: true}> {
+    await this.companionService.clearNewJourney(this._userId(user));
+    return {ok: true};
   }
 
   private _userId(user: IUser | string): string {

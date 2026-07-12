@@ -5,12 +5,16 @@ import type {CompanionAnimal, GrowthStage, CompanionMood} from '@/types/companio
 export interface CompanionState {
   animal: CompanionAnimal;
   realProgress: number;
-  realQuizScore: number;
-  idleDays: number;
+  quizScore: number;      // latest quiz score (most recent), not average
+  idleDays: number;       // days since last completed lesson
   stage: GrowthStage;
   mood: CompanionMood;
+  studying: boolean;      // live signal: true when student is in an active lesson
+  graduationCap: boolean; // shown when quizScore > 85
   lastActiveAt: string;
   createdAt: string;
+  /** True when a new enrollment dropped the average by ≥20 points */
+  newJourney: boolean;
 }
 
 interface CompanionStore {
@@ -21,6 +25,10 @@ interface CompanionStore {
 
   fetchCompanion: () => Promise<void>;
   selectAnimal: (animal: CompanionAnimal) => Promise<void>;
+  /** Push studying live signal to backend (true = in lesson, false = left lesson) */
+  setStudying: (studying: boolean) => Promise<void>;
+  /** Acknowledge the "new journey" one-shot message — clears the flag on the backend */
+  clearNewJourney: () => Promise<void>;
 }
 
 export const useCompanionStore = create<CompanionStore>((set) => {
@@ -45,14 +53,19 @@ export const useCompanionStore = create<CompanionStore>((set) => {
         try {
           const res = await apiClient.get<CompanionState | null>(
             '/companion/me',
-            { signal: controller.signal },
+            {signal: controller.signal},
           );
+          // Note: shouldClearNewJourney intentionally checks the *previous*
+          // poll's state (stored in component refs), not the store. The store
+          // only holds the current API snapshot. The actual "did we just
+          // transition true→false" check lives inside CompanionWidget.tsx
+          // where the one-shot display logic runs.
           set({
             companion: res.data,
             // Only flip hasSelected to false when the API confirms no record exists
             // (res.data === null). On any other response (including errors), preserve
             // the previous value so a transient backend hiccup never makes the user
-            // re-select their animal and overwrite the existing DB row.
+            // re-select their animal.
             hasSelected: res.data !== null,
             isLoading: false,
           });
@@ -63,9 +76,8 @@ export const useCompanionStore = create<CompanionStore>((set) => {
             set({isLoading: false});
             return;
           }
-          // Don't clear hasSelected/companion here — a network blip should not wipe
-          // the student's existing animal choice. Just record the error and stop
-          // the loading spinner so the UI can show an error state if it wants to.
+          // Don't clear hasSelected/companion — a network blip should not wipe
+          // the student's existing animal choice.
           const message =
             err instanceof Error ? err.message : 'Failed to load companion';
           set({isLoading: false, error: message});
@@ -76,15 +88,33 @@ export const useCompanionStore = create<CompanionStore>((set) => {
       return inFlight;
     },
 
-  selectAnimal: async (animal: CompanionAnimal) => {
-    set({isLoading: true, error: null});
-    try {
-      const res = await apiClient.post<CompanionState>('/companion/me', {animal});
-      set({companion: res.data, hasSelected: true, isLoading: false});
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to select companion';
-      set({error: message, isLoading: false});
-    }
-  },
+    selectAnimal: async (animal: CompanionAnimal) => {
+      set({isLoading: true, error: null});
+      try {
+        const res = await apiClient.post<CompanionState>('/companion/me', {animal});
+        set({companion: res.data, hasSelected: true, isLoading: false});
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to select companion';
+        set({error: message, isLoading: false});
+      }
+    },
+
+    setStudying: async (studying: boolean) => {
+      // Fire-and-forget: don't block the UI or show errors for this signal.
+      // The 5-minute TTL on the backend ensures we auto-expire on crash/network loss.
+      try {
+        await apiClient.patch('/companion/me/studying', {studying});
+      } catch {
+        // silent — the TTL is the safety net
+      }
+    },
+
+    clearNewJourney: async () => {
+      try {
+        await apiClient.patch('/companion/me/new-journey-seen', {});
+      } catch {
+        // silent — the flag clears server-side on next /companion/me response
+      }
+    },
   };
 });
