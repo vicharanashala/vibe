@@ -513,7 +513,53 @@ class SubmissionRepository {
 
     return !!passedSubmission;
   }
-  
+
+  /**
+   * One user's outcome per quiz, for a batch of quizzes (read-only join used
+   * by the concept-map mastery overlay): 'PASSED' if any submission passed,
+   * 'ATTEMPTED' if the quiz has submissions but none passed. Quizzes without
+   * submissions are absent from the result.
+   */
+  async getOutcomesByQuizIds(
+    userId: string,
+    quizIds: string[],
+    session?: ClientSession,
+  ): Promise<Record<string, 'PASSED' | 'ATTEMPTED'>> {
+    await this.init();
+    if (!quizIds.length) return {};
+    const rows = await this.submissionResultCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              userId: new ObjectId(userId),
+              quizId: {$in: quizIds.map(id => new ObjectId(id))},
+            },
+          },
+          {
+            $group: {
+              _id: '$quizId',
+              passed: {
+                $max: {
+                  $cond: [
+                    {$eq: ['$gradingResult.gradingStatus', 'PASSED']},
+                    1,
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+        ],
+        {session},
+      )
+      .toArray();
+    const outcomes: Record<string, 'PASSED' | 'ATTEMPTED'> = {};
+    for (const row of rows) {
+      outcomes[row._id.toString()] = row.passed ? 'PASSED' : 'ATTEMPTED';
+    }
+    return outcomes;
+  }
 
 }
 

@@ -25,8 +25,8 @@ import {
   Maximize2,
   Network,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { getSectionConceptMaps } from "@/lib/genai-api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getSectionConceptMaps, getSectionConceptMapProgress } from "@/lib/genai-api";
 import { ConceptMapPanel } from "@/components/concept-map";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -320,7 +320,23 @@ export default function CoursePage() {
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
+  // Mastery overlay: this student's per-node quiz outcomes for those maps.
+  const { data: conceptMapProgress } = useQuery({
+    queryKey: ['concept-map-progress', VERSION_ID, selectedSectionId],
+    queryFn: () => getSectionConceptMapProgress(VERSION_ID, selectedSectionId!),
+    enabled: !!VERSION_ID && !!selectedSectionId && (sectionConceptMaps?.length ?? 0) > 0,
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+  const conceptMapOutcomes = useMemo(() => {
+    const byJob: Record<string, Record<string, 'mastered' | 'weak'>> = {};
+    for (const entry of conceptMapProgress ?? []) {
+      byJob[entry.jobId] = entry.outcomes;
+    }
+    return byJob;
+  }, [conceptMapProgress]);
   const [conceptMapOpen, setConceptMapOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const sectionId = activeSectionInfo?.sectionId ?? '';
 
@@ -577,6 +593,14 @@ export default function CoursePage() {
   useEffect(() => {
     if (quizPassed !== 2) setTimeout(() => setQuizPassed(2), 2000);
   }, [quizPassed]);
+
+  // A quiz was just graded (1 = passed, 0 = failed) — refresh the concept-map
+  // mastery overlay so the node states reflect the new outcome.
+  useEffect(() => {
+    if (quizPassed === 0 || quizPassed === 1) {
+      queryClient.invalidateQueries({ queryKey: ['concept-map-progress'] });
+    }
+  }, [quizPassed, queryClient]);
   // Add a flag to track if initial load from progress is complete
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
@@ -2053,24 +2077,29 @@ return false;
                   const highlightNodeId = map.nodes.find(
                     n => n.videoItemId && n.videoItemId === selectedItemId
                   )?.id;
+                  const outcomes = map.jobId ? conceptMapOutcomes[map.jobId] : undefined;
                   return (
                     <div key={map.jobId ?? idx} className="border border-border/40 rounded-xl overflow-hidden">
                       <Suspense
                         fallback={
-                          <div className="flex justify-center items-center h-[300px] text-muted-foreground text-sm">
+                          <div className="flex justify-center items-center h-[320px] text-muted-foreground text-sm">
                             Loading concept map…
                           </div>
                         }
                       >
                         <ConceptMapPanel
-                          className="w-full h-[300px]"
+                          className="w-full h-[320px]"
                           nodes={map.nodes}
                           edges={map.edges}
                           highlightNodeId={highlightNodeId}
+                          showLegend
                           nodeState={(node) => {
                             if (!node.videoItemId || !mapModuleId || !mapSectionId) return 'available';
                             if (node.videoItemId === selectedItemId) return 'current';
                             if (isItemLocked(mapModuleId, mapSectionId, node.videoItemId)) return 'locked';
+                            // Mastery overlay: quiz outcome for reachable, non-current nodes.
+                            const outcome = outcomes?.[node.id];
+                            if (outcome) return outcome;
                             return 'available';
                           }}
                           onNodeClick={(node) => {

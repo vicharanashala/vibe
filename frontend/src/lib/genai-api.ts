@@ -575,6 +575,22 @@ export const getSectionConceptMaps = async (
   return response.json();
 };
 
+// Mastery overlay: the requesting student's per-node quiz outcomes for the
+// section's published maps (mastered = segment quiz passed, weak = attempted
+// but not passed; untouched nodes are absent).
+export type ConceptMapProgressResponse = components['schemas']['ConceptMapProgressResponse'];
+
+export const getSectionConceptMapProgress = async (
+  versionId: string,
+  sectionId: string
+): Promise<ConceptMapProgressResponse[]> => {
+  const response = await makeAuthenticatedRequest(
+    `/concept-maps/section/${versionId}/${sectionId}/progress`,
+    { method: 'GET' }
+  );
+  return response.json();
+};
+
 export const editQuestionData = async (jobId: string, questionData: any, index?: number,) => {
   return makeAuthenticatedRequest(`/genai/jobs/${jobId}/edit/question`, {
     method: 'PATCH',

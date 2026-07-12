@@ -1110,6 +1110,11 @@ class ConceptMapNodeResponse {
   @IsString()
   videoItemId?: string;
 
+  @JSONSchema({ description: 'Quiz item created from that segment (published maps only; absent when the segment got no questions)', type: 'string' })
+  @IsOptional()
+  @IsString()
+  quizItemId?: string;
+
   @JSONSchema({ description: 'Seconds into that video item where the concept is explained', type: 'number' })
   @IsOptional()
   @IsNumber()
@@ -1174,6 +1179,22 @@ class ConceptMapResponse {
   fallback?: boolean;
 }
 
+@JSONSchema({ title: 'ConceptMapProgressResponse' })
+class ConceptMapProgressResponse {
+  @JSONSchema({ description: 'GenAI job whose published map these outcomes belong to', type: 'string' })
+  @IsNotEmpty()
+  @IsString()
+  jobId: string;
+
+  @JSONSchema({
+    description:
+      "The requesting student's per-node quiz outcome: 'mastered' (segment quiz passed) or 'weak' (attempted, not passed). Nodes without attempts are absent.",
+    type: 'object',
+    additionalProperties: { type: 'string', enum: ['mastered', 'weak'] },
+  })
+  outcomes: Record<string, 'mastered' | 'weak'>;
+}
+
 export {
   JobType,
   GenAIResponse,
@@ -1195,6 +1216,7 @@ export {
   ConceptMapNodeResponse,
   ConceptMapEdgeResponse,
   ConceptMapResponse,
+  ConceptMapProgressResponse,
 };
 
 export const GENAI_VALIDATORS = [
@@ -1205,6 +1227,7 @@ export const GENAI_VALIDATORS = [
   ConceptMapNodeResponse,
   ConceptMapEdgeResponse,
   ConceptMapResponse,
+  ConceptMapProgressResponse,
   GenAIResponse,
   JobStatusResponse,
   JobBody,

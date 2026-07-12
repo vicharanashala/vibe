@@ -1682,6 +1682,7 @@ export class GenAIService extends BaseService {
             jobState,
             taskDAta,
             createdVideoItemsInfo,
+            createdQuizItemsInfo,
             session,
           );
         } catch (error) {
@@ -1751,6 +1752,7 @@ export class GenAIService extends BaseService {
     jobState: JobState,
     taskData: TaskData,
     createdVideoItemsInfo: Array<{ id?: string; segmentId: string }>,
+    createdQuizItemsInfo: Array<{ id?: string; segmentId: string }>,
     session: any,
   ): Promise<void> {
     const latestMap = taskData.conceptMap
@@ -1774,7 +1776,7 @@ export class GenAIService extends BaseService {
         ?.segmentationMap ?? jobState.segmentMap ?? [];
     const uploadSegMap = jobState.segmentMap ?? [];
 
-    const itemForNode = (segmentEnd: number): string | undefined => {
+    const segmentIndexForNode = (segmentEnd: number): number => {
       let index = conceptSegMap.findIndex(v => v === segmentEnd);
       if (index < 0 || index >= createdVideoItemsInfo.length) {
         let best = -1;
@@ -1788,7 +1790,22 @@ export class GenAIService extends BaseService {
         });
         index = best;
       }
+      return index;
+    };
+    const itemForNode = (segmentEnd: number): string | undefined => {
+      const index = segmentIndexForNode(segmentEnd);
       return index >= 0 ? createdVideoItemsInfo[index]?.id : undefined;
+    };
+    // Quiz items only exist for segments that received questions, so they
+    // are looked up by the segment value they were created for — not by
+    // position in createdQuizItemsInfo.
+    const quizBySegmentId = new Map(
+      createdQuizItemsInfo.map(q => [q.segmentId, q.id]),
+    );
+    const quizForNode = (segmentEnd: number): string | undefined => {
+      const index = segmentIndexForNode(segmentEnd);
+      if (index < 0 || index >= uploadSegMap.length) return undefined;
+      return quizBySegmentId.get(String(uploadSegMap[index]));
     };
     const conceptSegStart = (segmentEnd: number): number => {
       const index = conceptSegMap.findIndex(v => v === segmentEnd);
@@ -1812,6 +1829,7 @@ export class GenAIService extends BaseService {
           description: n.description,
           segmentEnd: n.segmentEnd,
           videoItemId: itemForNode(n.segmentEnd),
+          quizItemId: quizForNode(n.segmentEnd),
           offsetSeconds: Math.round(offset * 1000) / 1000,
         };
       }),

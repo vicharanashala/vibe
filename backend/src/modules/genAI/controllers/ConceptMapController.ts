@@ -14,9 +14,12 @@ import {
   ConceptMapSectionParams,
   ConceptMapJobParams,
   ConceptMapResponse,
+  ConceptMapProgressResponse,
   GenAINotFoundErrorResponse,
 } from '../classes/validators/GenAIValidators.js';
 import { GENAI_TYPES } from '../types.js';
+import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
+import { SubmissionRepository } from '#root/modules/quizzes/repositories/providers/mongodb/SubmissionRepository.js';
 import { GenAIService } from '../services/GenAIService.js';
 import { ConceptMapRepository } from '../repositories/providers/mongodb/ConceptMapRepository.js';
 import { TaskStatus, TaskType } from '../classes/transformers/GenAI.js';
@@ -37,6 +40,8 @@ export class ConceptMapController {
     private readonly genAIService: GenAIService,
     @inject(GENAI_TYPES.ConceptMapRepo)
     private readonly conceptMapRepository: ConceptMapRepository,
+    @inject(QUIZZES_TYPES.SubmissionRepo)
+    private readonly submissionRepository: SubmissionRepository,
   ) {}
 
   @OpenAPI({
@@ -67,6 +72,63 @@ export class ConceptMapController {
       );
     }
     return this.conceptMapRepository.getBySection(versionId, sectionId);
+  }
+
+  @OpenAPI({
+    summary: "Get the requesting student's mastery outcomes for a section's concept maps",
+    description:
+      "Read-only join of the section's published concept maps against the student's own quiz submissions: per node, 'mastered' when the segment quiz was passed, 'weak' when attempted but not passed. Nodes without attempts (or without a quiz) are omitted.",
+  })
+  @Get('/section/:versionId/:sectionId/progress')
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(ConceptMapProgressResponse, {
+    isArray: true,
+    description: 'Per-map node outcomes for the requesting student',
+  })
+  @ResponseSchema(ForbiddenErrorResponse, {
+    description: 'Not enrolled in this course version',
+    statusCode: 403,
+  })
+  async getSectionProgress(
+    @Params() params: ConceptMapSectionParams,
+    @Ability(getGenAIAbility) { ability, user },
+  ) {
+    const { versionId, sectionId } = params;
+    const mapRes = subject('ConceptMap', { versionId });
+    if (!ability.can(ConceptMapActions.View, mapRes)) {
+      throw new ForbiddenError(
+        'You must be enrolled in this course version to view its concept maps',
+      );
+    }
+
+    const maps = await this.conceptMapRepository.getBySection(
+      versionId,
+      sectionId,
+    );
+    const quizIds = [
+      ...new Set(
+        maps.flatMap(map =>
+          map.nodes.map(n => n.quizItemId).filter((id): id is string => !!id),
+        ),
+      ),
+    ];
+    const quizOutcomes = await this.submissionRepository.getOutcomesByQuizIds(
+      user._id.toString(),
+      quizIds,
+    );
+
+    return maps.map(map => {
+      const outcomes: Record<string, 'mastered' | 'weak'> = {};
+      for (const node of map.nodes) {
+        const outcome = node.quizItemId
+          ? quizOutcomes[node.quizItemId]
+          : undefined;
+        if (outcome === 'PASSED') outcomes[node.id] = 'mastered';
+        else if (outcome === 'ATTEMPTED') outcomes[node.id] = 'weak';
+      }
+      return { jobId: map.jobId, outcomes };
+    });
   }
 
   @OpenAPI({

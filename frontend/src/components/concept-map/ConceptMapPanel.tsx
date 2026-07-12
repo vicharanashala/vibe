@@ -9,11 +9,19 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useTheme } from 'next-themes';
+import { CheckCircle2, AlertTriangle, Lock, MapPin } from 'lucide-react';
 import { ConceptNode, type ConceptNodeData } from './ConceptNode';
 import { layoutConceptMap } from './layout';
 import type { ConceptMapPanelProps } from './types';
 
 const nodeTypes: NodeTypes = { concept: ConceptNode };
+
+const LEGEND_ITEMS = [
+  { icon: <MapPin className="h-3 w-3 text-primary" />, label: 'Current' },
+  { icon: <Lock className="h-3 w-3 text-muted-foreground" />, label: 'Upcoming' },
+  { icon: <CheckCircle2 className="h-3 w-3 text-emerald-500" />, label: 'Mastered' },
+  { icon: <AlertTriangle className="h-3 w-3 text-amber-500" />, label: 'Revisit' },
+];
 
 /**
  * The one shared concept-map surface (teacher preview + student navigator).
@@ -30,6 +38,7 @@ export default function ConceptMapPanel({
   nodeState,
   onNodeClick,
   readOnly = false,
+  showLegend = false,
   className,
 }: ConceptMapPanelProps) {
   const { resolvedTheme } = useTheme();
@@ -63,30 +72,42 @@ export default function ConceptMapPanel({
   );
 
   return (
-    <div className={className ?? 'h-[340px] w-full'}>
-      <ReactFlow
-        nodes={rfNodes}
-        edges={rfEdges}
-        nodeTypes={nodeTypes}
-        colorMode={resolvedTheme === 'dark' ? 'dark' : 'light'}
-        onNodeClick={handleNodeClick}
-        fitView
-        fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
-        minZoom={0.3}
-        maxZoom={1.5}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
-        edgesFocusable={false}
-        zoomOnScroll={false}
-        panOnScroll={false}
-        preventScrolling={false}
-        zoomOnDoubleClick={false}
-        proOptions={{ hideAttribution: false }}
-      >
-        <Background gap={20} size={1} />
-        <Controls showInteractive={false} />
-      </ReactFlow>
+    <div className={`flex flex-col ${className ?? 'h-[340px] w-full'}`}>
+      {showLegend && (
+        <div className="flex flex-wrap items-center gap-4 border-b border-border/40 bg-muted/20 px-3 py-1.5">
+          {LEGEND_ITEMS.map(item => (
+            <span key={item.label} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              {item.icon}
+              {item.label}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="min-h-0 flex-1">
+        <ReactFlow
+          nodes={rfNodes}
+          edges={rfEdges}
+          nodeTypes={nodeTypes}
+          colorMode={resolvedTheme === 'dark' ? 'dark' : 'light'}
+          onNodeClick={handleNodeClick}
+          fitView
+          fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
+          minZoom={0.3}
+          maxZoom={1.5}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          edgesFocusable={false}
+          zoomOnScroll={false}
+          panOnScroll={false}
+          preventScrolling={false}
+          zoomOnDoubleClick={false}
+          proOptions={{ hideAttribution: false }}
+        >
+          <Background gap={20} size={1} />
+          <Controls showInteractive={false} />
+        </ReactFlow>
+      </div>
     </div>
   );
 }

@@ -29,5 +29,7 @@ export interface ConceptMapPanelProps {
   onNodeClick?: (node: ConceptMapNode) => void;
   /** Teacher preview / no navigation semantics. */
   readOnly?: boolean;
+  /** Render the node-state legend row (student view). */
+  showLegend?: boolean;
   className?: string;
 }

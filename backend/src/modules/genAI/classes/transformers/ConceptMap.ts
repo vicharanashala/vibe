@@ -14,6 +14,11 @@ export class ConceptMapNode {
 	segmentEnd: number;
 	/** The Video item created from that segment. */
 	videoItemId?: string;
+	/**
+	 * The Quiz item created from that segment (absent when the segment got no
+	 * questions, and on maps published before the mastery overlay existed).
+	 */
+	quizItemId?: string;
 	/** Seconds into that video item where the concept is first explained. */
 	offsetSeconds: number;
 }

@@ -2161,6 +2161,8 @@ export interface components {
             segmentEnd: number;
             /** @description Video item created from that segment (published maps only) */
             videoItemId?: string;
+            /** @description Quiz item created from that segment (published maps only; absent when the segment got no questions) */
+            quizItemId?: string;
             /** @description Seconds into that video item where the concept is explained */
             offsetSeconds?: number;
         };
@@ -2187,6 +2189,14 @@ export interface components {
             edges: components["schemas"]["ConceptMapEdgeResponse"][];
             /** @description True when produced by the deterministic no-LLM fallback */
             fallback?: boolean;
+        };
+        ConceptMapProgressResponse: {
+            /** @description GenAI job whose published map these outcomes belong to */
+            jobId: string;
+            /** @description The requesting student's per-node quiz outcome: 'mastered' (segment quiz passed) or 'weak' (attempted, not passed). Nodes without attempts are absent. */
+            outcomes: {
+                [key: string]: "mastered" | "weak";
+            };
         };
         ForbiddenErrorResponse: {
             /** @description Information of the error. */
