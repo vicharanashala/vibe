@@ -333,6 +333,140 @@ export class GenAIService extends BaseService {
     return { message: 'Success', data: result };
   }
 
+  /**
+   * Retroactive concept-map generation for an already-published job (e.g.
+   * lectures uploaded before the feature existed). The job gains
+   * `jobStatus.conceptMap`, a map is generated from the stored segmentation,
+   * and it is published immediately — anchors are re-derived from the
+   * section's ACTUAL items (the created-items info was never persisted):
+   * video items are matched by the job's URL plus the exact clip-boundary
+   * strings the upload wrote, and each segment's quiz is the QUIZ item that
+   * directly follows its video in the section order.
+   */
+  async generateRetroactiveConceptMap(jobId: string): Promise<conceptMapData> {
+    return this._withTransaction(async session => {
+      const job = await this.genAIRepository.getById(jobId, session);
+      const taskData = await this.genAIRepository.getTaskDataByJobId(
+        jobId,
+        session,
+      );
+      if (!job || !taskData) {
+        throw new NotFoundError(`Job with ID ${jobId} not found`);
+      }
+      if (job.jobStatus.uploadContent !== TaskStatus.COMPLETED) {
+        throw new BadRequestError(
+          'Retroactive concept-map generation is only available for jobs whose content has been published',
+        );
+      }
+      const seg = taskData.segmentation?.[taskData.segmentation.length - 1];
+      if (!seg?.transcriptFileUrl || !seg.segmentationMap?.length) {
+        throw new BadRequestError(
+          'Job has no stored segmentation data to generate a concept map from',
+        );
+      }
+
+      let result: conceptMapData;
+      try {
+        const chunks = await this.conceptMapService.fetchTranscriptChunks(
+          seg.transcriptFileUrl,
+        );
+        result = await this.conceptMapService.generate(
+          chunks,
+          seg.segmentationMap,
+          job.conceptMapParameters,
+        );
+      } catch (error: any) {
+        result = {
+          status: TaskStatus.FAILED,
+          error: error?.message || 'Concept map generation failed',
+        };
+      }
+      // The legacy job gains the field here, by explicit teacher request.
+      job.jobStatus.conceptMap = result.status;
+      if (taskData.conceptMap) {
+        taskData.conceptMap.push(result);
+      } else {
+        taskData.conceptMap = [result];
+      }
+
+      if (result.status === TaskStatus.COMPLETED) {
+        const uploadParams = job.uploadParameters;
+        const items = await this.itemService.readSectionItemsInternal(
+          uploadParams.versionId,
+          uploadParams.moduleId,
+          uploadParams.sectionId,
+        );
+        const videos = items.filter(
+          i => i.type === ItemType.VIDEO && i.details?.URL === job.url,
+        );
+        const quizAfterVideo = (videoId: string): string | undefined => {
+          const index = items.findIndex(i => i._id === videoId);
+          if (index < 0) return undefined;
+          for (let j = index + 1; j < items.length; j++) {
+            if (items[j].type === ItemType.QUIZ) return items[j]._id;
+            if (items[j].type === ItemType.VIDEO) return undefined;
+          }
+          return undefined;
+        };
+        let previousEnd = 0;
+        const createdVideoItemsInfo: Array<{ id?: string; segmentId: string }> = [];
+        const createdQuizItemsInfo: Array<{ id?: string; segmentId: string }> = [];
+        seg.segmentationMap.forEach((segmentEnd, index) => {
+          const startString = this.secondsToTimeString(previousEnd);
+          const endString = this.secondsToTimeString(Number(segmentEnd));
+          const video =
+            videos.find(
+              v =>
+                v.details?.startTime === startString &&
+                v.details?.endTime === endString,
+            ) ?? videos[index];
+          createdVideoItemsInfo.push({
+            id: video?._id,
+            segmentId: String(segmentEnd),
+          });
+          createdQuizItemsInfo.push({
+            id: video ? quizAfterVideo(video._id) : undefined,
+            segmentId: String(segmentEnd),
+          });
+          previousEnd = Number(segmentEnd);
+        });
+
+        const jobState = new JobState();
+        jobState.segmentMap = seg.segmentationMap;
+        jobState.parameters = uploadParams;
+        try {
+          await this.publishConceptMap(
+            jobId,
+            job,
+            jobState,
+            taskData,
+            createdVideoItemsInfo,
+            createdQuizItemsInfo,
+            session,
+          );
+        } catch (error) {
+          console.error(
+            `Failed to publish retroactive concept map for job ${jobId}:`,
+            error,
+          );
+        }
+      }
+
+      const updatedJob = await this.genAIRepository.update(jobId, job, session);
+      const updatedTaskData = await this.genAIRepository.updateTaskData(
+        jobId,
+        taskData,
+        session,
+      );
+      if (!updatedJob || !updatedTaskData) {
+        throw new InternalServerError(
+          `Failed to store retroactive concept map for job ID ${jobId}`,
+        );
+      }
+      return result;
+    });
+  }
+
   async rerunTask(
     jobId: string,
     userId: string,

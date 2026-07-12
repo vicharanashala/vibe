@@ -3,10 +3,12 @@ import {
   JsonController,
   Get,
   Patch,
+  Post,
   Params,
   Body,
   Authorized,
   HttpCode,
+  BadRequestError,
   ForbiddenError,
   NotFoundError,
 } from 'routing-controllers';
@@ -240,6 +242,60 @@ export class ConceptMapController {
       nodes: edited.nodes,
       edges: edited.edges ?? [],
       fallback: edited.fallback,
+    };
+  }
+
+  @OpenAPI({
+    summary: 'Retroactively generate and publish a concept map for a completed job',
+    description:
+      'For jobs published before the concept-map feature existed (or with it disabled): generates a map from the stored segmentation and publishes it immediately, re-deriving video/quiz anchors from the section\'s actual items. The job gains jobStatus.conceptMap. Allowed for the job creator and course staff.',
+  })
+  @Post('/job/:jobId/generate')
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(ConceptMapResponse, {
+    description: 'The generated and published concept map',
+  })
+  @ResponseSchema(GenAINotFoundErrorResponse, {
+    description: 'Job not found',
+    statusCode: 404,
+  })
+  async generateRetroactively(
+    @Params() params: ConceptMapJobParams,
+    @Ability(getGenAIAbility) { ability, user },
+  ) {
+    const { jobId } = params;
+    const job = await this.genAIService.getJobStatus(jobId);
+
+    const isCreator = job.userId?.toString() === user._id.toString();
+    const mapRes = subject('ConceptMap', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
+    if (!isCreator && !ability.can(ConceptMapActions.Preview, mapRes)) {
+      throw new ForbiddenError(
+        'You do not have permission to generate a concept map for this job',
+      );
+    }
+
+    const result = await this.genAIService.generateRetroactiveConceptMap(
+      jobId,
+    );
+    if (result.status !== TaskStatus.COMPLETED) {
+      // The FAILED attempt is persisted (the teacher can retry); surface why.
+      throw new BadRequestError(
+        result.error || 'Concept map generation failed',
+      );
+    }
+    return {
+      jobId,
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+      moduleId: job.uploadParameters.moduleId,
+      sectionId: job.uploadParameters.sectionId,
+      nodes: result.nodes,
+      edges: result.edges ?? [],
+      fallback: result.fallback,
     };
   }
 }
