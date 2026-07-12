@@ -2,7 +2,9 @@ import { injectable, inject } from 'inversify';
 import {
   JsonController,
   Get,
+  Patch,
   Params,
+  Body,
   Authorized,
   HttpCode,
   ForbiddenError,
@@ -15,6 +17,7 @@ import {
   ConceptMapJobParams,
   ConceptMapResponse,
   ConceptMapProgressResponse,
+  ConceptMapPreviewEditBody,
   GenAINotFoundErrorResponse,
 } from '../classes/validators/GenAIValidators.js';
 import { GENAI_TYPES } from '../types.js';
@@ -187,6 +190,56 @@ export class ConceptMapController {
       nodes: latest.nodes,
       edges: latest.edges ?? [],
       fallback: latest.fallback,
+    };
+  }
+
+  @OpenAPI({
+    summary: "Edit a job's in-pipeline concept map (remove one node)",
+    description:
+      'Teacher approval edit: removes one concept from the latest generated map. Incident edges drop and parent→child prerequisite chains are re-bridged, so one bad node no longer forces a full regeneration. Allowed for the job creator and course staff.',
+  })
+  @Patch('/job/:jobId/preview')
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(ConceptMapResponse, {
+    description: 'The edited concept map',
+  })
+  @ResponseSchema(GenAINotFoundErrorResponse, {
+    description: 'Job has no generated concept map',
+    statusCode: 404,
+  })
+  async editPreview(
+    @Params() params: ConceptMapJobParams,
+    @Body() body: ConceptMapPreviewEditBody,
+    @Ability(getGenAIAbility) { ability, user },
+  ) {
+    const { jobId } = params;
+    const job = await this.genAIService.getJobStatus(jobId);
+
+    const isCreator = job.userId?.toString() === user._id.toString();
+    const mapRes = subject('ConceptMap', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
+    if (!isCreator && !ability.can(ConceptMapActions.Preview, mapRes)) {
+      throw new ForbiddenError(
+        'You do not have permission to edit this concept map',
+      );
+    }
+
+    const edited = await this.genAIService.editConceptMapPreview(
+      jobId,
+      body.removeNodeId,
+    );
+    return {
+      jobId,
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+      moduleId: job.uploadParameters.moduleId,
+      sectionId: job.uploadParameters.sectionId,
+      nodes: edited.nodes,
+      edges: edited.edges ?? [],
+      fallback: edited.fallback,
     };
   }
 }

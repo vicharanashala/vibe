@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { Lock, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Lock, CheckCircle2, AlertTriangle, X } from 'lucide-react';
 import type { ConceptMapNode, ConceptNodeState } from './types';
 
 export interface ConceptNodeData {
@@ -8,6 +8,8 @@ export interface ConceptNodeData {
   state: ConceptNodeState;
   highlighted: boolean;
   readOnly: boolean;
+  /** Teacher approval mode: remove this concept from the map. */
+  onDelete?: () => void;
   [key: string]: unknown;
 }
 
@@ -32,15 +34,29 @@ const StateBadge = ({ state }: { state: ConceptNodeState }) => {
 };
 
 function ConceptNodeInner({ data }: NodeProps) {
-  const { concept, state, highlighted, readOnly } = data as ConceptNodeData;
+  const { concept, state, highlighted, readOnly, onDelete } = data as ConceptNodeData;
   return (
     <div
       title={concept.description || concept.label}
-      className={`w-[190px] rounded-xl border px-3 py-2 text-xs font-medium shadow-sm transition-all duration-200 ${
+      className={`group relative w-[190px] rounded-xl border px-3 py-2 text-xs font-medium shadow-sm transition-all duration-200 ${
         readOnly ? 'cursor-default' : ''
       } ${STATE_CLASSES[state]} ${highlighted ? 'ring-2 ring-primary shadow-lg' : ''}`}
     >
       <Handle type="target" position={Position.Top} className="!h-1.5 !w-1.5 !bg-muted-foreground/50 !border-0" />
+      {onDelete && (
+        <button
+          type="button"
+          aria-label={`Remove concept: ${concept.label}`}
+          title="Remove this concept"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="absolute -right-2 -top-2 hidden h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-red-500 hover:text-white group-hover:flex"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
       <div className="flex items-start gap-1.5">
         <StateBadge state={state} />
         <span className="line-clamp-2 leading-snug">{concept.label}</span>

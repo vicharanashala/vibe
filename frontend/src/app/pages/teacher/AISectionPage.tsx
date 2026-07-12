@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { aiSectionAPI, JobStatus, getApiUrl, getConceptMapPreview, ConceptMapResponse } from "@/lib/genai-api";
+import { aiSectionAPI, JobStatus, getApiUrl, getConceptMapPreview, deleteConceptMapPreviewNode, ConceptMapResponse } from "@/lib/genai-api";
 import { ConceptMapPanel } from "@/components/concept-map";
 import {
   Accordion,
@@ -844,6 +844,20 @@ const ConceptMapApprovalSection = ({
     }
   };
 
+  const removeNode = async (node: ConceptMapResponse['nodes'][number]) => {
+    if (!aiJobId) return;
+    if (!window.confirm(`Remove the concept "${node.label}" from the map? Its prerequisite links will be re-bridged.`)) {
+      return;
+    }
+    try {
+      const edited = await deleteConceptMapPreviewNode(aiJobId, node.id);
+      setPreview(edited);
+      toast.success(`Removed "${node.label}".`);
+    } catch (error: any) {
+      toast.error(`Failed to remove concept: ${error?.message || 'Unknown error'}`);
+    }
+  };
+
   const acceptAndContinue = async () => {
     if (!aiJobId) return;
     setIsApproving(true);
@@ -935,7 +949,7 @@ const ConceptMapApprovalSection = ({
                     </div>
                   }
                 >
-                  <ConceptMapPanel nodes={preview.nodes} edges={preview.edges} readOnly />
+                  <ConceptMapPanel nodes={preview.nodes} edges={preview.edges} readOnly onNodeDelete={removeNode} />
                 </Suspense>
               </div>
             </>

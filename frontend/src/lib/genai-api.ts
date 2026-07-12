@@ -575,6 +575,19 @@ export const getSectionConceptMaps = async (
   return response.json();
 };
 
+// Teacher approval edit: remove one node from the latest generated map
+// (incident edges drop; prerequisite chains are re-bridged parent → child).
+export const deleteConceptMapPreviewNode = async (
+  jobId: string,
+  removeNodeId: string
+): Promise<ConceptMapResponse> => {
+  const response = await makeAuthenticatedRequest(
+    `/concept-maps/job/${jobId}/preview`,
+    { method: 'PATCH', body: JSON.stringify({ removeNodeId }) }
+  );
+  return response.json();
+};
+
 // Mastery overlay: the requesting student's per-node quiz outcomes for the
 // section's published maps (mastered = segment quiz passed, weak = attempted
 // but not passed; untouched nodes are absent).

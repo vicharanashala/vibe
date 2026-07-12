@@ -1179,6 +1179,18 @@ class ConceptMapResponse {
   fallback?: boolean;
 }
 
+@JSONSchema({ title: 'ConceptMapPreviewEditBody' })
+class ConceptMapPreviewEditBody {
+  @JSONSchema({
+    description: 'Concept node to remove from the latest generated map (its prerequisite chains are re-bridged parent → child)',
+    type: 'string',
+    example: 'seg-42.6',
+  })
+  @IsNotEmpty()
+  @IsString()
+  removeNodeId: string;
+}
+
 @JSONSchema({ title: 'ConceptMapProgressResponse' })
 class ConceptMapProgressResponse {
   @JSONSchema({ description: 'GenAI job whose published map these outcomes belong to', type: 'string' })
@@ -1217,6 +1229,7 @@ export {
   ConceptMapEdgeResponse,
   ConceptMapResponse,
   ConceptMapProgressResponse,
+  ConceptMapPreviewEditBody,
 };
 
 export const GENAI_VALIDATORS = [
@@ -1228,6 +1241,7 @@ export const GENAI_VALIDATORS = [
   ConceptMapEdgeResponse,
   ConceptMapResponse,
   ConceptMapProgressResponse,
+  ConceptMapPreviewEditBody,
   GenAIResponse,
   JobStatusResponse,
   JobBody,

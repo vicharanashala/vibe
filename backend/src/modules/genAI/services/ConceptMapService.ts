@@ -261,6 +261,47 @@ ${numberedTranscript}`;
     return errors;
   }
 
+  /**
+   * Teacher approval edit: remove one concept from a map. Incident edges are
+   * dropped, and every (parent → removed → child) chain is bridged with a
+   * direct parent → child edge so prerequisite ordering survives — children
+   * of the removed node are re-linked to its ancestors instead of becoming
+   * orphaned islands. Bridging two nodes of a DAG cannot introduce a cycle
+   * (any bridged path already existed through the removed node). Throws on
+   * unknown ids and on removing the last remaining concept.
+   */
+  removeNode(
+    nodes: ConceptMapNodeData[],
+    edges: ConceptMapEdgeData[],
+    nodeId: string,
+  ): { nodes: ConceptMapNodeData[]; edges: ConceptMapEdgeData[] } {
+    if (!nodes.some(n => n.id === nodeId)) {
+      throw new Error(`Concept "${nodeId}" does not exist in this map`);
+    }
+    if (nodes.length <= 1) {
+      throw new Error('Cannot remove the last remaining concept');
+    }
+    const parents = edges.filter(e => e.to === nodeId).map(e => e.from);
+    const children = edges.filter(e => e.from === nodeId).map(e => e.to);
+    const remaining = edges.filter(
+      e => e.from !== nodeId && e.to !== nodeId,
+    );
+    const seen = new Set(remaining.map(e => `${e.from}->${e.to}`));
+    for (const parent of parents) {
+      for (const child of children) {
+        const key = `${parent}->${child}`;
+        if (parent !== child && !seen.has(key)) {
+          seen.add(key);
+          remaining.push({ from: parent, to: child });
+        }
+      }
+    }
+    return {
+      nodes: nodes.filter(n => n.id !== nodeId),
+      edges: remaining,
+    };
+  }
+
   private hasCycle(
     nodes: ConceptMapNodeData[],
     edges: ConceptMapEdgeData[],

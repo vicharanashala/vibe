@@ -14,6 +14,8 @@ import {
 import {
   audioData,
   conceptMapData,
+  ConceptMapEdgeData,
+  ConceptMapNodeData,
   ConceptMapParameters,
   contentUploadData,
   GenAIBody,
@@ -542,6 +544,66 @@ export class GenAIService extends BaseService {
       }
 
       return result;
+    });
+  }
+
+  /**
+   * Teacher approval edit: remove one concept from the job's latest generated
+   * concept map (the entry the preview shows and UPLOAD_CONTENT publishes).
+   * Incident edges drop and parent→child chains are re-bridged in
+   * ConceptMapService.removeNode. Returns the edited map data.
+   */
+  async editConceptMapPreview(
+    jobId: string,
+    removeNodeId: string,
+  ): Promise<conceptMapData> {
+    return this._withTransaction(async session => {
+      const taskData = await this.genAIRepository.getTaskDataByJobId(
+        jobId,
+        session,
+      );
+      if (!taskData) {
+        throw new NotFoundError(`Task data for job ID ${jobId} not found`);
+      }
+      const entries = taskData.conceptMap ?? [];
+      // The preview and publish both use the LATEST completed entry with
+      // nodes — edit exactly that one.
+      let latest: conceptMapData | undefined;
+      for (let i = entries.length - 1; i >= 0; i--) {
+        const entry = entries[i];
+        if (entry.status === TaskStatus.COMPLETED && entry.nodes?.length) {
+          latest = entry;
+          break;
+        }
+      }
+      if (!latest) {
+        throw new NotFoundError(
+          `No generated concept map found for job ${jobId}`,
+        );
+      }
+      let result: { nodes: ConceptMapNodeData[]; edges: ConceptMapEdgeData[] };
+      try {
+        result = this.conceptMapService.removeNode(
+          latest.nodes!,
+          latest.edges ?? [],
+          removeNodeId,
+        );
+      } catch (error: any) {
+        throw new BadRequestError(error?.message || 'Invalid node removal');
+      }
+      latest.nodes = result.nodes;
+      latest.edges = result.edges;
+      const updatedTask = await this.genAIRepository.updateTaskData(
+        jobId,
+        taskData,
+        session,
+      );
+      if (!updatedTask) {
+        throw new InternalServerError(
+          `Failed to update task data for job ID ${jobId}`,
+        );
+      }
+      return latest;
     });
   }
 

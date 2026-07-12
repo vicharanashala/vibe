@@ -37,6 +37,7 @@ export default function ConceptMapPanel({
   highlightNodeId,
   nodeState,
   onNodeClick,
+  onNodeDelete,
   readOnly = false,
   showLegend = false,
   className,
@@ -55,11 +56,12 @@ export default function ConceptMapPanel({
           state,
           highlighted: rfNode.id === highlightNodeId,
           readOnly,
+          onDelete: onNodeDelete ? () => onNodeDelete(concept) : undefined,
         } satisfies ConceptNodeData,
       };
     });
     return { nodes: decorated, edges: laidOut.edges };
-  }, [nodes, edges, highlightNodeId, nodeState, readOnly]);
+  }, [nodes, edges, highlightNodeId, nodeState, readOnly, onNodeDelete]);
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, rfNode: Node) => {

@@ -27,6 +27,8 @@ export interface ConceptMapPanelProps {
   nodeState?: (node: ConceptMapNode) => ConceptNodeState;
   /** Invoked on click of a non-locked node. */
   onNodeClick?: (node: ConceptMapNode) => void;
+  /** Teacher approval mode: renders a delete affordance on every node. */
+  onNodeDelete?: (node: ConceptMapNode) => void;
   /** Teacher preview / no navigation semantics. */
   readOnly?: boolean;
   /** Render the node-state legend row (student view). */
