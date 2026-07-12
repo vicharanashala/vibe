@@ -70,7 +70,7 @@ export class DeleteCronService extends BaseService {
     //     ),
     //   ),
     // );
-    const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
+    // const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
     // results.forEach((result, index) => {
     //   const { courseId, versionId } = courseVersionMap[index];
 
@@ -87,9 +87,9 @@ export class DeleteCronService extends BaseService {
     //   }
     // });
 
-    console.log(`🎉 Parallel progress cron completed \n
-        Total count : ${response.totalCount} \n
-        Updated count : ${response.updatedCount}`);
+    // console.log(`🎉 Parallel progress cron completed \n
+    //     Total count : ${response.totalCount} \n
+    //     Updated count : ${response.updatedCount}`);
     // });
 
     // console.log('🗓️ Progress update cron scheduled (hourly, parallel)');
