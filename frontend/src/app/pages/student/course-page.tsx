@@ -23,7 +23,11 @@ import {
   X,
   CircleCheckIcon,
   Maximize2,
+  Network,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getSectionConceptMaps } from "@/lib/genai-api";
+import { ConceptMapPanel } from "@/components/concept-map";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
@@ -307,8 +311,17 @@ export default function CoursePage() {
   // Fetch proctoring settings for the course (fetched once when component loads)
   const [proctoringData, setProctoringData] = useState<StudentProctoringSettings | null>(null);
 
+  // Published concept maps for the selected section (most sections have none;
+  // the panel only mounts when maps exist).
+  const { data: sectionConceptMaps } = useQuery({
+    queryKey: ['concept-maps', VERSION_ID, selectedSectionId],
+    queryFn: () => getSectionConceptMaps(VERSION_ID, selectedSectionId!),
+    enabled: !!VERSION_ID && !!selectedSectionId,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const [conceptMapOpen, setConceptMapOpen] = useState(false);
 
-  
   const sectionId = activeSectionInfo?.sectionId ?? '';
 
   // ---------------------------------------------
@@ -1998,6 +2011,81 @@ return false;
             onHoverChange={setCamHover}
             anomaly={pauseVid || rewindVid}
           />
+        )}
+
+        {/* Concept map — floating toggle (right of the back button) + stage overlay.
+            Mounts only when the selected section has published maps. */}
+        {(sectionConceptMaps?.length ?? 0) > 0 && (
+          <div className="top-4 sm:top-6 left-16 sm:left-[4.5rem] z-50 absolute">
+            <button
+              onClick={() => { pauseVideoForControl(); setConceptMapOpen((p) => !p); }}
+              aria-label="Concept map"
+              className="place-items-center grid bg-glass hover:bg-white/15 shadow-lg backdrop-blur-md rounded-full ring-1 ring-glass-border w-9 h-9 text-stage-foreground hover:scale-105 transition"
+            >
+              <Network className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+        {conceptMapOpen && (sectionConceptMaps?.length ?? 0) > 0 && (
+          <div
+            className="z-40 absolute inset-0 flex justify-center items-center bg-black/60 p-4 sm:p-8"
+            onClick={() => setConceptMapOpen(false)}
+          >
+            <div
+              className="flex flex-col bg-card shadow-2xl rounded-2xl w-full max-w-3xl max-h-full overflow-hidden text-card-foreground"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-border/40">
+                <Network className="w-4 h-4 text-primary" />
+                <span className="font-medium text-sm">Concept Map</span>
+                <button
+                  onClick={() => setConceptMapOpen(false)}
+                  aria-label="Close concept map"
+                  className="ml-auto text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-3 px-4 py-3 overflow-y-auto">
+                {sectionConceptMaps!.map((map, idx) => {
+                  const mapModuleId = map.moduleId ?? selectedModuleId;
+                  const mapSectionId = map.sectionId ?? selectedSectionId;
+                  const highlightNodeId = map.nodes.find(
+                    n => n.videoItemId && n.videoItemId === selectedItemId
+                  )?.id;
+                  return (
+                    <div key={map.jobId ?? idx} className="border border-border/40 rounded-xl overflow-hidden">
+                      <Suspense
+                        fallback={
+                          <div className="flex justify-center items-center h-[300px] text-muted-foreground text-sm">
+                            Loading concept map…
+                          </div>
+                        }
+                      >
+                        <ConceptMapPanel
+                          className="w-full h-[300px]"
+                          nodes={map.nodes}
+                          edges={map.edges}
+                          highlightNodeId={highlightNodeId}
+                          nodeState={(node) => {
+                            if (!node.videoItemId || !mapModuleId || !mapSectionId) return 'available';
+                            if (node.videoItemId === selectedItemId) return 'current';
+                            if (isItemLocked(mapModuleId, mapSectionId, node.videoItemId)) return 'locked';
+                            return 'available';
+                          }}
+                          onNodeClick={(node) => {
+                            if (!node.videoItemId || !mapModuleId || !mapSectionId) return;
+                            handleSelectItem(mapModuleId, mapSectionId, node.videoItemId);
+                            setConceptMapOpen(false);
+                          }}
+                        />
+                      </Suspense>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Contextual skip / go-to-next (middle-right) */}
