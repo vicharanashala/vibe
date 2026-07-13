@@ -19,6 +19,7 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button"
+import { ViolationExplanationBadge } from "@/components/ViolationExplanationBadge"
 
 export default function AnomaliesList() {
  
@@ -36,7 +37,6 @@ export default function AnomaliesList() {
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
   const [cohort, setCohort] = useState<string | null>(null);
 
-  // Anomaly types for filter dropdown
   const anomalyTypes = [
     { value: 'ALL', label: 'All Types' },
     { value: 'MULTIPLE_FACES', label: 'Multiple Faces' },
@@ -46,6 +46,8 @@ export default function AnomaliesList() {
     { value: 'FACE_RECOGNITION', label: 'Face Recognition' },
     { value: 'HAND_GESTURE_DETECTION', label: 'Hand Gesture' },
     { value: 'BLUR_DETECTION', label: 'Blur Detection' },
+    { value: 'LIVENESS', label: 'Liveness Issues' },
+    { value: 'LOOKING_AWAY', label: 'Looking Away' },
   ];
 
   // Debounce search input
@@ -90,7 +92,10 @@ export default function AnomaliesList() {
 
   const getTypeBadge = (type: string) => {
     switch (type) {
-      case 'MULTIPLE_FACES':
+      case 'LIVENESS':
+        return <Badge variant="outline" className="bg-rose-100 text-rose-800 border-rose-200">Liveness</Badge>;
+      case 'LOOKING_AWAY':
+        return <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">Looking Away</Badge>;
       default:
         return <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-200">{type}</Badge>
     }
@@ -250,6 +255,7 @@ export default function AnomaliesList() {
                         <TableRow>
                           <TableHead>Student</TableHead>
                           <TableHead>Type</TableHead>
+                          <TableHead>Details</TableHead>
                           <TableHead
                             className="cursor-pointer hover:bg-muted/30 transition-colors"
                             onClick={() => handleSort('createdAt')}
@@ -266,7 +272,7 @@ export default function AnomaliesList() {
                       <TableBody>
                         {(isLoading || isSearching) ? (
                           <TableRow>
-                            <TableCell colSpan={3} className="text-center py-12">
+                            <TableCell colSpan={4} className="text-center py-12">
                               <div className="flex items-center justify-center space-x-2">
                                 <Loader2 className="h-6 w-6 animate-spin" />
                                 <span className="text-muted-foreground">
@@ -277,7 +283,7 @@ export default function AnomaliesList() {
                           </TableRow>
                         ) : error ? (
                           <TableRow>
-                            <TableCell colSpan={3} className="text-center py-12">
+                            <TableCell colSpan={4} className="text-center py-12">
                               <div className="flex flex-col items-center justify-center space-y-2">
                                 <AlertCircle className="h-8 w-8 text-destructive" />
                                 <p className="text-destructive text-sm">{error}</p>
@@ -294,7 +300,7 @@ export default function AnomaliesList() {
                           </TableRow>
                         ) : anomalies.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={3} className="text-center py-12 text-muted-foreground">
+                            <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
                               No anomalies found
                             </TableCell>
                           </TableRow>
@@ -317,6 +323,9 @@ export default function AnomaliesList() {
                                 </div>
                               </TableCell>
                               <TableCell>{getTypeBadge(anomaly.type)}</TableCell>
+                              <TableCell>
+                                <ViolationExplanationBadge metadata={anomaly.metadata} />
+                              </TableCell>
                               <TableCell>
                                 {new Date(anomaly.createdAt).toLocaleDateString('en-GB') + ' ' + 
                                  new Date(anomaly.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}

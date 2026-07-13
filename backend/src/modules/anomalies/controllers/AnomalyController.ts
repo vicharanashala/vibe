@@ -86,6 +86,22 @@ export class AnomalyController {
       }
     }
 
+    if (
+      body.type === AnomalyType.LIVENESS ||
+      body.type === AnomalyType.LOOKING_AWAY
+    ) {
+      const courseSetting = await this.courseSettingService.readCourseSettings(
+        courseId.toString(),
+        versionId.toString(),
+      );
+      const detector = courseSetting?.settings?.proctors?.detectors?.find(
+        d => d.detectorName === ProctoringComponent.LIVENESSDETECTION,
+      );
+      if (!detector?.settings?.enabled) {
+        throw new ForbiddenError('Liveness detection is disabled for this course');
+      }
+    }
+
     return this.anomalyService.recordAnomaly(userId, body, file, FileType.IMAGE);
   }
 

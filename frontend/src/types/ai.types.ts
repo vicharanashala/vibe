@@ -1,4 +1,5 @@
 import { Face, Keypoint } from "@tensorflow-models/face-detection";
+import { AnomalyType, type ViolationMetadata } from "@/types/reportanomaly.types";
 
 export interface BlurDetectionProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -13,10 +14,12 @@ export interface FaceDetectorsProps {
   onDebugInfoUpdate?: (debugInfo: FaceRecognitionDebugInfo) => void;
   onMismatchChange?: (hasMismatch: boolean) => void;
   onMissingEmbedding?: () => void;
+  onLivenessViolation?: (type: AnomalyType.LIVENESS | AnomalyType.LOOKING_AWAY, metadata: ViolationMetadata) => void;
   settings:{
     isFaceCountDetectionEnabled:boolean, 
     isFaceRecognitionEnabled:boolean, 
-    isFocusEnabled: boolean
+    isFocusEnabled: boolean,
+    isLivenessDetectionEnabled?: boolean,
   }
 }
 
