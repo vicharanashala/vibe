@@ -1,5 +1,10 @@
 import {screeningConfig} from '#root/config/screening.js';
-import {ScreeningLlm, ScreeningLlmError, parseJsonObject} from './ScreeningLlm.js';
+import {
+  ScreeningLlm,
+  ScreeningLlmError,
+  ModelTier,
+  parseJsonObject,
+} from './ScreeningLlm.js';
 
 /**
  * Groq implementation (OpenAI-compatible chat completions).
@@ -12,12 +17,21 @@ export class GroqScreeningLlm implements ScreeningLlm {
   readonly provider = 'groq';
   readonly model = screeningConfig.groq.model;
 
-  async askJson(prompt: string): Promise<Record<string, unknown>> {
-    const {apiKey, url, model} = screeningConfig.groq;
+  modelFor(tier: ModelTier): string {
+    return tier === 'fast'
+      ? screeningConfig.groq.fastModel
+      : screeningConfig.groq.model;
+  }
+
+  async askJson(
+    prompt: string,
+    tier: ModelTier = 'reasoning',
+  ): Promise<Record<string, unknown>> {
+    const {apiKey, url} = screeningConfig.groq;
     if (!apiKey) throw new ScreeningLlmError('GROQ_API_KEY not set');
 
     const body = JSON.stringify({
-      model,
+      model: this.modelFor(tier),
       messages: [{role: 'user', content: prompt}],
       temperature: 0,
       response_format: {type: 'json_object'},
@@ -45,7 +59,6 @@ export class GroqScreeningLlm implements ScreeningLlm {
 
         const json = (await res.json()) as any;
         const content: string = json?.choices?.[0]?.message?.content ?? '';
-        console.log('[screening/groq] raw response:', JSON.stringify(content).slice(0, 400));
         return parseJsonObject(content);
       } catch (err) {
         lastErr = err;

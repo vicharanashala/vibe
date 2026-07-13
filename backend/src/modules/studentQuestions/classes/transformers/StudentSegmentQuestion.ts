@@ -14,7 +14,9 @@ export interface IScreeningVerdict {
   reasonCode: string;
   check: string;
   message: string;
-  checks: {wellFormed?: boolean; notDuplicate?: boolean; onTopic?: boolean; answerCorrect?: boolean};
+  /** The model's one-line justification — shown to the instructor reviewing a HELD question. */
+  reason?: string;
+  checks: {admissible?: boolean; notDuplicate?: boolean; onTopic?: boolean; answerCorrect?: boolean};
   matchQuestion?: string;
   provider: string;
   model: string;

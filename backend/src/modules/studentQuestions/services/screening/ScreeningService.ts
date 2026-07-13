@@ -4,12 +4,12 @@ import {ScreeningLlm} from './ScreeningLlm.js';
 import {createScreeningLlm} from './screeningLlmFactory.js';
 import {localSpamCheck} from './localRules.js';
 import {
-  MEANINGFUL_PROMPT,
+  ADMISSIBILITY_PROMPT,
   DUPLICATE_PROMPT,
   CONTEXT_PROMPT,
   ANSWER_PROMPT,
 } from './prompts.js';
-import {asMeaningful, asDuplicate, asContext, asAnswer} from './verdicts.js';
+import {asAdmissible, asDuplicate, asContext, asAnswer} from './verdicts.js';
 
 export type ScreeningDecision = 'pass' | 'reject' | 'hold';
 
@@ -17,6 +17,9 @@ export type ScreeningReason =
   | 'ok'
   | 'too_short'
   | 'gibberish'
+  | 'not_a_question'
+  /** The submission tried to instruct the grader (prompt injection). */
+  | 'manipulation'
   | 'unclear'
   | 'typo'
   | 'spam'
@@ -42,11 +45,16 @@ export interface ScreeningResult {
   decision: ScreeningDecision;
   reasonCode: ScreeningReason;
   /** Which specific check produced the decision. */
-  check: 'local' | 'meaningful' | 'duplicate' | 'context' | 'answer' | 'none';
+  check: 'local' | 'admissible' | 'duplicate' | 'context' | 'answer' | 'none';
   /** Student-facing message. */
   message: string;
+  /**
+   * The model's own one-line justification. Persisted so an instructor reviewing a
+   * HELD question sees *why* it was held, not just a bare reason code.
+   */
+  reason?: string;
   /** Per-check booleans (surfaced to instructors / tuning). */
-  checks: {wellFormed?: boolean; notDuplicate?: boolean; onTopic?: boolean; answerCorrect?: boolean};
+  checks: {admissible?: boolean; notDuplicate?: boolean; onTopic?: boolean; answerCorrect?: boolean};
   matchQuestion?: string;
   /** For a `typo` bounce: the question with spelling fixed, so the student can one-tap apply it. */
   suggestedFix?: string;
@@ -59,10 +67,14 @@ export interface ScreeningResult {
  * Crowd-question screening filter.
  *
  * Runs the four checks in order, cheapest first, and STOPS at the first failure:
- *   1. well-formed / meaningful   (free local rules → then LLM)
+ *   1. admissible                 (free local rules → then LLM on the FAST model)
  *   2. not a duplicate            (LLM, vs the segment's graded-QB pool)
- *   3. on-topic                   (LLM, vs the lesson transcript)
+ *   3. on-topic                   (LLM, vs the lesson context)
  *   4. answer correct (MCQ)       (LLM, last — most expensive)
+ *
+ * Only check 1 runs on every submission, so it rides the small/cheap model; the
+ * three judgement-heavy checks use the reasoning model. Groq meters its free tier
+ * per model, so this split roughly doubles the pipeline's daily throughput.
  *
  * Reliability (brief §6): every LLM call has a timeout + retries; on ANY failure
  * the submission is never crashed — it degrades to `hold` (needs manual review).
@@ -95,43 +107,51 @@ export class ScreeningService {
     }
 
     const q = input.questionText;
-    console.log('[screening] START', {
-      provider: this.llm.provider,
-      model: this.llm.model,
-      question: q,
-      options: input.options,
-      correctOptionIndex: input.correctOptionIndex,
-      poolSize: input.existingQuestions?.length ?? 0,
-      hasContext: !!input.context,
-    });
 
     // ── 1a. free local rules ────────────────────────────────────────────────
     const local = localSpamCheck(q);
     if (local) {
-      return done({decision: 'reject', reasonCode: local.reasonCode, check: 'local', message: local.message, checks: {wellFormed: false}});
+      return done({decision: 'reject', reasonCode: local.reasonCode, check: 'local', message: local.message, checks: {admissible: false}});
     }
 
     try {
-      // ── 1b. meaningful (LLM) ──────────────────────────────────────────────
-      const m = asMeaningful(await this.llm.askJson(MEANINGFUL_PROMPT(q)));
-      console.log('[screening] meaningful verdict:', m);
-      if (!m.meaningful) {
-        // Confident junk → reject the student. Borderline (looks like a real
-        // attempt but malformed/ambiguous) → hold for an instructor rather than
-        // hard-blocking, matching how the duplicate/answer checks handle doubt.
-        if (m.confidence === 'low' || m.confidence === 'medium') {
-          return done({decision: 'hold', reasonCode: 'unclear', check: 'meaningful', message: 'Your question was a little hard to read automatically, so an instructor will review it before it’s added.', checks: {wellFormed: false}});
-        }
-        return done({decision: 'reject', reasonCode: 'gibberish', check: 'meaningful', message: "This doesn't read as a clear, answerable question. Please rewrite it as a complete question with a specific thing being asked.", checks: {wellFormed: false}});
+      // ── 1b. admissibility gate (LLM, FAST model) ──────────────────────────
+      // Runs on every submission, so it rides the small/cheap model: it is a
+      // mechanical classification, not a judgement call. It is also the layer
+      // that catches grader manipulation, before any prompt carrying the
+      // student's text reaches the reasoning judges downstream.
+      const a = asAdmissible(await this.llm.askJson(ADMISSIBILITY_PROMPT(q), 'fast'));
+
+      if (a.category === 'manipulation') {
+        // Always reject, regardless of confidence: a submission that instructs the
+        // grader has no legitimate reading. Logged (not silently binned) so we can
+        // see whether students are probing the filter.
+        console.warn('[screening] manipulation attempt rejected:', {reason: a.reason});
+        return done({decision: 'reject', reasonCode: 'manipulation', check: 'admissible', reason: a.reason, message: 'Your submission contains instructions aimed at the review system rather than a question. Please submit only the question itself.', checks: {admissible: false}});
+      }
+
+      // `malformed` is a genuine attempt we cannot parse — always a human. And any
+      // other rejectable verdict we are NOT confident about is a human's call too:
+      // never hard-block a student on doubt (the duplicate/answer checks do the same).
+      if (a.category === 'malformed' || (a.category !== 'ok' && a.confidence !== 'high')) {
+        return done({decision: 'hold', reasonCode: 'unclear', check: 'admissible', reason: a.reason, message: 'Your question was a little hard to read automatically, so an instructor will review it before it’s added.', checks: {admissible: false}});
+      }
+
+      if (a.category === 'junk') {
+        return done({decision: 'reject', reasonCode: 'gibberish', check: 'admissible', reason: a.reason, message: "This doesn't read as a clear, answerable question. Please rewrite it as a complete question with a specific thing being asked.", checks: {admissible: false}});
+      }
+      if (a.category === 'not_a_question') {
+        return done({decision: 'reject', reasonCode: 'not_a_question', check: 'admissible', reason: a.reason, message: "This doesn't ask anything. Please rewrite it as a complete question with a specific thing being asked.", checks: {admissible: false}});
       }
 
       // ── 1c. typo bounce ───────────────────────────────────────────────────
       // Obvious spelling mistake → send it back to the STUDENT to fix (with the
       // correction pre-filled), so instructors never have to clean up typos.
-      // Ignore case/whitespace-only "fixes" (not a real typo).
+      // Only on a CONFIDENT typo: a wrong "correction" of a domain term or a name
+      // would bounce a perfectly good question. Ignore case/whitespace-only diffs.
       const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
-      if (m.corrected && norm(m.corrected) !== norm(q)) {
-        return done({decision: 'reject', reasonCode: 'typo', check: 'meaningful', message: `Looks like a spelling typo — did you mean: "${m.corrected}"? Fix it and resubmit.`, checks: {wellFormed: true}, suggestedFix: m.corrected});
+      if (a.corrected && a.typoConfidence === 'high' && norm(a.corrected) !== norm(q)) {
+        return done({decision: 'reject', reasonCode: 'typo', check: 'admissible', reason: a.reason, message: `Looks like a spelling typo — did you mean: "${a.corrected}"? Fix it and resubmit.`, checks: {admissible: true}, suggestedFix: a.corrected});
       }
 
       // ── 2. duplicate (LLM, vs graded-QB pool) ─────────────────────────────
@@ -142,9 +162,9 @@ export class ScreeningService {
           const match = d.matchIndex != null ? pool[d.matchIndex] : undefined;
           // Confident duplicate → reject the student; unsure → hold for instructor.
           if (d.confidence === 'low') {
-            return done({decision: 'hold', reasonCode: 'duplicate_uncertain', check: 'duplicate', message: match ? `This may overlap with an existing question ("${match}"). An instructor will review it before it's added.` : 'This may overlap with an existing question, so an instructor will review it before it’s added.', checks: {wellFormed: true, notDuplicate: false}, matchQuestion: match});
+            return done({decision: 'hold', reasonCode: 'duplicate_uncertain', check: 'duplicate', message: match ? `This may overlap with an existing question ("${match}"). An instructor will review it before it's added.` : 'This may overlap with an existing question, so an instructor will review it before it’s added.', checks: {admissible: true, notDuplicate: false}, matchQuestion: match});
           }
-          return done({decision: 'reject', reasonCode: 'duplicate', check: 'duplicate', message: match ? `This question already exists for this lesson: "${match}". Try asking about a different point instead.` : 'This question already exists for this lesson. Try asking about a different point instead.', checks: {wellFormed: true, notDuplicate: false}, matchQuestion: match});
+          return done({decision: 'reject', reasonCode: 'duplicate', check: 'duplicate', message: match ? `This question already exists for this lesson: "${match}". Try asking about a different point instead.` : 'This question already exists for this lesson. Try asking about a different point instead.', checks: {admissible: true, notDuplicate: false}, matchQuestion: match});
         }
       }
 
@@ -153,9 +173,9 @@ export class ScreeningService {
         const c = asContext(await this.llm.askJson(CONTEXT_PROMPT(q, input.context.trim())));
         if (!c.onTopic) {
           if (c.confidence === 'low') {
-            return done({decision: 'hold', reasonCode: 'off_topic', check: 'context', message: 'Relevance to this lesson is unclear — sent for review.', checks: {wellFormed: true, notDuplicate: true, onTopic: false}});
+            return done({decision: 'hold', reasonCode: 'off_topic', check: 'context', message: 'Relevance to this lesson is unclear — sent for review.', checks: {admissible: true, notDuplicate: true, onTopic: false}});
           }
-          return done({decision: 'reject', reasonCode: 'off_topic', check: 'context', message: "This question doesn't seem related to this lesson. Please ask something about what the video actually covers.", checks: {wellFormed: true, notDuplicate: true, onTopic: false}});
+          return done({decision: 'reject', reasonCode: 'off_topic', check: 'context', message: "This question doesn't seem related to this lesson. Please ask something about what the video actually covers.", checks: {admissible: true, notDuplicate: true, onTopic: false}});
         }
       }
 
@@ -169,21 +189,21 @@ export class ScreeningService {
         // goes to an instructor.
         if (a.correctIndex === null) {
           if (a.confidence === 'high') {
-            return done({decision: 'reject', reasonCode: 'wrong_answer', check: 'answer', message: 'None of your options is a correct answer to this question. Please fix the options (or the question) and resubmit.', checks: {wellFormed: true, notDuplicate: true, onTopic: true, answerCorrect: false}});
+            return done({decision: 'reject', reasonCode: 'wrong_answer', check: 'answer', message: 'None of your options is a correct answer to this question. Please fix the options (or the question) and resubmit.', checks: {admissible: true, notDuplicate: true, onTopic: true, answerCorrect: false}});
           }
-          return done({decision: 'hold', reasonCode: 'answer_uncertain', check: 'answer', message: 'The correct answer here seems debatable, so an instructor will review your question before it’s added.', checks: {wellFormed: true, notDuplicate: true, onTopic: true, answerCorrect: false}});
+          return done({decision: 'hold', reasonCode: 'answer_uncertain', check: 'answer', message: 'The correct answer here seems debatable, so an instructor will review your question before it’s added.', checks: {admissible: true, notDuplicate: true, onTopic: true, answerCorrect: false}});
         }
         if (a.correctIndex !== input.correctOptionIndex) {
           // Unsure disagreement → hold; confident disagreement → reject to fix.
           if (a.confidence !== 'high') {
-            return done({decision: 'hold', reasonCode: 'answer_uncertain', check: 'answer', message: "We couldn't confirm which option is correct, so an instructor will review your question before it's added.", checks: {wellFormed: true, notDuplicate: true, onTopic: true, answerCorrect: false}});
+            return done({decision: 'hold', reasonCode: 'answer_uncertain', check: 'answer', message: "We couldn't confirm which option is correct, so an instructor will review your question before it's added.", checks: {admissible: true, notDuplicate: true, onTopic: true, answerCorrect: false}});
           }
-          return done({decision: 'reject', reasonCode: 'wrong_answer', check: 'answer', message: 'The option you marked as correct appears to be wrong. Please re-check your options and select the right answer.', checks: {wellFormed: true, notDuplicate: true, onTopic: true, answerCorrect: false}});
+          return done({decision: 'reject', reasonCode: 'wrong_answer', check: 'answer', message: 'The option you marked as correct appears to be wrong. Please re-check your options and select the right answer.', checks: {admissible: true, notDuplicate: true, onTopic: true, answerCorrect: false}});
         }
       }
 
       // ── all checks passed ─────────────────────────────────────────────────
-      return done({decision: 'pass', reasonCode: 'ok', check: 'none', message: 'Looks good — your question passed all checks and has been submitted.', checks: {wellFormed: true, notDuplicate: true, onTopic: true, answerCorrect: true}});
+      return done({decision: 'pass', reasonCode: 'ok', check: 'none', message: 'Looks good — your question passed all checks and has been submitted.', checks: {admissible: true, notDuplicate: true, onTopic: true, answerCorrect: true}});
     } catch (err) {
       // Fail-CLOSED: never crash a submission. Route to manual review.
       console.warn('[screening] failed, holding for manual review:', (err as Error)?.message);

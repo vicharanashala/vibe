@@ -6,12 +6,21 @@
  * The screening service never touches a provider SDK directly, so swapping
  * Groq (demo) → Anthropic (prod) is a one-line factory change.
  */
+/** Which model tier a check needs. `fast` = small/cheap; `reasoning` = the big model. */
+export type ModelTier = 'fast' | 'reasoning';
+
 export interface ScreeningLlm {
-  /** The concrete model id in use (for logging / verdict provenance). */
+  /** The reasoning model id in use (for logging / verdict provenance). */
   readonly model: string;
   readonly provider: string;
-  /** Send `prompt`, return the model's response parsed as a JSON object. Throws on failure. */
-  askJson(prompt: string): Promise<Record<string, unknown>>;
+  /** Resolve the concrete model id a tier maps to (for logging). */
+  modelFor(tier: ModelTier): string;
+  /**
+   * Send `prompt`, return the model's response parsed as a JSON object.
+   * `tier` picks the model: mechanical gates use 'fast', judgement-heavy checks
+   * use 'reasoning' (the default). Throws on failure — callers fail-open.
+   */
+  askJson(prompt: string, tier?: ModelTier): Promise<Record<string, unknown>>;
 }
 
 /** Thrown when the provider is unreachable/fails after retries — callers fail-closed. */
