@@ -32,6 +32,7 @@ enum ProctoringComponent {
   VIRTUALBACKGROUNDDETECTION = 'virtualBackgroundDetection',
   RIGHTCLICKDISABLED = 'rightClickDisabled',
   FACERECOGNITION = 'faceRecognition',
+  LIVENESSDETECTION = 'livenessDetection',
 }
 
 // Throw-safe id conversion: ObjectIds may serialize as a hex string or a
@@ -65,6 +66,7 @@ const labelMap: Record<string, string> = {
   virtualBackgroundDetection: "Virtual Background Detection",
   rightClickDisabled: "Right Click Disabled",
   faceRecognition: "Face Recognition",
+  livenessDetection: "Liveness Detection",
 }
 
 export function ProctoringModal({

@@ -10,7 +10,8 @@ import {JSONSchema} from 'class-validator-jsonschema';
 // Import directly from the defining transformer rather than the module barrel
 // to avoid a circular dependency (the barrel re-exports controllers that pull
 // these validators back in, leaving AnomalyType undefined at eval time).
-import {AnomalyType, FileType, IAnomalyData} from '../transformers/Anomaly.js';
+import { Transform } from 'class-transformer';
+import {AnomalyType, FileType, IAnomalyData, ViolationMetadata} from '../transformers/Anomaly.js';
 import {ObjectId} from 'mongodb';
 import {
   SortOrder,
@@ -61,6 +62,23 @@ export class NewAnomalyData {
   @IsMongoId()
   @IsString()
   cohortId?: string | ObjectId;
+
+  @JSONSchema({
+    description: 'Optional explainable metadata explaining why this anomaly was triggered',
+    type: 'object',
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  })
+  metadata?: ViolationMetadata;
 }
 
 export class AnomalyData extends NewAnomalyData implements IAnomalyData {

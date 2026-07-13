@@ -20,10 +20,10 @@ import {InviteService} from '#root/modules/notifications/index.js';
 import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
 import {SETTING_TYPES} from '#root/modules/setting/types.js';
 import {
-  CourseSetting,
   CourseSettingService,
   CreateCourseSettingBody,
 } from '#root/modules/setting/index.js';
+import { CourseSetting } from '#root/modules/setting/classes/transformers/CourseSetting.js';
 @injectable()
 class CourseService extends BaseService {
   constructor(

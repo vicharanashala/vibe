@@ -1,11 +1,12 @@
 import React, { useEffect } from "react";
 import { Face, Keypoint } from "@tensorflow-models/face-detection";
 import FaceRecognitionComponent from "./FaceRecognitionComponent";
+import LivenessDetector from "./LivenessDetector";
 
 import type { FaceDetectorsProps, FaceRecognition, FaceRecognitionDebugInfo } from "@/types/ai.types";
 import { eye } from "@tensorflow/tfjs-core";
 
-const isLookingAway = (face: Face): boolean => {
+export const isLookingAway = (face: Face): boolean => {
   if (!face || face.keypoints.length < 6) return false;
 
   const rightEye = face.keypoints.find((p: Keypoint) => p.name === "rightEye");
@@ -46,7 +47,7 @@ const isLookingAway = (face: Face): boolean => {
   return false;
 };
 
-const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, videoRef, onRecognitionResult, onDebugInfoUpdate, onMismatchChange, onMissingEmbedding, settings }) => {
+const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, videoRef, onRecognitionResult, onDebugInfoUpdate, onMismatchChange, onMissingEmbedding, onLivenessViolation, settings }) => {
 
   useEffect(() => {
     const isFocused = true;
@@ -75,6 +76,13 @@ const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, vide
           onMismatchChange={onMismatchChange}
           onMissingEmbedding={onMissingEmbedding}
           enabled={settings.isFaceRecognitionEnabled}
+        />
+      )}
+      {settings?.isLivenessDetectionEnabled && onLivenessViolation && (
+        <LivenessDetector
+          faces={faces}
+          enabled={settings.isLivenessDetectionEnabled}
+          onViolation={onLivenessViolation}
         />
       )}
     </>

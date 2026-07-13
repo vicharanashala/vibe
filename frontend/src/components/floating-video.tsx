@@ -19,6 +19,7 @@ import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { FaceRegistrationModal } from './ai/FaceRegistrationModal';
+import { useViolationReporter } from './ai/useViolationReporter';
 
 // let flag = 0;
 function FloatingVideo({
@@ -127,6 +128,7 @@ function FloatingVideo({
   const isFaceRecognitionEnabled = isComponentEnabled('faceRecognition');
   const isRighClickDisabled = isComponentEnabled("rightClickDisabled");
   const isFocusEnabled = false; //isComponentEnabled('focus');
+  const isLivenessDetectionEnabled = isComponentEnabled('livenessDetection');
 
   // Log enabled components for debugging
   // useEffect(() => {
@@ -224,6 +226,7 @@ function FloatingVideo({
 
 // Image record anomaly effect
 const reportImage = useReportAnomalyImage();
+const { reportViolation: reportLivenessViolation } = useViolationReporter(videoRef);
 const lastCalledRef = useRef<number>(0);
   useEffect(() => {
     const handleImageAnomaly = async () => {
@@ -1454,7 +1457,7 @@ const lastCalledRef = useRef<number>(0);
             trigger={true}
           />
         )}
-        {(isFaceCountDetectionEnabled || isFaceRecognitionEnabled || isFocusEnabled) && (
+        {(isFaceCountDetectionEnabled || isFaceRecognitionEnabled || isFocusEnabled || isLivenessDetectionEnabled) && (
           <FaceDetectors 
             key={`face-${faceDetectorsKeyRef.current}`}
             faces={faces} 
@@ -1467,10 +1470,12 @@ const lastCalledRef = useRef<number>(0);
               setReadyToDetect(false);
               setShowFaceRegisterModal(true);
             }}
+            onLivenessViolation={reportLivenessViolation}
             settings={{
               isFaceCountDetectionEnabled,
               isFaceRecognitionEnabled, 
-              isFocusEnabled
+              isFocusEnabled,
+              isLivenessDetectionEnabled
             }}
           />
   
