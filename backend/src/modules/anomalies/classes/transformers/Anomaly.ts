@@ -18,6 +18,31 @@ export enum FileType {
   AUDIO = 'AUDIO',
 }
 
+/**
+ * Structured, explainable metadata attached to every anomaly violation.
+ * Designed so that an instructor reviewing flagged students can understand
+ * what was detected, how confident the system was, and for how long —
+ * without needing to know the internal detector implementation.
+ *
+ * Philosophy: "trust, not surveillance" — every flag must carry a
+ * plain-English reason, not a black-box label.
+ */
+export interface ViolationMetadata {
+  /** Plain-English explanation an instructor can read. */
+  reason: string;
+  /** How long (ms) the signal was continuously present before firing. */
+  durationMs?: number;
+  /** Number of consecutive frames that triggered the condition. */
+  consecutiveFrames?: number;
+  /**
+   * Confidence of the signal (0–1). Kept separate from the binary
+   * violation flag so reviewers can weigh borderline cases.
+   */
+  signalStrength?: number;
+  /** ISO 8601 timestamp of the first frame that triggered this violation. */
+  detectedAt: string;
+}
+
 export interface IValidationResult {
   isValid: boolean;
   error?: string;
@@ -57,6 +82,11 @@ export class IAnomalyData {
   createdAt: Date;
   cohortId?: string | ObjectId;
   cohortName?: string;
+  /**
+   * Optional structured explanation of why this anomaly was flagged.
+   * Omitted for anomaly types that predate this schema (backward-compatible).
+   */
+  metadata?: ViolationMetadata;
 
   constructor(data: Partial<IAnomalyData>, userId: string) {
     this.userId = new ObjectId(userId);
@@ -67,6 +97,12 @@ export class IAnomalyData {
     this.createdAt = new Date();
     if (data.cohortId) {
       this.cohortId = new ObjectId(data.cohortId);
+    }
+    // Copy metadata when present so it's persisted to the DB alongside the
+    // anomaly record. Older anomaly types that don't send metadata are
+    // unaffected (field remains undefined → omitted from the document).
+    if (data.metadata) {
+      this.metadata = data.metadata;
     }
   }
 }
@@ -130,6 +166,20 @@ export class AnomalyStats {
   })
   FACE_RECOGNITION: number;
 
+  @IsNumber()
+  @JSONSchema({
+    title: 'Number of liveness anomalies',
+    description: 'Number of liveness detection anomalies (stillness or no blink detected)',
+  })
+  LIVENESS: number;
+
+  @IsNumber()
+  @JSONSchema({
+    title: 'Number of looking-away anomalies',
+    description: 'Number of anomalies where the student sustained a head-turn away from the camera',
+  })
+  LOOKING_AWAY: number;
+
   constructor() {
     this.VOICE_DETECTION = 0;
     this.NO_FACE = 0;
@@ -138,6 +188,8 @@ export class AnomalyStats {
     this.FOCUS = 0;
     this.HAND_GESTURE_DETECTION = 0;
     this.FACE_RECOGNITION = 0;
+    this.LIVENESS = 0;
+    this.LOOKING_AWAY = 0;
   }
 }
 
