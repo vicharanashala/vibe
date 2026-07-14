@@ -2074,7 +2074,7 @@ return false;
             onClick={() => setConceptMapOpen(false)}
           >
             <div
-              className="flex flex-col bg-card shadow-2xl rounded-2xl w-full max-w-3xl max-h-full overflow-hidden text-card-foreground"
+              className="flex flex-col bg-card shadow-2xl rounded-2xl w-full max-w-5xl max-h-full overflow-hidden text-card-foreground"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-2 px-4 py-2 border-b border-border/40">
@@ -2100,13 +2100,13 @@ return false;
                     <div key={map.jobId ?? idx} className="border border-border/40 rounded-xl overflow-hidden">
                       <Suspense
                         fallback={
-                          <div className="flex justify-center items-center h-[320px] text-muted-foreground text-sm">
+                          <div className="flex justify-center items-center h-[min(65vh,540px)] text-muted-foreground text-sm">
                             Loading concept map…
                           </div>
                         }
                       >
                         <ConceptMapPanel
-                          className="w-full h-[320px]"
+                          className="w-full h-[min(65vh,540px)]"
                           nodes={map.nodes}
                           edges={map.edges}
                           highlightNodeId={highlightNodeId}

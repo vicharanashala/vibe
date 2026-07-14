@@ -2,8 +2,8 @@ import dagre from '@dagrejs/dagre';
 import { MarkerType, type Edge, type Node } from '@xyflow/react';
 import type { ConceptMapEdge, ConceptMapNode } from './types';
 
-export const NODE_WIDTH = 190;
-export const NODE_HEIGHT = 64;
+export const NODE_WIDTH = 220;
+export const NODE_HEIGHT = 72;
 
 /**
  * Deterministic top-down (Novak-style) layout via dagre — no force

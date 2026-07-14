@@ -38,7 +38,7 @@ function ConceptNodeInner({ data }: NodeProps) {
   return (
     <div
       title={concept.description || concept.label}
-      className={`group relative w-[190px] rounded-xl border px-3 py-2 text-xs font-medium shadow-sm transition-all duration-200 ${
+      className={`group relative w-[220px] rounded-xl border px-3 py-2 text-sm font-medium shadow-sm transition-all duration-200 ${
         readOnly ? 'cursor-default' : ''
       } ${STATE_CLASSES[state]} ${highlighted ? 'ring-2 ring-primary shadow-lg' : ''}`}
     >
@@ -62,7 +62,7 @@ function ConceptNodeInner({ data }: NodeProps) {
         <span className="line-clamp-2 leading-snug">{concept.label}</span>
       </div>
       {state === 'locked' && (
-        <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">Upcoming</span>
+        <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">Upcoming</span>
       )}
       <Handle type="source" position={Position.Bottom} className="!h-1.5 !w-1.5 !bg-muted-foreground/50 !border-0" />
     </div>

@@ -74,7 +74,7 @@ export default function ConceptMapPanel({
   );
 
   return (
-    <div className={`flex flex-col ${className ?? 'h-[340px] w-full'}`}>
+    <div className={`flex flex-col ${className ?? 'h-[420px] w-full'}`}>
       {showLegend && (
         <div className="flex flex-wrap items-center gap-4 border-b border-border/40 bg-muted/20 px-3 py-1.5">
           {LEGEND_ITEMS.map(item => (
