@@ -24,6 +24,7 @@ import {IQuizDetails, ItemType} from '#root/shared/interfaces/models.js';
 import {ISOLSolution} from '#root/shared/interfaces/quiz.js';
 import {isEligibleForReview} from './crowdGate.js';
 import {ScreeningService, ScreeningResult} from './screening/ScreeningService.js';
+import {VectorDedupService} from './screening/VectorDedupService.js';
 import {IScreeningVerdict} from '../classes/transformers/StudentSegmentQuestion.js';
 import {screeningConfig} from '#root/config/screening.js';
 
@@ -41,6 +42,14 @@ export interface CreateQuestionResult {
   questionId?: string;
   /** For a `typo` reject: the corrected question text the student can one-tap apply. */
   suggestedFix?: string;
+  /**
+   * Set on a `duplicate_similar` reject. The cosine fast-path is a heuristic, not a
+   * verdict — it cannot tell "which IS a type of ML" from "which is NOT" — so the
+   * student is offered one re-submission that goes to the LLM judge instead.
+   */
+  appealable?: boolean;
+  /** The existing question the submission was matched against — shown with the reject. */
+  matchQuestion?: string;
 }
 
 @injectable()
@@ -60,6 +69,8 @@ export class StudentQuestionService {
     private readonly itemRepo: ItemRepository,
     @inject(STUDENT_QUESTION_TYPES.ScreeningService)
     private readonly screeningService: ScreeningService,
+    @inject(STUDENT_QUESTION_TYPES.VectorDedupService)
+    private readonly vectorDedup: VectorDedupService,
   ) {}
 
   private async _stageToSubmittedBank(
@@ -299,6 +310,12 @@ export class StudentQuestionService {
     options: IStudentQuestionOption[];
     correctOptionIndex: number;
     createdBy: string;
+    /**
+     * The student is re-submitting a question the cosine fast-path rejected,
+     * saying it is not actually a duplicate. Disables that fast path for this
+     * attempt and lets the LLM judge decide — its verdict is final.
+     */
+    appealed?: boolean;
   }): Promise<CreateQuestionResult> {
     await this.ensureSubmissionEnabled(input.courseId, input.courseVersionId);
 
@@ -369,8 +386,10 @@ export class StudentQuestionService {
       questionText,
       options: options.map(o => o.text),
       correctOptionIndex: input.correctOptionIndex,
+      segmentId: input.segmentId,
       existingQuestions,
       context,
+      appealed: input.appealed === true,
     });
 
     const persisted = this.toPersistedVerdict(verdict);
@@ -405,6 +424,20 @@ export class StudentQuestionService {
         correctOptionIndex: input.correctOptionIndex,
         createdBy: input.createdBy,
       });
+      // Index it so the NEXT submission is compared against it. Best-effort by
+      // design (see VectorDedupService.index): a missed vector costs the judge a
+      // little extra work, it never costs the student their question.
+      await this.vectorDedup.index(createdId, input.segmentId, questionText);
+    }
+
+    // Measure how often students appeal the fast path. If nearly everyone does, the
+    // cosine reject is buying nothing and should be turned off rather than tuned.
+    if (input.appealed) {
+      console.info('[screening/vector] appeal resolved:', {
+        segmentId: input.segmentId,
+        decision: verdict.decision,
+        reasonCode: verdict.reasonCode,
+      });
     }
 
     return {
@@ -413,6 +446,8 @@ export class StudentQuestionService {
       message: verdict.message,
       questionId: verdict.decision === 'reject' ? undefined : createdId,
       ...(verdict.suggestedFix ? {suggestedFix: verdict.suggestedFix} : {}),
+      ...(verdict.appealable ? {appealable: true} : {}),
+      ...(verdict.matchQuestion ? {matchQuestion: verdict.matchQuestion} : {}),
     };
   }
 

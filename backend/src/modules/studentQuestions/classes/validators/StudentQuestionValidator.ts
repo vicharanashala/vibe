@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsInt,
   IsMongoId,
   IsNotEmpty,
@@ -70,6 +71,15 @@ export class CreateStudentQuestionBody {
     example: 0,
   })
   correctOptionIndex!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description:
+      'Set when re-submitting a question that the similarity fast-path rejected as a duplicate, to say it is genuinely different. Skips that fast path and sends the question to the LLM judge, whose verdict is final (so this cannot be used to bypass screening — only to escalate to a stricter check).',
+    example: true,
+  })
+  appealed?: boolean;
 }
 
 export class StudentQuestionPathParams {

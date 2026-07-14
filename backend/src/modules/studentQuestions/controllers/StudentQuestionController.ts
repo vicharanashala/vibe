@@ -99,6 +99,7 @@ export class StudentQuestionController {
       questionText: body.questionText,
       options: body.options,
       correctOptionIndex: body.correctOptionIndex,
+      appealed: body.appealed,
       createdBy,
     });
     return {

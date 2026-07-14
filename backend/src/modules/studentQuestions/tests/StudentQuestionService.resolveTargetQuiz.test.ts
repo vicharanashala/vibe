@@ -25,6 +25,7 @@ function makeService(itemRepo: any): StudentQuestionService {
     {} as any, // questionBankService
     itemRepo,
     {} as any, // screeningService
+    {} as any, // vectorDedup
   );
 }
 
