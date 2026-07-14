@@ -46,6 +46,19 @@
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
+  /* ViBe focused learn-page palette (always-dark cinematic stage) */
+  --color-stage: hsl(var(--stage));
+  --color-stage-foreground: hsl(var(--stage-foreground));
+  --color-glass: hsl(var(--glass) / 0.55);
+  --color-glass-border: hsl(var(--glass-border) / 0.1);
+  --color-warm: hsl(var(--warm));
+  --color-warm-foreground: hsl(var(--warm-foreground));
+  --color-success-soft: hsl(var(--success-soft));
+  --color-success-strong: hsl(var(--success-strong));
+  --color-danger-flash: hsl(var(--danger-flash));
+  --color-ai: hsl(var(--ai));
+  --color-ai-foreground: hsl(var(--ai-foreground));
+
   --font-sans: Poppins, sans-serif;
   --font-serif: Libre Baskerville, serif;
   --font-mono: JetBrains Mono, monospace;
@@ -103,6 +116,20 @@
   --sidebar-border: 38 30% 90%;
   --sidebar-ring: 38 95% 58%;
 
+  /* ViBe focused learn-page palette — LIGHT mode values (theme-aware;
+     dark-mode overrides live in the .dark block below). */
+  --stage: 220 16% 95%;
+  --stage-foreground: 230 25% 12%;
+  --glass: 0 0% 100%;
+  --glass-border: 230 20% 12%;
+  --warm: 33 92% 50%;
+  --warm-foreground: 28 40% 12%;
+  --success-soft: 152 45% 38%;
+  --success-strong: 152 55% 32%;
+  --danger-flash: 8 78% 50%;
+  --ai: 190 80% 40%;
+  --ai-foreground: 0 0% 100%;
+
   --radius: 0.5rem;
 }
 
@@ -147,6 +174,19 @@
   --sidebar-accent-foreground: 60 9.1% 97.8%;
   --sidebar-border: 12 6.5% 15.1%;
   --sidebar-ring: 38 95% 60%;
+
+  /* ViBe focused learn-page palette — DARK mode (cinematic stage). */
+  --stage: 230 20% 7%;
+  --stage-foreground: 220 16% 97%;
+  --glass: 230 16% 20%;
+  --glass-border: 0 0% 100%;
+  --warm: 33 92% 60%;
+  --warm-foreground: 28 35% 12%;
+  --success-soft: 152 45% 64%;
+  --success-strong: 152 52% 42%;
+  --danger-flash: 8 82% 57%;
+  --ai: 190 72% 56%;
+  --ai-foreground: 196 45% 11%;
 }
 
 /* BASE LAYER STYLING */
@@ -257,4 +297,43 @@
   .lb-marquee-track {
     animation: none;
   }
+}
+
+/* ViBe focused learn-page animations */
+@keyframes vibe-flash {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.9; }
+}
+@keyframes vibe-slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes vibe-scan {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(34px); opacity: 1; }
+}
+@keyframes vibe-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-vibe-flash { animation: vibe-flash 1.4s ease-in-out infinite; }
+.animate-vibe-slide-up { animation: vibe-slide-up 0.35s ease-out both; }
+.animate-vibe-scan { animation: vibe-scan 2.2s ease-in-out infinite; }
+.animate-vibe-fade-in { animation: vibe-fade-in 0.3s ease-out both; }
+
+/* Equalizer bars for the speaking / background-noise indicator */
+@keyframes vibe-eq { 0%, 100% { height: 30%; } 50% { height: 100%; } }
+.animate-vibe-bar1 { height: 100%; animation: vibe-eq 0.9s ease-in-out infinite; }
+.animate-vibe-bar2 { height: 100%; animation: vibe-eq 0.9s ease-in-out infinite 0.15s; }
+.animate-vibe-bar3 { height: 100%; animation: vibe-eq 0.9s ease-in-out infinite 0.3s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-vibe-flash,
+  .animate-vibe-slide-up,
+  .animate-vibe-scan,
+  .animate-vibe-fade-in,
+  .animate-vibe-bar1,
+  .animate-vibe-bar2,
+  .animate-vibe-bar3 { animation: none; }
 }
