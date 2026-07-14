@@ -13,7 +13,7 @@ import {describe, it, expect} from 'vitest';
 import {VectorDedupService} from '../services/screening/VectorDedupService.js';
 import {QuestionVectorRepository, VectorHit} from '../repositories/providers/mongodb/QuestionVectorRepository.js';
 import {ScreeningService} from '../services/screening/ScreeningService.js';
-import {ScreeningLlm, ModelTier} from '../services/screening/ScreeningLlm.js';
+import {ScreeningLlm} from '../services/screening/ScreeningLlm.js';
 import {EmbeddingProvider} from '../services/screening/embeddings/EmbeddingProvider.js';
 import {screeningConfig} from '#root/config/screening.js';
 
@@ -107,7 +107,6 @@ function passingLlm(spy?: (prompt: string) => void): ScreeningLlm {
   return {
     provider: 'mock',
     model: 'mock',
-    modelFor: (_t: ModelTier) => 'mock',
     async askJson(prompt: string) {
       spy?.(prompt);
       if (prompt.includes('"meaningful"')) return {meaningful: true, confidence: 'high', reason: 'ok'};
