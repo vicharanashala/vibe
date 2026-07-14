@@ -35,4 +35,47 @@ export const screeningConfig = {
   dedupPoolLimit: Number(env('SCREENING_DEDUP_LIMIT') || '50'),
   /** Transcript characters fed to the on-topic check (keeps cost bounded). */
   contextCharBudget: Number(env('SCREENING_CONTEXT_CHARS') || '2000'),
+
+  /**
+   * Semantic de-duplication (Atlas Vector Search).
+   *
+   * The vectors are a RETRIEVER, not a judge. Every threshold below was read off
+   * `embedding.calibration.test.ts` — re-run it before changing any of them.
+   *
+   * The calibration is unambiguous on one point: cosine similarity cannot, on its
+   * own, separate a duplicate from a look-alike, because sentence embeddings barely
+   * encode negation. "what should you do when the model overfits" scores 0.978
+   * against "what should you NOT do when the model overfits" — higher than five of
+   * the six true duplicates. So `autoRejectAt` is NOT a safe verdict; it is a fast
+   * first pass, and every rejection it makes is offered back to the student as a
+   * one-shot "this isn't a duplicate — have it reviewed", which routes to the LLM
+   * judge whose call is final.
+   */
+  vector: {
+    /** Off until a vector DB is configured — the pipeline falls back to the LLM-only path. */
+    enabled: (env('SCREENING_VECTOR_ENABLED') || 'true') !== 'false',
+    /** Separate Atlas cluster for embeddings — the primary DB is never touched. */
+    dbUrl: env('VECTOR_DB_URL'),
+    dbName: env('VECTOR_DB_NAME') || 'vibe_vectors',
+    collection: env('VECTOR_COLLECTION') || 'question_embeddings',
+    /** Must match the Atlas index name created on that collection. */
+    indexName: env('VECTOR_INDEX_NAME') || 'question_vector_index',
+
+    /** Candidates handed to the LLM judge (was a blind 50-question pool). */
+    topK: Number(env('SCREENING_VECTOR_TOP_K') || '10'),
+
+    /**
+     * Fast-path reject. Student-appealable — see the note above. Raising it makes
+     * the filter timid; lowering it rejects more up front but bounces more good
+     * "which is NOT…" questions into the appeal flow.
+     */
+    autoRejectAt: Number(env('SCREENING_VECTOR_AUTO_REJECT_AT') || '0.93'),
+
+    /**
+     * Below this, nothing in the bank is even plausibly related, so the LLM
+     * duplicate call is skipped entirely (saves a reasoning-model call).
+     * Calibrated well under the lowest true duplicate observed (0.807).
+     */
+    llmFloorAt: Number(env('SCREENING_VECTOR_LLM_FLOOR_AT') || '0.60'),
+  },
 };

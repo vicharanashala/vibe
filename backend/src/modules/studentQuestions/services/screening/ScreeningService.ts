@@ -10,6 +10,8 @@ import {
   ANSWER_PROMPT,
 } from './prompts.js';
 import {asMeaningful, asDuplicate, asContext, asAnswer} from './verdicts.js';
+import {VectorDedupService} from './VectorDedupService.js';
+import {QuestionVectorRepository} from '../../repositories/providers/mongodb/QuestionVectorRepository.js';
 
 export type ScreeningDecision = 'pass' | 'reject' | 'hold';
 
@@ -21,6 +23,8 @@ export type ScreeningReason =
   | 'typo'
   | 'spam'
   | 'duplicate'
+  /** Vector fast-path: near-identical to an existing question. Student may appeal. */
+  | 'duplicate_similar'
   | 'off_topic'
   | 'wrong_answer'
   | 'answer_uncertain'
@@ -32,10 +36,18 @@ export interface ScreeningInput {
   /** Option texts (0-based). Empty/omitted → answer check is skipped. */
   options?: string[];
   correctOptionIndex?: number | null;
-  /** Existing graded-QB question stems for this segment (the duplicate pool). */
+  /** Lesson segment — scopes the vector search (a duplicate is always same-segment). */
+  segmentId?: string;
+  /** Existing graded-QB question stems. Only used when vector search is unavailable. */
   existingQuestions?: string[];
   /** Lesson context (title + transcript excerpt). Empty → context check skipped. */
   context?: string | null;
+  /**
+   * The student is appealing a `duplicate_similar` rejection ("I think this is
+   * different"). Retrieval still runs, but the cosine fast-path is disabled and the
+   * LLM judge decides — its verdict is final, so there is nothing further to appeal.
+   */
+  appealed?: boolean;
 }
 
 export interface ScreeningResult {
@@ -48,6 +60,14 @@ export interface ScreeningResult {
   /** Per-check booleans (surfaced to instructors / tuning). */
   checks: {wellFormed?: boolean; notDuplicate?: boolean; onTopic?: boolean; answerCorrect?: boolean};
   matchQuestion?: string;
+  /**
+   * True only on a `duplicate_similar` reject: the cosine fast-path is a heuristic,
+   * not a verdict, so the student is offered one re-submission that goes to the LLM
+   * judge instead. Drives the "this isn't a duplicate — have it reviewed" button.
+   */
+  appealable?: boolean;
+  /** Cosine of the closest existing question — for tuning the thresholds on real traffic. */
+  similarity?: number;
   /** For a `typo` bounce: the question with spelling fixed, so the student can one-tap apply it. */
   suggestedFix?: string;
   provider: string;
@@ -74,9 +94,21 @@ export class ScreeningService {
   // Built from config at construction (no network). Overridable for tests.
   private llm: ScreeningLlm = createScreeningLlm();
 
+  // Same story: constructing it opens no connection and loads no model — both are
+  // lazy — so this stays newable in tests while DI still binds the real singleton.
+  private vectors: VectorDedupService = new VectorDedupService(
+    new QuestionVectorRepository(),
+  );
+
   /** Test seam: inject a mock LLM without going through DI. */
   setLlm(llm: ScreeningLlm): this {
     this.llm = llm;
+    return this;
+  }
+
+  /** Test seam: inject a stub vector stage without going through DI. */
+  setVectors(v: VectorDedupService): this {
+    this.vectors = v;
     return this;
   }
 
@@ -134,8 +166,46 @@ export class ScreeningService {
         return done({decision: 'reject', reasonCode: 'typo', check: 'meaningful', message: `Looks like a spelling typo — did you mean: "${m.corrected}"? Fix it and resubmit.`, checks: {wellFormed: true}, suggestedFix: m.corrected});
       }
 
-      // ── 2. duplicate (LLM, vs graded-QB pool) ─────────────────────────────
-      const pool = (input.existingQuestions ?? []).slice(0, screeningConfig.dedupPoolLimit);
+      // ── 2. duplicate — RETRIEVE (vectors) then JUDGE (LLM) ────────────────
+      // Vectors do recall, the LLM does precision. Cosine alone cannot decide this
+      // (see VectorDedupService): it barely encodes negation, so "which is NOT a
+      // type of ML" sits ~0.92 against "which IS a type of ML". Hence the fast-path
+      // rejection below is appealable, and everything else defers to the judge.
+      let pool: string[] = [];
+      if (input.segmentId) {
+        const vec = await this.vectors.findSimilar(
+          input.segmentId,
+          q,
+          !input.appealed, // an appeal disables the fast path; only the LLM may decide
+        );
+        switch (vec.kind) {
+          case 'auto_reject':
+            return done({
+              decision: 'reject',
+              reasonCode: 'duplicate_similar',
+              check: 'duplicate',
+              message: `This looks like a question that already exists for this lesson: "${vec.match.text}". If you think yours asks something different, you can have it reviewed.`,
+              checks: {wellFormed: true, notDuplicate: false},
+              matchQuestion: vec.match.text,
+              similarity: vec.match.cosine,
+              appealable: true,
+            });
+          case 'no_candidates':
+            pool = []; // nothing plausible in the bank — skip the LLM call entirely
+            break;
+          case 'candidates':
+            pool = vec.hits.map(h => h.text);
+            break;
+          case 'unavailable':
+            // Vector store off/broken → fall back to the original blind pool, so a
+            // misconfigured cluster degrades cost, never correctness.
+            pool = (input.existingQuestions ?? []).slice(0, screeningConfig.dedupPoolLimit);
+            break;
+        }
+      } else {
+        pool = (input.existingQuestions ?? []).slice(0, screeningConfig.dedupPoolLimit);
+      }
+
       if (pool.length > 0) {
         const d = asDuplicate(await this.llm.askJson(DUPLICATE_PROMPT(q, pool)));
         if (d.duplicate) {
