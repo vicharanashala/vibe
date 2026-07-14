@@ -63,6 +63,207 @@ export const DEMO_COURSE = {
 
 export const ALL_ITEMS = DEMO_COURSE.modules.flatMap((module) => module.sections.flatMap((section) => section.items));
 
+// ─── Mixed question types for AI-generated quizzes ──────────────────────────
+export type DemoQuestionType = 'MCQ' | 'MULTI_SELECT' | 'DRAG_DROP' | 'DROPDOWN';
+
+export interface DemoQuestion {
+  id: string;
+  type: DemoQuestionType;
+  question: string;
+  points: number;
+  options?: string[];
+  correct?: number;
+  correctMany?: number[];
+  items?: string[];
+  sentence?: string;
+  dropdownOptions?: Record<string, string[]>;
+  correctDropdown?: Record<string, string>;
+}
+
+export const MIXED_QUIZ_DATA: Record<string, DemoQuestion[]> = {
+  'm1s1-q1': [
+    {
+      id: 'm1s1-q1-a', type: 'MCQ',
+      question: 'What is the primary goal of regression analysis?',
+      options: ['Group similar data points', 'Predict a continuous output variable', 'Classify data into categories', 'Reduce dimensionality'],
+      correct: 1, points: 10,
+    },
+    {
+      id: 'm1s1-q1-b', type: 'MULTI_SELECT',
+      question: 'Which of the following are examples of regression problems? (Select all that apply)',
+      options: ['Predicting house prices', 'Spam detection', 'Forecasting stock prices', 'Classifying flower species'],
+      correctMany: [0, 2], points: 10,
+    },
+    {
+      id: 'm1s1-q1-c', type: 'DRAG_DROP',
+      question: 'Arrange the steps of building a linear regression model in the correct order:',
+      items: ['Collect and preprocess data', 'Split into train/test sets', 'Fit the model', 'Evaluate on test set', 'Deploy the model'],
+      points: 10,
+    },
+  ],
+  'm1s1-q2': [
+    {
+      id: 'm1s1-q2-a', type: 'DROPDOWN',
+      question: 'Complete the sentence:',
+      sentence: 'In linear regression, the {{line}} is fitted to minimise the {{error}} between predicted and actual values.',
+      dropdownOptions: {
+        line: ['best-fit line', 'decision boundary', 'cluster centroid'],
+        error: ['sum of squared residuals', 'cross-entropy loss', 'Gini impurity'],
+      },
+      correctDropdown: { line: 'best-fit line', error: 'sum of squared residuals' },
+      points: 10,
+    },
+    {
+      id: 'm1s1-q2-b', type: 'MCQ',
+      question: 'Ridge and Lasso regression are used primarily to:',
+      options: ['Increase model complexity', 'Prevent overfitting via regularisation', 'Convert regression to classification', 'Speed up training'],
+      correct: 1, points: 10,
+    },
+    {
+      id: 'm1s1-q2-c', type: 'MULTI_SELECT',
+      question: 'Which metrics are commonly used to evaluate regression models? (Select all that apply)',
+      options: ['Mean Absolute Error (MAE)', 'Accuracy', 'Root Mean Squared Error (RMSE)', 'R\u00b2 Score'],
+      correctMany: [0, 2, 3], points: 10,
+    },
+  ],
+  'm1s2-q1': [
+    {
+      id: 'm1s2-q1-a', type: 'MCQ',
+      question: 'What is the main objective of classification?',
+      options: ['Predict a continuous value', 'Assign data points to predefined categories', 'Discover hidden patterns', 'Reduce feature count'],
+      correct: 1, points: 10,
+    },
+    {
+      id: 'm1s2-q1-b', type: 'DRAG_DROP',
+      question: 'Arrange these classification algorithms from simplest to most complex (drag to reorder):',
+      items: ['Logistic Regression', 'Decision Tree', 'Random Forest', 'Neural Network'],
+      points: 10,
+    },
+    {
+      id: 'm1s2-q1-c', type: 'DROPDOWN',
+      question: 'Complete the sentence:',
+      sentence: 'A {{type}} classification problem has exactly two output classes, while a {{multi}} problem has three or more.',
+      dropdownOptions: {
+        type: ['binary', 'multi-class', 'regression'],
+        multi: ['multi-class', 'binary', 'clustering'],
+      },
+      correctDropdown: { type: 'binary', multi: 'multi-class' },
+      points: 10,
+    },
+  ],
+  'm1s2-q2': [
+    {
+      id: 'm1s2-q2-a', type: 'MULTI_SELECT',
+      question: 'Which of the following are real-world classification applications? (Select all that apply)',
+      options: ['Spam email detection', 'House price prediction', 'Medical diagnosis', 'Customer churn prediction'],
+      correctMany: [0, 2, 3], points: 10,
+    },
+    {
+      id: 'm1s2-q2-b', type: 'MCQ',
+      question: 'Which algorithm is commonly used for spam detection?',
+      options: ['K-Means', 'Linear Regression', 'Naive Bayes / SVM', 'PCA'],
+      correct: 2, points: 10,
+    },
+    {
+      id: 'm1s2-q2-c', type: 'DRAG_DROP',
+      question: 'Arrange the steps of a classification pipeline in order:',
+      items: ['Data collection', 'Feature engineering', 'Model training', 'Threshold tuning', 'Production deployment'],
+      points: 10,
+    },
+  ],
+  'm2s1-q1': [
+    {
+      id: 'm2s1-q1-a', type: 'MCQ',
+      question: 'What is the primary goal of clustering?',
+      options: ['Predict a target variable', 'Group similar data points without prior labels', 'Classify into known categories', 'Reduce features'],
+      correct: 1, points: 10,
+    },
+    {
+      id: 'm2s1-q1-b', type: 'DROPDOWN',
+      question: 'Complete the sentence:',
+      sentence: 'Clustering is a form of {{learning}} learning because the training data has {{labels}}.',
+      dropdownOptions: {
+        learning: ['unsupervised', 'supervised', 'reinforcement'],
+        labels: ['no labels', 'class labels', 'reward signals'],
+      },
+      correctDropdown: { learning: 'unsupervised', labels: 'no labels' },
+      points: 10,
+    },
+    {
+      id: 'm2s1-q1-c', type: 'MULTI_SELECT',
+      question: 'Which of the following are clustering algorithms? (Select all that apply)',
+      options: ['K-Means', 'DBSCAN', 'Logistic Regression', 'Hierarchical Clustering'],
+      correctMany: [0, 1, 3], points: 10,
+    },
+  ],
+  'm2s1-q2': [
+    {
+      id: 'm2s1-q2-a', type: 'DRAG_DROP',
+      question: 'Arrange the K-Means algorithm steps in the correct order:',
+      items: ['Initialise K centroids randomly', 'Assign each point to nearest centroid', 'Recompute centroids', 'Check for convergence', 'Output final clusters'],
+      points: 10,
+    },
+    {
+      id: 'm2s1-q2-b', type: 'MCQ',
+      question: 'What is a "centroid" in K-Means clustering?',
+      options: ['An outlier data point', 'The centre of a cluster', 'A boundary between clusters', 'A point in multiple clusters'],
+      correct: 1, points: 10,
+    },
+    {
+      id: 'm2s1-q2-c', type: 'MULTI_SELECT',
+      question: 'Which are valid applications of clustering? (Select all that apply)',
+      options: ['Customer segmentation', 'Image compression', 'Predicting house prices', 'Anomaly detection'],
+      correctMany: [0, 1, 3], points: 10,
+    },
+  ],
+  'm2s2-q1': [
+    {
+      id: 'm2s2-q1-a', type: 'MCQ',
+      question: 'What does PCA stand for?',
+      options: ['Principal Component Analysis', 'Primary Classification Algorithm', 'Pattern Correlation Algorithm', 'Predictive Component Association'],
+      correct: 0, points: 10,
+    },
+    {
+      id: 'm2s2-q1-b', type: 'DROPDOWN',
+      question: 'Complete the sentence:',
+      sentence: 'PCA reduces {{dim}} while retaining as much {{var}} as possible by projecting data onto {{comp}}.',
+      dropdownOptions: {
+        dim: ['dimensionality', 'sample size', 'label count'],
+        var: ['variance', 'bias', 'noise'],
+        comp: ['principal components', 'cluster centroids', 'decision boundaries'],
+      },
+      correctDropdown: { dim: 'dimensionality', var: 'variance', comp: 'principal components' },
+      points: 10,
+    },
+    {
+      id: 'm2s2-q1-c', type: 'MULTI_SELECT',
+      question: 'Which statements about PCA are correct? (Select all that apply)',
+      options: ['PCA is an unsupervised technique', 'PCA always improves model accuracy', 'PCA can speed up training', 'Principal components are uncorrelated'],
+      correctMany: [0, 2, 3], points: 10,
+    },
+  ],
+  'm2s2-q2': [
+    {
+      id: 'm2s2-q2-a', type: 'DRAG_DROP',
+      question: 'Arrange the PCA workflow steps in the correct order:',
+      items: ['Standardise the data', 'Compute covariance matrix', 'Calculate eigenvectors & eigenvalues', 'Select top K components', 'Project data onto new axes'],
+      points: 10,
+    },
+    {
+      id: 'm2s2-q2-b', type: 'MCQ',
+      question: 'What is a benefit of applying PCA before training a model?',
+      options: ['Always improves accuracy', 'Can speed up training and reduce overfitting', 'Makes the model more complex', 'Converts features to categorical'],
+      correct: 1, points: 10,
+    },
+    {
+      id: 'm2s2-q2-c', type: 'MULTI_SELECT',
+      question: 'Which are real-world applications of PCA? (Select all that apply)',
+      options: ['Face recognition', 'Image compression', 'Spam detection', 'Noise reduction in signals'],
+      correctMany: [0, 1, 3], points: 10,
+    },
+  ],
+};
+
 export const QUIZ_DATA: Record<string, { id: string; question: string; options: string[]; correct: number; points: number }[]> = {
   "m1s1-q1": [
     {

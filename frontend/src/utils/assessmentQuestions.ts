@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { AssessmentQuestion, AssessmentQuestionType } from '@/types/assessment.types';
 
-const assessmentQuestionTypeSchema = z.enum(['MCQ', 'TRUE_FALSE', 'MULTIPLE_RESPONSE', 'DRAG_AND_DROP', 'DROPDOWN_BLANK']);
+const assessmentQuestionTypeSchema = z.enum(['MCQ', 'TRUE_FALSE', 'MULTIPLE_RESPONSE', 'DRAG_AND_DROP', 'MATRIX_YES_NO', 'DROPDOWN_BLANK']);
 
 export const assessmentQuestionSchema = z.object({
   id: z.string().min(1),
@@ -63,10 +63,21 @@ export function createAssessmentQuestion(type: AssessmentQuestionType): Assessme
     case 'DRAG_AND_DROP':
       return {
         ...base,
-        questionText: 'Arrange the concepts in the correct order.',
+        questionText: 'Match each item to its correct target.',
         content: {
-          dragItems: ['First', 'Second', 'Third'],
+          items: ['Item A', 'Item B', 'Item C'],
+          targets: { 'Item A': 'Target 1', 'Item B': 'Target 2', 'Item C': 'Target 3' },
+          dragItems: ['Item A', 'Item B', 'Item C'],
           correctAnswers: [0, 1, 2],
+        },
+      };
+    case 'MATRIX_YES_NO':
+      return {
+        ...base,
+        questionText: 'For each statement, select Yes or No.',
+        content: {
+          statements: ['Statement 1', 'Statement 2', 'Statement 3'],
+          correctAnswers: [true, false, true],
         },
       };
     case 'DROPDOWN_BLANK':
@@ -74,6 +85,7 @@ export function createAssessmentQuestion(type: AssessmentQuestionType): Assessme
         ...base,
         questionText: 'The most important idea is {{blank_1}}.',
         content: {
+          sentence: 'The most important idea is {{blank_1}}.',
           dropdownOptions: {
             blank_1: ['clarity', 'speed', 'accuracy'],
           },
@@ -135,6 +147,7 @@ export function generateAssessmentQuestionsFromTranscript(transcript: string, co
       question.content.correctAnswers = [0, 1];
     } else if (type === 'DROPDOWN_BLANK') {
       question.questionText = 'The central lesson from the video is {{blank_1}}.';
+      question.content.sentence = 'The central lesson from the video is {{blank_1}}.';
       question.content.dropdownOptions = {
         blank_1: ['actionable', 'irrelevant', 'optional'],
       };

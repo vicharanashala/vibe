@@ -56,6 +56,7 @@ import TeacherLogin from '../pages/teacher/TeacherLogin'
 import SelectRolePage from '../pages/SelectRolePage'
 import AuditPage from '../pages/teacher/AuditPage'
 import ConfigureCohorts from '../pages/teacher/configure-cohorts'
+import AssessmentStudioPage from '../pages/teacher/AssessmentStudioPage'
 
 import HpSystemVersions from '../pages/teacher/hp-system/HpSystemPage'
 import HpSystemCohorts from '../pages/teacher/hp-system/CohortsList'
@@ -444,6 +445,12 @@ const teacherAuditRoute = new Route({
   component: AuditPage,
 })
 
+const teacherQuizBuilderRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/quiz-builder',
+  component: AssessmentStudioPage,
+})
+
 const teacherHpSystemVersionsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/hp-system',
@@ -717,6 +724,7 @@ const routeTree = rootRoute.addChildren([
     teacherStudentSubmissionsRoute,
     teacherSubmissionDetailsRoute,
     teacherNotificationsRoute,
+    teacherQuizBuilderRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react';
-import { Grip, ListChecks, MessageSquareQuote } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Grip, MessageSquareQuote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { AssessmentQuestion, AssessmentQuestionType } from '@/types/assessment.types';
 
@@ -12,110 +11,86 @@ interface RendererProps {
   onAnswerChange?: (value: unknown) => void;
 }
 
-function renderDropdownBlanks(questionText: string, dropdownOptions?: Record<string, string[]>) {
-  const parts = questionText.split(/(\{\{[^}]+\}\})/g).filter(Boolean);
-  return parts.map((part, index) => {
-    const match = part.match(/\{\{(.*?)\}\}/);
-    if (!match) {
-      return <span key={`${part}-${index}`}>{part}</span>;
-    }
-    const blankKey = match[1];
-    const options = dropdownOptions?.[blankKey] ?? [];
-    return (
-      <span key={`${blankKey}-${index}`} className="inline-flex items-center gap-2">
-        <span className="font-medium text-foreground">{part}</span>
-        <select className="rounded-md border border-border bg-background px-2 py-1 text-sm">
-          <option value="">Select</option>
-          {options.map(option => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </select>
-      </span>
-    );
-  });
-}
-
+// ── MCQ ──────────────────────────────────────────────────────────────────────
 function McqRenderer({ question, answer, onAnswerChange }: RendererProps) {
   const selected = answer as number | undefined;
   return (
-    <div className="grid gap-2">
-      <RadioGroup
-        value={selected?.toString()}
-        onValueChange={value => onAnswerChange?.(Number(value))}
-      >
-        {question.content.options?.map((option, index) => (
-          <label key={`${question.id}-${option}`} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
-            <RadioGroupItem value={index.toString()} id={`${question.id}-${index}`} />
-            <span>{option}</span>
-          </label>
-        ))}
-      </RadioGroup>
-    </div>
-  );
-}
-
-function TrueFalseRenderer({ question, answer, onAnswerChange }: RendererProps) {
-  const selected = answer as number | undefined;
-  return (
-    <div className="flex gap-2">
-      {[0, 1].map(optionIndex => (
-        <Button
-          key={`${question.id}-${optionIndex}`}
-          type="button"
-          variant={selected === optionIndex ? 'default' : 'outline'}
-          onClick={() => onAnswerChange?.(optionIndex)}
-          className="min-w-24"
-        >
-          {question.content.options?.[optionIndex] ?? (optionIndex === 0 ? 'True' : 'False')}
-        </Button>
+    <RadioGroup value={selected?.toString()} onValueChange={v => onAnswerChange?.(Number(v))}>
+      {question.content.options?.map((opt, idx) => (
+        <label key={`${question.id}-${idx}`} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm cursor-pointer hover:bg-accent/30">
+          <RadioGroupItem value={idx.toString()} id={`${question.id}-${idx}`} />
+          <span>{opt}</span>
+        </label>
       ))}
-    </div>
+    </RadioGroup>
   );
 }
 
+// ── Multiple Response ─────────────────────────────────────────────────────────
 function MultipleResponseRenderer({ question, answer, onAnswerChange }: RendererProps) {
   const selection = (answer as number[] | undefined) ?? [];
-  const toggle = (index: number) => {
-    const next = selection.includes(index) ? selection.filter(item => item !== index) : [...selection, index];
+  const toggle = (idx: number) => {
+    const next = selection.includes(idx) ? selection.filter(i => i !== idx) : [...selection, idx];
     onAnswerChange?.(next);
   };
-
   return (
     <div className="grid gap-2">
-      {question.content.options?.map((option, index) => (
-        <label key={`${question.id}-${option}`} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
-          <Checkbox checked={selection.includes(index)} onCheckedChange={() => toggle(index)} />
-          <span>{option}</span>
+      {question.content.options?.map((opt, idx) => (
+        <label key={`${question.id}-${idx}`} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm cursor-pointer hover:bg-accent/30">
+          <Checkbox checked={selection.includes(idx)} onCheckedChange={() => toggle(idx)} />
+          <span>{opt}</span>
         </label>
       ))}
     </div>
   );
 }
 
+// ── Drag & Drop ───────────────────────────────────────────────────────────────
 function DragAndDropRenderer({ question, answer, onAnswerChange }: RendererProps) {
-  const [items, setItems] = useState(question.content.dragItems ?? []);
-  const selected = (answer as string[] | undefined) ?? items;
-  const moveItem = (from: number, to: number) => {
-    const next = [...selected];
+  const sourceItems = question.content.items ?? question.content.dragItems ?? [];
+  const [order, setOrder] = useState<string[]>(() =>
+    Array.isArray(answer) && (answer as string[]).length > 0
+      ? (answer as string[])
+      : [...sourceItems]
+  );
+  const [dragging, setDragging] = useState<number | null>(null);
+
+  // Re-sync when source items change (e.g. after editing in composer)
+  useEffect(() => {
+    setOrder(prev => {
+      const updated = sourceItems.filter(i => prev.includes(i));
+      const added = sourceItems.filter(i => !prev.includes(i));
+      return [...updated, ...added];
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.content.items, question.content.dragItems]);
+
+  const move = (from: number, to: number) => {
+    const next = [...order];
     const [item] = next.splice(from, 1);
     next.splice(to, 0, item);
-    setItems(next);
+    setOrder(next);
     onAnswerChange?.(next);
   };
 
   return (
     <div className="flex flex-col gap-2">
-      {selected.map((item, index) => (
-        <div key={`${question.id}-${item}-${index}`} draggable className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm" onDragStart={() => {}}
-          onDrop={() => moveItem(index, index)}
+      {order.map((item, idx) => (
+        <div
+          key={`${question.id}-${item}-${idx}`}
+          draggable
+          onDragStart={() => setDragging(idx)}
+          onDragOver={e => e.preventDefault()}
+          onDrop={() => { if (dragging !== null && dragging !== idx) move(dragging, idx); setDragging(null); }}
+          className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm bg-background cursor-grab active:cursor-grabbing"
         >
           <span className="flex items-center gap-2">
             <Grip className="h-4 w-4 text-muted-foreground" />
             {item}
           </span>
           <div className="flex gap-1">
-            <Button type="button" variant="outline" size="sm" onClick={() => moveItem(index, Math.max(0, index - 1))}>Up</Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => moveItem(index, Math.min(selected.length - 1, index + 1))}>Down</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => move(idx, Math.max(0, idx - 1))}>↑</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => move(idx, Math.min(order.length - 1, idx + 1))}>↓</Button>
           </div>
         </div>
       ))}
@@ -123,32 +98,103 @@ function DragAndDropRenderer({ question, answer, onAnswerChange }: RendererProps
   );
 }
 
-function DropdownBlankRenderer({ question }: RendererProps) {
+// ── Matrix Yes/No ─────────────────────────────────────────────────────────────
+function MatrixYesNoRenderer({ question, answer, onAnswerChange }: RendererProps) {
+  const statements = question.content.statements ?? [];
+  const selection = (answer as (boolean | null)[] | undefined) ?? statements.map(() => null);
+
+  const toggle = (idx: number, val: boolean) => {
+    const next = [...selection];
+    next[idx] = selection[idx] === val ? null : val;
+    onAnswerChange?.(next);
+  };
+
   return (
-    <div className="rounded-lg border border-border p-3 text-sm">
-      <div className="flex flex-wrap items-center gap-2">
-        {renderDropdownBlanks(question.questionText, question.content.dropdownOptions)}
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="border-b border-border">
+            <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Statement</th>
+            <th className="w-16 text-center py-2 font-medium text-green-700">Yes</th>
+            <th className="w-16 text-center py-2 font-medium text-red-700">No</th>
+          </tr>
+        </thead>
+        <tbody>
+          {statements.map((stmt, idx) => (
+            <tr key={`${question.id}-matrix-${idx}`} className="border-b border-border/50 hover:bg-accent/20">
+              <td className="py-2 pr-4">{stmt}</td>
+              <td className="text-center py-2">
+                <button
+                  type="button"
+                  onClick={() => toggle(idx, true)}
+                  className={`h-6 w-6 rounded-full border-2 transition-colors ${selection[idx] === true ? 'bg-green-500 border-green-500' : 'border-border hover:border-green-400'}`}
+                />
+              </td>
+              <td className="text-center py-2">
+                <button
+                  type="button"
+                  onClick={() => toggle(idx, false)}
+                  className={`h-6 w-6 rounded-full border-2 transition-colors ${selection[idx] === false ? 'bg-red-500 border-red-500' : 'border-border hover:border-red-400'}`}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Dropdown Fill-in-the-Blanks ───────────────────────────────────────────────
+function DropdownBlankRenderer({ question, answer, onAnswerChange }: RendererProps) {
+  const text = question.content.sentence ?? question.questionText ?? '';
+  const parts = text.split(/({{[^}]+}})/g).filter(Boolean);
+  const answers = (answer as Record<string, string> | undefined) ?? {};
+
+  return (
+    <div className="rounded-lg border border-border p-3 text-sm leading-8">
+      <div className="flex flex-wrap items-center gap-1">
+        {parts.map((part, idx) => {
+          const match = part.match(/{{(.*?)}}/);
+          if (!match) return <span key={idx}>{part}</span>;
+          const key = match[1];
+          const opts = question.content.dropdownOptions?.[key] ?? [];
+          return (
+            <select
+              key={idx}
+              value={answers[key] ?? ''}
+              onChange={e => onAnswerChange?.({ ...answers, [key]: e.target.value })}
+              className="rounded-md border border-primary bg-background px-2 py-0.5 text-sm font-medium text-primary"
+            >
+              <option value="">Select…</option>
+              {opts.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            </select>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-const registry: Record<AssessmentQuestionType, (props: RendererProps) => JSX.Element> = {
+// ── Registry ──────────────────────────────────────────────────────────────────
+const registry: Partial<Record<AssessmentQuestionType, (props: RendererProps) => JSX.Element>> = {
   MCQ: McqRenderer,
-  TRUE_FALSE: TrueFalseRenderer,
+  TRUE_FALSE: McqRenderer,
   MULTIPLE_RESPONSE: MultipleResponseRenderer,
   DRAG_AND_DROP: DragAndDropRenderer,
+  MATRIX_YES_NO: MatrixYesNoRenderer,
   DROPDOWN_BLANK: DropdownBlankRenderer,
 };
 
 export function AssessmentQuestionRenderer({ question, answer, onAnswerChange }: RendererProps) {
-  const Renderer = useMemo(() => registry[question.type], [question.type]);
+  const Renderer = registry[question.type];
+  if (!Renderer) return null;
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-        <MessageSquareQuote className="h-4 w-4" />
-        {question.questionText}
+        <MessageSquareQuote className="h-4 w-4 shrink-0" />
+        {question.type !== 'DROPDOWN_BLANK' && question.questionText}
       </div>
       <Renderer question={question} answer={answer} onAnswerChange={onAnswerChange} />
     </div>

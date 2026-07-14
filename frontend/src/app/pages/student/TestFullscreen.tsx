@@ -7,13 +7,15 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
   Play, HelpCircle, CheckCircle, ChevronRight,
-  ChevronLeft, Home, BookOpen, Trophy, Clock, Code2,
+  ChevronLeft, Home, BookOpen, Trophy, Clock, Code2, GripVertical, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/utils/utils';
 import CodingPlayground from '@/components/learn/CodingPlayground';
+import { MIXED_QUIZ_DATA, type DemoQuestion } from './demoCourseData';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MAX_VIOLATIONS = 3;
@@ -79,7 +81,7 @@ const DEMO_COURSE = {
 // Flat list of all items for easy navigation
 const ALL_ITEMS = DEMO_COURSE.modules.flatMap(m => m.sections.flatMap(s => s.items));
 
-// Specific quiz questions for each quiz item
+// Specific quiz questions for each quiz item (legacy MCQ-only, kept for reference)
 const QUIZ_DATA: Record<string, { id: string; question: string; options: string[]; correct: number; points: number; }[]> = {
   'm1s1-q1': [ // Quiz: Regression Intro
     {
@@ -267,8 +269,9 @@ const QUIZ_DATA: Record<string, { id: string; question: string; options: string[
   ],
 };
 
-// Function to get questions for a specific quiz ID
-const GET_QUIZ_QUESTIONS = (quizId: string) => QUIZ_DATA[quizId] || [];
+// Use mixed AI-generated questions
+const GET_QUIZ_QUESTIONS = (quizId: string): DemoQuestion[] =>
+  MIXED_QUIZ_DATA[quizId] ?? [];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function TestFullscreen() {
@@ -315,7 +318,10 @@ export default function TestFullscreen() {
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  // answers: MCQ → number, MULTI_SELECT → number[], DRAG_DROP → string[], DROPDOWN → Record<string,string>
+  const [answers, setAnswers] = useState<Record<string, number | number[] | string[] | Record<string, string>>>({});
+  const [dragOrder, setDragOrder] = useState<Record<string, string[]>>({});
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [passed, setPassed] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
@@ -363,27 +369,57 @@ export default function TestFullscreen() {
     setQuizCompleted(false);
     setCurrentQuestionIndex(0);
     setAnswers({});
+    setDragOrder({});
+    setDraggingIdx(null);
     setScore(0);
     setPassed(false);
     setTimeLeft(30);
   };
 
-  const handleQuizFinish = useCallback(() => {
-    let total = 0;
-    currentQuestions.forEach(q => {
-      if (answers[q.id] === q.correct) total += q.points;
-    });
-    const maxScore = currentQuestions.length * 10;
-    const isPassed = total >= (maxScore * 0.66);
+  const isAnswerGiven = (q: DemoQuestion): boolean => {
+    const a = answers[q.id];
+    if (q.type === 'MCQ') return typeof a === 'number';
+    if (q.type === 'MULTI_SELECT') return Array.isArray(a) && (a as number[]).length > 0;
+    if (q.type === 'DRAG_DROP') return true; // always has an order (initial or dragged)
+    if (q.type === 'DROPDOWN') {
+      const keys = Object.keys(q.dropdownOptions ?? {});
+      const ans = a as Record<string, string> | undefined;
+      return keys.length > 0 && keys.every(k => !!ans?.[k]);
+    }
+    return false;
+  };
 
+  const scoreQuestion = (q: DemoQuestion): number => {
+    const a = answers[q.id];
+    if (q.type === 'MCQ') return a === q.correct ? q.points : 0;
+    if (q.type === 'MULTI_SELECT') {
+      const sel = (a as number[] | undefined) ?? [];
+      const correct = q.correctMany ?? [];
+      const allCorrect = correct.every(c => sel.includes(c)) && sel.every(c => correct.includes(c));
+      return allCorrect ? q.points : 0;
+    }
+    if (q.type === 'DRAG_DROP') {
+      const order = (dragOrder[q.id] ?? q.items ?? []) as string[];
+      const correct = q.items ?? [];
+      return order.every((item, i) => item === correct[i]) ? q.points : 0;
+    }
+    if (q.type === 'DROPDOWN') {
+      const ans = (a as Record<string, string> | undefined) ?? {};
+      const correct = q.correctDropdown ?? {};
+      return Object.keys(correct).every(k => ans[k] === correct[k]) ? q.points : 0;
+    }
+    return 0;
+  };
+
+  const handleQuizFinish = useCallback(() => {
+    const total = currentQuestions.reduce((sum, q) => sum + scoreQuestion(q), 0);
+    const maxScore = currentQuestions.reduce((sum, q) => sum + q.points, 0);
+    const isPassed = total >= maxScore * 0.66;
     setScore(total);
     setPassed(isPassed);
     setQuizCompleted(true);
-
-    if (isPassed) {
-      markCompleted(selectedItemId);
-    }
-  }, [answers, currentQuestions, selectedItemId, moveToNextItem]);
+    if (isPassed) markCompleted(selectedItemId);
+  }, [answers, dragOrder, currentQuestions, selectedItemId]);
 
   const handleNextQuestion = useCallback(() => {
     if (currentQuestionIndex < currentQuestions.length - 1) {
@@ -747,68 +783,185 @@ export default function TestFullscreen() {
               )}
 
               {/* Quiz in progress */}
-              {quizStarted && !quizCompleted && (
-                <Card>
-                  <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <Badge variant="outline">
-                        Question {currentQuestionIndex + 1} of {currentQuestions.length}
-                      </Badge>
-                      <Badge
-                        variant="secondary"
-                        className={`font-mono text-lg px-3 py-1 ${timeLeft <= 10 ? 'bg-destructive text-destructive-foreground animate-pulse' : ''}`}
-                      >
-                        <Clock className="mr-1 h-4 w-4" />
-                        {timeLeft}s
-                      </Badge>
-                    </div>
-                    <Progress value={((currentQuestionIndex + 1) / currentQuestions.length) * 100} className="h-3" />
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="default">Single Select</Badge>
-                      <Badge variant="outline">
-                        <Trophy className="mr-1 h-3 w-3" />
-                        {currentQuestions[currentQuestionIndex].points} points
-                      </Badge>
-                    </div>
+              {quizStarted && !quizCompleted && (() => {
+                const q = currentQuestions[currentQuestionIndex];
+                const typeLabel: Record<string, string> = {
+                  MCQ: 'Single Select',
+                  MULTI_SELECT: 'Multiple Select',
+                  DRAG_DROP: 'Drag & Drop',
+                  DROPDOWN: 'Fill in the Blanks',
+                };
+                const typeBadgeVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+                  MCQ: 'default',
+                  MULTI_SELECT: 'secondary',
+                  DRAG_DROP: 'outline',
+                  DROPDOWN: 'destructive',
+                };
 
-                    <h2 className="text-xl font-semibold">
-                      {currentQuestions[currentQuestionIndex].question}
-                    </h2>
+                // Drag-and-drop helpers
+                const currentOrder = dragOrder[q.id] ?? q.items ?? [];
+                const moveDrag = (from: number, to: number) => {
+                  const next = [...currentOrder];
+                  const [item] = next.splice(from, 1);
+                  next.splice(to, 0, item);
+                  setDragOrder(prev => ({ ...prev, [q.id]: next }));
+                };
 
-                    <RadioGroup
-                      value={answers[currentQuestions[currentQuestionIndex].id]?.toString()}
-                      onValueChange={(v) =>
-                        setAnswers(prev => ({ ...prev, [currentQuestions[currentQuestionIndex].id]: parseInt(v) }))
-                      }
-                      className="space-y-3"
-                    >
-                      {currentQuestions[currentQuestionIndex].options.map((opt, i) => (
-                        <Label
-                          key={`opt-${currentQuestions[currentQuestionIndex].id}-${i}`}
-                          htmlFor={`opt-${i}`}
-                          className={cn("flex items-center gap-3 rounded-lg border p-4 cursor-pointer hover:bg-accent/50 transition-colors", answers[currentQuestions[currentQuestionIndex].id] === i && "border-primary bg-primary/5")}
+                return (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <Badge variant="outline">
+                          Question {currentQuestionIndex + 1} of {currentQuestions.length}
+                        </Badge>
+                        <Badge
+                          variant="secondary"
+                          className={`font-mono text-lg px-3 py-1 ${timeLeft <= 10 ? 'bg-destructive text-destructive-foreground animate-pulse' : ''}`}
                         >
-                          <RadioGroupItem value={i.toString()} id={`opt-${i}`} />
-                          <span>{opt}</span>
-                        </Label>
-                      ))}
-                    </RadioGroup>
+                          <Clock className="mr-1 h-4 w-4" />
+                          {timeLeft}s
+                        </Badge>
+                      </div>
+                      <Progress value={((currentQuestionIndex + 1) / currentQuestions.length) * 100} className="h-3" />
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={typeBadgeVariant[q.type]}>
+                          <Sparkles className="mr-1 h-3 w-3" />
+                          {typeLabel[q.type]}
+                        </Badge>
+                        <Badge variant="outline">
+                          <Trophy className="mr-1 h-3 w-3" />
+                          {q.points} points
+                        </Badge>
+                      </div>
 
-                    <Separator />
-                    <div className="flex justify-end">
-                      <Button
-                        onClick={handleNextQuestion}
-                        disabled={answers[currentQuestions[currentQuestionIndex].id] === undefined}
-                      >
-                        {currentQuestionIndex === currentQuestions.length - 1 ? 'Finish' : 'Next'}
-                        <ChevronRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                      <h2 className="text-xl font-semibold">{q.question}</h2>
+
+                      {/* ── MCQ ── */}
+                      {q.type === 'MCQ' && q.options && (
+                        <RadioGroup
+                          value={(answers[q.id] as number | undefined)?.toString()}
+                          onValueChange={v => setAnswers(prev => ({ ...prev, [q.id]: parseInt(v) }))}
+                          className="space-y-3"
+                        >
+                          {q.options.map((opt, i) => (
+                            <Label
+                              key={i}
+                              htmlFor={`mcq-${q.id}-${i}`}
+                              className={cn(
+                                'flex items-center gap-3 rounded-lg border p-4 cursor-pointer hover:bg-accent/50 transition-colors',
+                                (answers[q.id] as number) === i && 'border-primary bg-primary/5'
+                              )}
+                            >
+                              <RadioGroupItem value={i.toString()} id={`mcq-${q.id}-${i}`} />
+                              <span>{opt}</span>
+                            </Label>
+                          ))}
+                        </RadioGroup>
+                      )}
+
+                      {/* ── MULTI_SELECT ── */}
+                      {q.type === 'MULTI_SELECT' && q.options && (
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">Select all that apply:</p>
+                          {q.options.map((opt, i) => {
+                            const sel = (answers[q.id] as number[] | undefined) ?? [];
+                            return (
+                              <Label
+                                key={i}
+                                htmlFor={`ms-${q.id}-${i}`}
+                                className={cn(
+                                  'flex items-center gap-3 rounded-lg border p-4 cursor-pointer hover:bg-accent/50 transition-colors',
+                                  sel.includes(i) && 'border-primary bg-primary/5'
+                                )}
+                              >
+                                <Checkbox
+                                  id={`ms-${q.id}-${i}`}
+                                  checked={sel.includes(i)}
+                                  onCheckedChange={checked => {
+                                    const next = checked ? [...sel, i] : sel.filter(x => x !== i);
+                                    setAnswers(prev => ({ ...prev, [q.id]: next }));
+                                  }}
+                                />
+                                <span>{opt}</span>
+                              </Label>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* ── DRAG_DROP ── */}
+                      {q.type === 'DRAG_DROP' && (
+                        <div className="space-y-2">
+                          <p className="text-sm text-muted-foreground">Drag items into the correct order:</p>
+                          {currentOrder.map((item, idx) => (
+                            <div
+                              key={item}
+                              draggable
+                              onDragStart={() => setDraggingIdx(idx)}
+                              onDragOver={e => e.preventDefault()}
+                              onDrop={() => {
+                                if (draggingIdx !== null && draggingIdx !== idx) moveDrag(draggingIdx, idx);
+                                setDraggingIdx(null);
+                              }}
+                              className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 cursor-grab active:cursor-grabbing hover:bg-accent/30 transition-colors"
+                            >
+                              <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <Badge variant="outline" className="min-w-[28px] justify-center shrink-0">{idx + 1}</Badge>
+                              <span className="flex-1 text-sm">{item}</span>
+                              <div className="flex gap-1">
+                                <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveDrag(idx, Math.max(0, idx - 1))}>&#8593;</Button>
+                                <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => moveDrag(idx, Math.min(currentOrder.length - 1, idx + 1))}>&#8595;</Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* ── DROPDOWN ── */}
+                      {q.type === 'DROPDOWN' && q.sentence && (
+                        <div className="rounded-lg border border-border p-4 text-sm leading-9">
+                          <div className="flex flex-wrap items-center gap-1">
+                            {q.sentence.split(/({{[^}]+}})/g).filter(Boolean).map((part, idx) => {
+                              const match = part.match(/{{(.*?)}}/);
+                              if (!match) return <span key={idx}>{part}</span>;
+                              const key = match[1];
+                              const opts = q.dropdownOptions?.[key] ?? [];
+                              const ans = (answers[q.id] as Record<string, string> | undefined) ?? {};
+                              return (
+                                <select
+                                  key={idx}
+                                  value={ans[key] ?? ''}
+                                  onChange={e => setAnswers(prev => ({
+                                    ...prev,
+                                    [q.id]: { ...(prev[q.id] as Record<string, string> ?? {}), [key]: e.target.value },
+                                  }))}
+                                  className="rounded-md border border-primary bg-background px-2 py-0.5 text-sm font-medium text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                >
+                                  <option value="">Select…</option>
+                                  {opts.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      <Separator />
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={handleNextQuestion}
+                          disabled={!isAnswerGiven(q)}
+                        >
+                          {currentQuestionIndex === currentQuestions.length - 1 ? 'Finish' : 'Next'}
+                          <ChevronRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
 
               {/* Quiz result */}
               {quizCompleted && (
