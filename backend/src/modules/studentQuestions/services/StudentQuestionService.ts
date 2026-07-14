@@ -373,14 +373,6 @@ export class StudentQuestionService {
       this.fetchSegmentContext(input.segmentId),
     ]);
     const existingQuestions = this.mergePool(gradedPool, submissionPool);
-    console.log('[screening] DEDUP POOL', {
-      segmentId: input.segmentId,
-      newQuestion: questionText,
-      gradedCount: gradedPool.length,
-      submissionCount: submissionPool.length,
-      mergedCount: existingQuestions.length,
-      pool: existingQuestions,
-    });
 
     const verdict = await this.screeningService.screen({
       questionText,
@@ -490,7 +482,6 @@ export class StudentQuestionService {
       const stems = questions
         .map(q => (q as any)?.text)
         .filter((t: unknown): t is string => typeof t === 'string' && t.trim().length > 0);
-      console.log('[screening] dedup pool for segment', segmentId, '→', stems.length, 'stems:', stems);
       return stems;
     } catch {
       return [];

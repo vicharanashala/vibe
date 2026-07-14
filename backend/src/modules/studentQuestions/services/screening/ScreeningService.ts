@@ -127,15 +127,6 @@ export class ScreeningService {
     }
 
     const q = input.questionText;
-    console.log('[screening] START', {
-      provider: this.llm.provider,
-      model: this.llm.model,
-      question: q,
-      options: input.options,
-      correctOptionIndex: input.correctOptionIndex,
-      poolSize: input.existingQuestions?.length ?? 0,
-      hasContext: !!input.context,
-    });
 
     // ── 1a. free local rules ────────────────────────────────────────────────
     const local = localSpamCheck(q);
@@ -146,7 +137,6 @@ export class ScreeningService {
     try {
       // ── 1b. meaningful (LLM) ──────────────────────────────────────────────
       const m = asMeaningful(await this.llm.askJson(MEANINGFUL_PROMPT(q)));
-      console.log('[screening] meaningful verdict:', m);
       if (!m.meaningful) {
         // Confident junk → reject the student. Borderline (looks like a real
         // attempt but malformed/ambiguous) → hold for an instructor rather than
