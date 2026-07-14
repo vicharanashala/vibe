@@ -29,17 +29,27 @@ const BANK = [
   'who invented the telephone',
 ];
 
-/** Each probe states what the pipeline SHOULD do, so the script can grade itself. */
+/**
+ * Each probe states what the pipeline SHOULD do, so the script grades itself.
+ * The expectations follow directly from the thresholds and the cosines measured in
+ * embedding.calibration.test.ts — if a number here surprises you, re-run that test
+ * rather than adjusting the expectation to match whatever came out.
+ */
 const PROBES: {q: string; expect: string; why: string}[] = [
   {
-    q: 'at what temperature does water start boiling',
+    q: 'what is the boiling point of water?',
     expect: 'auto_reject',
-    why: 'a reworded duplicate — the fast path should catch it with no LLM call',
+    why: 'near-identical restatement (~0.97) — this is the ONLY shape the fast path is safe on, and it costs zero LLM calls',
+  },
+  {
+    q: 'at what temperature does water start boiling',
+    expect: 'candidates',
+    why: 'a real duplicate, but only ~0.81 — BELOW the 0.93 fast path, so the LLM judge decides. Deliberate: rewordings are exactly where cosine is unreliable',
   },
   {
     q: 'which of these is NOT a type of machine learning',
-    expect: 'auto_reject',
-    why: 'THE POINT OF THE APPEAL: a valid, different question that embeddings cannot tell apart. It is rejected here — and the student can appeal it to the LLM judge.',
+    expect: 'candidates',
+    why: 'a valid, DIFFERENT question that embeddings score at ~0.92 against its opposite. Sitting below 0.93 is what keeps it from being auto-rejected — the whole reason the threshold is where it is',
   },
   {
     q: 'how do you train a neural network with backpropagation',
@@ -111,17 +121,19 @@ async function run() {
     }
 
     // ── the appeal ──────────────────────────────────────────────────────────
-    // The rejection above is a heuristic, not a verdict. On appeal the same
-    // retrieval runs with the fast path disabled, and the candidates go to the LLM.
+    // The fast-path rejection is a heuristic, not a verdict. Re-submitting the same
+    // question as an appeal runs the same retrieval with the fast path disabled, so
+    // the candidates reach the LLM judge instead of being bounced again.
+    const APPEALED_Q = 'what is the boiling point of water?'; // the one that WAS auto-rejected
     const appealed = await dedup.findSimilar(
       String(SEGMENT),
-      'which of these is NOT a type of machine learning',
+      APPEALED_Q,
       /* allowAutoReject */ false,
     );
     const appealPass = appealed.kind === 'candidates';
     if (!appealPass) failures++;
-    console.log(`${ok(appealPass)} APPEAL: the same question, re-submitted as "not a duplicate"`);
-    console.log(`   got ${appealed.kind} — the fast path is skipped and the LLM judge decides.\n`);
+    console.log(`${ok(appealPass)} APPEAL: "${APPEALED_Q}" re-submitted as "not a duplicate"`);
+    console.log(`   got ${appealed.kind} — the fast path is skipped and the LLM judge decides (its verdict is final).\n`);
 
     console.log(failures === 0
       ? '════════ ✅ vector path verified end-to-end ════════'
