@@ -46,5 +46,7 @@ describe.skipIf(!hasKey)('Screening accuracy (live LLM)', () => {
     if (misses.length) console.log('Misses:', misses.map(m => `${m.id}(${m.expect}→${m.got})`).join(', '));
 
     expect(score).toBeGreaterThanOrEqual(0.9);
-  }, 180_000);
+    // Generous: on a free tier the run spends most of its wall-clock waiting out
+    // 429s (the client honours Retry-After), not waiting on the model.
+  }, 900_000);
 });

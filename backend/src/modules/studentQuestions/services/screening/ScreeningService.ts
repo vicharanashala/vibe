@@ -4,12 +4,13 @@ import {ScreeningLlm} from './ScreeningLlm.js';
 import {createScreeningLlm} from './screeningLlmFactory.js';
 import {localSpamCheck} from './localRules.js';
 import {
+  SINGLE_PASS_PROMPT,
   ADMISSIBILITY_PROMPT,
   DUPLICATE_PROMPT,
   CONTEXT_PROMPT,
   ANSWER_PROMPT,
 } from './prompts.js';
-import {asAdmissible, asDuplicate, asContext, asAnswer} from './verdicts.js';
+import {asAdmissible, asSinglePass, asDuplicate, asContext, asAnswer} from './verdicts.js';
 import {VectorDedupService} from './VectorDedupService.js';
 import {QuestionVectorRepository} from '../../repositories/providers/mongodb/QuestionVectorRepository.js';
 
@@ -144,6 +145,10 @@ export class ScreeningService {
     const local = localSpamCheck(q);
     if (local) {
       return done({decision: 'reject', reasonCode: local.reasonCode, check: 'local', message: local.message, checks: {admissible: false}});
+    }
+
+    if (screeningConfig.singlePass) {
+      return this.screenSinglePass(input, q, done);
     }
 
     try {
@@ -281,6 +286,118 @@ export class ScreeningService {
       return done({decision: 'pass', reasonCode: 'ok', check: 'none', message: 'Looks good — your question passed all checks and has been submitted.', checks: {admissible: true, notDuplicate: true, onTopic: true, answerCorrect: true}});
     } catch (err) {
       // Fail-CLOSED: never crash a submission. Route to manual review.
+      console.warn('[screening] failed, holding for manual review:', (err as Error)?.message);
+      return done({decision: 'hold', reasonCode: 'screen_unavailable', check: 'none', message: "We couldn't finish the automatic checks right now, so an instructor will review your question before it's added.", checks: {}});
+    }
+  }
+
+  /**
+   * Every check in ONE LLM call.
+   *
+   * Identical decision rules to the three-call path — only the number of requests
+   * changes, and requests are the resource that actually runs out. The vector stage
+   * still runs first: it is free, it can reject or clear a submission without the
+   * model, and it decides which candidates the single prompt has to weigh.
+   */
+  private async screenSinglePass(
+    input: ScreeningInput,
+    q: string,
+    done: (r: Omit<ScreeningResult, 'provider' | 'model' | 'latencyMs'>) => ScreeningResult,
+  ): Promise<ScreeningResult> {
+    try {
+      // ── vector stage (free) ───────────────────────────────────────────────
+      let candidates: string[] = [];
+      if (input.segmentId) {
+        const vec = await this.vectors.findSimilar(input.segmentId, q, !input.appealed);
+        switch (vec.kind) {
+          case 'auto_reject':
+            return done({
+              decision: 'reject',
+              reasonCode: 'duplicate_similar',
+              check: 'duplicate',
+              message: `This looks like a question that already exists for this lesson: "${vec.match.text}". If you think yours asks something different, you can have it reviewed.`,
+              checks: {admissible: true, notDuplicate: false},
+              matchQuestion: vec.match.text,
+              similarity: vec.match.cosine,
+              appealable: true,
+            });
+          case 'candidates':
+            candidates = vec.hits.map(h => h.text);
+            break;
+          case 'no_candidates':
+            break; // nothing plausible — the prompt just gets an empty list
+          case 'unavailable':
+            candidates = (input.existingQuestions ?? []).slice(0, screeningConfig.dedupPoolLimit);
+            break;
+        }
+      } else {
+        candidates = (input.existingQuestions ?? []).slice(0, screeningConfig.dedupPoolLimit);
+      }
+
+      const opts = input.options ?? [];
+      const v = asSinglePass(
+        await this.llm.askJson(SINGLE_PASS_PROMPT(q, opts, candidates, input.context)),
+      );
+
+      // ── 1. admissibility ──────────────────────────────────────────────────
+      // Manipulation is judged on its own terms and always rejected: a submission
+      // that instructs the grader has no legitimate reading, whatever else it says.
+      if (v.category === 'manipulation') {
+        console.warn('[screening] manipulation attempt rejected:', {reason: v.reason});
+        return done({decision: 'reject', reasonCode: 'manipulation', check: 'admissible', reason: v.reason, message: 'Your submission contains instructions aimed at the review system rather than a question. Please submit only the question itself.', checks: {admissible: false}});
+      }
+      if (v.category === 'malformed' || (v.category !== 'ok' && v.confidence !== 'high')) {
+        return done({decision: 'hold', reasonCode: 'unclear', check: 'admissible', reason: v.reason, message: 'Your question was a little hard to read automatically, so an instructor will review it before it’s added.', checks: {admissible: false}});
+      }
+      if (v.category === 'junk') {
+        return done({decision: 'reject', reasonCode: 'gibberish', check: 'admissible', reason: v.reason, message: "This doesn't read as a clear, answerable question. Please rewrite it as a complete question with a specific thing being asked.", checks: {admissible: false}});
+      }
+      if (v.category === 'not_a_question') {
+        return done({decision: 'reject', reasonCode: 'not_a_question', check: 'admissible', reason: v.reason, message: "This doesn't ask anything. Please rewrite it as a complete question with a specific thing being asked.", checks: {admissible: false}});
+      }
+
+      // ── 2. typo bounce (confident typos only) ─────────────────────────────
+      const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+      if (v.corrected && v.typoConfidence === 'high' && norm(v.corrected) !== norm(q)) {
+        return done({decision: 'reject', reasonCode: 'typo', check: 'admissible', reason: v.reason, message: `Looks like a spelling typo — did you mean: "${v.corrected}"? Fix it and resubmit.`, checks: {admissible: true}, suggestedFix: v.corrected});
+      }
+
+      // ── 3. duplicate ──────────────────────────────────────────────────────
+      if (v.duplicateIndex !== null && candidates.length > 0) {
+        const match = candidates[v.duplicateIndex];
+        if (v.duplicateConfidence !== 'high') {
+          return done({decision: 'hold', reasonCode: 'duplicate_uncertain', check: 'duplicate', reason: v.reason, message: match ? `This may overlap with an existing question ("${match}"). An instructor will review it before it's added.` : 'This may overlap with an existing question, so an instructor will review it before it’s added.', checks: {admissible: true, notDuplicate: false}, matchQuestion: match});
+        }
+        return done({decision: 'reject', reasonCode: 'duplicate', check: 'duplicate', reason: v.reason, message: match ? `This question already exists for this lesson: "${match}". Try asking about a different point instead.` : 'This question already exists for this lesson. Try asking about a different point instead.', checks: {admissible: true, notDuplicate: false}, matchQuestion: match});
+      }
+
+      // ── 4. on-topic (only meaningful when we actually know the lesson) ────
+      if (input.context && input.context.trim() && !v.onTopic) {
+        if (v.topicConfidence !== 'high') {
+          return done({decision: 'hold', reasonCode: 'off_topic', check: 'context', reason: v.reason, message: 'Relevance to this lesson is unclear — sent for review.', checks: {admissible: true, notDuplicate: true, onTopic: false}});
+        }
+        return done({decision: 'reject', reasonCode: 'off_topic', check: 'context', reason: v.reason, message: "This question doesn't seem related to this lesson. Please ask something about what the video actually covers.", checks: {admissible: true, notDuplicate: true, onTopic: false}});
+      }
+
+      // ── 5. answer correctness ─────────────────────────────────────────────
+      if (opts.length >= 2 && Number.isInteger(input.correctOptionIndex)) {
+        if (v.correctIndex === null) {
+          if (v.answerConfidence === 'high') {
+            return done({decision: 'reject', reasonCode: 'wrong_answer', check: 'answer', reason: v.reason, message: 'None of your options is a correct answer to this question. Please fix the options (or the question) and resubmit.', checks: {admissible: true, notDuplicate: true, answerCorrect: false}});
+          }
+          return done({decision: 'hold', reasonCode: 'answer_uncertain', check: 'answer', reason: v.reason, message: 'The correct answer here seems debatable, so an instructor will review your question before it’s added.', checks: {admissible: true, notDuplicate: true, answerCorrect: false}});
+        }
+        if (v.correctIndex !== input.correctOptionIndex) {
+          if (v.answerConfidence !== 'high') {
+            return done({decision: 'hold', reasonCode: 'answer_uncertain', check: 'answer', reason: v.reason, message: "We couldn't confirm which option is correct, so an instructor will review your question before it's added.", checks: {admissible: true, notDuplicate: true, answerCorrect: false}});
+          }
+          return done({decision: 'reject', reasonCode: 'wrong_answer', check: 'answer', reason: v.reason, message: 'The option you marked as correct appears to be wrong. Please re-check your options and select the right answer.', checks: {admissible: true, notDuplicate: true, answerCorrect: false}});
+        }
+      }
+
+      return done({decision: 'pass', reasonCode: 'ok', check: 'none', reason: v.reason, message: 'Looks good — your question passed all checks and has been submitted.', checks: {admissible: true, notDuplicate: true, onTopic: true, answerCorrect: true}});
+    } catch (err) {
+      // Fail-OPEN, as everywhere: a broken provider must never lose a submission.
       console.warn('[screening] failed, holding for manual review:', (err as Error)?.message);
       return done({decision: 'hold', reasonCode: 'screen_unavailable', check: 'none', message: "We couldn't finish the automatic checks right now, so an instructor will review your question before it's added.", checks: {}});
     }

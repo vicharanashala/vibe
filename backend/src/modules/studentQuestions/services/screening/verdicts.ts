@@ -44,6 +44,41 @@ export interface AdmissibilityVerdict {
   /** Confidence in `corrected`. Only a 'high' typo is bounced back to the student. */
   typoConfidence: Confidence;
 }
+/**
+ * One verdict covering all three checks — the single-pass path.
+ *
+ * Each job keeps its OWN confidence, because they fail independently: the model can
+ * be certain the question is admissible and unsure whether it duplicates something.
+ * Collapsing them into one number would drag good verdicts down with bad ones.
+ */
+export interface SinglePassVerdict extends AdmissibilityVerdict {
+  /** Index into the candidate list, or null if it duplicates nothing. */
+  duplicateIndex: number | null;
+  duplicateConfidence: Confidence;
+  onTopic: boolean;
+  topicConfidence: Confidence;
+  /** The option the model believes is correct; null = none / ambiguous / unanswerable. */
+  correctIndex: number | null;
+  answerConfidence: Confidence;
+}
+
+export function asSinglePass(o: Record<string, unknown>): SinglePassVerdict {
+  const base = asAdmissible(o); // category is the one field we refuse to guess at
+  const idx = (v: unknown): number | null =>
+    typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : null;
+  return {
+    ...base,
+    duplicateIndex: idx(o.duplicateIndex),
+    // Fail-OPEN, as everywhere else: an unstated confidence must not hard-reject.
+    duplicateConfidence: isConf(o.duplicateConfidence) ? o.duplicateConfidence : 'low',
+    // Default to ON-topic: not knowing the lesson is never grounds to reject.
+    onTopic: isBool(o.onTopic) ? o.onTopic : true,
+    topicConfidence: isConf(o.topicConfidence) ? o.topicConfidence : 'low',
+    correctIndex: idx(o.correctIndex),
+    answerConfidence: isConf(o.answerConfidence) ? o.answerConfidence : 'low',
+  };
+}
+
 export function asAdmissible(o: Record<string, unknown>): AdmissibilityVerdict {
   if (!isCategory(o.category)) throw new VerdictSchemaError('category');
   // Fail-OPEN on a missing/garbled confidence: default to 'low' so an unreadable

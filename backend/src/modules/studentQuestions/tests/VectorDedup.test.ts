@@ -9,7 +9,7 @@
  * It is an Atlas-only aggregation stage — mongodb-memory-server cannot run it — so
  * the real query is exercised against a live cluster, not from this file.
  */
-import {describe, it, expect} from 'vitest';
+import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 import {VectorDedupService} from '../services/screening/VectorDedupService.js';
 import {QuestionVectorRepository, VectorHit} from '../repositories/providers/mongodb/QuestionVectorRepository.js';
 import {ScreeningService} from '../services/screening/ScreeningService.js';
@@ -121,6 +121,18 @@ function passingLlm(spy?: (prompt: string) => void): ScreeningLlm {
 
 describe('ScreeningService × vector stage', () => {
   const {autoRejectAt} = screeningConfig.vector;
+
+  // These assert on WHICH prompts the pipeline sent, so they pin the three-call
+  // path. The single-pass path sends one prompt carrying every check — the vector
+  // stage feeds it the same candidates either way, and is covered for that path in
+  // ScreeningService.test.ts.
+  const original = screeningConfig.singlePass;
+  beforeEach(() => {
+    screeningConfig.singlePass = false;
+  });
+  afterEach(() => {
+    screeningConfig.singlePass = original;
+  });
 
   it('rejects on the fast path, and marks it APPEALABLE with the matched question', async () => {
     const svc = new ScreeningService()

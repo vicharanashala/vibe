@@ -7,11 +7,34 @@ import {env} from '#root/utils/env.js';
  * Anthropic by flipping SCREENING_PROVIDER, with no code change to the checks.
  */
 export const screeningConfig = {
-  /** 'groq' (demo/free) | 'anthropic' (prod). */
-  provider: (env('SCREENING_PROVIDER') || 'groq') as 'groq' | 'anthropic',
+  /**
+   * Which provider(s) to screen with. A comma-separated list is a FALLBACK CHAIN,
+   * tried in order — e.g. `groq,gemini`.
+   *
+   * Rate limits are per-vendor, so two vendors' free budgets add up (~1,000 req/day
+   * from Groq + ~1,500 from Gemini). A lecture-sized burst then spills into the
+   * second provider instead of failing. This is not the same as holding several keys
+   * at one vendor, which is a terms violation; these are separate companies.
+   */
+  provider: (env('SCREENING_PROVIDER') || 'groq') as string,
 
   /** Master switch — when off, submissions skip screening (fail-open, dev only). */
   enabled: (env('SCREENING_ENABLED') || 'true') !== 'false',
+
+  /**
+   * Run every check in ONE LLM call instead of three.
+   *
+   * Providers meter REQUESTS, and requests-per-minute is the wall we actually hit:
+   * free tiers give 10-30 RPM, and a lecture ending with 100 students submitting
+   * needs 300 RPM at three calls each — but only 100 at one. It also cuts the daily
+   * request count 3x, which is what decides whether 1,000 submissions/day fits in a
+   * free tier at all.
+   *
+   * The trade is accepted, not hidden: one model doing three jobs is slightly less
+   * sharp than three specialists. Set false to restore the three-call path, which is
+   * still there and still tested.
+   */
+  singlePass: (env('SCREENING_SINGLE_PASS') || 'true') !== 'false',
 
   groq: {
     apiKey: env('GROQ_API_KEY'),
@@ -42,6 +65,14 @@ export const screeningConfig = {
     // Anthropic's cheapest tier is already fast enough for the gate; kept as its
     // own key so the two roles stay independently tunable across providers.
     fastModel: env('ANTHROPIC_FAST_MODEL') || 'claude-haiku-4-5',
+  },
+
+  gemini: {
+    apiKey: env('GEMINI_API_KEY'),
+    // Flash is the right shape here: a cheap, fast classifier, not a reasoner.
+    model: env('GEMINI_MODEL') || 'gemini-2.0-flash',
+    fastModel: env('GEMINI_FAST_MODEL') || 'gemini-2.0-flash',
+    baseUrl: env('GEMINI_BASE_URL') || 'https://generativelanguage.googleapis.com/v1beta',
   },
 
   /** Per-call hard deadline (ms) — a slow provider must never hang a submission. */
