@@ -19,20 +19,42 @@ export class VerdictSchemaError extends Error {
   }
 }
 
-export interface MeaningfulVerdict {
-  meaningful: boolean;
+/** Why a submission is (in)admissible. Kept distinct so `manipulation` — a student
+ *  trying to steer the grader — is visible and alertable, not buried in "gibberish". */
+export type AdmissibilityCategory =
+  | 'ok'
+  | 'manipulation'
+  | 'junk'
+  | 'not_a_question'
+  | 'malformed';
+
+const isCategory = (v: unknown): v is AdmissibilityCategory =>
+  v === 'ok' ||
+  v === 'manipulation' ||
+  v === 'junk' ||
+  v === 'not_a_question' ||
+  v === 'malformed';
+
+export interface AdmissibilityVerdict {
+  category: AdmissibilityCategory;
   confidence: Confidence;
   reason: string;
   /** The question rewritten with obvious spelling typos fixed, or null if none. */
   corrected: string | null;
+  /** Confidence in `corrected`. Only a 'high' typo is bounced back to the student. */
+  typoConfidence: Confidence;
 }
-export function asMeaningful(o: Record<string, unknown>): MeaningfulVerdict {
-  if (!isBool(o.meaningful)) throw new VerdictSchemaError('meaningful');
-  // Confidence is advisory here — default to 'high' if the model omits it so a
-  // clear reject still rejects; only an explicit 'low' softens to a hold.
-  const confidence = isConf(o.confidence) ? o.confidence : 'high';
-  const corrected = typeof o.corrected === 'string' && o.corrected.trim() ? o.corrected.trim() : null;
-  return {meaningful: o.meaningful, confidence, reason: str(o.reason), corrected};
+export function asAdmissible(o: Record<string, unknown>): AdmissibilityVerdict {
+  if (!isCategory(o.category)) throw new VerdictSchemaError('category');
+  // Fail-OPEN on a missing/garbled confidence: default to 'low' so an unreadable
+  // reply routes to a human instead of hard-rejecting a possibly-good question.
+  // (The rest of the pipeline degrades to HOLD on doubt; this must match.)
+  const confidence = isConf(o.confidence) ? o.confidence : 'low';
+  const corrected =
+    typeof o.corrected === 'string' && o.corrected.trim() ? o.corrected.trim() : null;
+  // Same reasoning: an unstated typo confidence must not bounce the student.
+  const typoConfidence = isConf(o.typoConfidence) ? o.typoConfidence : 'low';
+  return {category: o.category, confidence, reason: str(o.reason), corrected, typoConfidence};
 }
 
 export interface DuplicateVerdict {

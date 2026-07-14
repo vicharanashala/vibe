@@ -16,21 +16,32 @@ export const screeningConfig = {
   groq: {
     apiKey: env('GROQ_API_KEY'),
     /**
+     * Reasoning model — the judgement-heavy checks (duplicate, answer).
+     *
      * Measured head-to-head against llama-3.3-70b-versatile on the labelled set:
-     * identical accuracy (24/25) with the identical single miss, and 7/7 on the
-     * red-team suite. It is then ~4x cheaper on input ($0.15 vs $0.59 per 1M) and —
-     * the reason it wins — it is one of the only Groq models with prompt caching,
-     * where cached tokens do not count against the rate limit at all. Our prompts
-     * are ~87% static, so that is the difference between ~37 and ~285 submissions
-     * a day on the free tier.
+     * identical accuracy (24/25, same single miss) and 7/7 on the red-team suite.
+     * It is then ~4x cheaper on input ($0.15 vs $0.59 per 1M) and — the reason it
+     * wins — it is one of the only Groq models with prompt caching, where cached
+     * tokens do not count against the rate limit at all. Our prompts are ~87%
+     * static, and a cache hit spares 88-94% of them.
      */
     model: env('GROQ_MODEL') || 'openai/gpt-oss-120b',
+    /**
+     * Small model for the admissibility gate, which runs on EVERY submission and is
+     * a mechanical classification rather than a judgement call. Kept inside the
+     * gpt-oss family so it keeps prompt caching too — an 8b llama would be cheaper
+     * per token but would give that up, which is the more valuable of the two.
+     */
+    fastModel: env('GROQ_FAST_MODEL') || 'openai/gpt-oss-20b',
     url: env('GROQ_URL') || 'https://api.groq.com/openai/v1/chat/completions',
   },
 
   anthropic: {
     apiKey: env('ANTHROPIC_CRED'),
     model: env('ANTHROPIC_MODEL') || 'claude-haiku-4-5',
+    // Anthropic's cheapest tier is already fast enough for the gate; kept as its
+    // own key so the two roles stay independently tunable across providers.
+    fastModel: env('ANTHROPIC_FAST_MODEL') || 'claude-haiku-4-5',
   },
 
   /** Per-call hard deadline (ms) — a slow provider must never hang a submission. */

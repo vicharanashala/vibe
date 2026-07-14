@@ -1,6 +1,11 @@
 import {Anthropic} from '@anthropic-ai/sdk';
 import {screeningConfig} from '#root/config/screening.js';
-import {ScreeningLlm, ScreeningLlmError, parseJsonObject} from './ScreeningLlm.js';
+import {
+  ScreeningLlm,
+  ScreeningLlmError,
+  ModelTier,
+  parseJsonObject,
+} from './ScreeningLlm.js';
 
 /**
  * Anthropic (Claude) implementation — the intended production path (reuses the
@@ -14,15 +19,24 @@ export class AnthropicScreeningLlm implements ScreeningLlm {
   readonly provider = 'anthropic';
   readonly model = screeningConfig.anthropic.model;
 
-  async askJson(prompt: string): Promise<Record<string, unknown>> {
-    const {apiKey, model} = screeningConfig.anthropic;
+  modelFor(tier: ModelTier): string {
+    return tier === 'fast'
+      ? screeningConfig.anthropic.fastModel
+      : screeningConfig.anthropic.model;
+  }
+
+  async askJson(
+    prompt: string,
+    tier: ModelTier = 'reasoning',
+  ): Promise<Record<string, unknown>> {
+    const {apiKey} = screeningConfig.anthropic;
     if (!apiKey) throw new ScreeningLlmError('ANTHROPIC_CRED not set');
 
     const client = new Anthropic({apiKey});
     try {
       const res = await client.messages.create(
         {
-          model,
+          model: this.modelFor(tier),
           max_tokens: 400,
           temperature: 0,
           system: 'You are a strict screening classifier. Reply with ONLY a single JSON object — no prose, no code fences.',

@@ -450,6 +450,9 @@ export class StudentQuestionService {
       reasonCode: v.reasonCode,
       check: v.check,
       message: v.message,
+      // The model's own justification — an instructor reviewing a HELD question
+      // needs to see *why* it was held, not just the bare reason code.
+      reason: v.reason,
       checks: v.checks,
       matchQuestion: v.matchQuestion,
       provider: v.provider,

@@ -107,9 +107,10 @@ function passingLlm(spy?: (prompt: string) => void): ScreeningLlm {
   return {
     provider: 'mock',
     model: 'mock',
+    modelFor: () => 'mock',
     async askJson(prompt: string) {
       spy?.(prompt);
-      if (prompt.includes('"meaningful"')) return {meaningful: true, confidence: 'high', reason: 'ok'};
+      if (prompt.includes('"category"')) return {category: 'ok', confidence: 'high', reason: 'ok', corrected: null, typoConfidence: 'low'};
       if (prompt.includes('"duplicate"')) return {duplicate: false, confidence: 'high', matchIndex: null, reason: 'unique'};
       if (prompt.includes('"onTopic"')) return {onTopic: true, confidence: 'high', reason: 'ok'};
       if (prompt.includes('"correctIndex"')) return {correctIndex: 0, confidence: 'high', reason: 'ok'};

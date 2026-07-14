@@ -97,9 +97,10 @@ function countingLlm(base: ScreeningLlm, onCall: () => void): ScreeningLlm {
   return {
     provider: base.provider,
     model: base.model,
-    async askJson(prompt: string) {
+    modelFor: tier => base.modelFor(tier),
+    async askJson(prompt: string, tier) {
       onCall();
-      return base.askJson(prompt);
+      return base.askJson(prompt, tier);
     },
   };
 }
