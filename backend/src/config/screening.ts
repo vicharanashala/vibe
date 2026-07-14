@@ -15,9 +15,16 @@ export const screeningConfig = {
 
   groq: {
     apiKey: env('GROQ_API_KEY'),
-    // Small+fast is enough for the trivial checks; the labelled test set decides
-    // whether the harder duplicate/answer checks need a bigger model.
-    model: env('GROQ_MODEL') || 'llama-3.3-70b-versatile',
+    /**
+     * Measured head-to-head against llama-3.3-70b-versatile on the labelled set:
+     * identical accuracy (24/25) with the identical single miss, and 7/7 on the
+     * red-team suite. It is then ~4x cheaper on input ($0.15 vs $0.59 per 1M) and —
+     * the reason it wins — it is one of the only Groq models with prompt caching,
+     * where cached tokens do not count against the rate limit at all. Our prompts
+     * are ~87% static, so that is the difference between ~37 and ~285 submissions
+     * a day on the free tier.
+     */
+    model: env('GROQ_MODEL') || 'openai/gpt-oss-120b',
     url: env('GROQ_URL') || 'https://api.groq.com/openai/v1/chat/completions',
   },
 
