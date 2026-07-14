@@ -36,7 +36,18 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       return {};
     }
   }));
-  const submitFeedback = useSubmitFeedback(item._id.toString())
+  // Defensive: item might be undefined or _id might be missing during race conditions.
+  const safeItemId = ((): string => {
+    try {
+      if (!item) return '';
+      const raw = (item as any)._id ?? (item as any).id ?? (item as any).itemId;
+      if (raw == null) return '';
+      return typeof raw === 'string' ? raw : (raw.toString ? raw.toString() : String(raw));
+    } catch {
+      return '';
+    }
+  })();
+  const submitFeedback = useSubmitFeedback(safeItemId)
 
   const handleFeedbackSubmit = async (formData: any) => {
 
@@ -44,11 +55,20 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
   };
 
   const renderContent = () => {
-    const itemType = item.type.toLowerCase();
+    if (!item) {
+      // Defensive: don't crash if item hasn't loaded yet
+      return (
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Loading item…</p>
+        </div>
+      );
+    }
+    const itemType = ((item as any)?.type || 'unknown').toString().toLowerCase();
+    const itemKey = safeItemId || (item as any)?.name || 'unknown-item';
     switch (itemType) {
       case 'video':
         return <Video
-          key={item._id.toString()}
+          key={itemKey}
           URL={item.details?.URL ? item.details.URL : ''}
           startTime={item.details?.startTime ? item.details.startTime : ''}
           endTime={item.details?.endTime ? item.details.endTime : ''}
@@ -74,7 +94,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
 
       case 'quiz':
         return <Quiz
-          key={item._id.toString()}
+          key={itemKey}
           ref={quizRef}
           questionBankRefs={item.details?.questionBankRefs || []}
           passThreshold={item.details?.passThreshold || 0}
@@ -113,7 +133,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       case 'article':
       case 'blog':
         return <Article
-          key={item._id.toString()}
+          key={itemKey}
           ref={articleRef}
           content={item.details?.content || ''}
           estimatedReadTimeInMinutes={item.details?.estimatedReadTimeInMinutes || ''}
@@ -127,7 +147,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
 
       case 'project':
         return <ProjectItem
-          key={item._id.toString()}
+          key={itemKey}
           item={{
             _id: item._id,
             name: item.name,
@@ -142,7 +162,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
         />;
       case 'feedback':
         return <FeedbackForm
-          key={item._id.toString()}
+          key={itemKey}
           title={item.name}
           description={item.description}
           isOptional={item.isOptional}
@@ -159,14 +179,18 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       default:
         return (
           <div className="flex items-center justify-center h-64">
-            <p className="text-muted-foreground">Unsupported item type: {item.type}</p>
+            <p className="text-muted-foreground">Unsupported item type: {(item as any)?.type || 'unknown'}</p>
           </div>
         );
     }
   };
 
+  // Outer wrapper: also guard against undefined item (e.g., race during navigation)
+  const itemTypeOuter = ((item as any)?.type || 'unknown').toString().toLowerCase();
+  const outerClass = `${itemTypeOuter === 'video' ? (focusMode ? 'fixed inset-0 z-40 bg-background h-screen' : 'h-[85vh]') : 'h-full'} w-full overflow-auto`;
+
   return (
-    <div className={`${item.type.toLowerCase()==="video" ? (focusMode ? "fixed inset-0 z-40 bg-background h-screen" : "h-[85vh]") : "h-full" } w-full overflow-auto`}>
+    <div className={outerClass}>
       {renderContent()}
     </div>
   );

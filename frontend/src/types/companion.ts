@@ -24,7 +24,6 @@ export interface CompanionState {
   mood: CompanionMood;
   studying: boolean;
   quizScore: number;
-  graduationCap: boolean;
   lastActiveAt: string;
   createdAt: string;
   newJourney: boolean;

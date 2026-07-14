@@ -4369,8 +4369,19 @@ class ProgressService extends BaseService {
       throw new NotFoundError('Course version not found');
     }
 
+    // Ensure modules/sections is at least an empty array so iteration is safe
+    if (!Array.isArray(courseVersion.modules)) {
+      courseVersion.modules = [];
+    }
 
-    const completedSet = new Set(completedItemIds.map(id => id.toString()));
+
+    const completedSet = new Set(
+      (completedItemIds || [])
+        .filter((id: unknown) => id != null && id !== undefined)
+        .map((id: unknown) =>
+          typeof id === 'string' ? id : String(id as any),
+        ),
+    );
 
     const moduleStats: Array<{
       moduleId: string;
@@ -4385,15 +4396,32 @@ class ProgressService extends BaseService {
       for (const section of module.sections || []) {
         if (!section.itemsGroupId) continue;
 
-        const group = await this.itemRepo.readItemsGroup(
-          section.itemsGroupId.toString(),
-        );
+        let group;
+        try {
+          group = await this.itemRepo.readItemsGroup(
+            section.itemsGroupId.toString(),
+          );
+        } catch (err: any) {
+          // Defensive: don't let a single broken itemsGroup tank the whole endpoint.
+          // Continue with 0 items from this section so the rest can still render.
+          console.warn(
+            `[getModuleWiseProgress] readItemsGroup failed for ${section.itemsGroupId}:`,
+            err?.message || err,
+          );
+          continue;
+        }
 
         if (!group?.items) continue;
 
         for (const item of group.items) {
           if (item.isHidden) continue; // skip hidden items
-          moduleItemIds.push(item._id.toString());
+          // Some bootstrap scripts embed items with `itemId` instead of `_id`.
+          // Normalize so we always have a string id.
+          const itemRefId = item._id ?? item.itemId;
+          if (itemRefId == null) continue;
+          moduleItemIds.push(
+            typeof itemRefId === 'string' ? itemRefId : itemRefId.toString(),
+          );
         }
       }
 

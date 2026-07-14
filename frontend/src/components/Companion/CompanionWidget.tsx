@@ -377,14 +377,6 @@ export function CompanionWidget() {
           Stage {STAGE_NAMES[companion!.stage] ?? companion!.stage}{" "}
           {STAGE_EMOJIS[companion!.stage] ?? ""}
         </span>
-        {companion!.graduationCap && (
-          <>
-            <span className="text-gray-300">·</span>
-            <span title={`Quiz score ${companion!.quizScore} > 85 — graduation cap earned!`}>
-              🎓
-            </span>
-          </>
-        )}
       </div>
       {!pickerOpen && (
         <button

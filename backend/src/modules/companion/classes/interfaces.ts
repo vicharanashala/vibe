@@ -47,8 +47,6 @@ interface ICompanion {
   studying: boolean;
   /** Latest quiz score 0-100 (most recent quiz, not average) */
   quizScore: number;
-  /** Graduation cap shown when quizScore > 85 */
-  graduationCap: boolean;
   /** Unix timestamp of last activity */
   lastActiveAt: Date;
   createdAt: Date;

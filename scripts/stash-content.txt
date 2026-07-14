@@ -1,0 +1,159 @@
+diff --git a/backend/.firebaserc b/backend/.firebaserc
+index 52a1993a..5d2802a3 100644
+--- a/backend/.firebaserc
++++ b/backend/.firebaserc
+@@ -1,5 +1,5 @@
+ {
+   "projects": {
+-    "default": "vibe-5b35a"
++    "default": "demo-test"
+   }
+-}
++}
+\ No newline at end of file
+diff --git a/backend/src/modules/courses/services/deleteCronService.ts b/backend/src/modules/courses/services/deleteCronService.ts
+index 98e2e4d9..133ffc71 100644
+--- a/backend/src/modules/courses/services/deleteCronService.ts
++++ b/backend/src/modules/courses/services/deleteCronService.ts
+@@ -70,10 +70,9 @@ export class DeleteCronService extends BaseService {
+     //     ),
+     //   ),
+     // );
+-    const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
++    // const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
+     // results.forEach((result, index) => {
+     //   const { courseId, versionId } = courseVersionMap[index];
+-
+     //   if (result.status === 'fulfilled') {
+     //     console.log(
+     //       `✅ Course ${courseId} | Version ${versionId} completed`,
+@@ -86,13 +85,9 @@ export class DeleteCronService extends BaseService {
+     //     );
+     //   }
+     // });
+-
+-    console.log(`🎉 Parallel progress cron completed \n
+-        Total count : ${response.totalCount} \n
+-        Updated count : ${response.updatedCount}`);
+-    // });
+-
+-    // console.log('🗓️ Progress update cron scheduled (hourly, parallel)');
++    // console.log(`🎉 Parallel progress cron completed \n
++    //     Total count : ${response.totalCount} \n
++    //     Updated count : ${response.updatedCount}`);   // console.log('🗓️ Progress update cron scheduled (hourly, parallel)');
+   }
+ 
+ 
+diff --git a/backend/src/shared/database/providers/mongo/MongoDatabase.ts b/backend/src/shared/database/providers/mongo/MongoDatabase.ts
+index be076c40..394967b1 100644
+--- a/backend/src/shared/database/providers/mongo/MongoDatabase.ts
++++ b/backend/src/shared/database/providers/mongo/MongoDatabase.ts
+@@ -40,15 +40,13 @@ export class MongoDatabase implements IDatabase<Db> {
+       return;
+     }
+ 
+-    this.client = new MongoClient(uri, {
+-      ssl: true,
+-      tls: true,
+-      tlsAllowInvalidCertificates: false,
+-      tlsAllowInvalidHostnames: false,
++     this.client = new MongoClient(uri, {
++  // ssl: true,
++  // tls: true,
++  // tlsAllowInvalidCertificates: false,
++  // tlsAllowInvalidHostnames: false,
+ 
+-      retryWrites: true,
+-
+-      // 🔹 CONNECTION POOL
++  retryWrites: true,     // 🔹 CONNECTION POOL
+       maxPoolSize: 50,
+       minPoolSize: 10,
+       maxIdleTimeMS: 60000,
+diff --git a/backend/tsconfig.json b/backend/tsconfig.json
+index 4af91a76..fc7756a5 100644
+--- a/backend/tsconfig.json
++++ b/backend/tsconfig.json
+@@ -31,7 +31,8 @@
+       "#users/*": ["./modules/users/*"],
+       "#quizzes/*": ["./modules/quizzes/*"],
+       "#settings/*": ["./modules/settings/*"],
+-      "#ejectionPolicy/*": ["./modules/ejectionPolicy/*"]
++      "#ejectionPolicy/*": ["./modules/ejectionPolicy/*"],
++      "#companion/*": ["./modules/companion/*"]
+     },
+ 
+     "types": ["node", "express"],
+diff --git a/frontend/firebase.json b/frontend/firebase.json
+index 2c33c295..5416acce 100644
+--- a/frontend/firebase.json
++++ b/frontend/firebase.json
+@@ -12,5 +12,13 @@
+         "destination": "/index.html"
+       }
+     ]
++  },
++  "emulators": {
++    "auth": {
++      "port": 9099
++    },
++    "ui": {
++      "enabled": true
++    }
+   }
+-}
++}
+\ No newline at end of file
+diff --git a/frontend/src/lib/firebase.ts b/frontend/src/lib/firebase.ts
+index 8902f3cd..1fbdaa59 100644
+--- a/frontend/src/lib/firebase.ts
++++ b/frontend/src/lib/firebase.ts
+@@ -1,7 +1,8 @@
+ // Import the functions you need from the SDKs you need
+ import { initializeApp } from "firebase/app";
+ import { getAnalytics } from "firebase/analytics";
+-import { getAuth, 
++import { getAuth,
++  connectAuthEmulator, 
+   GoogleAuthProvider, 
+   signInWithPopup, 
+   signInWithEmailAndPassword, 
+@@ -33,6 +34,11 @@ const firebaseConfig = {
+ // Initialize Firebase
+ const app = initializeApp(firebaseConfig);
+ export const auth = getAuth(app);
++if (import.meta.env.DEV) {
++  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
++}
++
++  
+ export const provider = new GoogleAuthProvider();
+ 
+ // Firebase authentication functions
+diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index 09d26f71..e97cd879 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -6,4 +6,21 @@ packages:
+   - cli
+   - mcp
+   - e2e
+-  
++
++ignoredBuiltDependencies:
++  - '@firebase/util'
++  - '@parcel/watcher'
++  - '@sentry-internal/node-cpu-profiler'
++  - '@sentry/cli'
++  - '@swc/core'
++  - '@tensorflow/tfjs-node'
++  - bcrypt
++  - core-js
++  - core-js-pure
++  - esbuild
++  - mongodb-memory-server
++  - msw
++  - postman-code-generators
++  - protobufjs
++  - sharp
++  - yarn

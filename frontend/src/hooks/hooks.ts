@@ -25,6 +25,25 @@ export function useSignupExtended(): {
   };
 }
 
+export function useSignup(): {
+  mutate: (variables: { body: SignUpRequestBody }) => void,
+  mutateAsync: (variables: { body: SignUpRequestBody }) => Promise<components['schemas']['SignUpResponse']>,
+  data: components['schemas']['SignUpResponse'] | undefined,
+  error: unknown | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation("post", "/auth/signup");
+  return {
+    ...result,
+    error: result.error ? (result.error) : null
+  };
+}
+
 // Add useProcessInvites (non-breaking addition)
 export async function useProcessInvites(inviteId: string, action: "ACCEPT" | "REJECTED" = "ACCEPT"): Promise<{
   data: null,
@@ -506,26 +525,6 @@ export function useLoginWithGoogle(): {
   return {
     ...result,
     error: result.error ? (result.error.message || 'Google login failed') : null
-  };
-}
-
-// POST /auth/signup
-export function useSignup(): {
-  mutate: (variables: { body: components['schemas']['SignUpBody'] }) => void,
-  mutateAsync: (variables: { body: components['schemas']['SignUpBody'] }) => Promise<components['schemas']['SignUpResponse']>,
-  data: components['schemas']['SignUpResponse'] | undefined,
-  error: unknown | null,
-  isPending: boolean,
-  isSuccess: boolean,
-  isError: boolean,
-  isIdle: boolean,
-  reset: () => void,
-  status: 'idle' | 'pending' | 'success' | 'error'
-} {
-  const result = api.useMutation("post", "/auth/signup");
-  return {
-    ...result,
-    error: result.error ? (result.error) : null
   };
 }
 

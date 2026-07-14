@@ -614,6 +614,16 @@ export class EnrollmentService extends BaseService {
         search,
       );
     }
+    console.log('[DEBUG service.getEnrollments] after repo call:', {
+      enrollmentsCount: enrollments.length,
+      enrollments: enrollments.map(e => ({
+        _id: e._id?.toString?.() ?? e._id,
+        courseId: e.courseId?.toString?.() ?? e.courseId,
+        courseVersionId: e.courseVersionId?.toString?.() ?? e.courseVersionId,
+        role: e.role,
+        status: e.status,
+      })),
+    });
     if (!enrollments.length) return [];
 
     const enrolledVersionIds: Set<string> = new Set(
@@ -634,6 +644,11 @@ export class EnrollmentService extends BaseService {
       const activeEnrollments = enrollments.filter(enr =>
         activeVersionIds.has(enr.courseVersionId.toString()),
       );
+      console.log('[DEBUG service.getEnrollments] active version filter:', {
+        enrolledVersionIds: Array.from(enrolledVersionIds),
+        activeVersionIds: Array.from(activeVersionIds),
+        activeEnrollmentsCount: activeEnrollments.length,
+      });
 
       // Create a map for quick lookup
       const versionToItemGroups = new Map<string, string[]>();

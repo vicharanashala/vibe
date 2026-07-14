@@ -49,12 +49,10 @@ class CompanionService {
     // studying is live: mood=studying when studyingAt is fresh (< 5 min), else derive
     const isStudying = studyingAt instanceof Date && !Number.isNaN(studyingAt.getTime());
     const mood = isStudying ? 'studying' : this._deriveMood(liveProgress, idleDays);
-    const graduationCap = latestQuizScore > 85;
-
     // Update lastKnownProgress and detect new journey (≥20-point drop)
     const newJourney = await this.companionRepo.updateProgressMeta(userId, liveProgress);
 
-    return companion.toJSON({realProgress: liveProgress, quizScore: latestQuizScore, idleDays, stage, mood, graduationCap, studying: isStudying, newJourney});
+    return companion.toJSON({realProgress: liveProgress, quizScore: latestQuizScore, idleDays, stage, mood, studying: isStudying, newJourney});
   }
 
   /**
@@ -72,10 +70,9 @@ class CompanionService {
     const stage = this._computeStage(liveProgress);
     const isStudying = studyingAt instanceof Date && !Number.isNaN(studyingAt.getTime());
     const mood = isStudying ? 'studying' : this._deriveMood(liveProgress, idleDays);
-    const graduationCap = latestQuizScore > 85;
     // Update lastKnownProgress and detect new journey (≥20-point drop)
     const newJourney = await this.companionRepo.updateProgressMeta(userId, liveProgress);
-    return companion.toJSON({realProgress: liveProgress, quizScore: latestQuizScore, idleDays, stage, mood, graduationCap, studying: isStudying, newJourney});
+    return companion.toJSON({realProgress: liveProgress, quizScore: latestQuizScore, idleDays, stage, mood, studying: isStudying, newJourney});
   }
 
   /**

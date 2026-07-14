@@ -16,7 +16,12 @@ export const appConfig = {
   isDevelopment: env('NODE_ENV') === 'development',
   port: Number(env('PORT')) || Number(env('APP_PORT')) || 8080,
   url: env('APP_URL'),
-  origins: env('APP_ORIGINS')?.split(',') || ['http://localhost:5173'],
+  // CORS allow-list. localhost and 127.0.0.1 are different origins to the
+  // browser even though they resolve to the same IP, so we include both
+  // by default. Developers starting Vite with `--host 127.0.0.1` (or
+  // `localhost`) should both work without CORS errors. Override via
+  // APP_ORIGINS in env if you need a different set.
+  origins: env('APP_ORIGINS')?.split(',') || ['http://localhost:5173', 'http://127.0.0.1:5173'],
   module: env('APP_MODULE') || 'all',
   routePrefix: env('APP_ROUTE_PREFIX') || '/api',
   frontendUrl: env('FRONTEND_URL') || 'http://localhost:5173',

@@ -172,10 +172,13 @@ export class CourseVersionService extends BaseService {
     return session ? run(session) : this._withTransaction(run);
   }
 
-  sortItemsByOrder(items: any[]) {
+  sortItemsByOrder(items?: any[] | null) {
+    // Defensive: some sections in MongoDB have `items: {}` (empty object) instead
+    // of `items: []` (empty array) — that throws "items is not iterable" when spread.
+    if (!items || typeof items[Symbol.iterator] !== 'function') return [];
     return [...items].sort((a, b) => {
-      const orderA = a.order || '';
-      const orderB = b.order || '';
+      const orderA = a?.order || '';
+      const orderB = b?.order || '';
       return orderA.localeCompare(orderB);
     });
   }
@@ -272,9 +275,11 @@ export class CourseVersionService extends BaseService {
       } else {
         readVersion.modules = this.sortItemsByOrder(readVersion.modules).map(module => ({
           ...module,
-          sections: this.sortItemsByOrder(module.sections || []).map(section => ({
+          sections: this.sortItemsByOrder(module.sections).map(section => ({
             ...section,
-            items: this.sortItemsByOrder(section.items || [])
+            // section.items can be `{}` (empty object) on some legacy sections;
+            // sortItemsByOrder() now coerces non-iterables to [] internally.
+            items: this.sortItemsByOrder(section.items)
           }))
         }));
       }

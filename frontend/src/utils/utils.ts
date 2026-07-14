@@ -48,8 +48,8 @@ export function formatCompletionTime(
 //   return processedContent;
 // };
 
-export function preprocessMathContent(content: string): string {
-  if (!content) return content;
+export function preprocessMathContent(content: any): string {
+  if (content == null || typeof content !== 'string') return String(content ?? '');
 
   let processedContent = content;
 
@@ -58,15 +58,15 @@ export function preprocessMathContent(content: string): string {
 
   // Preserve new lines inside $$ $$ math blocks
   processedContent = processedContent.replace(/\$\$(.*?)\$\$/gs, (_, mathContent) => {
-    const cleanMath = mathContent.replace(/\\n/g, '\n'); 
+    const cleanMath = mathContent.replace(/\\n/g, '\n');
     return `$$${cleanMath}$$`;
   });
 
   return processedContent;
 }
 
-export function preprocessRemoveFromOptions(content: string): string {
-  if (!content) return content;
+export function preprocessRemoveFromOptions(content: any): string {
+  if (content == null || typeof content !== 'string') return String(content ?? '');
 
   // Remove ABCD options from the content
   const optionRegex = /[A-Z]\)\s*/g;

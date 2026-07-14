@@ -53,6 +53,7 @@ import { FlagModal } from "@/components/FlagModal";
 import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
+import { useCompanionStore } from "@/store/companion-store";
 import logo from "../../../../public/img/vibe_logo_img.ico"
 import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
@@ -84,10 +85,11 @@ const getItemIcon = (type: string) => {
 
 // Helper function to sort items by order property
 const sortItemsByOrder = (items: any[]) => {
+  if (!Array.isArray(items)) return [];
   return [...items].sort((a, b) => {
-    const orderA = a.order || '';
-    const orderB = b.order || '';
-    return orderA.localeCompare(orderB);
+    const orderA = a?.order || '';
+    const orderB = b?.order || '';
+    return String(orderA).localeCompare(String(orderB));
   });
 };
 
@@ -205,6 +207,8 @@ export default function CoursePage() {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
       }
+      // Tell backend the student left the lesson — clears studyingAt (5-min TTL safety net).
+      useCompanionStore.getState().setStudying(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showProctorDialog, consentSatisfied]);
@@ -239,6 +243,17 @@ export default function CoursePage() {
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+
+  // ── Companion studying live signal ────────────────────────────────────────
+  // Push studying=true when a lesson is selected; push studying=false when
+  // the student navigates away or the page unmounts (cleanup above).
+  // The 5-minute TTL on studyingAt on the backend is the safety net for
+  // edge cases like tab crashes or unexpected unmounts.
+  useEffect(() => {
+    if (!selectedItemId || !COURSE_ID) return;
+    useCompanionStore.getState().setStudying(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItemId]); // intentionally omits COURSE_ID — only react to real item changes
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
@@ -1898,15 +1913,15 @@ return false;
                 <SidebarContent className="bg-card/50 pl-2 shadow-sm border border-border/30">
                   <ScrollArea className="flex-1 transition-colors">
                     <SidebarMenu className="space-y-1 text-sm pr-0">
-                      {modules.map((module: any) => {
-                        const moduleId = module.moduleId;
+                      {modules.map((module: any, idx: number) => {
+                        const moduleId = module.moduleId ?? module._id ?? `mod-${idx}`;
                         const progress = moduleProgressMap.get(moduleId);
                         const isModuleExpanded = expandedModules[moduleId];
                         const isCurrentModule = moduleId === selectedModuleId;
 
                         return (
                           <SidebarMenuItem 
-                          key={moduleId}
+                          key={moduleId || `mod-${idx}`}
                           data-testid="course-module"
                           data-module-id={moduleId}
                           >
@@ -1929,7 +1944,7 @@ return false;
                                     <div className="flex gap-4 items-center justify-between">
 
                                       <div className="font-medium text-xs truncate">
-                                        {module.name.length > 34 ? `${module.name.substring(0, 31)}...` : module.name}
+                                        {String(module.name || '').length > 34 ? `${String(module.name || '').substring(0, 31)}...` : (module.name || '')}
                                       </div>
                                       <div className={`text-[10px] ${(progress?.completedItems === progress?.totalItems && progress?.totalItems > 0) ? `dark:text-green-500 text-green-600 ` : ` text-muted-foreground`}`}>
                                         {moduleProgressLoading
@@ -1952,15 +1967,15 @@ return false;
 
                             {isModuleExpanded && module.sections && (
                               <SidebarMenuSub className="ml-0 mt-1 space-y-1">
-                                {module.sections.map((section: any) => {
-                                  const sectionId = section.sectionId;
+                                {module.sections.map((section: any, idx: number) => {
+                                  const sectionId = section.sectionId ?? section._id ?? `${moduleId}-sec-${idx}`;
                                   const isSectionExpanded = expandedSections[sectionId];
                                   const isCurrentSection = sectionId === selectedSectionId;
                                   const isLoadingItems = activeSectionInfo?.sectionId === sectionId && itemsLoading;
 
                                   return (
                                     <SidebarMenuSubItem 
-                                      key={sectionId}
+                                      key={sectionId || `sec-${moduleId}-${idx}`}
                                       data-testid="course-section"
                                       data-section-id={sectionId}
                                       data-module-id={moduleId}
@@ -1983,7 +1998,7 @@ return false;
                                           <Tooltip>
                                             <TooltipTrigger asChild>
                                               <div className="font-medium text-xs truncate">
-                                                {section.name.length > 27 ? `${section.name.substring(0, 24)}...` : section.name}
+                                                {String(section.name || '').length > 27 ? `${String(section.name || '').substring(0, 24)}...` : (section.name || '')}
                                               </div>
                                             </TooltipTrigger>
                                             <TooltipContent side="right" align="center">
@@ -2003,14 +2018,14 @@ return false;
                                             (shouldRandomize
                                               ? sectionItems[sectionId]
                                               : sortItemsByOrder(sectionItems[sectionId])
-                                            ).map((item: any) => {
-                                              const itemId = item._id;
+                                            ).map((item: any, idx: number) => {
+                                              const itemId = item._id ?? item.id ?? `${sectionId}-${idx}`;
                                               const isCurrentItem = itemId === selectedItemId;
                                               const locked = isItemLocked(moduleId, sectionId, itemId);
 
                                               return (
                                                 <SidebarMenuSubItem 
-                                                key={itemId}
+                                                key={itemId || `item-${sectionId}-${idx}`}
                                                 data-testid="course-item"
                                                 data-item-id={itemId}
                                                 data-section-id={sectionId}
@@ -2041,7 +2056,7 @@ return false;
                                                             }
 
                                                             // Always show the actual item name, truncated if necessary
-                                                            const itemName = item?.name || item?.title || 'Untitled';
+                                                            const itemName = String(item?.name || item?.title || 'Untitled');
                                                             return itemName.length > 18 ? `${itemName.substring(0, 15)}...` : itemName;
                                                           })()}
                                                         </div>

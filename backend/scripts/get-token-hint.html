@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Get Firebase Token</title>
+<style>
+body { font-family: sans-serif; padding: 20px; max-width: 600px; }
+pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; }
+.token { background: #fff3cd; padding: 15px; border-radius: 4px; word-break: break-all; font-family: monospace; }
+</style>
+</head>
+<body>
+<h2>Get Firebase Token</h2>
+<ol>
+<li>Open <code>http://localhost:5173/student/dashboard</code> in Chrome</li>
+<li>Press <strong>F12</strong> → <strong>Application</strong> tab</li>
+<li>Left sidebar → <strong>Storage</strong> → <strong>Local Storage</strong> → <strong>http://localhost:5173</strong></li>
+<li>Find row with key <code>firebase-auth-token</code></li>
+<li>Click it → look at the <strong>Value</strong> column (long string starting with <code>eyJ</code>)</li>
+<li>Right-click the value → <strong>Copy</strong></li>
+</ol>
+<p><strong>Then paste it into the terminal prompt and press Enter.</strong></p>
+<div class="token" id="token-display">Your token will appear here</div>
+
+<script>
+// Try to read the token automatically if same origin
+const token = localStorage.getItem('firebase-auth-token');
+if (token) {
+  document.getElementById('token-display').textContent = token;
+  document.getElementById('token-display').style.background = '#d4edda';
+}
+</script>
+</body>
+</html>

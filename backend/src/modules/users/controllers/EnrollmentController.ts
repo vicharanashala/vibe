@@ -580,6 +580,16 @@ export class EnrollmentController {
     const {page, limit, search = '', role, tab = 'active'} = query;
     const userId = user._id.toString();
     const skip = (page - 1) * limit;
+    // 🐛 DEBUG (temporary): log what the service returns so we can see if the
+    // enrollment for this user is being filtered out somewhere in the pipeline.
+    console.log('[DEBUG getUserEnrollments]', {
+      userId,
+      skip,
+      limit,
+      role,
+      search,
+      tab,
+    });
     // 🚀 Run DB queries in parallel
     const [enrollments, totalDocuments, activeCount, archivedCount] =
       await Promise.all([
@@ -595,6 +605,21 @@ export class EnrollmentController {
         this.enrollmentService.getActiveCount(userId, role),
         this.enrollmentService.getArchiveCount(userId, role),
       ]);
+    console.log('[DEBUG getUserEnrollments] result:', {
+      enrollmentsCount: enrollments?.length,
+      enrollments: enrollments?.map(e => ({
+        _id: e._id?.toString?.() ?? e._id,
+        courseId: e.courseId?.toString?.() ?? e.courseId,
+        courseVersionId: e.courseVersionId?.toString?.() ?? e.courseVersionId,
+        role: e.role,
+        status: e.status,
+        // @ts-expect-error percentCompleted exists at runtime but not in type
+        percentCompleted: e.percentCompleted,
+      })),
+      totalDocuments,
+      activeCount,
+      archivedCount,
+    });
 
     if (!enrollments || enrollments.length === 0) {
       return {

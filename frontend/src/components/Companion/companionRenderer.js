@@ -703,7 +703,6 @@ function loop(){
     animal = 'panda';
   }
   DFN[animal](m,bOpen,bobY,br,tail,stageT,headTurn);
-  if(hasGrad())drawGradCap(bobY,animal,stageT,T);
   if(m==='studying'){
     const idleF=T-lastProgFrame;
     const onBreak=idleF>240;

@@ -31,6 +31,7 @@ export class ItemRepository implements IItemRepository {
   private blogCollection: Collection<BlogItem>;
   private projectCollection: Collection<ProjectItem>;
   private feedbackFormCollection: Collection<FeedBackFormItem>;
+  private itemsCollection: Collection<Item>;
   private questionBankCollection: Collection<QuestionBank>;
   private questionsCollection: Collection<any>;
   private courseVersionCollection: Collection<any>;
@@ -57,6 +58,8 @@ export class ItemRepository implements IItemRepository {
     this.feedbackFormCollection = await this.db.getCollection<FeedBackFormItem>(
       'feedback_forms',
     );
+    // Unified items collection (newer storage path used by some bootstrap scripts)
+    this.itemsCollection = await this.db.getCollection<Item>('items');
 
     this.itemsGroupCollection.createIndex({ items: 1 });
     this.questionBankCollection = await this.db.getCollection<IQuestionBank>(
@@ -161,7 +164,14 @@ export class ItemRepository implements IItemRepository {
       ) as ItemsGroup;
     }
 
-    // Lookup items to check if they are deleted and fetch their names
+    // Lookup items to check if they are deleted and fetch their names.
+    // Fallback order:
+    //   1. Type-specific legacy collection (videoCollection / quizCollection / ...)
+    //   2. Unified `items` collection (newer code path stores everything here)
+    //   3. Embedded item's own name field
+    // Some bootstrap scripts created item docs only in `items`, so the legacy
+    // collection lookup can miss valid items and silently drop them — making
+    // the section appear empty in the UI.
     const filteredItems = [];
     for (const item of itemsGroup.items) {
       let collection: Collection<any>;
@@ -186,21 +196,47 @@ export class ItemRepository implements IItemRepository {
             `Unsupported item type: ${(item as any).type}`,
           );
       }
-      const existingItem = await collection.findOne(
-        { _id: new ObjectId(item._id), isDeleted: { $ne: true } },
-        { session },
-      );
+      let existingItem: any = null;
+      if (collection) {
+        existingItem = await collection.findOne(
+          { _id: new ObjectId(item._id), isDeleted: { $ne: true } },
+          { session },
+        );
+      }
+      // Fallback 1: check the unified `items` collection
+      if (!existingItem) {
+        try {
+          if (this.itemsCollection) {
+            existingItem = await this.itemsCollection.findOne(
+              { _id: new ObjectId(item._id), isDeleted: { $ne: true } },
+              { session },
+            );
+          }
+        } catch {
+          // ignore — items collection may not exist on legacy installs
+        }
+      }
       if (existingItem) {
-        // Explicitly create an object with all ItemRef fields
-        const itemRef = {
-          _id: item._id,
+        // Explicitly create an object with all ItemRef fields.
+        // Some bootstrap scripts embedded items with `itemId` instead of `_id` —
+        // normalize to `_id` so all downstream consumers get a consistent shape.
+        const itemRef: any = {
+          _id: (item as any)._id ?? (item as any).itemId,
           type: item.type,
           order: item.order,
           isHidden: item.isHidden,
-          name: existingItem.name || 'Untitled',
+          name: existingItem.name || item.name || 'Untitled',
         };
-        // console.log(`[ItemRepository] Item ${item._id} (${item.type}): name="${itemRef.name}"`);
         filteredItems.push(itemRef);
+      } else if (item.name) {
+        // Fallback 2: use the embedded item's own name even if no backing doc exists
+        filteredItems.push({
+          _id: (item as any)._id ?? (item as any).itemId,
+          type: item.type,
+          order: item.order,
+          isHidden: item.isHidden,
+          name: item.name,
+        } as any);
       }
     }
 
@@ -423,6 +459,43 @@ export class ItemRepository implements IItemRepository {
               break;
             default:
               throw new InternalServerError(`Unknown item type: ${found.type}`);
+          }
+          // ✅ Defensive fallback: if the legacy collection didn't have the
+          // item (bootstrap scripts wrote details into the unified `items`
+          // collection), look it up there. This matches readItemsGroup's
+          // 3-tier fallback and prevents the frontend from crashing with
+          // "Unsupported item type: unknown".
+          if (!item && this.itemsCollection) {
+            try {
+              const unified = await this.itemsCollection.findOne(
+                { _id: new ObjectId(found._id), isDeleted: { $ne: true } },
+                { session },
+              );
+              if (unified) {
+                // Preserve the discovered `type` from the itemsGroup ref so
+                // the response always carries a type field even if the
+                // unified doc doesn't include one.
+                if (!unified.type && found.type) {
+                  unified.type = found.type;
+                }
+                item = unified as Item;
+              }
+            } catch {
+              // ignore — items collection may not exist on legacy installs
+            }
+          }
+          if (!item) {
+            // Don't 500 the whole endpoint — return a minimal record
+            // derived from the itemsGroup ref so the frontend can still
+            // render something instead of crashing.
+            return {
+              _id: found._id,
+              name: found.name || 'Untitled',
+              description: '',
+              type: found.type,
+              isHidden: !!found.isHidden,
+              details: {},
+            } as unknown as Item;
           }
           return item;
         }

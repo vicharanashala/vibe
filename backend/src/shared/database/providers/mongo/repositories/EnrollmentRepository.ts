@@ -686,6 +686,15 @@ export class EnrollmentRepository {
   ) {
     await this.init();
     const userObjectId = new ObjectId(userId);
+    console.log('[DEBUG repo.getBasicEnrollments] entry:', {
+      userId,
+      userObjectId: userObjectId.toString(),
+      skip,
+      limit,
+      role,
+      search,
+      objectIdValid: ObjectId.isValid(userId),
+    });
     const pipeline: any[] = [
       {
         $match: {
@@ -966,6 +975,22 @@ export class EnrollmentRepository {
     const enrollments = await this.enrollmentCollection
       .aggregate(pipeline)
       .toArray();
+
+    console.log('[DEBUG repo.getBasicEnrollments]', {
+      userId,
+      skip,
+      limit,
+      role,
+      search,
+      matchedCount: enrollments.length,
+      sampleIds: enrollments.slice(0, 3).map(e => ({
+        _id: e._id?.toString?.() ?? e._id,
+        courseId: e.courseId?.toString?.() ?? e.courseId,
+        courseVersionId: e.courseVersionId?.toString?.() ?? e.courseVersionId,
+        role: e.role,
+        status: e.status,
+      })),
+    });
 
     return enrollments;
   }

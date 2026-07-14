@@ -10,7 +10,6 @@ export interface CompanionState {
   stage: GrowthStage;
   mood: CompanionMood;
   studying: boolean;      // live signal: true when student is in an active lesson
-  graduationCap: boolean; // shown when quizScore > 85
   lastActiveAt: string;
   createdAt: string;
   /** True when a new enrollment dropped the average by ≥20 points */

@@ -26,6 +26,16 @@ const globalRateLimiter = createRateLimiter();
 // app.use(globalRateLimiter);
 app.use(loggingHandler);
 
+// Disable HTTP caching on all API responses so the browser doesn't mask backend
+// changes (e.g., empty enrollments served from cache while the live endpoint
+// now returns data). Development convenience; remove or scope down for prod.
+app.use((_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 app.set('trust proxy', 1);
 
 

@@ -25,7 +25,6 @@ class Companion {
     idleDays: number;
     stage: GrowthStage;
     mood: CompanionMood;
-    graduationCap: boolean;
     studying: boolean;
     newJourney: boolean;
   }): ICompanion {
@@ -38,7 +37,6 @@ class Companion {
       stage: live.stage,
       mood: live.mood,
       studying: live.studying,
-      graduationCap: live.graduationCap,
       lastActiveAt: this.lastActiveAt,
       createdAt: this.createdAt,
       newJourney: live.newJourney,
