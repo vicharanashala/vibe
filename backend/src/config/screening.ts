@@ -30,6 +30,16 @@ export const screeningConfig = {
   timeoutMs: Number(env('SCREENING_TIMEOUT_MS') || '9000'),
   /** Retries on transient/429 errors (with backoff). */
   maxRetries: Number(env('SCREENING_MAX_RETRIES') || '2'),
+  /**
+   * Ceiling on a single backoff wait.
+   *
+   * A 429 from Groq is a token-BUCKET limit — it meters tokens per minute, so the
+   * `retry-after` it sends can be tens of seconds. We honour that header, but only
+   * up to this cap: a student is waiting on the request, and stalling them for a
+   * minute is worse than degrading to a manual-review hold. Batch/eval runs that
+   * would rather wait than lose the sample raise it (e.g. SCREENING_MAX_BACKOFF_MS=70000).
+   */
+  maxBackoffMs: Number(env('SCREENING_MAX_BACKOFF_MS') || '5000'),
 
   /** Max graded-QB questions compared against for the duplicate check. */
   dedupPoolLimit: Number(env('SCREENING_DEDUP_LIMIT') || '50'),
