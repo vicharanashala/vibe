@@ -90,6 +90,25 @@ export const screeningConfig = {
    */
   maxBackoffMs: Number(env('SCREENING_MAX_BACKOFF_MS') || '5000'),
 
+  /**
+   * Client-side rate limiting. We pace requests to stay under the provider's RPM
+   * ourselves, so a 100-student burst queues and drains instead of firing at once,
+   * getting 429'd, and degrading to manual-review holds.
+   *
+   * `rpm` sits at or just under the real limit of the slowest provider in use
+   * (Groq free = 30). Raise it on a paid tier.
+   */
+  rateLimit: {
+    rpm: Number(env('SCREENING_RPM') || '25'),
+    /**
+     * If a request would wait longer than this for a slot, it spills to the next
+     * provider in the chain instead of queueing. Set it from how long a student
+     * will tolerate waiting for a verdict — beyond that, another vendor's budget
+     * is better than a longer queue.
+     */
+    maxQueueWaitMs: Number(env('SCREENING_MAX_QUEUE_WAIT_MS') || '8000'),
+  },
+
   /** Max graded-QB questions compared against for the duplicate check. */
   dedupPoolLimit: Number(env('SCREENING_DEDUP_LIMIT') || '50'),
   /** Transcript characters fed to the on-topic check (keeps cost bounded). */

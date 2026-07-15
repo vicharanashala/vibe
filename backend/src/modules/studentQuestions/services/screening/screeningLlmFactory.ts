@@ -4,6 +4,7 @@ import {GroqScreeningLlm} from './GroqScreeningLlm.js';
 import {AnthropicScreeningLlm} from './AnthropicScreeningLlm.js';
 import {GeminiScreeningLlm} from './GeminiScreeningLlm.js';
 import {FallbackScreeningLlm} from './FallbackScreeningLlm.js';
+import {RateLimitedScreeningLlm} from './RateLimitedScreeningLlm.js';
 
 function one(name: string): ScreeningLlm {
   switch (name.trim().toLowerCase()) {
@@ -32,6 +33,9 @@ export function createScreeningLlm(): ScreeningLlm {
     .map(s => s.trim())
     .filter(Boolean);
 
-  const providers = names.map(one);
+  // Pace each provider independently: a fallback chain's whole point is that each
+  // vendor has its OWN budget, so each gets its own bucket. The fallback then trips
+  // only on a real outage, not on a queue we could have waited out.
+  const providers = names.map(n => new RateLimitedScreeningLlm(one(n)));
   return providers.length === 1 ? providers[0] : new FallbackScreeningLlm(providers);
 }
