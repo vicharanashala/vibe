@@ -77,6 +77,10 @@ export class StudentQuestionRepository {
       segmentId: new ObjectId(input.segmentId),
       normalizedSignature: input.normalizedSignature,
       isDeleted: {$ne: true},
+      // Ignore rejected stubs: a student who fixes and resubmits (or even
+      // resubmits as-is) should get the real screening reason, not a stale
+      // "you already submitted this". Only live PENDING/HELD/APPROVED rows count.
+      status: {$ne: 'REJECTED'},
     });
   }
 

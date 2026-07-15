@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsInt,
   IsMongoId,
   IsNotEmpty,
@@ -17,7 +18,7 @@ import {JSONSchema} from 'class-validator-jsonschema';
 
 const QUESTION_TYPES = ['SELECT_ONE_IN_LOT'] as const;
 type QuestionTypeLiteral = (typeof QUESTION_TYPES)[number];
-const STATUS_VALUES = ['PENDING', 'APPROVED', 'REJECTED'] as const;
+const STATUS_VALUES = ['PENDING', 'HELD', 'APPROVED', 'REJECTED'] as const;
 type StatusLiteral = (typeof STATUS_VALUES)[number];
 const STATUS_FILTER_VALUES = ['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as const;
 type StatusFilterLiteral = (typeof STATUS_FILTER_VALUES)[number];
@@ -70,6 +71,15 @@ export class CreateStudentQuestionBody {
     example: 0,
   })
   correctOptionIndex!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description:
+      'Set when re-submitting a question that the similarity fast-path rejected as a duplicate, to say it is genuinely different. Skips that fast path and sends the question to the LLM judge, whose verdict is final (so this cannot be used to bypass screening — only to escalate to a stricter check).',
+    example: true,
+  })
+  appealed?: boolean;
 }
 
 export class StudentQuestionPathParams {
@@ -125,8 +135,27 @@ export class UpdateStudentQuestionStatusBody {
 }
 
 export class StudentQuestionCreateResponse {
+  /** Screening outcome: 'pass' | 'reject' | 'hold'. */
   @IsString()
-  questionId!: string;
+  decision!: string;
+
+  /** Machine-readable reason (e.g. 'duplicate', 'off_topic', 'wrong_answer', 'ok'). */
+  @IsString()
+  reasonCode!: string;
+
+  /** Human-friendly message shown to the student. */
+  @IsString()
+  message!: string;
+
+  /** Present unless the submission was rejected. */
+  @IsOptional()
+  @IsString()
+  questionId?: string;
+
+  /** For a 'typo' reject: corrected question text the student can one-tap apply. */
+  @IsOptional()
+  @IsString()
+  suggestedFix?: string;
 }
 
 export class StudentQuestionListItemResponse {

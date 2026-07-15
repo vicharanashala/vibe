@@ -23,11 +23,34 @@ import {SOLQuestion} from '../../quizzes/classes/transformers/Question.js';
 import {IQuizDetails, ItemType} from '#root/shared/interfaces/models.js';
 import {ISOLSolution} from '#root/shared/interfaces/quiz.js';
 import {isEligibleForReview} from './crowdGate.js';
+import {ScreeningService, ScreeningResult} from './screening/ScreeningService.js';
+import {VectorDedupService} from './screening/VectorDedupService.js';
+import {IScreeningVerdict} from '../classes/transformers/StudentSegmentQuestion.js';
+import {screeningConfig} from '#root/config/screening.js';
 
 const REPEATED_CHAR_PATTERN = /(.)\1{7,}/;
 const REPEATED_WORD_PATTERN = /(\b\w+\b)(\s+\1){4,}/;
 const URL_TOKEN_PATTERN = /^https?:\/\/\S+$/i;
 const NOTIFICATION_QUESTION_PREVIEW_CHARS = 80;
+
+/** Result of a submission after screening — drives the student-facing response. */
+export interface CreateQuestionResult {
+  decision: 'pass' | 'reject' | 'hold';
+  reasonCode: string;
+  message: string;
+  /** Present unless rejected (no live record is kept for a reject beyond the stub). */
+  questionId?: string;
+  /** For a `typo` reject: the corrected question text the student can one-tap apply. */
+  suggestedFix?: string;
+  /**
+   * Set on a `duplicate_similar` reject. The cosine fast-path is a heuristic, not a
+   * verdict — it cannot tell "which IS a type of ML" from "which is NOT" — so the
+   * student is offered one re-submission that goes to the LLM judge instead.
+   */
+  appealable?: boolean;
+  /** The existing question the submission was matched against — shown with the reject. */
+  matchQuestion?: string;
+}
 
 @injectable()
 export class StudentQuestionService {
@@ -44,6 +67,10 @@ export class StudentQuestionService {
     private readonly questionBankService: QuestionBankService,
     @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: ItemRepository,
+    @inject(STUDENT_QUESTION_TYPES.ScreeningService)
+    private readonly screeningService: ScreeningService,
+    @inject(STUDENT_QUESTION_TYPES.VectorDedupService)
+    private readonly vectorDedup: VectorDedupService,
   ) {}
 
   private async _stageToSubmittedBank(
@@ -283,7 +310,13 @@ export class StudentQuestionService {
     options: IStudentQuestionOption[];
     correctOptionIndex: number;
     createdBy: string;
-  }): Promise<string> {
+    /**
+     * The student is re-submitting a question the cosine fast-path rejected,
+     * saying it is not actually a duplicate. Disables that fast path for this
+     * attempt and lets the LLM judge decide — its verdict is final.
+     */
+    appealed?: boolean;
+  }): Promise<CreateQuestionResult> {
     await this.ensureSubmissionEnabled(input.courseId, input.courseVersionId);
 
     if (input.questionType !== 'SELECT_ONE_IN_LOT') {
@@ -309,16 +342,53 @@ export class StudentQuestionService {
       correctOptionIndex: input.correctOptionIndex,
     });
 
-    const duplicate = await this.repository.findDuplicate({
+    // Exact-resubmit guard (free, idempotent): identical content on this segment
+    // is a definite duplicate — reject without spending an LLM call.
+    const exact = await this.repository.findDuplicate({
       courseVersionId: input.courseVersionId,
       segmentId: input.segmentId,
       normalizedSignature,
     });
-    if (duplicate) {
-      throw new BadRequestError(
-        'A similar question already exists for this segment.',
-      );
+    if (exact) {
+      return {
+        decision: 'reject',
+        reasonCode: 'duplicate',
+        message: 'You have already submitted this exact question for this lesson. Try asking about something different.',
+      };
     }
+
+    // AI screening: build the dedup reference pool + lesson context (relevance),
+    // then run the ordered short-circuiting checks. The pool is every prior
+    // question for this segment the new one could duplicate: existing student
+    // submissions (PENDING/HELD/APPROVED) AND the graded question bank, merged
+    // and de-duplicated. Comparing against pending submissions — not just
+    // approved/graded ones — is what catches a repeat before any teacher acts.
+    const [gradedPool, submissionPool, context] = await Promise.all([
+      this.fetchGradedPool(input.segmentId),
+      this.fetchSubmissionPool({
+        courseId: input.courseId,
+        courseVersionId: input.courseVersionId,
+        segmentId: input.segmentId,
+      }),
+      this.fetchSegmentContext(input.segmentId),
+    ]);
+    const existingQuestions = this.mergePool(gradedPool, submissionPool);
+
+    const verdict = await this.screeningService.screen({
+      questionText,
+      options: options.map(o => o.text),
+      correctOptionIndex: input.correctOptionIndex,
+      segmentId: input.segmentId,
+      existingQuestions,
+      context,
+      appealed: input.appealed === true,
+    });
+
+    const persisted = this.toPersistedVerdict(verdict);
+
+    // pass → live PENDING; hold → HELD (awaits instructor); reject → rejected stub.
+    const status: StudentQuestionStatus =
+      verdict.decision === 'pass' ? 'PENDING' : verdict.decision === 'hold' ? 'HELD' : 'REJECTED';
 
     const question = new StudentSegmentQuestion({
       courseId: input.courseId,
@@ -330,19 +400,150 @@ export class StudentQuestionService {
       correctOptionIndex: input.correctOptionIndex,
       normalizedSignature,
       createdBy: input.createdBy,
+      status,
+      screening: persisted,
+      rejectionReason: verdict.decision === 'reject' ? verdict.reasonCode : undefined,
     });
 
     const createdId = await this.repository.create(question);
 
-    await this._stageToSubmittedBank(createdId, {
-      segmentId: input.segmentId,
-      questionText,
-      options,
-      correctOptionIndex: input.correctOptionIndex,
-      createdBy: input.createdBy,
-    });
+    // Only a clean PASS enters the served/collecting pool.
+    if (verdict.decision === 'pass') {
+      await this._stageToSubmittedBank(createdId, {
+        segmentId: input.segmentId,
+        questionText,
+        options,
+        correctOptionIndex: input.correctOptionIndex,
+        createdBy: input.createdBy,
+      });
+      // Index it so the NEXT submission is compared against it. Best-effort by
+      // design (see VectorDedupService.index): a missed vector costs the judge a
+      // little extra work, it never costs the student their question.
+      await this.vectorDedup.index(createdId, input.segmentId, questionText);
+    }
 
-    return createdId;
+    // Measure how often students appeal the fast path. If nearly everyone does, the
+    // cosine reject is buying nothing and should be turned off rather than tuned.
+    if (input.appealed) {
+      console.info('[screening/vector] appeal resolved:', {
+        segmentId: input.segmentId,
+        decision: verdict.decision,
+        reasonCode: verdict.reasonCode,
+      });
+    }
+
+    return {
+      decision: verdict.decision,
+      reasonCode: verdict.reasonCode,
+      message: verdict.message,
+      questionId: verdict.decision === 'reject' ? undefined : createdId,
+      ...(verdict.suggestedFix ? {suggestedFix: verdict.suggestedFix} : {}),
+      ...(verdict.appealable ? {appealable: true} : {}),
+      ...(verdict.matchQuestion ? {matchQuestion: verdict.matchQuestion} : {}),
+    };
+  }
+
+  /** Map the transient screening result to the persisted verdict subdocument. */
+  private toPersistedVerdict(v: ScreeningResult): IScreeningVerdict {
+    return {
+      decision: v.decision,
+      reasonCode: v.reasonCode,
+      check: v.check,
+      message: v.message,
+      // The model's own justification — an instructor reviewing a HELD question
+      // needs to see *why* it was held, not just the bare reason code.
+      reason: v.reason,
+      checks: v.checks,
+      matchQuestion: v.matchQuestion,
+      provider: v.provider,
+      model: v.model,
+      latencyMs: v.latencyMs,
+      at: new Date(),
+    };
+  }
+
+  /**
+   * The duplicate-check reference pool: existing question stems in the segment's
+   * graded question bank. Best-effort — any failure yields an empty pool (screen
+   * still runs the other checks). No new query engine; reuses existing services.
+   */
+  private async fetchGradedPool(segmentId: string): Promise<string[]> {
+    try {
+      const quizItem = await this._resolveTargetQuiz(segmentId);
+      const bankRef = (quizItem as any)?.details?.questionBankRefs?.[0];
+      if (!bankRef) return [];
+      // NOTE: getQuestions() honours the ref's `count` (a random draw the quiz
+      // shows the learner — often 1-5), not the whole bank. For dedup we need
+      // EVERY stem in the bank, so override count to the dedup pool limit.
+      const ids = await this.questionBankService.getQuestions({
+        ...bankRef,
+        count: screeningConfig.dedupPoolLimit,
+      });
+      const questions = await Promise.all(
+        ids.map(id => this.questionService.getByIdWithoutExplanation(id, true).catch(() => null)),
+      );
+      const stems = questions
+        .map(q => (q as any)?.text)
+        .filter((t: unknown): t is string => typeof t === 'string' && t.trim().length > 0);
+      return stems;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Existing student submissions for this segment that a new one could
+   * duplicate — PENDING, HELD or APPROVED (rejected stubs are ignored so a
+   * student can retry a fixed version). Returns their question stems.
+   */
+  private async fetchSubmissionPool(input: {
+    courseId: string;
+    courseVersionId: string;
+    segmentId: string;
+  }): Promise<string[]> {
+    try {
+      const existing = await this.repository.listBySegment({
+        ...input,
+        limit: screeningConfig.dedupPoolLimit,
+      });
+      return existing
+        .filter(q => q.status !== 'REJECTED')
+        .map(q => q.questionText)
+        .filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
+    } catch {
+      return [];
+    }
+  }
+
+  /** Merge dedup sources, drop case/space-insensitive repeats, cap at the pool limit. */
+  private mergePool(...sources: string[][]): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const stem of sources.flat()) {
+      const key = this.normalize(stem);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(stem);
+      if (out.length >= screeningConfig.dedupPoolLimit) break;
+    }
+    return out;
+  }
+
+  /** Lesson context for the relevance check: the VIDEO item's title + transcript. */
+  private async fetchSegmentContext(segmentId: string): Promise<string | null> {
+    try {
+      const item: any = await this.itemRepo.readItemById(segmentId);
+      if (!item) return null;
+      const transcript =
+        item.details?.transcript ?? item.transcript ?? item.details?.text ?? '';
+      const text = [item.name, item.description, transcript]
+        .filter((s: unknown) => typeof s === 'string' && (s as string).trim())
+        .join('\n')
+        .slice(0, screeningConfig.contextCharBudget);
+      return text.trim() || null;
+    } catch {
+      return null;
+    }
   }
 
   /**

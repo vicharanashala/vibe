@@ -23,6 +23,8 @@ export default defineConfig({
     },
   },
   server: {
+    // TEMPORARY (demo): accept the cloudflared tunnel hostname. Remove before commit.
+    allowedHosts: ['.trycloudflare.com'],
     proxy: {
       // Proxy API requests to staging backend to avoid CORS issues
       '/api': {
