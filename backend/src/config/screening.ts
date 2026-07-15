@@ -30,11 +30,18 @@ export const screeningConfig = {
    * request count 3x, which is what decides whether 1,000 submissions/day fits in a
    * free tier at all.
    *
-   * The trade is accepted, not hidden: one model doing three jobs is slightly less
-   * sharp than three specialists. Set false to restore the three-call path, which is
-   * still there and still tested.
+   * MEASURED, and the trade turned out NOT to be worth it: single-pass scored 64%
+   * on the labelled set (16/25) against the three-call path's 96%. Every miss was a
+   * good question wrongly HELD — folding the strict duplicate reasoning in among
+   * three other jobs dilutes it, so the model starts flagging "who invented AI" vs
+   * "what is AI" as a maybe-duplicate. Red-team stayed clean, but accuracy did not.
+   *
+   * So it ships OFF. The RPM problem it was meant to solve is better handled by the
+   * rate limiter (queue the burst) plus provider stacking (add a second vendor's
+   * budget) — neither of which costs accuracy. Kept behind the flag for the record
+   * and in case a stronger model makes the single call viable later.
    */
-  singlePass: (env('SCREENING_SINGLE_PASS') || 'true') !== 'false',
+  singlePass: (env('SCREENING_SINGLE_PASS') || 'false') === 'true',
 
   groq: {
     apiKey: env('GROQ_API_KEY'),
