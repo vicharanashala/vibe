@@ -70,6 +70,7 @@ import StudentSubmissions from '@/app/pages/student/hp-system/submissions'
 import StudentMyLedgerPage from '@/app/pages/student/hp-system/student-ledger'
 import StudentActivityDetail from '@/app/pages/student/hp-system/activity-detail'
 import NotificationsPage from '@/app/pages/shared/NotificationsPage'
+import DiscussionsPage from '@/app/pages/student/Discussions'
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -536,6 +537,13 @@ const studentMySubmissionsRoute = new Route({
   component: StudentMySubmissions,
 });
 
+// Student discussions route
+const studentDiscussionsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/discussions',
+  component: DiscussionsPage,
+});
+
 // Student cohorts route
 const studentHpSystemCohortsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -724,6 +732,7 @@ const routeTree = rootRoute.addChildren([
     studentHpSystemSubmissionsRoute,
     studentHpSystemLedgerRoute,
     studentNotificationsRoute,
+    studentDiscussionsRoute,
   ]),
   coursePageRoute,
 ]);
