@@ -23,6 +23,8 @@ Thumbs.db
 # Environment Variables
 .env
 .env.*
+!*.env.example
+!.example.env
 
 # Python Bytecode
 *.pyc
