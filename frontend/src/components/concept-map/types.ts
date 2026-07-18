@@ -25,6 +25,12 @@ export interface ConceptMapPanelProps {
   highlightNodeId?: string;
   /** Resolves each node's visual state; defaults to 'available'. */
   nodeState?: (node: ConceptMapNode) => ConceptNodeState;
+  /**
+   * Resolves each node's BKT mastery probability (0-1); undefined = not yet
+   * attempted. Attempted nodes render a percentage badge and shade from
+   * amber (low) to emerald (high).
+   */
+  nodeMastery?: (node: ConceptMapNode) => number | undefined;
   /** Invoked on click of a non-locked node. */
   onNodeClick?: (node: ConceptMapNode) => void;
   /** Teacher approval mode: renders a delete affordance on every node. */

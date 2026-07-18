@@ -21,6 +21,14 @@ const LEGEND_ITEMS = [
   { icon: <Lock className="h-3 w-3 text-muted-foreground" />, label: 'Upcoming' },
   { icon: <CheckCircle2 className="h-3 w-3 text-emerald-500" />, label: 'Mastered' },
   { icon: <AlertTriangle className="h-3 w-3 text-amber-500" />, label: 'Revisit' },
+  {
+    icon: (
+      <span className="rounded-full bg-emerald-500/20 px-1 text-[9px] font-semibold leading-tight text-emerald-600">
+        %
+      </span>
+    ),
+    label: 'Estimated mastery',
+  },
 ];
 
 /**
@@ -36,6 +44,7 @@ export default function ConceptMapPanel({
   edges,
   highlightNodeId,
   nodeState,
+  nodeMastery,
   onNodeClick,
   onNodeDelete,
   readOnly = false,
@@ -54,6 +63,7 @@ export default function ConceptMapPanel({
         data: {
           concept,
           state,
+          mastery: nodeMastery?.(concept),
           highlighted: rfNode.id === highlightNodeId,
           readOnly,
           onDelete: onNodeDelete ? () => onNodeDelete(concept) : undefined,
@@ -61,7 +71,7 @@ export default function ConceptMapPanel({
       };
     });
     return { nodes: decorated, edges: laidOut.edges };
-  }, [nodes, edges, highlightNodeId, nodeState, readOnly, onNodeDelete]);
+  }, [nodes, edges, highlightNodeId, nodeState, nodeMastery, readOnly, onNodeDelete]);
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, rfNode: Node) => {

@@ -328,6 +328,14 @@ export default function CoursePage() {
     staleTime: 60 * 1000,
     retry: false,
   });
+  // BKT mastery probabilities per node (0-1), keyed by jobId like the outcomes.
+  const conceptMapMastery = useMemo(() => {
+    const byJob: Record<string, Record<string, number>> = {};
+    for (const entry of conceptMapProgress ?? []) {
+      if (entry.mastery) byJob[entry.jobId] = entry.mastery;
+    }
+    return byJob;
+  }, [conceptMapProgress]);
   const conceptMapOutcomes = useMemo(() => {
     const byJob: Record<string, Record<string, 'mastered' | 'weak'>> = {};
     for (const entry of conceptMapProgress ?? []) {
@@ -2096,6 +2104,7 @@ return false;
                     n => n.videoItemId && n.videoItemId === selectedItemId
                   )?.id;
                   const outcomes = map.jobId ? conceptMapOutcomes[map.jobId] : undefined;
+                  const mastery = map.jobId ? conceptMapMastery[map.jobId] : undefined;
                   return (
                     <div key={map.jobId ?? idx} className="border border-border/40 rounded-xl overflow-hidden">
                       <Suspense
@@ -2120,6 +2129,7 @@ return false;
                             if (outcome) return outcome;
                             return 'available';
                           }}
+                          nodeMastery={(node) => mastery?.[node.id]}
                           onNodeClick={(node) => {
                             if (!node.videoItemId || !mapModuleId || !mapSectionId) return;
                             setPendingSeek(

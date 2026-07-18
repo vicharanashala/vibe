@@ -2197,6 +2197,10 @@ export interface components {
             outcomes: {
                 [key: string]: "mastered" | "weak";
             };
+            /** @description Bayesian Knowledge Tracing estimate of the student's mastery per node (0-1), traced over the ordered per-question answer history of the node's segment quiz. Nodes without attempts are absent. */
+            mastery: {
+                [key: string]: number;
+            };
         };
         ForbiddenErrorResponse: {
             /** @description Information of the error. */

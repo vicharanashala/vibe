@@ -561,6 +561,55 @@ class SubmissionRepository {
     return outcomes;
   }
 
+  /**
+   * One user's chronologically ordered answer sequence per quiz, for a batch
+   * of quizzes (read-only; feeds Bayesian Knowledge Tracing in the concept-map
+   * mastery overlay). Each graded question answer is one observation
+   * (true = CORRECT; PARTIAL counts as incorrect). Submissions without
+   * per-question feedback contribute a single pass/fail observation instead.
+   * Quizzes without submissions are absent from the result.
+   */
+  async getAnswerSequencesByQuizIds(
+    userId: string,
+    quizIds: string[],
+    session?: ClientSession,
+  ): Promise<Record<string, boolean[]>> {
+    await this.init();
+    if (!quizIds.length) return {};
+    const rows = await this.submissionResultCollection
+      .find(
+        {
+          userId: new ObjectId(userId),
+          quizId: {$in: quizIds.map(id => new ObjectId(id))},
+        },
+        {
+          projection: {
+            quizId: 1,
+            submittedAt: 1,
+            'gradingResult.gradingStatus': 1,
+            'gradingResult.overallFeedback.status': 1,
+          },
+          sort: {submittedAt: 1},
+          session,
+        },
+      )
+      .toArray();
+    const sequences: Record<string, boolean[]> = {};
+    for (const row of rows) {
+      const quizId = row.quizId.toString();
+      sequences[quizId] ??= [];
+      const feedback = row.gradingResult?.overallFeedback;
+      if (Array.isArray(feedback) && feedback.length) {
+        for (const answer of feedback) {
+          sequences[quizId].push(answer.status === 'CORRECT');
+        }
+      } else if (row.gradingResult?.gradingStatus) {
+        sequences[quizId].push(row.gradingResult.gradingStatus === 'PASSED');
+      }
+    }
+    return sequences;
+  }
+
 }
 
 export {SubmissionRepository};

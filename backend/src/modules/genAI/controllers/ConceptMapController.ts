@@ -26,6 +26,7 @@ import { GENAI_TYPES } from '../types.js';
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { SubmissionRepository } from '#root/modules/quizzes/repositories/providers/mongodb/SubmissionRepository.js';
 import { GenAIService } from '../services/GenAIService.js';
+import { bktMastery } from '../services/bkt.js';
 import { ConceptMapRepository } from '../repositories/providers/mongodb/ConceptMapRepository.js';
 import { TaskStatus, TaskType } from '../classes/transformers/GenAI.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
@@ -118,21 +119,35 @@ export class ConceptMapController {
         ),
       ),
     ];
-    const quizOutcomes = await this.submissionRepository.getOutcomesByQuizIds(
-      user._id.toString(),
-      quizIds,
-    );
+    const [quizOutcomes, answerSequences] = await Promise.all([
+      this.submissionRepository.getOutcomesByQuizIds(
+        user._id.toString(),
+        quizIds,
+      ),
+      this.submissionRepository.getAnswerSequencesByQuizIds(
+        user._id.toString(),
+        quizIds,
+      ),
+    ]);
 
     return maps.map(map => {
       const outcomes: Record<string, 'mastered' | 'weak'> = {};
+      const mastery: Record<string, number> = {};
       for (const node of map.nodes) {
         const outcome = node.quizItemId
           ? quizOutcomes[node.quizItemId]
           : undefined;
         if (outcome === 'PASSED') outcomes[node.id] = 'mastered';
         else if (outcome === 'ATTEMPTED') outcomes[node.id] = 'weak';
+        // BKT mastery probability over the student's ordered answer history.
+        const sequence = node.quizItemId
+          ? answerSequences[node.quizItemId]
+          : undefined;
+        if (sequence?.length) {
+          mastery[node.id] = Math.round(bktMastery(sequence) * 100) / 100;
+        }
       }
-      return { jobId: map.jobId, outcomes };
+      return { jobId: map.jobId, outcomes, mastery };
     });
   }
 
