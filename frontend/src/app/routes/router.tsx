@@ -56,6 +56,7 @@ import TeacherLogin from '../pages/teacher/TeacherLogin'
 import SelectRolePage from '../pages/SelectRolePage'
 import AuditPage from '../pages/teacher/AuditPage'
 import ConfigureCohorts from '../pages/teacher/configure-cohorts'
+import SystemCheckPage from '../pages/SystemCheckPage'
 
 import HpSystemVersions from '../pages/teacher/hp-system/HpSystemPage'
 import HpSystemCohorts from '../pages/teacher/hp-system/CohortsList'
@@ -665,6 +666,13 @@ export const selectRoleRoute = new Route({
   component: SelectRolePage
 })
 
+// System check route
+export const systemCheckRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/system-check',
+  component: SystemCheckPage,
+})
+
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -674,6 +682,7 @@ const routeTree = rootRoute.addChildren([
   resetPasswordRoute,
   // loginRoute,
   selectRoleRoute,
+  systemCheckRoute,
   studentLoginRoute,
   teacherLoginRoute,
   teacherLayoutRoute.addChildren([
