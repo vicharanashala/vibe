@@ -34,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Slider } from "@/components/ui/slider"
+import ProfileActivityTimeline from "@/components/profile-activity-timeline"
 
 const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Other", "Prefer not to say"]
 
@@ -645,34 +646,13 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
           </Card>
         )
         }
-        {/* : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Teaching Statistics</CardTitle>
-              <CardDescription>Your contributions and activities</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">3</div>
-                  <p className="text-sm text-muted-foreground">Courses Created</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">10</div>
-                  <p className="text-sm text-muted-foreground">Articles</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">19</div>
-                  <p className="text-sm text-muted-foreground">Blogs</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">100</div>
-                  <p className="text-sm text-muted-foreground">Assignments Given</p>
-                </div>
-                
-              </div>
-            </CardContent>
-          </Card> */}
+        <ProfileActivityTimeline
+          user={user}
+          enrollments={(enrollments as any[]).map((e) => ({
+            courseTitle: e.course?.name,
+            enrolledAt: e.enrollmentDate,
+          }))}
+        />
 
       </div>
     </div>
