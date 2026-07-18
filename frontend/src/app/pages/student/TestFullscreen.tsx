@@ -11,10 +11,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
   Play, HelpCircle, CheckCircle, ChevronRight,
-  ChevronLeft, Home, BookOpen, Trophy, Clock, Code2, GripVertical, Sparkles,
+  ChevronLeft, Home, BookOpen, Trophy, Clock, Code2, GripVertical, Sparkles, GraduationCap, RotateCcw,
 } from 'lucide-react';
 import { cn } from '@/utils/utils';
 import CodingPlayground from '@/components/learn/CodingPlayground';
+import AIVivaChat, { type VivaGrade, type AIVivaChatProps } from '@/components/learn/AIVivaChat';
 import { MIXED_QUIZ_DATA, type DemoQuestion } from './demoCourseData';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -288,6 +289,9 @@ export default function TestFullscreen() {
   const [completedItems, setCompletedItems] = useState<string[]>([]);
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({ m1: true });
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ m1s1: true });
+  // 'learning' | 'readyForViva' | 'vivaComplete'
+  const [courseStatus, setCourseStatus] = useState<'learning' | 'readyForViva' | 'vivaComplete'>('learning'); // No-op
+  const [vivaGrade, setVivaGrade] = useState<VivaGrade | null>(null);
 
   const selectedItem = ALL_ITEMS.find(i => i.id === selectedItemId) || ALL_ITEMS[0];
 
@@ -337,21 +341,15 @@ export default function TestFullscreen() {
     const currentIndex = ALL_ITEMS.findIndex(i => i.id === selectedItemId);
     if (currentIndex < ALL_ITEMS.length - 1) {
       const nextItem = ALL_ITEMS[currentIndex + 1];
-      
-      // Ensure sidebar is expanded for the next item
-      const parentModule = DEMO_COURSE.modules.find(m => 
+      const parentModule = DEMO_COURSE.modules.find(m =>
         m.sections.some(s => s.items.some(i => i.id === nextItem.id))
       );
-      const parentSection = parentModule?.sections.find(s => 
+      const parentSection = parentModule?.sections.find(s =>
         s.items.some(i => i.id === nextItem.id)
       );
-
       if (parentModule) setExpandedModules(p => ({ ...p, [parentModule.id]: true }));
       if (parentSection) setExpandedSections(p => ({ ...p, [parentSection.id]: true }));
-
       setSelectedItemId(nextItem.id);
-      
-      // Auto-start quiz if it's a quiz item
       if (nextItem.type === 'quiz') {
         resetQuiz();
         setQuizStarted(true);
@@ -359,10 +357,10 @@ export default function TestFullscreen() {
         resetQuiz();
       }
     } else {
-      // Course completed
-      router.navigate({ to: '/student' });
+      // All items done — trigger AI Viva
+      setCourseStatus('readyForViva');
     }
-  }, [selectedItemId, router]);
+  }, [selectedItemId]);
 
   const resetQuiz = () => {
     setQuizStarted(false);
@@ -715,18 +713,71 @@ export default function TestFullscreen() {
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-auto">
         {/* Header */}
         <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border/20 bg-background/80 px-6">
-          <div className="text-xl font-bold truncate">{selectedItem.name}</div>
+          <div className="text-xl font-bold truncate">
+            {courseStatus === 'readyForViva' ? 'AI Viva Assessment' : selectedItem.name}
+          </div>
           <div className="ml-auto flex items-center gap-2">
+            {courseStatus === 'readyForViva' && (
+              <Badge className="gap-1 bg-primary/10 text-primary border-primary/20">
+                <GraduationCap className="h-3.5 w-3.5" /> Viva in Progress
+              </Badge>
+            )}
             <Badge variant="outline" className="text-xs">
               Violations: {violationCount}/{MAX_VIOLATIONS}
             </Badge>
+            {courseStatus === 'learning' && (
+              <Button
+                size="sm"
+                onClick={() => setCourseStatus('readyForViva')}
+              >
+                <GraduationCap className="h-4 w-4 mr-2" /> Start Viva
+              </Button>
+            )}
           </div>
         </header>
 
         <div className="flex-1 p-6 overflow-auto">
 
+          {/* ── AI VIVA ── */}
+          {courseStatus === 'readyForViva' && (
+            <div className="max-w-3xl mx-auto h-[calc(100vh-10rem)]">
+              <AIVivaChat
+                courseItemIds={ALL_ITEMS.map(i => i.id)}
+                courseName={DEMO_COURSE.name}
+                projects={[]}
+                onComplete={(grade) => {
+                  setVivaGrade(grade);
+                  if (grade !== 'Fail') setCourseStatus('vivaComplete');
+                }}
+              />
+            </div>
+          )}
+
+          {/* ── VIVA COMPLETE ── */}
+          {courseStatus === 'vivaComplete' && vivaGrade && (() => {
+            const cfg = { Excellent: { emoji: '🏆', color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200 dark:border-emerald-800' }, 'Very Good': { emoji: '⭐', color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/20', border: 'border-blue-200 dark:border-blue-800' }, Good: { emoji: '✅', color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-950/20', border: 'border-indigo-200 dark:border-indigo-800' }, Average: { emoji: '📊', color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-200 dark:border-amber-800' }, Fail: { emoji: '❌', color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-950/20', border: 'border-red-200 dark:border-red-800' } }[vivaGrade];
+            return (
+              <div className="max-w-lg mx-auto mt-16 text-center space-y-6">
+                <div className="text-7xl">{cfg.emoji}</div>
+                <h2 className="text-3xl font-bold">Viva Complete!</h2>
+                <div className={cn('rounded-2xl border p-6', cfg.bg, cfg.border)}>
+                  <p className="text-sm text-muted-foreground mb-1">Your Final Grade</p>
+                  <p className={cn('text-4xl font-extrabold', cfg.color)}>{vivaGrade}</p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-3 pt-2">
+                  <Button onClick={() => { setCourseStatus('readyForViva'); setVivaGrade(null); }} variant="outline">
+                    <RotateCcw className="h-4 w-4 mr-2" /> Retake Viva
+                  </Button>
+                  <Button onClick={() => router.navigate({ to: '/student' })}>
+                    <Home className="h-4 w-4 mr-2" /> Dashboard
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ── VIDEO ITEM ── */}
-          {selectedItem.type === 'video' && (
+          {courseStatus === 'learning' && selectedItem.type === 'video' && (
             <div className="space-y-4 max-w-4xl mx-auto">
               <div className="relative w-full rounded-xl overflow-hidden bg-black" style={{ aspectRatio: '16/9' }}>
                 <iframe
@@ -747,7 +798,7 @@ export default function TestFullscreen() {
           )}
 
           {/* ── QUIZ ITEM ── */}
-          {selectedItem.type === 'quiz' && (
+          {courseStatus === 'learning' && selectedItem.type === 'quiz' && (
             <div className="max-w-2xl mx-auto">
 
               {/* Quiz not started */}
