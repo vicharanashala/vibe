@@ -23,9 +23,25 @@ ViBe is an innovative educational platform that enhances learning through contin
 
 ViBe draws inspiration from the classical Indian tale of Vikram and Betaal. In the story, Betaal challenges King Vikramaditya with riddles, and any incorrect answer prompts a review of the challenge. Similarly, ViBe reinforces learning by requiring students to revisit content if their responses do not meet the mark, ensuring a deep and lasting understanding of the material.
 
-## Quick Start
+## Quick Start — Run Locally
 
-For detailed setup instructions and comprehensive guides for both developers and end users, please refer to our [Documentation(In Progress)](https://continuousactivelearning.github.io/vibe/).
+> **New to the project?** Follow the step-by-step **[Local Development Guide](./local_development_run_guide.md)** to get the full stack running on your machine in minutes.
+
+**One-command startup:**
+
+```powershell
+# Windows
+powershell -ExecutionPolicy Bypass -File .\run-all.ps1
+```
+
+```bash
+# macOS / Linux
+chmod +x run-all.sh && ./run-all.sh
+```
+
+This boots MongoDB, the Firebase Auth Emulator, the Backend API, and the Frontend — all locally. No cloud account or database setup required.
+
+For detailed instructions, troubleshooting, and architecture notes, see the **[Local Development Guide](./local_development_run_guide.md)**.
 
 ## License
 
