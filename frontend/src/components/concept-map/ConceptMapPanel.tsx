@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import {
   Background,
   Controls,
+  MiniMap,
   ReactFlow,
   type Node,
   type NodeMouseHandler,
@@ -17,19 +18,28 @@ import type { ConceptMapPanelProps } from './types';
 const nodeTypes: NodeTypes = { concept: ConceptNode };
 
 const LEGEND_ITEMS = [
-  { icon: <MapPin className="h-3 w-3 text-primary" />, label: 'Current' },
-  { icon: <Lock className="h-3 w-3 text-muted-foreground" />, label: 'Upcoming' },
-  { icon: <CheckCircle2 className="h-3 w-3 text-emerald-500" />, label: 'Mastered' },
-  { icon: <AlertTriangle className="h-3 w-3 text-amber-500" />, label: 'Revisit' },
+  { icon: <MapPin className="h-3.5 w-3.5 text-primary" />, label: 'Current' },
+  { icon: <Lock className="h-3.5 w-3.5 text-muted-foreground" />, label: 'Upcoming' },
+  { icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />, label: 'Mastered' },
+  { icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />, label: 'Revisit' },
   {
     icon: (
-      <span className="rounded-full bg-emerald-500/20 px-1 text-[9px] font-semibold leading-tight text-emerald-600">
+      <span className="rounded-full bg-emerald-500/20 px-1.5 text-[10px] font-bold leading-tight text-emerald-600">
         %
       </span>
     ),
     label: 'Estimated mastery',
   },
 ];
+
+/** MiniMap node colour follows the node's visual state. */
+const MINIMAP_COLORS: Record<string, string> = {
+  current: 'hsl(221 83% 53% / 0.9)',
+  mastered: 'hsl(152 65% 42% / 0.8)',
+  weak: 'hsl(38 85% 50% / 0.8)',
+  locked: 'hsl(0 0% 60% / 0.35)',
+  available: 'hsl(0 0% 60% / 0.55)',
+};
 
 /**
  * The one shared concept-map surface (teacher preview + student navigator).
@@ -56,7 +66,8 @@ export default function ConceptMapPanel({
   const { nodes: rfNodes, edges: rfEdges } = useMemo(() => {
     const laidOut = layoutConceptMap(nodes, edges);
     const decorated = laidOut.nodes.map(rfNode => {
-      const concept = nodes.find(n => n.id === rfNode.id)!;
+      const index = nodes.findIndex(n => n.id === rfNode.id);
+      const concept = nodes[index]!;
       const state = nodeState?.(concept) ?? 'available';
       return {
         ...rfNode,
@@ -64,6 +75,7 @@ export default function ConceptMapPanel({
           concept,
           state,
           mastery: nodeMastery?.(concept),
+          order: index + 1,
           highlighted: rfNode.id === highlightNodeId,
           readOnly,
           onDelete: onNodeDelete ? () => onNodeDelete(concept) : undefined,
@@ -116,8 +128,17 @@ export default function ConceptMapPanel({
           zoomOnDoubleClick={false}
           proOptions={{ hideAttribution: false }}
         >
-          <Background gap={20} size={1} />
+          <Background gap={24} size={1.5} />
           <Controls showInteractive={false} />
+          {nodes.length > 8 && (
+            <MiniMap
+              pannable
+              zoomable
+              className="!h-24 !w-36 rounded-lg border border-border/40"
+              nodeColor={(n) => MINIMAP_COLORS[(n.data as ConceptNodeData | undefined)?.state ?? 'available']}
+              nodeBorderRadius={8}
+            />
+          )}
         </ReactFlow>
       </div>
     </div>

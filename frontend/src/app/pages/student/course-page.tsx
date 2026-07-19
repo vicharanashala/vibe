@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSectionConceptMaps, getSectionConceptMapProgress } from "@/lib/genai-api";
-import { ConceptMapPanel } from "@/components/concept-map";
+import { ConceptMapPanel, StudyPlan, buildStudyPlan } from "@/components/concept-map";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
@@ -2065,14 +2065,15 @@ return false;
 
         {/* Concept map — floating toggle (right of the back button) + stage overlay.
             Mounts only when the selected section has published maps. */}
-        {(sectionConceptMaps?.length ?? 0) > 0 && (
+        {!conceptMapOpen && (sectionConceptMaps?.length ?? 0) > 0 && (
           <div className="top-4 sm:top-6 left-16 sm:left-[4.5rem] z-50 absolute">
             <button
               onClick={() => { pauseVideoForControl(); setConceptMapOpen((p) => !p); }}
               aria-label="Concept map"
-              className="place-items-center grid bg-glass hover:bg-white/15 shadow-lg backdrop-blur-md rounded-full ring-1 ring-glass-border w-9 h-9 text-stage-foreground hover:scale-105 transition"
+              className="inline-flex items-center gap-1.5 bg-glass hover:bg-white/15 shadow-lg backdrop-blur-md px-3.5 rounded-full ring-1 ring-glass-border h-9 font-medium text-stage-foreground text-xs hover:scale-105 transition"
             >
               <Network className="w-4 h-4" />
+              <span className="hidden sm:inline">Concept map</span>
             </button>
           </div>
         )}
@@ -2082,16 +2083,23 @@ return false;
             onClick={() => setConceptMapOpen(false)}
           >
             <div
-              className="flex flex-col bg-card shadow-2xl rounded-2xl w-full max-w-5xl max-h-full overflow-hidden text-card-foreground"
+              className="flex flex-col bg-card shadow-2xl rounded-2xl w-full max-w-6xl max-h-full overflow-hidden text-card-foreground"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center gap-2 px-4 py-2 border-b border-border/40">
-                <Network className="w-4 h-4 text-primary" />
-                <span className="font-medium text-sm">Concept Map</span>
+              <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40">
+                <div className="place-items-center grid bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl w-9 h-9">
+                  <Network className="w-[18px] h-[18px] text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <span className="block font-semibold text-sm">Concept Map</span>
+                  <span className="block text-muted-foreground text-xs truncate">
+                    The ideas of this lecture and how they build on each other — click one to jump to that moment
+                  </span>
+                </div>
                 <button
                   onClick={() => setConceptMapOpen(false)}
                   aria-label="Close concept map"
-                  className="ml-auto text-muted-foreground hover:text-foreground"
+                  className="place-items-center grid hover:bg-muted ml-auto rounded-lg w-8 h-8 text-muted-foreground hover:text-foreground transition"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -2105,17 +2113,30 @@ return false;
                   )?.id;
                   const outcomes = map.jobId ? conceptMapOutcomes[map.jobId] : undefined;
                   const mastery = map.jobId ? conceptMapMastery[map.jobId] : undefined;
+                  // Remediation path: weak concepts + their unmastered
+                  // prerequisites, in prerequisite order (see study-plan.ts).
+                  const studySteps = buildStudyPlan(map.nodes, map.edges, mastery, outcomes);
+                  const navigateToNode = (node: (typeof map.nodes)[number]) => {
+                    if (!node.videoItemId || !mapModuleId || !mapSectionId) return;
+                    setPendingSeek(
+                      node.offsetSeconds && node.offsetSeconds > 0
+                        ? { itemId: node.videoItemId, seconds: node.offsetSeconds, fromItemId: selectedItemId }
+                        : null
+                    );
+                    handleSelectItem(mapModuleId, mapSectionId, node.videoItemId);
+                    setConceptMapOpen(false);
+                  };
                   return (
                     <div key={map.jobId ?? idx} className="border border-border/40 rounded-xl overflow-hidden">
                       <Suspense
                         fallback={
-                          <div className="flex justify-center items-center h-[min(65vh,540px)] text-muted-foreground text-sm">
+                          <div className="flex justify-center items-center h-[min(72vh,640px)] text-muted-foreground text-sm">
                             Loading concept map…
                           </div>
                         }
                       >
                         <ConceptMapPanel
-                          className="w-full h-[min(65vh,540px)]"
+                          className="w-full h-[min(72vh,640px)]"
                           nodes={map.nodes}
                           edges={map.edges}
                           highlightNodeId={highlightNodeId}
@@ -2130,18 +2151,16 @@ return false;
                             return 'available';
                           }}
                           nodeMastery={(node) => mastery?.[node.id]}
-                          onNodeClick={(node) => {
-                            if (!node.videoItemId || !mapModuleId || !mapSectionId) return;
-                            setPendingSeek(
-                              node.offsetSeconds && node.offsetSeconds > 0
-                                ? { itemId: node.videoItemId, seconds: node.offsetSeconds, fromItemId: selectedItemId }
-                                : null
-                            );
-                            handleSelectItem(mapModuleId, mapSectionId, node.videoItemId);
-                            setConceptMapOpen(false);
-                          }}
+                          onNodeClick={navigateToNode}
                         />
                       </Suspense>
+                      {studySteps.length > 0 && (
+                        <StudyPlan
+                          className="m-3"
+                          steps={studySteps}
+                          onStepClick={navigateToNode}
+                        />
+                      )}
                     </div>
                   );
                 })}

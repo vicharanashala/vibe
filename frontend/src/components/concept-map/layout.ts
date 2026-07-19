@@ -2,8 +2,8 @@ import dagre from '@dagrejs/dagre';
 import { MarkerType, type Edge, type Node } from '@xyflow/react';
 import type { ConceptMapEdge, ConceptMapNode } from './types';
 
-export const NODE_WIDTH = 220;
-export const NODE_HEIGHT = 72;
+export const NODE_WIDTH = 250;
+export const NODE_HEIGHT = 88;
 
 /**
  * Deterministic top-down (Novak-style) layout via dagre — no force
@@ -14,7 +14,7 @@ export function layoutConceptMap(
   edges: ConceptMapEdge[],
 ): { nodes: Node[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: 'TB', nodesep: 40, ranksep: 70, marginx: 16, marginy: 16 });
+  g.setGraph({ rankdir: 'TB', nodesep: 48, ranksep: 84, marginx: 20, marginy: 20 });
   g.setDefaultEdgeLabel(() => ({}));
 
   nodes.forEach(n => g.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT }));
@@ -42,7 +42,8 @@ export function layoutConceptMap(
     source: e.from,
     target: e.to,
     type: 'smoothstep',
-    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
+    style: { strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
   }));
 
   return { nodes: rfNodes, edges: rfEdges };
