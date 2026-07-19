@@ -2,9 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Star, StarOff, ExternalLink, Search, Sparkles } from 'lucide-react';
+import { ArrowLeft, Star, ExternalLink, Search, Sparkles } from 'lucide-react';
 import { useProjectSubmissions, useSetFeaturedSubmission } from '@/hooks/hooks';
-import { router } from '@/app/routes/router';
 
 export default function CurateGalleryPage() {
   const searchParams = new URLSearchParams(window.location.search);

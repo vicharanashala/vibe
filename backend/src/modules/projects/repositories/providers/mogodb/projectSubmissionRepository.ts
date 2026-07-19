@@ -1,10 +1,11 @@
 import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
 import { ClientSession, Collection, ObjectId } from 'mongodb';
 import { IProjectSubmission, IProjectSubmissionWithUser } from '../../model.js';
-import { inject } from 'inversify';
+import { inject, injectable } from 'inversify';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { ID, MongoDatabase } from '#root/shared/index.js';
 
+@injectable()
 export class ProjectSubmissionRepository
   implements IProjectSubmissionRepository {
   private _projectSubmissionCollection: Collection<IProjectSubmission>;

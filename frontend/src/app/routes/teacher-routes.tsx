@@ -27,6 +27,7 @@ import HpSystemDashboard from "../pages/teacher/hp-system/CohortDetails";
 import StudentLedgerPage from "../pages/teacher/hp-system/student-ledger";
 import StudentSubmissionsPage from "../pages/teacher/hp-system/student-submissions";
 import SubmissionDetailsPage from "../pages/teacher/hp-system/submission-details";
+import CurateGalleryPage from "../pages/teacher/CurateGalleryPage";
 const teacherRoutes: RouteObject = {
   path: "/teacher",
   element: <TeacherLayout />,
@@ -130,6 +131,9 @@ const teacherRoutes: RouteObject = {
     }, {
       path: "hp-system/:courseVersionId/cohort/:cohortId/student/:studentId/submission/:submissionId",
       element: <SubmissionDetailsPage />
+    }, {
+      path: "courses/curate-gallery",
+      element: <CurateGalleryPage />
     }
   ],
 };
