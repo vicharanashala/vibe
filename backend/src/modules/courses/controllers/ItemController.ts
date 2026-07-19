@@ -974,7 +974,7 @@ Accessible to:
   })
   async processCSVtoItem(
     @Params() params: CourseVersionModuleSectionParams,
-    @Body() body: CSVItemBody,
+    @Body({options: {limit: '10mb'}}) body: CSVItemBody,
     @Ability(getItemAbility) {user, ability},
     @Req() req: Request,
   ) {

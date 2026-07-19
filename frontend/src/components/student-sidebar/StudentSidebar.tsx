@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { LogOut, Settings, Circle, Moon } from "lucide-react"
+import { LogOut, Settings, Sun, Moon } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useAuthStore } from "@/store/auth-store"
 import { useUserEnrollments } from "@/hooks/hooks"
@@ -170,7 +170,7 @@ export function StudentSidebar() {
                     title="Toggle theme"
                     className={`flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground ${yellowItem}`}
                   >
-                    <Circle className="size-4 dark:hidden" />
+                    <Sun className="size-4 dark:hidden" />
                     <Moon className="hidden size-4 dark:block" />
                   </button>
                 </div>
