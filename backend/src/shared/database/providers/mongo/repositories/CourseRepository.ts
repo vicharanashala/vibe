@@ -972,12 +972,10 @@ export class CourseRepository implements ICourseRepository {
         );
         if (items) {
           try {
-            for (const item of items.items) {
-              await this.progressRepo.deleteWatchTimeByItemId(
-                item._id.toString(),
-                session,
-              );
-            }
+            await this.progressRepo.deleteWatchTimeByItemIds(
+              (items.items || []).map(item => item._id),
+              session,
+            );
           } catch (err) {
             console.error('Error deleting watch time by item ID:', err);
             throw new InternalServerError('Failed to delete item watch time');
@@ -1096,38 +1094,31 @@ export class CourseRepository implements ICourseRepository {
           section => new ObjectId(section.itemsGroupId),
         );
 
-        // Get item ids from item groups before deletion and delete watch time by item id
-        for (const itemGroupId of itemGroupsIds) {
-          const items = await this.itemsGroupCollection.findOne(
-            { _id: itemGroupId },
+        // Get item ids from item groups before deletion and delete watch time
+        // for all of them in a single batched update
+        const itemGroups = await this.itemsGroupCollection
+          .find({ _id: { $in: itemGroupsIds } }, { session })
+          .toArray();
+
+        const itemIds = itemGroups.flatMap(group =>
+          (group.items || []).map(item => item._id),
+        );
+        await this.progressRepo.deleteWatchTimeByItemIds(itemIds, session);
+
+        if (itemGroups.length > 0) {
+          const itemDeletionResult = await this.itemsGroupCollection.updateMany(
+            {
+              _id: { $in: itemGroupsIds },
+            },
+            {
+              $set: { isDeleted: true, deletedAt: new Date() },
+            },
             { session },
           );
 
-          if (items) {
-            // Delete watch time by item id
-            await Promise.all(
-              items.items.map(item =>
-                this.progressRepo.deleteWatchTimeByItemId(
-                  item._id.toString(),
-                  session,
-                )
-              )
-            );
+          if (itemDeletionResult.matchedCount !== itemGroups.length) {
+            throw new InternalServerError('Failed to delete item groups');
           }
-        }
-
-        const itemDeletionResult = await this.itemsGroupCollection.updateMany(
-          {
-            _id: { $in: itemGroupsIds },
-          },
-          {
-            $set: { isDeleted: true, deletedAt: new Date() },
-          },
-          { session },
-        );
-
-        if (itemDeletionResult.modifiedCount === 0) {
-          throw new InternalServerError('Failed to delete item groups');
         }
       }
 
