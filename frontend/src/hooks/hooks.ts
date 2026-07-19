@@ -2346,7 +2346,7 @@ export function useSubmitStudentQuestion(): {
     courseVersionId: string,
     segmentId: string,
     payload: import('@/types/student-question.types').StudentQuestionSubmissionPayload,
-  ) => Promise<{ questionId: string }>;
+  ) => Promise<import('@/types/student-question.types').StudentQuestionSubmissionResult>;
   loading: boolean;
   error: string | null;
 } {
@@ -2358,7 +2358,7 @@ export function useSubmitStudentQuestion(): {
     courseVersionId: string,
     segmentId: string,
     payload: import('@/types/student-question.types').StudentQuestionSubmissionPayload,
-  ): Promise<{ questionId: string }> => {
+  ): Promise<import('@/types/student-question.types').StudentQuestionSubmissionResult> => {
     setLoading(true);
     setError(null);
 
@@ -2416,7 +2416,11 @@ export function useListStudentQuestions(): {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const request = async (url: string) => {
+  // Memoized so their identity is stable across renders. Callers put these in
+  // useEffect/useCallback deps; unstable references caused an infinite fetch
+  // loop on the teacher review + segment panel. (Setters are stable; all inputs
+  // arrive as arguments.)
+  const request = useCallback(async (url: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -2445,9 +2449,9 @@ export function useListStudentQuestions(): {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const listForCourseVersion = async (
+  const listForCourseVersion = useCallback(async (
     courseId: string,
     courseVersionId: string,
     status: import('@/types/student-question.types').StudentQuestionStatusFilter = 'ALL',
@@ -2458,9 +2462,9 @@ export function useListStudentQuestions(): {
     params.set('limit', String(limit));
     const url = `${import.meta.env.VITE_BASE_URL}/student-questions/courses/${courseId}/versions/${courseVersionId}?${params.toString()}`;
     return await request(url);
-  };
+  }, [request]);
 
-  const listForSegment = async (
+  const listForSegment = useCallback(async (
     courseId: string,
     courseVersionId: string,
     segmentId: string,
@@ -2470,7 +2474,7 @@ export function useListStudentQuestions(): {
     params.set('limit', String(limit));
     const url = `${import.meta.env.VITE_BASE_URL}/student-questions/courses/${courseId}/versions/${courseVersionId}/segments/${segmentId}?${params.toString()}`;
     return await request(url);
-  };
+  }, [request]);
 
   return { listForCourseVersion, listForSegment, loading, error };
 }
@@ -2486,7 +2490,10 @@ export function useListMyStudentQuestions(): {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const listMine = async (
+  // Memoized so its identity is stable across renders — callers put this in
+  // effect deps, and an unstable reference caused an infinite fetch loop on
+  // the My Submissions page. (Setters are stable; status/limit come from args.)
+  const listMine = useCallback(async (
     status: import('@/types/student-question.types').StudentQuestionStatusFilter = 'ALL',
     limit = 100,
   ) => {
@@ -2522,7 +2529,7 @@ export function useListMyStudentQuestions(): {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return { listMine, loading, error };
 }
