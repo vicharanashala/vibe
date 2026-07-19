@@ -50,6 +50,18 @@ import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/
 import { ISettingRepository } from '#root/shared/database/interfaces/ISettingRepository.js';
 import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
 
+/**
+ * Transient transaction errors (e.g. write conflicts with concurrent watch-time
+ * heartbeats) must reach BaseService._withTransaction unwrapped, with their
+ * errorLabels intact, so the transaction is retried instead of surfacing a 500.
+ */
+function isTransientTransactionError(error: unknown): boolean {
+  return (
+    Array.isArray((error as any)?.errorLabels) &&
+    (error as any).errorLabels.includes('TransientTransactionError')
+  );
+}
+
 @injectable()
 export class CourseRepository implements ICourseRepository {
   private courseCollection: Collection<Course>;
@@ -757,6 +769,9 @@ export class CourseRepository implements ICourseRepository {
       if (error instanceof InternalServerError) {
         throw error;
       }
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to delete module.\n More Details: ' + error,
       );
@@ -814,6 +829,12 @@ export class CourseRepository implements ICourseRepository {
       //   throw new InternalServerError('Failed to update course version');
       // }
     } catch (error) {
+      if (error instanceof InternalServerError) {
+        throw error;
+      }
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to update course version.\n More Details: ' + error,
       );
@@ -977,6 +998,9 @@ export class CourseRepository implements ICourseRepository {
               session,
             );
           } catch (err) {
+            if (isTransientTransactionError(err)) {
+              throw err;
+            }
             console.error('Error deleting watch time by item ID:', err);
             throw new InternalServerError('Failed to delete item watch time');
           }
@@ -997,6 +1021,9 @@ export class CourseRepository implements ICourseRepository {
             throw new InternalServerError('Failed to delete item groups');
           }
         } catch (error) {
+          if (isTransientTransactionError(error)) {
+            throw error;
+          }
           throw new InternalServerError('Item deletion failed');
         }
       } else {
@@ -1040,6 +1067,9 @@ export class CourseRepository implements ICourseRepository {
 
         return updateResult;
       } catch (error) {
+        if (isTransientTransactionError(error)) {
+          throw error;
+        }
         console.error('Error updating course version modules:', error);
         throw new InternalServerError('Database update failed: ' + error);
       }
@@ -1048,6 +1078,9 @@ export class CourseRepository implements ICourseRepository {
         throw error;
       }
       if (error instanceof InternalServerError) {
+        throw error;
+      }
+      if (isTransientTransactionError(error)) {
         throw error;
       }
       throw new InternalServerError(
@@ -1155,6 +1188,9 @@ export class CourseRepository implements ICourseRepository {
         throw error;
       }
       if (error instanceof InternalServerError) {
+        throw error;
+      }
+      if (isTransientTransactionError(error)) {
         throw error;
       }
       throw new InternalServerError(
