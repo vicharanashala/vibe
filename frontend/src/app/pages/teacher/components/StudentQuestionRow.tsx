@@ -22,6 +22,8 @@ interface StudentQuestionRowProps {
   onApprove: () => void;
   onReject: () => void;
   onEdit: () => void;
+  /** Omit to render the segment id as plain text instead of a button. */
+  onSegmentClick?: () => void;
 }
 
 export default function StudentQuestionRow({
@@ -31,6 +33,7 @@ export default function StudentQuestionRow({
   onApprove,
   onReject,
   onEdit,
+  onSegmentClick,
 }: StudentQuestionRowProps) {
   const isPending = question.status === 'PENDING';
   return (
@@ -42,7 +45,19 @@ export default function StudentQuestionRow({
               <Badge variant={STATUS_VARIANT[question.status]}>{question.status}</Badge>
               {showSegmentBadge && (
                 <span className="text-xs text-muted-foreground">
-                  segment: <code className="font-mono">{question.segmentId.slice(-6)}</code>
+                  segment:{' '}
+                  {onSegmentClick ? (
+                    <button
+                      type="button"
+                      onClick={onSegmentClick}
+                      className="font-mono underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
+                      title="View segment details"
+                    >
+                      {question.segmentId.slice(-6)}
+                    </button>
+                  ) : (
+                    <code className="font-mono">{question.segmentId.slice(-6)}</code>
+                  )}
                 </span>
               )}
               <span className="text-xs text-muted-foreground">

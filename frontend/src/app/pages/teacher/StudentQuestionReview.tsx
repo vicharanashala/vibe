@@ -17,6 +17,7 @@ import type {
 import StudentQuestionRow from './components/StudentQuestionRow';
 import StudentQuestionRejectDialog from './components/StudentQuestionRejectDialog';
 import StudentQuestionEditDialog from './components/StudentQuestionEditDialog';
+import SegmentDetailsDialog from './components/SegmentDetailsDialog';
 import CourseBackButton from './CourseBackButton';
 
 const STATUS_FILTER_OPTIONS: StudentQuestionStatusFilter[] = [
@@ -43,6 +44,7 @@ export default function StudentQuestionReview() {
 
   const [rejectTarget, setRejectTarget] = useState<StudentQuestionListItem | null>(null);
   const [editTarget, setEditTarget] = useState<StudentQuestionListItem | null>(null);
+  const [segmentTarget, setSegmentTarget] = useState<string | null>(null);
 
   const fetchQuestions = useCallback(async () => {
     if (!courseId || !courseVersionId) return;
@@ -168,6 +170,7 @@ export default function StudentQuestionReview() {
               onApprove={() => void handleApprove(question)}
               onReject={() => setRejectTarget(question)}
               onEdit={() => setEditTarget(question)}
+              onSegmentClick={() => setSegmentTarget(question.segmentId)}
             />
           ))}
         </div>
@@ -185,6 +188,13 @@ export default function StudentQuestionReview() {
         isSubmitting={isUpdatingContent}
         onCancel={() => setEditTarget(null)}
         onSubmit={handleEditSubmit}
+      />
+      <SegmentDetailsDialog
+        isOpen={segmentTarget !== null}
+        segmentId={segmentTarget}
+        courseId={courseId}
+        courseVersionId={courseVersionId}
+        onClose={() => setSegmentTarget(null)}
       />
     </div>
   );

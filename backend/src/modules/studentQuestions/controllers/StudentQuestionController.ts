@@ -7,6 +7,7 @@ import {
   Get,
   HttpCode,
   JsonController,
+  NotFoundError,
   Params,
   Patch,
   Post,
@@ -175,6 +176,19 @@ export class StudentQuestionController {
         rejectionReason: q.rejectionReason,
       })),
     };
+  }
+
+  @Authorized()
+  @Get('/courses/:courseId/versions/:courseVersionId/segments/:segmentId/details')
+  @HttpCode(200)
+  async getSegmentDetails(
+    @Params() params: StudentQuestionPathParams,
+  ): Promise<Record<string, unknown>> {
+    const details = await this.service.getSegmentDetails(params.segmentId);
+    if (!details) {
+      throw new NotFoundError('Segment not found.');
+    }
+    return details as unknown as Record<string, unknown>;
   }
 
   @Authorized()
