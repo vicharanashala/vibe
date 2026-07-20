@@ -253,7 +253,14 @@ class QuestionBankService extends BaseService {
     }
     const gradedBankId = submitted.sourceGradedBankId.toString();
     await this.addQuestion(gradedBankId, questionId);
-    await this.removeQuestion(submitted._id.toString(), questionId);
+    // Detach from the submitted bank WITHOUT touching the question document.
+    // removeQuestion() soft deletes the question itself, which previously made
+    // every approved question vanish from the graded bank the instant it was
+    // promoted into it.
+    await this.questionBankRepository.pullQuestionFromBank(
+      submitted._id.toString(),
+      questionId,
+    );
     return gradedBankId;
   }
 
