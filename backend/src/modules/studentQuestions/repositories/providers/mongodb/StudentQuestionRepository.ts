@@ -19,10 +19,26 @@ export interface IStudentCrowdResponse {
   createdAt: Date;
 }
 
+/**
+ * Precomputed lesson context for a video segment — the transcript text sliced
+ * to that segment's time window. Populated by the transcript backfill script and
+ * read by SegmentContextProvider (Layer 1) so the screening path never has to
+ * fetch/parse a whole-video transcript file synchronously.
+ */
+export interface ISegmentContext {
+  _id?: ObjectId;
+  segmentId: string;
+  courseVersionId?: string;
+  text: string;
+  source: 'TRANSCRIPT';
+  updatedAt: Date;
+}
+
 @injectable()
 export class StudentQuestionRepository {
   private collection!: Collection<IStudentSegmentQuestion>;
   private responsesCollection!: Collection<IStudentCrowdResponse>;
+  private segmentContextCollection!: Collection<ISegmentContext>;
   private initialized = false;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
@@ -36,6 +52,8 @@ export class StudentQuestionRepository {
       await this.db.getCollection<IStudentCrowdResponse>(
         'studentCrowdResponses',
       );
+    this.segmentContextCollection =
+      await this.db.getCollection<ISegmentContext>('segmentContext');
     this.initialized = true;
 
     try {
@@ -52,9 +70,43 @@ export class StudentQuestionRepository {
         {studentQuestionId: 1, userId: 1},
         {unique: true, background: true},
       );
+      // One precomputed context row per segment.
+      await this.segmentContextCollection.createIndex(
+        {segmentId: 1},
+        {unique: true, background: true},
+      );
     } catch {
       // index already exists
     }
+  }
+
+  /** Read the precomputed transcript context for a segment, or null if none. */
+  async getSegmentContextText(segmentId: string): Promise<string | null> {
+    await this.init();
+    const doc = await this.segmentContextCollection.findOne({segmentId});
+    const text = doc?.text;
+    return typeof text === 'string' && text.trim() ? text : null;
+  }
+
+  /** Upsert precomputed segment context (used by the transcript backfill). */
+  async upsertSegmentContext(input: {
+    segmentId: string;
+    courseVersionId?: string;
+    text: string;
+  }): Promise<void> {
+    await this.init();
+    await this.segmentContextCollection.updateOne(
+      {segmentId: input.segmentId},
+      {
+        $set: {
+          courseVersionId: input.courseVersionId,
+          text: input.text,
+          source: 'TRANSCRIPT',
+          updatedAt: new Date(),
+        },
+      },
+      {upsert: true},
+    );
   }
 
   async create(
@@ -77,6 +129,10 @@ export class StudentQuestionRepository {
       segmentId: new ObjectId(input.segmentId),
       normalizedSignature: input.normalizedSignature,
       isDeleted: {$ne: true},
+      // Ignore rejected stubs: a student who fixes and resubmits (or even
+      // resubmits as-is) should get the real screening reason, not a stale
+      // "you already submitted this". Only live PENDING/HELD/APPROVED rows count.
+      status: {$ne: 'REJECTED'},
     });
   }
 
