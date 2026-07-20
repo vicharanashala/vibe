@@ -3386,9 +3386,17 @@ export function useQuestionBankById(questionBankId: string): {
   error: string | null,
   refetch: () => void
 } {
+  // A bank's question list changes outside this screen — approving a student
+  // submission promotes a question into it. The global 5-minute staleTime made
+  // those additions invisible until the cache expired, so this query opts out
+  // and always revalidates on mount.
   const result = api.useQuery("get", "/quizzes/question-bank/{questionBankId}", {
     params: { path: { questionBankId } }
-  }, { enabled: !!questionBankId && questionBankId !== '' });
+  }, {
+    enabled: !!questionBankId && questionBankId !== '',
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
 
   return {
     data: result.data,
@@ -3604,9 +3612,15 @@ export function useGetAllQuestionBanksForQuiz(quizId: string): {
   error: string | null,
   refetch: () => void
 } {
+  // Same reasoning as useQuestionBankById: bank membership and question counts
+  // change from the student-question review screen, so never serve this stale.
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/bank", {
     params: { path: { quizId } }
-  }, { enabled: !!quizId });
+  }, {
+    enabled: !!quizId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
 
   return {
     data: result.data,
