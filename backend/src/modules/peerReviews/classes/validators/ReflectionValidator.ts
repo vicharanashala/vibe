@@ -20,18 +20,16 @@ import {
   MIN_SCORE,
 } from '../../constants.js';
 
-export class SectionPathParams {
+export class ReflectionItemPathParams {
   @IsMongoId()
   courseId!: string;
 
   @IsMongoId()
   courseVersionId!: string;
 
+  /** The REFLECTION item itself — the unit a reflection and its peers hang off. */
   @IsMongoId()
-  moduleId!: string;
-
-  @IsMongoId()
-  sectionId!: string;
+  itemId!: string;
 }
 
 export class ReflectionIdPathParams {
@@ -109,7 +107,7 @@ export class InstructorReflectionListQuery {
   @IsOptional()
   @IsMongoId()
   @JSONSchema({description: 'Narrow the listing to a single section.'})
-  sectionId?: string;
+  itemId?: string;
 
   @IsOptional()
   @IsInt()
@@ -121,5 +119,5 @@ export class InstructorReflectionListQuery {
 export class InstructorStatsQuery {
   @IsOptional()
   @IsMongoId()
-  sectionId?: string;
+  itemId?: string;
 }

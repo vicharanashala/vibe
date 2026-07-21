@@ -43,17 +43,17 @@ export class ReflectionRepository {
     try {
       // One reflection per student per section.
       await this.reflections.createIndex(
-        {userId: 1, sectionId: 1},
+        {userId: 1, itemId: 1},
         {unique: true, background: true},
       );
       // Serving pool: open reflections for a section, fewest reviews first.
       await this.reflections.createIndex(
-        {sectionId: 1, status: 1, reviewCount: 1},
+        {itemId: 1, status: 1, reviewCount: 1},
         {background: true},
       );
       // Instructor listings.
       await this.reflections.createIndex(
-        {courseVersionId: 1, sectionId: 1, createdAt: -1},
+        {courseVersionId: 1, itemId: 1, createdAt: -1},
         {background: true},
       );
       // A peer may review a given reflection at most once.
@@ -63,7 +63,7 @@ export class ReflectionRepository {
       );
       // Counting a reviewer's completed reviews for a section (unlock check).
       await this.reviews.createIndex(
-        {reviewerId: 1, sectionId: 1},
+        {reviewerId: 1, itemId: 1},
         {background: true},
       );
     } catch {
@@ -86,14 +86,14 @@ export class ReflectionRepository {
   }
 
   /** The caller's own reflection for a section, if they have written one. */
-  async findByUserAndSection(
+  async findByUserAndItem(
     userId: string,
-    sectionId: string,
+    itemId: string,
   ): Promise<IReflection | null> {
     await this.init();
     return this.reflections.findOne({
       userId: new ObjectId(userId),
-      sectionId: new ObjectId(sectionId),
+      itemId: new ObjectId(itemId),
       isDeleted: {$ne: true},
     });
   }
@@ -109,16 +109,16 @@ export class ReflectionRepository {
    */
   async findNextForReview(input: {
     reviewerId: string;
-    sectionId: string;
+    itemId: string;
   }): Promise<IReflection | null> {
     await this.init();
     const reviewedIds = await this.listReviewedReflectionIds(
       input.reviewerId,
-      input.sectionId,
+      input.itemId,
     );
     return this.reflections.findOne(
       {
-        sectionId: new ObjectId(input.sectionId),
+        itemId: new ObjectId(input.itemId),
         status: 'OPEN',
         isDeleted: {$ne: true},
         userId: {$ne: new ObjectId(input.reviewerId)},
@@ -134,14 +134,14 @@ export class ReflectionRepository {
   /** Reflection ids in a section this reviewer has already scored. */
   async listReviewedReflectionIds(
     reviewerId: string,
-    sectionId: string,
+    itemId: string,
   ): Promise<string[]> {
     await this.init();
     const docs = await this.reviews
       .find(
         {
           reviewerId: new ObjectId(reviewerId),
-          sectionId: new ObjectId(sectionId),
+          itemId: new ObjectId(itemId),
         },
         {projection: {reflectionId: 1}},
       )
@@ -152,12 +152,12 @@ export class ReflectionRepository {
   /** How many reviews this user has completed for a section. */
   async countReviewsByReviewer(
     reviewerId: string,
-    sectionId: string,
+    itemId: string,
   ): Promise<number> {
     await this.init();
     return this.reviews.countDocuments({
       reviewerId: new ObjectId(reviewerId),
-      sectionId: new ObjectId(sectionId),
+      itemId: new ObjectId(itemId),
     });
   }
 
@@ -178,7 +178,7 @@ export class ReflectionRepository {
     reflectionId: string;
     reviewerId: string;
     courseVersionId: string;
-    sectionId: string;
+    itemId: string;
     scores: IReflectionScores;
     helpful: boolean;
   }): Promise<
@@ -194,7 +194,7 @@ export class ReflectionRepository {
         reflectionId,
         reviewerId: new ObjectId(input.reviewerId),
         courseVersionId: new ObjectId(input.courseVersionId),
-        sectionId: new ObjectId(input.sectionId),
+        itemId: new ObjectId(input.itemId),
         scores: input.scores,
         averageScore,
         helpful: input.helpful,
@@ -242,14 +242,14 @@ export class ReflectionRepository {
   /** Instructor listing for one course version, optionally narrowed to a section. */
   async listByCourseVersion(input: {
     courseVersionId: string;
-    sectionId?: string;
+    itemId?: string;
     limit: number;
   }): Promise<IReflection[]> {
     await this.init();
     return this.reflections
       .find({
         courseVersionId: new ObjectId(input.courseVersionId),
-        ...(input.sectionId ? {sectionId: new ObjectId(input.sectionId)} : {}),
+        ...(input.itemId ? {itemId: new ObjectId(input.itemId)} : {}),
         isDeleted: {$ne: true},
       })
       .sort({createdAt: -1})
@@ -260,13 +260,13 @@ export class ReflectionRepository {
   /** Rolled-up counters for the instructor view. */
   async getStats(input: {
     courseVersionId: string;
-    sectionId?: string;
+    itemId?: string;
     minReviewsToReveal: number;
   }): Promise<ISectionReflectionStats> {
     await this.init();
     const match = {
       courseVersionId: new ObjectId(input.courseVersionId),
-      ...(input.sectionId ? {sectionId: new ObjectId(input.sectionId)} : {}),
+      ...(input.itemId ? {itemId: new ObjectId(input.itemId)} : {}),
       isDeleted: {$ne: true},
     };
 

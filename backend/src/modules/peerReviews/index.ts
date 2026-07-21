@@ -14,7 +14,7 @@ import {
   InstructorStatsQuery,
   ReflectionIdPathParams,
   ReflectionScoresDto,
-  SectionPathParams,
+  ReflectionItemPathParams,
 } from './classes/validators/ReflectionValidator.js';
 
 export const peerReviewsContainerModules: ContainerModule[] = [
@@ -47,7 +47,7 @@ export const peerReviewsModuleValidators: Function[] = [
   CreateReflectionBody,
   CreateReviewBody,
   ReflectionScoresDto,
-  SectionPathParams,
+  ReflectionItemPathParams,
   ReflectionIdPathParams,
   InstructorPathParams,
   InstructorReflectionListQuery,

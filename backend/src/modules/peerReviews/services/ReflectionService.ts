@@ -57,7 +57,8 @@ export class ReflectionService {
   ) {}
 
   /**
-   * Record a student's reflection for a section. One per student per section;
+   * Record a student's reflection for a reflection item. One per student per
+   * item;
    * a second attempt is rejected rather than silently overwriting, so a
    * reflection that peers have already scored can never change under them.
    */
@@ -65,8 +66,7 @@ export class ReflectionService {
     userId: string;
     courseId: string;
     courseVersionId: string;
-    moduleId: string;
-    sectionId: string;
+    itemId: string;
     text: string;
     confidence: number;
   }): Promise<{reflectionId: string}> {
@@ -83,9 +83,9 @@ export class ReflectionService {
     }
     this.assertInScoreRange(input.confidence, 'confidence');
 
-    const existing = await this.repository.findByUserAndSection(
+    const existing = await this.repository.findByUserAndItem(
       input.userId,
-      input.sectionId,
+      input.itemId,
     );
     if (existing) {
       throw new BadRequestError(
@@ -105,15 +105,15 @@ export class ReflectionService {
    */
   async getNextForReview(input: {
     userId: string;
-    sectionId: string;
+    itemId: string;
   }): Promise<AnonymousReflectionForReview | null> {
     const reviewsCompleted = await this.repository.countReviewsByReviewer(
       input.userId,
-      input.sectionId,
+      input.itemId,
     );
     const reflection = await this.repository.findNextForReview({
       reviewerId: input.userId,
-      sectionId: input.sectionId,
+      itemId: input.itemId,
     });
     if (!reflection) return null;
 
@@ -152,7 +152,7 @@ export class ReflectionService {
       reflectionId: input.reflectionId,
       reviewerId: input.reviewerId,
       courseVersionId: reflection.courseVersionId.toString(),
-      sectionId: reflection.sectionId.toString(),
+      itemId: reflection.itemId.toString(),
       scores: input.scores,
       helpful: input.helpful,
     });
@@ -167,7 +167,7 @@ export class ReflectionService {
 
     const reviewsCompleted = await this.repository.countReviewsByReviewer(
       input.reviewerId,
-      reflection.sectionId.toString(),
+      reflection.itemId.toString(),
     );
     return {reviewsCompleted, reviewsRequired: REQUIRED_REVIEWS_TO_UNLOCK};
   }
@@ -179,17 +179,17 @@ export class ReflectionService {
    */
   async getMyReflection(input: {
     userId: string;
-    sectionId: string;
+    itemId: string;
   }): Promise<MyReflectionResult | null> {
-    const reflection = await this.repository.findByUserAndSection(
+    const reflection = await this.repository.findByUserAndItem(
       input.userId,
-      input.sectionId,
+      input.itemId,
     );
     if (!reflection) return null;
 
     const reviewsCompleted = await this.repository.countReviewsByReviewer(
       input.userId,
-      input.sectionId,
+      input.itemId,
     );
 
     const base = {
@@ -219,14 +219,14 @@ export class ReflectionService {
   /** Instructor listing: every reflection in a course version, with its score. */
   async listForInstructor(input: {
     courseVersionId: string;
-    sectionId?: string;
+    itemId?: string;
     limit: number;
   }) {
     const reflections = await this.repository.listByCourseVersion(input);
     return reflections.map(r => ({
       reflectionId: r._id!.toString(),
       userId: r.userId.toString(),
-      sectionId: r.sectionId.toString(),
+      itemId: r.itemId.toString(),
       text: r.text,
       confidence: r.confidence,
       reviewsReceived: r.reviewCount,
@@ -243,7 +243,7 @@ export class ReflectionService {
   /** Instructor roll-up: participation and the confidence-versus-peers gap. */
   async getInstructorStats(input: {
     courseVersionId: string;
-    sectionId?: string;
+    itemId?: string;
   }) {
     return this.repository.getStats({
       ...input,

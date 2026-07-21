@@ -28,7 +28,7 @@ import {
   InstructorReflectionListQuery,
   InstructorStatsQuery,
   ReflectionIdPathParams,
-  SectionPathParams,
+  ReflectionItemPathParams,
 } from '../classes/validators/ReflectionValidator.js';
 import {DEFAULT_LIST_LIMIT} from '../constants.js';
 
@@ -45,11 +45,11 @@ export class ReflectionController {
 
   @Authorized()
   @Post(
-    '/courses/:courseId/versions/:courseVersionId/modules/:moduleId/sections/:sectionId/reflections',
+    '/courses/:courseId/versions/:courseVersionId/modules/:moduleId/sections/:itemId/reflections',
   )
   @HttpCode(201)
   async submitReflection(
-    @Params() params: SectionPathParams,
+    @Params() params: ReflectionItemPathParams,
     @Body() body: CreateReflectionBody,
     @CurrentUser() user: IUser,
   ): Promise<{reflectionId: string}> {
@@ -57,8 +57,7 @@ export class ReflectionController {
       userId: this.requireUserId(user),
       courseId: params.courseId,
       courseVersionId: params.courseVersionId,
-      moduleId: params.moduleId,
-      sectionId: params.sectionId,
+      itemId: params.itemId,
       text: body.text,
       confidence: body.confidence,
     });
@@ -66,16 +65,16 @@ export class ReflectionController {
 
   @Authorized()
   @Get(
-    '/courses/:courseId/versions/:courseVersionId/modules/:moduleId/sections/:sectionId/reflections/me',
+    '/courses/:courseId/versions/:courseVersionId/modules/:moduleId/sections/:itemId/reflections/me',
   )
   @HttpCode(200)
   async getMyReflection(
-    @Params() params: SectionPathParams,
+    @Params() params: ReflectionItemPathParams,
     @CurrentUser() user: IUser,
   ) {
     const result = await this.service.getMyReflection({
       userId: this.requireUserId(user),
-      sectionId: params.sectionId,
+      itemId: params.itemId,
     });
     return {reflection: result};
   }
@@ -87,16 +86,16 @@ export class ReflectionController {
    */
   @Authorized()
   @Get(
-    '/courses/:courseId/versions/:courseVersionId/modules/:moduleId/sections/:sectionId/review-queue/next',
+    '/courses/:courseId/versions/:courseVersionId/modules/:moduleId/sections/:itemId/review-queue/next',
   )
   @HttpCode(200)
   async getNextForReview(
-    @Params() params: SectionPathParams,
+    @Params() params: ReflectionItemPathParams,
     @CurrentUser() user: IUser,
   ) {
     const reflection = await this.service.getNextForReview({
       userId: this.requireUserId(user),
-      sectionId: params.sectionId,
+      itemId: params.itemId,
     });
     return {reflection};
   }
@@ -128,7 +127,7 @@ export class ReflectionController {
     this.assertCanManageCourse(ability, params.courseId);
     const items = await this.service.listForInstructor({
       courseVersionId: params.courseVersionId,
-      sectionId: query.sectionId,
+      itemId: query.itemId,
       limit: query.limit ?? DEFAULT_LIST_LIMIT,
     });
     return {items};
@@ -145,7 +144,7 @@ export class ReflectionController {
     this.assertCanManageCourse(ability, params.courseId);
     return this.service.getInstructorStats({
       courseVersionId: params.courseVersionId,
-      sectionId: query.sectionId,
+      itemId: query.itemId,
     });
   }
 

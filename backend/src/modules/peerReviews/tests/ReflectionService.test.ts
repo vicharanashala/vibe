@@ -24,7 +24,6 @@ import {
 const SECTION = new ObjectId().toString();
 const COURSE = new ObjectId().toString();
 const VERSION = new ObjectId().toString();
-const MODULE = new ObjectId().toString();
 
 const scores = (n: number): IReflectionScores => ({
   understanding: n,
@@ -35,7 +34,7 @@ const scores = (n: number): IReflectionScores => ({
 /** Minimal in-memory stand-in for ReflectionRepository. */
 class FakeRepo {
   reflections: IReflection[] = [];
-  reviews: {reflectionId: string; reviewerId: string; sectionId: string}[] = [];
+  reviews: {reflectionId: string; reviewerId: string; itemId: string}[] = [];
 
   async create(reflection: IReflection): Promise<string> {
     const _id = new ObjectId();
@@ -47,35 +46,35 @@ class FakeRepo {
     return this.reflections.find(r => r._id!.toString() === id) ?? null;
   }
 
-  async findByUserAndSection(userId: string, sectionId: string) {
+  async findByUserAndItem(userId: string, itemId: string) {
     return (
       this.reflections.find(
         r =>
-          r.userId.toString() === userId && r.sectionId.toString() === sectionId,
+          r.userId.toString() === userId && r.itemId.toString() === itemId,
       ) ?? null
     );
   }
 
-  async listReviewedReflectionIds(reviewerId: string, sectionId: string) {
+  async listReviewedReflectionIds(reviewerId: string, itemId: string) {
     return this.reviews
-      .filter(v => v.reviewerId === reviewerId && v.sectionId === sectionId)
+      .filter(v => v.reviewerId === reviewerId && v.itemId === itemId)
       .map(v => v.reflectionId);
   }
 
-  async countReviewsByReviewer(reviewerId: string, sectionId: string) {
-    return (await this.listReviewedReflectionIds(reviewerId, sectionId)).length;
+  async countReviewsByReviewer(reviewerId: string, itemId: string) {
+    return (await this.listReviewedReflectionIds(reviewerId, itemId)).length;
   }
 
-  async findNextForReview(input: {reviewerId: string; sectionId: string}) {
+  async findNextForReview(input: {reviewerId: string; itemId: string}) {
     const seen = await this.listReviewedReflectionIds(
       input.reviewerId,
-      input.sectionId,
+      input.itemId,
     );
     return (
       this.reflections
         .filter(
           r =>
-            r.sectionId.toString() === input.sectionId &&
+            r.itemId.toString() === input.itemId &&
             r.status === 'OPEN' &&
             r.userId.toString() !== input.reviewerId &&
             r.reviewCount < MAX_REVIEWS_PER_REFLECTION &&
@@ -88,7 +87,7 @@ class FakeRepo {
   async recordReview(input: {
     reflectionId: string;
     reviewerId: string;
-    sectionId: string;
+    itemId: string;
     scores: IReflectionScores;
     helpful: boolean;
   }) {
@@ -107,7 +106,7 @@ class FakeRepo {
     this.reviews.push({
       reflectionId: input.reflectionId,
       reviewerId: input.reviewerId,
-      sectionId: input.sectionId,
+      itemId: input.itemId,
     });
     reflection.reviewCount += 1;
     reflection.scoreSum += averageOfScores(input.scores);
@@ -127,8 +126,7 @@ const submit = (userId: string, text = 'x'.repeat(120), confidence = 5) =>
     userId,
     courseId: COURSE,
     courseVersionId: VERSION,
-    moduleId: MODULE,
-    sectionId: SECTION,
+    itemId: SECTION,
     text,
     confidence,
   });
@@ -190,7 +188,7 @@ describe('getNextForReview', () => {
     await submit(author);
     const next = await service.getNextForReview({
       userId: author,
-      sectionId: SECTION,
+      itemId: SECTION,
     });
     expect(next).toBeNull();
   });
@@ -199,7 +197,7 @@ describe('getNextForReview', () => {
     await submit(new ObjectId().toString());
     const next = await service.getNextForReview({
       userId: new ObjectId().toString(),
-      sectionId: SECTION,
+      itemId: SECTION,
     });
     expect(next).not.toBeNull();
     expect(Object.keys(next!).sort()).toEqual([
@@ -217,7 +215,7 @@ describe('getNextForReview', () => {
 
     const next = await service.getNextForReview({
       userId: new ObjectId().toString(),
-      sectionId: SECTION,
+      itemId: SECTION,
     });
     expect(next!.reflectionId).toBe(quiet);
   });
@@ -285,7 +283,7 @@ describe('getMyReflection score reveal', () => {
 
     const mine = await service.getMyReflection({
       userId: author,
-      sectionId: SECTION,
+      itemId: SECTION,
     });
     expect(mine!.averageScore).toBeNull();
     expect(mine!.lockedReason).toBe('REVIEWS_PENDING');
@@ -299,7 +297,7 @@ describe('getMyReflection score reveal', () => {
 
     const mine = await service.getMyReflection({
       userId: author,
-      sectionId: SECTION,
+      itemId: SECTION,
     });
     expect(mine!.averageScore).toBeNull();
     expect(mine!.lockedReason).toBe('AWAITING_PEERS');
@@ -313,7 +311,7 @@ describe('getMyReflection score reveal', () => {
 
     const mine = await service.getMyReflection({
       userId: author,
-      sectionId: SECTION,
+      itemId: SECTION,
     });
     expect(mine!.averageScore).toBe(8);
     expect(mine!.lockedReason).toBeUndefined();
@@ -330,7 +328,7 @@ describe('getMyReflection score reveal', () => {
 
     const mine = await service.getMyReflection({
       userId: author,
-      sectionId: SECTION,
+      itemId: SECTION,
     });
     expect(mine!.averageScore).toBe(6);
   });
@@ -347,7 +345,7 @@ describe('getMyReflection score reveal', () => {
 
     const mine = await service.getMyReflection({
       userId: author,
-      sectionId: SECTION,
+      itemId: SECTION,
     });
     expect(mine!.helpfulCount).toBe(1);
   });
@@ -355,7 +353,7 @@ describe('getMyReflection score reveal', () => {
   it('returns null when the student has written nothing for the section', async () => {
     const mine = await service.getMyReflection({
       userId: new ObjectId().toString(),
-      sectionId: SECTION,
+      itemId: SECTION,
     });
     expect(mine).toBeNull();
   });

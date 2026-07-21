@@ -34,8 +34,7 @@ export interface IReflection {
   userId: ObjectId;
   courseId: ObjectId;
   courseVersionId: ObjectId;
-  moduleId: ObjectId;
-  sectionId: ObjectId;
+  itemId: ObjectId;
   /** The reflection body as written by the student. */
   text: string;
   /**
@@ -63,7 +62,7 @@ export interface IReflection {
 /**
  * One peer's anonymous review of one reflection.
  *
- * `sectionId` is denormalised from the reflection so that counting a reviewer's
+ * `itemId` is denormalised from the reflection so that counting a reviewer's
  * completed reviews for a section — the check that unlocks their own score — is
  * a single indexed count instead of a join.
  */
@@ -72,7 +71,7 @@ export interface IReflectionReview {
   reflectionId: ObjectId;
   reviewerId: ObjectId;
   courseVersionId: ObjectId;
-  sectionId: ObjectId;
+  itemId: ObjectId;
   scores: IReflectionScores;
   /** Mean of the three criteria, precomputed at write time. */
   averageScore: number;
@@ -90,8 +89,7 @@ export class Reflection implements IReflection {
   userId: ObjectId;
   courseId: ObjectId;
   courseVersionId: ObjectId;
-  moduleId: ObjectId;
-  sectionId: ObjectId;
+  itemId: ObjectId;
   text: string;
   confidence: number;
   status: ReflectionStatus;
@@ -106,16 +104,14 @@ export class Reflection implements IReflection {
     userId: string;
     courseId: string;
     courseVersionId: string;
-    moduleId: string;
-    sectionId: string;
+    itemId: string;
     text: string;
     confidence: number;
   }) {
     this.userId = new ObjectId(input.userId);
     this.courseId = new ObjectId(input.courseId);
     this.courseVersionId = new ObjectId(input.courseVersionId);
-    this.moduleId = new ObjectId(input.moduleId);
-    this.sectionId = new ObjectId(input.sectionId);
+    this.itemId = new ObjectId(input.itemId);
     this.text = input.text;
     this.confidence = input.confidence;
     this.status = 'OPEN';

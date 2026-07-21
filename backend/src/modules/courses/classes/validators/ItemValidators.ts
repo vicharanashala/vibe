@@ -330,7 +330,7 @@ class CreateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK', 'REFLECTION'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -384,6 +384,28 @@ class CreateItemBody implements Partial<IBaseItem> {
   @ValidateNested()
   @Type(() => FeedBackFormPayloadValidator)
   feedbackFormDetails?: FeedBackFormPayloadValidator;
+
+  @JSONSchema({
+    description: 'Details specific to peer-reviewed reflection items',
+    type: 'object',
+  })
+  @ValidateIf(o => o.type === ItemType.REFLECTION)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ReflectionDetailsPayloadValidator)
+  reflectionDetails?: ReflectionDetailsPayloadValidator;
+}
+
+class ReflectionDetailsPayloadValidator {
+  @JSONSchema({
+    description:
+      'Optional prompt shown above the reflection editor. Defaults to a generic ask when omitted.',
+    example: 'What was the single most surprising idea in this section?',
+    type: 'string',
+  })
+  @IsString()
+  @IsOptional()
+  prompt?: string;
 }
 
 class UpdateItemBody implements Partial<IBaseItem> {
@@ -430,7 +452,7 @@ class UpdateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, QUIZ or PROJECT',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK', 'REFLECTION'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -486,6 +508,8 @@ class UpdateItemBody implements Partial<IBaseItem> {
         return ProjectDetailsPayloadValidator;
       case ItemType.FEEDBACK:
         return FeedBackFormPayloadValidator;
+      case ItemType.REFLECTION:
+        return ReflectionDetailsPayloadValidator;
       default:
         throw new Error(`Unknown item type: ${itemType}`);
     }
@@ -495,7 +519,8 @@ class UpdateItemBody implements Partial<IBaseItem> {
     | BlogDetailsPayloadValidator
     | QuizDetailsPayloadValidator
     | ProjectDetailsPayloadValidator
-    | FeedBackFormPayloadValidator;
+    | FeedBackFormPayloadValidator
+    | ReflectionDetailsPayloadValidator;
 }
 
 class MoveItemBody {
@@ -1078,6 +1103,7 @@ export {
   VideoDetailsPayloadValidator,
   QuizDetailsPayloadValidator,
   BlogDetailsPayloadValidator,
+  ReflectionDetailsPayloadValidator,
   VersionModuleSectionItemParams,
   CourseVersionModuleSectionParams,
   CSVItemBody,

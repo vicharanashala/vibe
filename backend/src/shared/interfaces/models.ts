@@ -310,6 +310,7 @@ export enum ItemType {
   BLOG = 'BLOG',
   PROJECT = 'PROJECT',
   FEEDBACK = 'FEEDBACK',
+  REFLECTION = 'REFLECTION',
 }
 
 export interface IBaseItem {
@@ -381,6 +382,16 @@ export interface IBlogDetails {
   content: string;
   points: number;
   estimatedReadTimeInMinutes: number;
+}
+
+/**
+ * A peer-reviewed reflection item: the student writes what they learned, and
+ * peers score it anonymously. Carries no answer key or grading config — the
+ * scoring lives entirely in the peerReviews module.
+ */
+export interface IReflectionDetails {
+  /** Optional instructor prompt shown above the editor. */
+  prompt?: string;
 }
 
 export interface IFeedBackFormDetails {

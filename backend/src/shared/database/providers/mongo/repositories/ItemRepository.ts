@@ -16,6 +16,7 @@ import {
   ProjectItem,
   Item,
   FeedBackFormItem,
+  ReflectionItem,
   ItemRef,
 } from '#courses/classes/transformers/Item.js';
 import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
@@ -31,6 +32,7 @@ export class ItemRepository implements IItemRepository {
   private blogCollection: Collection<BlogItem>;
   private projectCollection: Collection<ProjectItem>;
   private feedbackFormCollection: Collection<FeedBackFormItem>;
+  private reflectionCollection: Collection<ReflectionItem>;
   private questionBankCollection: Collection<QuestionBank>;
   private questionsCollection: Collection<any>;
   private courseVersionCollection: Collection<any>;
@@ -56,6 +58,9 @@ export class ItemRepository implements IItemRepository {
     );
     this.feedbackFormCollection = await this.db.getCollection<FeedBackFormItem>(
       'feedback_forms',
+    );
+    this.reflectionCollection = await this.db.getCollection<ReflectionItem>(
+      'reflection_items',
     );
 
     this.itemsGroupCollection.createIndex({ items: 1 });
@@ -181,6 +186,9 @@ export class ItemRepository implements IItemRepository {
         case ItemType.FEEDBACK:
           collection = this.feedbackFormCollection;
           break;
+        case ItemType.REFLECTION:
+          collection = this.reflectionCollection;
+          break;
         default:
           throw new InternalServerError(
             `Unsupported item type: ${(item as any).type}`,
@@ -300,6 +308,9 @@ export class ItemRepository implements IItemRepository {
       case ItemType.FEEDBACK:
         collection = this.feedbackFormCollection;
         break;
+      case ItemType.REFLECTION:
+        collection = this.reflectionCollection;
+        break;
       default:
         throw new Error(`Unsupported item type: ${(item as any).type}`);
     }
@@ -338,6 +349,9 @@ export class ItemRepository implements IItemRepository {
           break;
         case ItemType.FEEDBACK:
           collection = this.feedbackFormCollection;
+          break;
+        case ItemType.REFLECTION:
+          collection = this.reflectionCollection;
           break;
         default:
           throw new Error(`Unsupported item type: ${item.type}`);
@@ -420,6 +434,12 @@ export class ItemRepository implements IItemRepository {
               item = (await this.feedbackFormCollection.findOne({
                 _id: new ObjectId(found._id),
               })) as FeedBackFormItem;
+              break;
+            case ItemType.REFLECTION:
+              item = (await this.reflectionCollection.findOne({
+                _id: new ObjectId(found._id),
+                isDeleted: { $ne: true },
+              })) as ReflectionItem;
               break;
             default:
               throw new InternalServerError(`Unknown item type: ${found.type}`);
@@ -523,6 +543,9 @@ export class ItemRepository implements IItemRepository {
         break;
       case ItemType.FEEDBACK:
         collection = this.feedbackFormCollection;
+        break;
+      case ItemType.REFLECTION:
+        collection = this.reflectionCollection;
         break;
       default:
         throw new InternalServerError(
@@ -869,6 +892,7 @@ export class ItemRepository implements IItemRepository {
         [ItemType.BLOG]: [],
         [ItemType.PROJECT]: [],
         [ItemType.FEEDBACK]: [],
+        [ItemType.REFLECTION]: [],
       };
 
       for (const group of deletedItemGroups) {
@@ -902,8 +926,15 @@ export class ItemRepository implements IItemRepository {
         session,
       );
 
+      const deletedReflectionIds = await this.deleteAndReturnIds(
+        this.reflectionCollection,
+        { ...deletedFilter, _id: { $in: itemMap[ItemType.REFLECTION] } },
+        session,
+      );
+
       // pull the items from items groups
       const allDeletedItemIds = [
+        ...deletedReflectionIds,
         ...deletedQuizIds,
         ...deletedVideoIds,
         ...deletedBlogIds,
@@ -984,6 +1015,9 @@ export class ItemRepository implements IItemRepository {
         break;
       case ItemType.FEEDBACK:
         collection = this.feedbackFormCollection;
+        break;
+      case ItemType.REFLECTION:
+        collection = this.reflectionCollection;
         break;
       default:
         throw new InternalServerError(
