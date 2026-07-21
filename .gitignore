@@ -20,6 +20,10 @@ backend/_tmp/
 **/*.wt
 **/journal/
 **/_tmp/
+**/storage.bson
+**/sizeStorer.wt
+**/_mdb_catalog.wt
+**/diagnostic.data
 
 
 

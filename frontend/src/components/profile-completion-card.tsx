@@ -16,9 +16,11 @@ interface ProfileCompletionCardProps {
 const PROFILE_FIELDS = [
   { key: "firstName", label: "First Name" },
   { key: "lastName", label: "Last Name" },
+  { key: "email", label: "Email" },
+  { key: "avatar", label: "Avatar" },
   { key: "gender", label: "Gender" },
   { key: "country", label: "Country" },
-  { key: "state", "label": "State" },
+  { key: "state", label: "State" },
   { key: "city", label: "City" },
 ] as const
 
@@ -71,6 +73,8 @@ export default function ProfileCompletionCard({
     const suggestions: Record<string, string> = {
       firstName: "Add your first name to personalize your profile",
       lastName: "Add your last name to complete your identity",
+      email: "Verify your email address",
+      avatar: "Upload a profile picture",
       gender: "Select your gender to help others connect with you",
       country: "Add your country to find local opportunities",
       state: "Add your state to discover nearby events",
