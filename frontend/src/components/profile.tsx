@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useCallback, useRef, useState } from "react"
-import { Mail, User, Shield, Pencil, BookOpen, Award, Camera } from "lucide-react"
+import { Mail, User, Shield, Pencil, BookOpen, Award, Camera, Trash2, Loader2, ImagePlus } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -141,7 +141,9 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false)
   const [isImageSaving, setIsImageSaving] = useState(false)
+  const [isRemovingAvatar, setIsRemovingAvatar] = useState(false)
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmRemoveAvatar, setConfirmRemoveAvatar] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const countries = Country.getAllCountries()
@@ -216,6 +218,28 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
     }
   }
 
+  const handleRemoveAvatar = async () => {
+    if (!user?.uid) return
+
+    try {
+      setIsRemovingAvatar(true)
+      await editUser({ body: { avatar: "" } })
+
+      setUser({
+        ...user,
+        avatar: undefined,
+        uid: user.uid,
+      })
+
+      toast.success("Profile picture removed")
+      setConfirmRemoveAvatar(false)
+    } catch (error) {
+      toast.error("Failed to remove profile picture")
+    } finally {
+      setIsRemovingAvatar(false)
+    }
+  }
+
   const handleSave = async () => {
     setIsSaving(true)
     try {
@@ -270,6 +294,12 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
           title={"Confirm Logout"}
           description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
         />
+        <ConfirmationModal isOpen={confirmRemoveAvatar}
+          onClose={() => setConfirmRemoveAvatar(false)}
+          onConfirm={handleRemoveAvatar}
+          title="Remove Profile Picture"
+          description="Are you sure you want to remove your profile picture? You can upload a new one at any time."
+        />
         <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -314,7 +344,14 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                 Cancel
               </Button>
               <Button onClick={handleProfileImageSave} disabled={isImageSaving}>
-                {isImageSaving ? "Saving..." : "Save Photo"}
+                {isImageSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Photo"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -325,33 +362,71 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
             <div className="absolute inset-0 bg-card text-card-foreground" />
             <CardContent className="relative xl:p-6 lg:p-2 p-6">
               <div className="flex flex-col items-center space-y-6">
-                <div className="relative">
+                <div className="relative group">
                   <Avatar className="h-28 w-28 ring-4 ring-white dark:ring-gray-800 shadow-xl">
                     <AvatarImage src={user?.avatar || "/placeholder.svg"} alt="Profile" />
                     <AvatarFallback className="text-lg md:text-xl font-semibold bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
                       {avatarFallback.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <Button
-                    size="icon"
-                    className="absolute -bottom-2 -left-2 h-8 w-8 rounded-full"
+
+                  {/* Loading spinner overlay */}
+                  {(isImageSaving || isRemovingAvatar) && (
+                    <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center z-20">
+                      <Loader2 className="h-8 w-8 text-white animate-spin" />
+                    </div>
+                  )}
+
+                  {/* Hover overlay */}
+                  <button
+                    type="button"
+                    className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer z-10"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={isImageSaving || isRemovingAvatar}
                   >
-                    <Camera className="h-4 w-4" />
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleProfileImageSelect}
-                  />
+                    <Camera className="h-6 w-6 text-white" />
+                  </button>
+
                   <div className="absolute -bottom-2 right-4">
                     <Badge variant="secondary" className="text-xs px-3 py-1 bg-white dark:bg-gray-800 shadow-lg border">
                       {displayRole}
                     </Badge>
                   </div>
                 </div>
+
+                {/* Change Photo & Remove buttons */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isImageSaving || isRemovingAvatar}
+                  >
+                    <ImagePlus className="h-3.5 w-3.5 mr-1.5" />
+                    Change Photo
+                  </Button>
+                  {user?.avatar && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setConfirmRemoveAvatar(true)}
+                      disabled={isImageSaving || isRemovingAvatar}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      Remove
+                    </Button>
+                  )}
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleProfileImageSelect}
+                />
 
                 <div className="text-center space-y-2">
                   <h3 className="font-bold text-xl">{displayName}</h3>
