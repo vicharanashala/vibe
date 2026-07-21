@@ -3,39 +3,39 @@ import {toast} from 'sonner';
 import {
   peerReviewApi,
   type ReflectionScores,
-  type SectionRef,
+  type ReflectionItemRef,
 } from '@/lib/api/peer-reviews';
 
-const sectionKey = (s: SectionRef) => [s.courseVersionId, s.sectionId];
+const itemKey = (s: ReflectionItemRef) => [s.courseVersionId, s.itemId];
 
 export const peerReviewKeys = {
-  myReflection: (s: SectionRef) => ['peer-reviews', 'mine', ...sectionKey(s)],
-  reviewQueue: (s: SectionRef) => ['peer-reviews', 'queue', ...sectionKey(s)],
-  instructorList: (courseVersionId: string, sectionId?: string) => [
+  myReflection: (s: ReflectionItemRef) => ['peer-reviews', 'mine', ...itemKey(s)],
+  reviewQueue: (s: ReflectionItemRef) => ['peer-reviews', 'queue', ...itemKey(s)],
+  instructorList: (courseVersionId: string, itemId?: string) => [
     'peer-reviews',
     'instructor',
     courseVersionId,
-    sectionId ?? 'all',
+    itemId ?? 'all',
   ],
-  instructorStats: (courseVersionId: string, sectionId?: string) => [
+  instructorStats: (courseVersionId: string, itemId?: string) => [
     'peer-reviews',
     'instructor-stats',
     courseVersionId,
-    sectionId ?? 'all',
+    itemId ?? 'all',
   ],
 };
 
 /** The caller's own reflection for a section, plus its score if unlocked. */
-export function useMyReflection(section: SectionRef, enabled = true) {
+export function useMyReflection(section: ReflectionItemRef, enabled = true) {
   const result = useQuery({
     queryKey: peerReviewKeys.myReflection(section),
     queryFn: () => peerReviewApi.getMyReflection(section),
-    enabled: enabled && Boolean(section.sectionId),
+    enabled: enabled && Boolean(section.itemId),
   });
   return {...result, reflection: result.data?.reflection ?? null};
 }
 
-export function useSubmitReflection(section: SectionRef) {
+export function useSubmitReflection(section: ReflectionItemRef) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: {text: string; confidence: number}) =>
@@ -59,17 +59,17 @@ export function useSubmitReflection(section: SectionRef) {
  * The next peer reflection to review. Not cached across submissions: every
  * successful review invalidates this so the next call pulls a fresh one.
  */
-export function useNextReflectionToReview(section: SectionRef, enabled = true) {
+export function useNextReflectionToReview(section: ReflectionItemRef, enabled = true) {
   const result = useQuery({
     queryKey: peerReviewKeys.reviewQueue(section),
     queryFn: () => peerReviewApi.getNextForReview(section),
-    enabled: enabled && Boolean(section.sectionId),
+    enabled: enabled && Boolean(section.itemId),
     staleTime: 0,
   });
   return {...result, reflection: result.data?.reflection ?? null};
 }
 
-export function useSubmitReview(section: SectionRef) {
+export function useSubmitReview(section: ReflectionItemRef) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: {
@@ -99,13 +99,13 @@ export function useSubmitReview(section: SectionRef) {
 export function useInstructorReflections(
   courseId: string,
   courseVersionId: string,
-  sectionId?: string,
+  itemId?: string,
   enabled = true,
 ) {
   const result = useQuery({
-    queryKey: peerReviewKeys.instructorList(courseVersionId, sectionId),
+    queryKey: peerReviewKeys.instructorList(courseVersionId, itemId),
     queryFn: () =>
-      peerReviewApi.listForInstructor(courseId, courseVersionId, sectionId),
+      peerReviewApi.listForInstructor(courseId, courseVersionId, itemId),
     enabled: enabled && Boolean(courseId && courseVersionId),
   });
   return {...result, items: result.data?.items ?? []};
@@ -114,13 +114,13 @@ export function useInstructorReflections(
 export function useInstructorReflectionStats(
   courseId: string,
   courseVersionId: string,
-  sectionId?: string,
+  itemId?: string,
   enabled = true,
 ) {
   return useQuery({
-    queryKey: peerReviewKeys.instructorStats(courseVersionId, sectionId),
+    queryKey: peerReviewKeys.instructorStats(courseVersionId, itemId),
     queryFn: () =>
-      peerReviewApi.getInstructorStats(courseId, courseVersionId, sectionId),
+      peerReviewApi.getInstructorStats(courseId, courseVersionId, itemId),
     enabled: enabled && Boolean(courseId && courseVersionId),
   });
 }

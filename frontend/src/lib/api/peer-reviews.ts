@@ -30,12 +30,11 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-/** Identifies the section a reflection belongs to. */
-export interface SectionRef {
+/** Identifies the REFLECTION item a reflection belongs to. */
+export interface ReflectionItemRef {
   courseId: string;
   courseVersionId: string;
-  moduleId: string;
-  sectionId: string;
+  itemId: string;
 }
 
 export interface ReflectionScores {
@@ -67,7 +66,7 @@ export interface MyReflection {
 export interface InstructorReflection {
   reflectionId: string;
   userId: string;
-  sectionId: string;
+  itemId: string;
   text: string;
   confidence: number;
   reviewsReceived: number;
@@ -85,27 +84,27 @@ export interface ReflectionStats {
   averageConfidence: number | null;
 }
 
-const sectionPath = (s: SectionRef) =>
+const itemPath = (s: ReflectionItemRef) =>
   `${BASE_URL}/courses/${s.courseId}/versions/${s.courseVersionId}` +
-  `/modules/${s.moduleId}/sections/${s.sectionId}`;
+  `/items/${s.itemId}`;
 
 export const peerReviewApi = {
-  submitReflection(section: SectionRef, body: {text: string; confidence: number}) {
-    return apiFetch<{reflectionId: string}>(`${sectionPath(section)}/reflections`, {
+  submitReflection(section: ReflectionItemRef, body: {text: string; confidence: number}) {
+    return apiFetch<{reflectionId: string}>(`${itemPath(section)}/reflections`, {
       method: 'POST',
       body: JSON.stringify(body),
     });
   },
 
-  getMyReflection(section: SectionRef) {
+  getMyReflection(section: ReflectionItemRef) {
     return apiFetch<{reflection: MyReflection | null}>(
-      `${sectionPath(section)}/reflections/me`,
+      `${itemPath(section)}/reflections/me`,
     );
   },
 
-  getNextForReview(section: SectionRef) {
+  getNextForReview(section: ReflectionItemRef) {
     return apiFetch<{reflection: AnonymousReflection | null}>(
-      `${sectionPath(section)}/review-queue/next`,
+      `${itemPath(section)}/review-queue/next`,
     );
   },
 
@@ -119,8 +118,8 @@ export const peerReviewApi = {
     );
   },
 
-  listForInstructor(courseId: string, courseVersionId: string, sectionId?: string) {
-    const query = sectionId ? `?sectionId=${sectionId}` : '';
+  listForInstructor(courseId: string, courseVersionId: string, itemId?: string) {
+    const query = itemId ? `?itemId=${itemId}` : '';
     return apiFetch<{items: InstructorReflection[]}>(
       `${BASE_URL}/courses/${courseId}/versions/${courseVersionId}/reflections${query}`,
     );
@@ -129,9 +128,9 @@ export const peerReviewApi = {
   getInstructorStats(
     courseId: string,
     courseVersionId: string,
-    sectionId?: string,
+    itemId?: string,
   ) {
-    const query = sectionId ? `?sectionId=${sectionId}` : '';
+    const query = itemId ? `?itemId=${itemId}` : '';
     return apiFetch<ReflectionStats>(
       `${BASE_URL}/courses/${courseId}/versions/${courseVersionId}/reflections/stats${query}`,
     );

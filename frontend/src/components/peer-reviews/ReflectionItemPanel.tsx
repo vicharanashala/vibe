@@ -7,25 +7,25 @@ import {
   useSubmitReflection,
   useSubmitReview,
 } from '@/hooks/peer-review-hooks';
-import type {SectionRef} from '@/lib/api/peer-reviews';
+import type {ReflectionItemRef} from '@/lib/api/peer-reviews';
 import ReflectionComposer from './ReflectionComposer';
 import MyReflectionCard from './MyReflectionCard';
 import PeerReviewQueue from './PeerReviewQueue';
 
-interface SectionReflectionPanelProps {
-  section: SectionRef;
+interface ReflectionItemReflectionPanelProps {
+  section: ReflectionItemRef;
 }
 
 /**
- * The student-facing entry point for one section.
+ * The student-facing entry point for one REFLECTION item.
  *
  * Writing comes first and reviewing is only offered afterwards: a student who
  * has read ten peer answers before writing their own would be summarising the
  * cohort rather than recalling the lecture, which is the thing being measured.
  */
-export default function SectionReflectionPanel({
+export default function ReflectionItemReflectionPanel({
   section,
-}: SectionReflectionPanelProps) {
+}: ReflectionItemReflectionPanelProps) {
   const [isReviewing, setIsReviewing] = useState(false);
 
   const {reflection: mine, isLoading} = useMyReflection(section);

@@ -17,8 +17,8 @@ import {cn} from '@/utils/utils';
 interface ReflectionsPanelProps {
   courseId: string;
   courseVersionId: string;
-  /** Optional: narrow every figure on the panel to one section. */
-  sectionId?: string;
+  /** Optional: narrow every figure on the panel to one reflection item. */
+  itemId?: string;
 }
 
 function StatTile({
@@ -49,17 +49,17 @@ function StatTile({
 export default function ReflectionsPanel({
   courseId,
   courseVersionId,
-  sectionId,
+  itemId,
 }: ReflectionsPanelProps) {
   const {items, isLoading} = useInstructorReflections(
     courseId,
     courseVersionId,
-    sectionId,
+    itemId,
   );
   const {data: stats} = useInstructorReflectionStats(
     courseId,
     courseVersionId,
-    sectionId,
+    itemId,
   );
 
   if (isLoading) {
