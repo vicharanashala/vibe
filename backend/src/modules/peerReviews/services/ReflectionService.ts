@@ -157,7 +157,7 @@ export class ReflectionService {
       helpful: input.helpful,
     });
 
-    if (!result.applied) {
+    if (result.applied === false) {
       throw new BadRequestError(
         result.reason === 'DUPLICATE'
           ? 'You have already reviewed this reflection.'
