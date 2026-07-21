@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Loader2} from 'lucide-react';
+import {ArrowRight, Loader2} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {
   useMyReflection,
@@ -7,50 +7,76 @@ import {
   useSubmitReflection,
   useSubmitReview,
 } from '@/hooks/peer-review-hooks';
-import type {ReflectionItemRef} from '@/lib/api/peer-reviews';
 import ReflectionComposer from './ReflectionComposer';
 import MyReflectionCard from './MyReflectionCard';
 import PeerReviewQueue from './PeerReviewQueue';
 
-interface ReflectionItemReflectionPanelProps {
-  section: ReflectionItemRef;
+interface ReflectionItemPanelProps {
+  courseId: string;
+  courseVersionId: string;
+  itemId: string;
+  /** Item title, shown as the heading. */
+  title?: string;
+  /** Optional instructor prompt configured on the item. */
+  prompt?: string;
+  /** Advances to the next item in the section. */
+  onNext: () => void;
+  isProgressUpdating?: boolean;
 }
 
 /**
- * The student-facing entry point for one REFLECTION item.
+ * The student-facing view of a REFLECTION item.
  *
  * Writing comes first and reviewing is only offered afterwards: a student who
- * has read ten peer answers before writing their own would be summarising the
+ * had read ten peer answers before writing their own would be summarising the
  * cohort rather than recalling the lecture, which is the thing being measured.
+ *
+ * Reviewing never blocks `onNext` — the reciprocity pressure is that the score
+ * stays hidden, not that the course does.
  */
-export default function ReflectionItemReflectionPanel({
-  section,
-}: ReflectionItemReflectionPanelProps) {
+export default function ReflectionItemPanel({
+  courseId,
+  courseVersionId,
+  itemId,
+  title,
+  prompt,
+  onNext,
+  isProgressUpdating = false,
+}: ReflectionItemPanelProps) {
   const [isReviewing, setIsReviewing] = useState(false);
+  const itemRef = {courseId, courseVersionId, itemId};
 
-  const {reflection: mine, isLoading} = useMyReflection(section);
-  const submitReflection = useSubmitReflection(section);
+  const {reflection: mine, isLoading} = useMyReflection(itemRef);
+  const submitReflection = useSubmitReflection(itemRef);
 
   const hasSubmitted = Boolean(mine);
   const {reflection: peerReflection, isLoading: isQueueLoading} =
-    useNextReflectionToReview(section, hasSubmitted && isReviewing);
-  const submitReview = useSubmitReview(section);
+    useNextReflectionToReview(itemRef, hasSubmitted && isReviewing);
+  const submitReview = useSubmitReview(itemRef);
+
+  const shell = (children: React.ReactNode) => (
+    <div className="mx-auto max-w-3xl space-y-4 p-4">
+      {title ? <h2 className="text-xl font-semibold">{title}</h2> : null}
+      {children}
+    </div>
+  );
 
   if (isLoading) {
-    return (
+    return shell(
       <div className="flex items-center justify-center gap-2 rounded-lg border p-8 text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
         Loading
-      </div>
+      </div>,
     );
   }
 
   if (!hasSubmitted) {
-    return (
+    return shell(
       <ReflectionComposer
+        prompt={prompt}
         isSubmitting={submitReflection.isPending}
         onSubmit={input => submitReflection.mutateAsync(input)}
-      />
+      />,
     );
   }
 
@@ -60,7 +86,7 @@ export default function ReflectionItemReflectionPanel({
   );
 
   if (isReviewing) {
-    return (
+    return shell(
       <div className="space-y-3">
         <PeerReviewQueue
           reflection={peerReflection}
@@ -71,26 +97,37 @@ export default function ReflectionItemReflectionPanel({
         <Button variant="ghost" onClick={() => setIsReviewing(false)}>
           Back to my reflection
         </Button>
-      </div>
+      </div>,
     );
   }
 
-  return (
+  return shell(
     <div className="space-y-3">
       <MyReflectionCard reflection={mine!} />
-      {reviewsRemaining > 0 ? (
-        <Button className="w-full" onClick={() => setIsReviewing(true)}>
-          Review peers ({reviewsRemaining} to go)
-        </Button>
-      ) : (
+
+      <div className="flex flex-col gap-2 sm:flex-row">
         <Button
-          variant="outline"
-          className="w-full"
+          className="flex-1"
+          variant={reviewsRemaining > 0 ? 'default' : 'outline'}
           onClick={() => setIsReviewing(true)}
         >
-          Review more peers
+          {reviewsRemaining > 0
+            ? `Review peers (${reviewsRemaining} to go)`
+            : 'Review more peers'}
         </Button>
-      )}
-    </div>
+        <Button
+          variant="secondary"
+          className="flex-1"
+          onClick={onNext}
+          disabled={isProgressUpdating}
+        >
+          {isProgressUpdating ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : null}
+          Continue
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
+    </div>,
   );
 }

@@ -7,6 +7,7 @@ import type { ArticleRef } from "@/types/article.types";
 import type { QuizRef } from "@/types/quiz.types";
 import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
+import ReflectionItemPanel from '@/components/peer-reviews/ReflectionItemPanel';
 import { useSubmitFeedback } from '@/hooks/hooks';
 
 export interface ISubmitFeedbackBody {
@@ -156,6 +157,18 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           isAlreadyWatched={item.isAlreadyWatched || false}
           completedItemIdsRef={completedItemIdsRef}
           previousItem = {previousItem}
+        />;
+
+      case 'reflection':
+        return <ReflectionItemPanel
+          key={item._id.toString()}
+          courseId={courseId}
+          courseVersionId={versionId}
+          itemId={item._id.toString()}
+          title={item.name}
+          prompt={item.details?.prompt}
+          onNext={onNext}
+          isProgressUpdating={isProgressUpdating}
         />;
 
       default:

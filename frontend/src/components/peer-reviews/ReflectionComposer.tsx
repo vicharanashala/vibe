@@ -9,6 +9,8 @@ const MIN_LENGTH = 100;
 const MAX_LENGTH = 3000;
 
 interface ReflectionComposerProps {
+  /** Instructor-configured prompt; falls back to a generic ask when absent. */
+  prompt?: string;
   onSubmit: (input: {text: string; confidence: number}) => Promise<unknown>;
   isSubmitting?: boolean;
 }
@@ -21,6 +23,7 @@ interface ReflectionComposerProps {
  * time rather than a number revised in hindsight.
  */
 export default function ReflectionComposer({
+  prompt,
   onSubmit,
   isSubmitting = false,
 }: ReflectionComposerProps) {
@@ -41,7 +44,9 @@ export default function ReflectionComposer({
       <div className="flex items-start gap-3">
         <PenLine className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
         <div>
-          <h3 className="font-semibold">What did you take away from this section?</h3>
+          <h3 className="font-semibold">
+            {prompt || 'What did you take away from this section?'}
+          </h3>
           <p className="text-sm text-muted-foreground">
             Explain it in your own words, as if to someone who has not watched it
             yet. Peers will read this anonymously and rate it.
