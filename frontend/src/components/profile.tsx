@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useCallback, useRef, useState } from "react"
-import { Mail, User, Shield, Pencil, BookOpen, Award, Camera } from "lucide-react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
+import { Mail, User, Shield, Pencil, BookOpen, Award, Camera, X } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -35,8 +35,12 @@ import {
 } from "@/components/ui/dialog"
 import { Slider } from "@/components/ui/slider"
 import ProfileActivityTimeline from "@/components/profile-activity-timeline"
+import ProfileCompletionCard from "@/components/profile-completion-card"
 
 const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Other", "Prefer not to say"]
+
+const NAME_MIN_LENGTH = 2
+const NAME_MAX_LENGTH = 50
 
 const createImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
@@ -132,7 +136,18 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false)
   const [isImageSaving, setIsImageSaving] = useState(false)
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+    setNewFirstName(user.firstName || user.name?.split(" ")[0] || "")
+    setNewLastName(user.lastName || user.name?.split(" ")[1] || "")
+    setNewGender(user.gender || "")
+    setNewCountry(user.country || "")
+    setNewState(user.state || "")
+    setNewCity(user.city || "")
+  }, [user])
 
   const countries = Country.getAllCountries()
   const selectedCountry = countries.find((country) => country.name === newCountry)
@@ -143,6 +158,23 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
     : []
 
   const { mutateAsync: editUser } = useEditUser();
+
+  const validateField = (name: string, value: string): string => {
+    if (name === "firstName" || name === "lastName") {
+      const trimmed = value.trim()
+      if (trimmed.length === 0) return `${name === "firstName" ? "First name" : "Last name"} is required`
+      if (trimmed.length < NAME_MIN_LENGTH) return `Must be at least ${NAME_MIN_LENGTH} characters`
+      if (trimmed.length > NAME_MAX_LENGTH) return `Must be at most ${NAME_MAX_LENGTH} characters`
+    }
+    return ""
+  }
+
+  const handleFieldChange = (name: string, value: string) => {
+    if (name === "firstName") setNewFirstName(value)
+    else if (name === "lastName") setNewLastName(value)
+    const error = validateField(name, value)
+    setValidationErrors((prev) => ({ ...prev, [name]: error }))
+  }
 
   const onCropComplete = useCallback((_croppedArea: Area, croppedPixels: Area) => {
     setCroppedAreaPixels(croppedPixels)
@@ -207,6 +239,12 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   }
 
   const handleSave = async () => {
+    const errors: Record<string, string> = {}
+    errors.firstName = validateField("firstName", newFirstName)
+    errors.lastName = validateField("lastName", newLastName)
+    setValidationErrors(errors)
+    if (errors.firstName || errors.lastName) return
+
     setIsSaving(true)
     try {
       const payload: {
@@ -237,6 +275,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
       }
 
       toast.success("Profile updated successfully")
+      setValidationErrors({})
       setEditField(null)
     } catch (error) {
       toast.error("Failed to update profile")
@@ -244,6 +283,24 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
       setIsSaving(false)
       setConfirmLogout(false)
     }
+  }
+
+  const handleCancel = () => {
+    if (editField === "firstName") setNewFirstName(firstName)
+    else if (editField === "lastName") setNewLastName(lastName)
+    else if (editField === "gender") setNewGender(user?.gender || "")
+    else if (editField === "country") {
+      setNewCountry(user?.country || "")
+      setNewState(user?.state || "")
+      setNewCity(user?.city || "")
+    } else if (editField === "state") {
+      setNewState(user?.state || "")
+      setNewCity(user?.city || "")
+    } else if (editField === "city") {
+      setNewCity(user?.city || "")
+    }
+    setValidationErrors({})
+    setEditField(null)
   }
 
 
@@ -254,6 +311,17 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">Profile</h1>
           <p className="text-muted-foreground text-sm md:text-base">Your personal information and details</p>
         </section>
+        <ProfileCompletionCard
+          user={user}
+          onFieldClick={(field) => {
+            if (field === "avatar") {
+              fileInputRef.current?.click()
+            } else {
+              setEditField(field as typeof editField)
+            }
+          }}
+          currentEditField={editField}
+        />
         <ConfirmationModal isOpen={confirmLogout}
           onClose={() => setConfirmLogout(false)}
           onConfirm={handleLogout}
@@ -425,11 +493,23 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                     </Button>
                   </div>
                   {editField === "firstName" ? (
-                    <div className="flex gap-2 items-center">
-                      <Input value={newFirstName} onChange={(e) => setNewFirstName(e.target.value)} />
-                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? "Saving..." : "Save"}
-                      </Button>
+                    <div className="space-y-1">
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          value={newFirstName}
+                          onChange={(e) => handleFieldChange("firstName", e.target.value)}
+                          aria-invalid={!!validationErrors.firstName}
+                        />
+                        <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
+                          {isSaving ? "Saving..." : "Save"}
+                        </Button>
+                        <Button variant="outline" size={"sm"} onClick={handleCancel} disabled={isSaving}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {validationErrors.firstName && (
+                        <p className="text-sm text-destructive">{validationErrors.firstName}</p>
+                      )}
                     </div>
                   ) : (
                     <p className="text-base font-medium mt-1">{newFirstName || "Not provided"}</p>
@@ -443,11 +523,23 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                     </Button>
                   </div>
                   {editField === "lastName" ? (
-                    <div className="flex gap-2 items-center">
-                      <Input value={newLastName} onChange={(e) => setNewLastName(e.target.value)} />
-                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? "Saving..." : "Save"}
-                      </Button>
+                    <div className="space-y-1">
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          value={newLastName}
+                          onChange={(e) => handleFieldChange("lastName", e.target.value)}
+                          aria-invalid={!!validationErrors.lastName}
+                        />
+                        <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
+                          {isSaving ? "Saving..." : "Save"}
+                        </Button>
+                        <Button variant="outline" size={"sm"} onClick={handleCancel} disabled={isSaving}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {validationErrors.lastName && (
+                        <p className="text-sm text-destructive">{validationErrors.lastName}</p>
+                      )}
                     </div>
                   ) : (
                     <p className="text-base font-medium mt-1">{newLastName || "Not provided"}</p>
@@ -460,7 +552,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       <Pencil className="h-4 w-4" />
                     </Button>
                   </div>
-                  {editField === "gender" ? (
+                   {editField === "gender" ? (
                     <div className="flex gap-2 items-center">
                       <Select value={newGender} onValueChange={setNewGender}>
                         <SelectTrigger className="w-full">
@@ -476,6 +568,9 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       </Select>
                       <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
                         {isSaving ? "Saving..." : "Save"}
+                      </Button>
+                      <Button variant="outline" size={"sm"} onClick={handleCancel} disabled={isSaving}>
+                        <X className="h-4 w-4" />
                       </Button>
                     </div>
                   ) : (
@@ -499,7 +594,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       <Pencil className="h-4 w-4" />
                     </Button>
                   </div>
-                  {editField === "country" ? (
+                   {editField === "country" ? (
                     <div className="flex gap-2 items-center">
                       <Select
                         value={newCountry}
@@ -523,6 +618,9 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
                         {isSaving ? "Saving..." : "Save"}
                       </Button>
+                      <Button variant="outline" size={"sm"} onClick={handleCancel} disabled={isSaving}>
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
                   ) : (
                     <p className="text-base font-medium mt-1">{newCountry || "Not provided"}</p>
@@ -535,7 +633,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       <Pencil className="h-4 w-4" />
                     </Button>
                   </div>
-                  {editField === "state" ? (
+                   {editField === "state" ? (
                     <div className="flex gap-2 items-center">
                       <Select
                         value={newState}
@@ -559,6 +657,9 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
                         {isSaving ? "Saving..." : "Save"}
                       </Button>
+                      <Button variant="outline" size={"sm"} onClick={handleCancel} disabled={isSaving}>
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
                   ) : (
                     <p className="text-base font-medium mt-1">{newState || "Not provided"}</p>
@@ -571,7 +672,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       <Pencil className="h-4 w-4" />
                     </Button>
                   </div>
-                  {editField === "city" ? (
+                   {editField === "city" ? (
                     <div className="flex gap-2 items-center">
                       <Select
                         value={newCity}
@@ -591,6 +692,9 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       </Select>
                       <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
                         {isSaving ? "Saving..." : "Save"}
+                      </Button>
+                      <Button variant="outline" size={"sm"} onClick={handleCancel} disabled={isSaving}>
+                        <X className="h-4 w-4" />
                       </Button>
                     </div>
                   ) : (
