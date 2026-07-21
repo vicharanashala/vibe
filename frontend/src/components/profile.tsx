@@ -34,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Slider } from "@/components/ui/slider"
+import ProfileActivityTimeline, { buildActivityFromEnrollment } from "@/components/profile-activity-timeline"
 
 const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Other", "Prefer not to say"]
 
@@ -106,6 +107,16 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
 
     // Calculate overall progress percentage
     return Number(((totalCompleted / totalItems) * 100).toFixed(2)) || 0;
+  }, [enrollments]);
+
+  const recentActivities = React.useMemo(() => {
+    const sorted = [...enrollments]
+      .filter((e) => e.enrollmentDate)
+      .sort((a, b) => new Date(b.enrollmentDate!).getTime() - new Date(a.enrollmentDate!).getTime())
+    return sorted
+      .map(buildActivityFromEnrollment)
+      .filter((a): a is NonNullable<typeof a> => a !== null)
+      .slice(0, 5)
   }, [enrollments]);
 
   // Fallback data if user is not available
@@ -645,6 +656,10 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
           </Card>
         )
         }
+
+        {role === "student" && (
+          <ProfileActivityTimeline activities={recentActivities} />
+        )}
         {/* : (
           <Card>
             <CardHeader>
