@@ -5,6 +5,23 @@ Thumbs.db
 # Ignore database files anywhere in the project
 **/lms_db/
 
+# MongoDB local data directories
+data/
+data/db/
+backend/_tmp/
+**/diagnostic.data/
+
+# MongoDB runtime files (anywhere in repo)
+**/WiredTiger
+**/WiredTiger.lock
+**/WiredTiger.turtle
+**/WiredTiger.config
+**/mongod.lock
+**/*.wt
+**/journal/
+**/_tmp/
+
+
 
 # Ignore credentials folder anywhere
 **/credentials/

@@ -1,7 +1,8 @@
 import React from "react"
-import { BookOpen, Award, GraduationCap, UserPlus, Clock, CheckCircle2, FileText, Star } from "lucide-react"
+import { BookOpen, Award, GraduationCap, UserPlus, Clock, CheckCircle2, FileText, Star, Inbox } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
+import { cn } from "@/utils/utils"
+import { motion } from "motion/react"
 
 export interface Activity {
   icon: React.ReactNode
@@ -90,8 +91,11 @@ export default function ProfileActivityTimeline({ activities }: { activities?: A
           {items.map((activity, index) => {
             const styles = VARIANT_STYLES[activity.variant ?? "default"]
             return (
-              <div
+              <motion.div
                 key={index}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.2, delay: index * 0.05 }}
                 className={cn(
                   "relative flex gap-4 py-3 transition-colors duration-150 rounded-md -mx-2 px-2",
                   "hover:bg-accent/50"
@@ -122,7 +126,7 @@ export default function ProfileActivityTimeline({ activities }: { activities?: A
                     {activity.description}
                   </p>
                 </div>
-              </div>
+              </motion.div>
             )
           })}
         </div>

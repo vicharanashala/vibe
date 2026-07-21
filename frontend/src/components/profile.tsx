@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog"
 import { Slider } from "@/components/ui/slider"
 import ProfileActivityTimeline, { buildActivityFromEnrollment } from "@/components/profile-activity-timeline"
+import ProfileCompletionCard from "@/components/profile-completion-card"
 
 const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Other", "Prefer not to say"]
 
@@ -686,6 +687,13 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
             </CardContent>
           </Card>
         </div>
+
+        {/* Profile Completion */}
+        <ProfileCompletionCard
+          user={user}
+          onFieldClick={setEditField}
+          currentEditField={editField}
+        />
 
         {/* Learning Stats */}
 
