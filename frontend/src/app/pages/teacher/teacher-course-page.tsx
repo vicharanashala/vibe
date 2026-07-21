@@ -31,6 +31,7 @@ import {
   X, FolderKanban,
   Menu,
   MessageSquare,
+  NotebookPen,
   Eye,
   EyeOff,
   Loader2,
@@ -97,14 +98,15 @@ const getItemIcon = (type: string) => {
     case "VIDEO": return <VideoIcon className="h-3 w-3" />;
     case "QUIZ": return <ListChecks className="h-3 w-3" />;
     case "PROJECT": return <FolderKanban className="h-3 w-3" />;
-    case "FEEDBACK": return <MessageSquare className="h-3 w-3" />
+    case "FEEDBACK": return <MessageSquare className="h-3 w-3" />;
+    case "REFLECTION": return <NotebookPen className="h-3 w-3" />;
     default: return null;
   }
 };
 
 interface LabelOptions {
   itemId: string;
-  itemType: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
+  itemType: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK" | "REFLECTION";
   sectionItems: Record<string, any[]>;
   sectionId: string;
 }
@@ -1066,13 +1068,14 @@ function TeacherCourseContent() {
   const handleAddItem = (moduleId: string, sectionId: string, type: string, videoData?: any) => {
     if (!versionId) return;
 
-    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
+    type ItemType = "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK" | "REFLECTION";
     const typeMap: Record<string, ItemType> = {
       video: "VIDEO",
       quiz: "QUIZ",
       article: "BLOG",
       project: "PROJECT",
-      feedback: "FEEDBACK"
+      feedback: "FEEDBACK",
+      reflection: "REFLECTION"
     };
 
     // Handle video items
@@ -2263,6 +2266,34 @@ function TeacherCourseContent() {
                                                           console.error(err);
                                                         });
                                                     }
+                                                    else if (type === "reflection") {
+                                                      createItemAsync({
+                                                        params: {
+                                                          path: {
+                                                            versionId: versionId!,
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                          },
+                                                        },
+                                                        body: {
+                                                          type: "REFLECTION",
+                                                          name: "Reflection",
+                                                          description: "Write what you learned, then review your peers anonymously",
+                                                          reflectionDetails: {},
+                                                        } as any,
+                                                      })
+                                                        .then(() => {
+                                                          refetchVersion();
+                                                          if (shouldFetchItems) {
+                                                            refetchItems();
+                                                          }
+                                                          toast.success("Reflection added");
+                                                        })
+                                                        .catch((err) => {
+                                                          toast.error("Failed to add reflection");
+                                                          console.error(err);
+                                                        });
+                                                    }
                                                     else if (type === "csv_upload") {
                                                       setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
                                                       setShowCSVUpload(true);
@@ -2290,6 +2321,8 @@ function TeacherCourseContent() {
                                                 <option value="quiz">Quiz</option>
 
                                                 <option value="feedback">Feedback Form</option>
+
+                                                <option value="reflection">Reflection (peer reviewed)</option>
 
                                                 <option
                                                   value="project"
