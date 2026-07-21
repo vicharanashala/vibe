@@ -130,8 +130,24 @@ export class ItemService extends BaseService {
       throw new NotFoundError(
         `Section ${sectionId} not found in module ${moduleId}.`,
       );
+    // Guard against legacy/seeded sections that never got an itemsGroupId
+    // (e.g. the auto-seeded Demo Course). Without this, `itemsGroupId.toString()`
+    // crashes with "Cannot read properties of undefined" and the GET
+    // returns 500, which is what surfaces as "I added a peer-review
+    // assessment and the page reloaded showing nothing" — the create
+    // succeeded, but the sidebar items fetch crashed so the new item
+    // never appeared.
+    const itemsGroupId = section?.itemsGroupId;
+    if (!itemsGroupId) {
+      return {
+        version,
+        module,
+        section,
+        itemsGroup: { _id: undefined as any, items: [] } as ItemsGroup,
+      };
+    }
     const itemsGroup = await this.itemRepo.readItemsGroup(
-      typeof section?.itemsGroupId === 'string' ? section.itemsGroupId : section.itemsGroupId.toString(),
+      typeof itemsGroupId === 'string' ? itemsGroupId : itemsGroupId.toString(),
       session,
     );
     if (!itemsGroup) {
@@ -187,10 +203,17 @@ export class ItemService extends BaseService {
         );
       // Check if any previous "learning item" exists before making the feedback form in the db
       if (body.type === ItemType.FEEDBACK) {
-        const dbItemsGroup = await this.itemRepo.readItemsGroup(
-          typeof section.itemsGroupId === 'string' ? section.itemsGroupId : section.itemsGroupId.toString(),
-          session,
-        );
+        // Same guard as in _getVersionModuleSectionAndItemsGroup — a section
+        // without an itemsGroupId has zero items, so the "feedback cannot be
+        // first" check below is the right answer without needing a DB read.
+        const dbItemsGroup = section.itemsGroupId
+          ? await this.itemRepo.readItemsGroup(
+              typeof section.itemsGroupId === 'string'
+                ? section.itemsGroupId
+                : section.itemsGroupId.toString(),
+              session,
+            )
+          : null;
 
         const sectionItems = dbItemsGroup?.items || [];
 

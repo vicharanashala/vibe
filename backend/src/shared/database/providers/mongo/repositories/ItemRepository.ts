@@ -31,6 +31,7 @@ export class ItemRepository implements IItemRepository {
   private blogCollection: Collection<BlogItem>;
   private projectCollection: Collection<ProjectItem>;
   private feedbackFormCollection: Collection<FeedBackFormItem>;
+  private peerReviewAssessmentCollection: Collection<any>;
   private questionBankCollection: Collection<QuestionBank>;
   private questionsCollection: Collection<any>;
   private courseVersionCollection: Collection<any>;
@@ -56,6 +57,9 @@ export class ItemRepository implements IItemRepository {
     );
     this.feedbackFormCollection = await this.db.getCollection<FeedBackFormItem>(
       'feedback_forms',
+    );
+    this.peerReviewAssessmentCollection = await this.db.getCollection(
+      'peer_review_assessments',
     );
 
     this.itemsGroupCollection.createIndex({ items: 1 });
@@ -181,6 +185,9 @@ export class ItemRepository implements IItemRepository {
         case ItemType.FEEDBACK:
           collection = this.feedbackFormCollection;
           break;
+        case ItemType.PEER_REVIEW_ASSESSMENT:
+          collection = this.peerReviewAssessmentCollection;
+          break;
         default:
           throw new InternalServerError(
             `Unsupported item type: ${(item as any).type}`,
@@ -264,10 +271,6 @@ export class ItemRepository implements IItemRepository {
       { 'items._id': itemFilter },
       { session },
     );
-    // const itemsGroup = await this.itemsGroupCollection.findOne(
-    //   { 'items._id': itemId },
-    //   { session }
-    // );
 
     if (!itemsGroup) {
       return null;
@@ -279,6 +282,26 @@ export class ItemRepository implements IItemRepository {
   }
 
   // Methods for Item CRUD operations
+  async findItemsGroupBySectionId(
+    sectionId: string,
+    session?: ClientSession,
+  ): Promise<ItemsGroup | null> {
+    await this.init();
+    const filter =
+      typeof sectionId === 'string' && ObjectId.isValid(sectionId)
+        ? new ObjectId(sectionId)
+        : sectionId;
+    const itemsGroup = await this.itemsGroupCollection.findOne(
+      { sectionId: filter },
+      { session },
+    );
+    return itemsGroup
+      ? (instanceToPlain(
+          Object.assign(new ItemsGroup(), itemsGroup),
+        ) as ItemsGroup)
+      : null;
+  }
+
   async createItem(item: Item, session?: ClientSession): Promise<Item | null> {
     await this.init();
     const auditTrail = new AuditTrails(item._id.toString());
@@ -299,6 +322,9 @@ export class ItemRepository implements IItemRepository {
         break;
       case ItemType.FEEDBACK:
         collection = this.feedbackFormCollection;
+        break;
+      case ItemType.PEER_REVIEW_ASSESSMENT:
+        collection = this.peerReviewAssessmentCollection;
         break;
       default:
         throw new Error(`Unsupported item type: ${(item as any).type}`);
@@ -338,6 +364,9 @@ export class ItemRepository implements IItemRepository {
           break;
         case ItemType.FEEDBACK:
           collection = this.feedbackFormCollection;
+          break;
+        case ItemType.PEER_REVIEW_ASSESSMENT:
+          collection = this.peerReviewAssessmentCollection;
           break;
         default:
           throw new Error(`Unsupported item type: ${item.type}`);
@@ -420,6 +449,11 @@ export class ItemRepository implements IItemRepository {
               item = (await this.feedbackFormCollection.findOne({
                 _id: new ObjectId(found._id),
               })) as FeedBackFormItem;
+              break;
+            case ItemType.PEER_REVIEW_ASSESSMENT:
+              item = (await this.peerReviewAssessmentCollection.findOne({
+                _id: new ObjectId(found._id),
+              })) as any;
               break;
             default:
               throw new InternalServerError(`Unknown item type: ${found.type}`);
@@ -523,6 +557,9 @@ export class ItemRepository implements IItemRepository {
         break;
       case ItemType.FEEDBACK:
         collection = this.feedbackFormCollection;
+        break;
+      case ItemType.PEER_REVIEW_ASSESSMENT:
+        collection = this.peerReviewAssessmentCollection;
         break;
       default:
         throw new InternalServerError(
@@ -869,6 +906,12 @@ export class ItemRepository implements IItemRepository {
         [ItemType.BLOG]: [],
         [ItemType.PROJECT]: [],
         [ItemType.FEEDBACK]: [],
+        // Peer-review assessment items have their own collection
+        // (peer_review_assessments) owned by the peerReview module; their
+        // cascade-delete is wired up in Phase 5 when we add an assessment
+        // delete endpoint. For now, this entry exists only so the type
+        // exhaustiveness on ItemType still compiles.
+        [ItemType.PEER_REVIEW_ASSESSMENT]: [],
       };
 
       for (const group of deletedItemGroups) {
@@ -902,7 +945,7 @@ export class ItemRepository implements IItemRepository {
         session,
       );
 
-      // pull the items from items groups
+      // Pull the items from items groups
       const allDeletedItemIds = [
         ...deletedQuizIds,
         ...deletedVideoIds,
@@ -916,6 +959,66 @@ export class ItemRepository implements IItemRepository {
           { $pull: { items: { _id: { $in: allDeletedItemIds } } } },
           { session },
         );
+      }
+
+      // Cascade-delete peer-review artefacts for the hard-deleted
+      // PEER_REVIEW_ASSESSMENT items. Without this, deleting a course
+      // would leave orphan rows in peer_review_assessments /
+      // peer_review_submissions / peer_review_assignments /
+      // peer_review_reviews. The DB is shared, so we touch the
+      // collections directly.
+      const peerReviewItemIds = itemMap[ItemType.PEER_REVIEW_ASSESSMENT];
+      if (peerReviewItemIds.length > 0) {
+        const peerReviewCollNames = [
+          'peer_review_assessments',
+          'peer_review_submissions',
+          'peer_review_assignments',
+          'peer_review_reviews',
+        ];
+        const db = (this.db as any).database as import('mongodb').Db;
+        for (const collName of peerReviewCollNames) {
+          try {
+            const coll = db.collection(collName);
+            await coll.deleteMany(
+              { itemId: { $in: peerReviewItemIds } },
+              { session },
+            );
+            // The submissions + assignments + reviews don't have a
+            // direct itemId. Look up the affected assessmentIds via
+            // the assessments collection, then cascade the rest.
+            const aRows = await db
+              .collection('peer_review_assessments')
+              .find({ itemId: { $in: peerReviewItemIds } })
+              .project({ _id: 1 })
+              .toArray();
+            const assessmentIds = aRows.map((r) => r._id);
+            if (assessmentIds.length > 0) {
+              await db
+                .collection('peer_review_submissions')
+                .deleteMany(
+                  { assessmentId: { $in: assessmentIds } },
+                  { session },
+                );
+              await db
+                .collection('peer_review_assignments')
+                .deleteMany(
+                  { assessmentId: { $in: assessmentIds } },
+                  { session },
+                );
+              await db
+                .collection('peer_review_reviews')
+                .deleteMany(
+                  { assessmentId: { $in: assessmentIds } },
+                  { session },
+                );
+            }
+          } catch (e) {
+            console.warn(
+              `[ItemRepository] cascade-delete for ${collName} failed (non-fatal):`,
+              e instanceof Error ? e.message : String(e),
+            );
+          }
+        }
       }
 
       await this.courseRepo.cascadeDeleteVersion(session);
@@ -984,6 +1087,9 @@ export class ItemRepository implements IItemRepository {
         break;
       case ItemType.FEEDBACK:
         collection = this.feedbackFormCollection;
+        break;
+      case ItemType.PEER_REVIEW_ASSESSMENT:
+        collection = this.peerReviewAssessmentCollection;
         break;
       default:
         throw new InternalServerError(

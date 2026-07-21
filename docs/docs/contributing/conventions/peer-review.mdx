@@ -1,0 +1,179 @@
+---
+title: Peer-Review Module Convention
+---
+
+## Module overview
+
+The peer-review module adds a v1 peer-based review system to ViBe:
+teachers create peer-review assessments within a course, students
+submit Google Drive links, the system randomly assigns 3 peer
+reviewers per submission with anti-collusion circular-shift
+algorithm, double-blind for students, trimmed-mean scoring with
+teacher override, late-submission penalty, and notifications.
+
+Source: `backend/src/modules/peerReview/`
+
+## Module structure
+
+```
+peerReview/
+  classes/
+    validators/PeerReviewValidators.ts          # teacher create/edit DTOs
+    validators/PeerReviewSubmissionValidators.ts # student submit DTO
+  controllers/
+    PeerReviewAssessmentController.ts           # teacher create/edit/get/close
+    PeerReviewSubmissionController.ts           # student submit + getMine
+    PeerReviewAssignmentController.ts           # reviewer list/get-submit/submit-review + my-received
+    PeerReviewTeacherController.ts              # teacher audit + override
+  cron/
+    AssignmentRunner.ts                         # * * * * * — runs algorithm
+    ReassignmentRunner.ts                       # */30 * * * * — replaces ghost reviewers
+    FinalizationRunner.ts                       # */1 * * * * — computes finalScore
+  repositories/providers/mongodb/
+    PeerReviewAssessmentRepository.ts
+    PeerReviewSubmissionRepository.ts
+    PeerReviewAssignmentRepository.ts
+    PeerReviewReviewRepository.ts
+  services/
+    PeerReviewAssessmentService.ts              # create/edit/get/close
+    PeerReviewSubmissionService.ts              # submit + idempotency
+    PeerReviewAssignmentService.ts              # algorithm orchestration
+    PeerReviewScoringService.ts                 # computeFinalScore + recompute
+    PeerReviewNotificationService.ts            # 5 notification templates
+    PeerReviewUrlAccessibilityService.ts        # HEAD/GET link check + 60s cache
+  utils/
+    assignmentAlgorithm.ts                      # PURE — circular-shift w/ collision check
+    doubleBlindFilters.ts                       # allow-list payload filters + identifier scanner
+    scoreComputation.ts                         # PURE — trimmed-mean final score
+    urlKindDetector.ts                          # PURE — drive/github/youtube/oneDrive/dropbox
+  index.ts                                      # DI bindings + module loader
+  container.ts                                  # inversify bindings
+  types.ts                                      # PEERREVIEW_TYPES symbols
+```
+
+## Design invariants
+
+1. **Double-blind is enforced in 3 layers:**
+   - Server allow-list filters (`stripSubmitterIdentity` /
+     `stripReviewerIdentity`) at the controller boundary
+   - Frontend allow-list mirrors in the React components
+   - Recursive `responseContainsIdentifier` leak tests (18 cases)
+   that exercise the first layer at unit-test time
+
+2. **Algorithm is pure and deterministic.** `assignReviewers` is a
+   pure function with no I/O, no DB, no state. Seedable LCG RNG so
+   tests are reproducible. 50-attempt retry on collision-checked
+   circular-shift, fallback to uniform-random.
+
+3. **Scoring is pure.** `computeFinalScore` is a pure function.
+   0/1/2/3+ review handling is documented. Hard-exclude late
+   policy returns `{ pendingForTeacher: true }`.
+
+4. **Submission idempotency.** `peer_review_submissions` is keyed
+   on (assessmentId, studentId); re-submitting updates the same
+   row, never creates a new one.
+
+5. **Cron-triggered, idempotent.** The 3 crons (AssignmentRunner,
+   ReassignmentRunner, FinalizationRunner) are idempotent. A second
+   run on the same assessment returns `{ status: 'already_ran' }`
+   without re-doing work.
+
+## Conventions
+
+- **All controllers use `@Authorized(['INSTRUCTOR', 'MANAGER'])` for
+  teacher-only endpoints and `@Authorized()` for student endpoints.**
+  Per-course CASL checks are delegated to the existing
+  `ItemAbilities` machinery.
+
+- **No bare `console.log` in cron callbacks.** Use
+  `[AssignmentRunner] ran N assessments, errors=M` (the existing
+  pattern in `AssignmentRunner.runNow`).
+
+- **Repository methods return the full record.** The controller
+  decides which fields to expose. Never return submitter or
+  reviewer identity from a student-facing endpoint — use the
+  `strip*Identity` filters.
+
+- **No new top-level collection types.** All 4 peer-review
+  collections (`peer_review_assessments`, `peer_review_submissions`,
+  `peer_review_assignments`, `peer_review_reviews`) live under the
+  `peerReview` module's `repositories/providers/mongodb/` dir.
+
+- **Tests are pure-function where possible.** The algorithm,
+  scoring, URL accessibility, kind detector, double-blind filters,
+  and teacher-override validation are all unit-testable in
+  isolation. DB-backed integration tests are deferred until the
+  project-wide test infra is fixed.
+
+## When adding a new feature to peerReview
+
+1. Pure functions go in `utils/` and get unit tests in
+   `tests/`. Run them with
+   `pnpm --filter backend exec vitest run modules/peerReview/tests/`
+2. DB I/O goes in `repositories/providers/mongodb/`. Mirror the
+   existing pattern (collection init in `init()`, methods
+   `await this.init()` first, `_id: id as any` for queries,
+   `set*` methods for updates).
+3. Services go in `services/`. Extend `BaseService` for DB access
+   via `super(database)`. Inject other services via
+   `@inject(PEERREVIEW_TYPES.OtherService)`.
+4. Controllers go in `controllers/`. Use the existing
+   `routing-controllers` decorators. Validate with class-validator
+   DTOs in `classes/validators/`.
+5. Add DI bindings to `container.ts` and the symbol to `types.ts`.
+6. If the controller is auto-discovered by `loadAppModules`, add
+   the controller class to `peerReviewModuleControllers` in
+   `index.ts`.
+7. Add unit tests for any pure function or validation. For
+   controller-level tests, use the project-wide `MongoMemoryServer`
+   once the test infra is fixed.
+8. Update the `phase1-implementation-peer-review.md` checklist with
+   `[x]` for what shipped.
+
+## Double-blind gatekeeper
+
+`backend/src/modules/peerReview/utils/doubleBlindFilters.ts`
+defines the authoritative allow-lists:
+
+- `stripSubmitterIdentity(obj)`: returns a copy of `obj` with only
+  the fields safe to show to the assigned REVIEWER. Excludes
+  `studentId`, `studentName`, `studentEmail`,
+  `studentFirebaseUid`, and any nested submitter payload.
+- `stripReviewerIdentity(obj)`: the symmetric filter for
+  SUBMITTER-facing endpoints. Excludes `reviewerId`,
+  `reviewerName`, `reviewerEmail`, `reviewerFirebaseUid`.
+- `responseContainsIdentifier(obj, needle)`: recursive substring
+  scanner. Used by the unit tests to assert a leak-free response.
+
+**The 18 leak tests in `tests/doubleBlindLeak.test.ts` are the v1
+gatekeeper. If any of them fails, the build fails.**
+
+## Cron registration
+
+The 3 crons are registered via
+`backend/src/bootstrap/jobs/peerReviewCrons.ts`. The server entry
+imports this file and calls `registerPeerReviewCrons(container)`
+on startup. Each cron's own `scheduleCron()` does the actual
+node-cron registration.
+
+## Frontend routes
+
+| Path                                                     | Component                          | Backend endpoint(s)                                |
+|----------------------------------------------------------|------------------------------------|---------------------------------------------------|
+| `/(teacher)/courses/:cId/versions/:vId/edit/:sectionId`  | `PeerReviewAssessmentForm`         | `POST /peer-review-assessments` + `PATCH /:id`   |
+| `/(student)/courses/:cId/versions/:vId/items/:itemId`    | `PeerReviewSubmissionForm`         | `POST /items/:itemId/submit` + `GET /students/me/submissions` |
+| `/(student)/peer-reviews`                                | `ReviewerDashboard`                | `GET /students/me/peer-review-assignments`        |
+| `/(student)/peer-reviews/score`                          | `MyScore`                          | `GET /students/me/peer-reviews-received`         |
+
+## Future work (deferred from v1)
+
+- Audit-trail calls in create/edit/close/override (request context
+  plumbing lands in a follow-up that touches all controllers).
+- `reassignmentCount` enforcement (deferred to v2; v1 uses
+  un-capped rebalance).
+- Notification type enum extension
+  (`NotificationType.PEER_REVIEW_*` values are currently
+  discriminated via `extra.kind`).
+- Cron-to-notifier wiring for ReassignmentRunner
+  (`notifyReassigned`) and FinalizationRunner
+  (`notifyScoreReady`).

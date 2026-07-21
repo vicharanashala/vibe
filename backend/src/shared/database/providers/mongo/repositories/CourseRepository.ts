@@ -794,7 +794,14 @@ export class CourseRepository implements ICourseRepository {
           sections: (module.sections || []).map(section => ({
             ...section,
             sectionId: new ObjectId(section.sectionId),
-            itemsGroupId: new ObjectId(section.itemsGroupId),
+            // Legacy / auto-seeded sections may not have an itemsGroupId
+            // yet. `new ObjectId(undefined)` throws, which would crash
+            // every version update for those sections. Leave undefined
+            // out of the $set payload so Mongo keeps the existing value
+            // (if any) and the field stays missing in the doc.
+            ...(section.itemsGroupId
+              ? { itemsGroupId: new ObjectId(section.itemsGroupId) }
+              : {}),
           })),
         })),
         cohorts: (courseVersion.cohorts || []).map(cohort => new ObjectId(cohort))
