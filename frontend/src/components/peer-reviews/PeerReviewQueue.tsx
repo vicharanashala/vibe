@@ -112,7 +112,9 @@ export default function PeerReviewQueue({
             {Math.min(done, required)} of {required} reviewed
           </span>
         </div>
-        <Progress value={Math.min((done / required) * 100, 100)} />
+        <Progress
+          value={required > 0 ? Math.min((done / required) * 100, 100) : 100}
+        />
       </div>
 
       <blockquote className="whitespace-pre-wrap rounded-md bg-muted/50 p-4 text-sm leading-relaxed">

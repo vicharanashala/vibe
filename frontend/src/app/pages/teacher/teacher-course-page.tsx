@@ -60,6 +60,7 @@ import { Label } from "@/components/ui/label";
 import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
+import ReflectionItemEditor from './components/ReflectionItemEditor';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/utils/utils";
@@ -3471,6 +3472,23 @@ function TeacherCourseContent() {
   <FeedbackFormEditor  />
 )} */}
 
+
+                      {selectedEntity.type === "item" && selectedEntity.data.type === "REFLECTION" && (
+                        <ReflectionItemEditor
+                          itemId={selectedEntity.data._id}
+                          versionId={versionId!}
+                          moduleId={selectedEntity.parentIds?.moduleId || ""}
+                          sectionId={selectedEntity.parentIds?.sectionId || ""}
+                          name={selectedEntity.data.name}
+                          description={selectedEntity.data.description}
+                          details={(selectedItemData as any)?.details}
+                          onSaved={() => {
+                            refetchVersion();
+                            refetchItems();
+                            refetchItem();
+                          }}
+                        />
+                      )}
 
                       {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (
                         <FeedbackFormEditor

@@ -67,7 +67,13 @@ export default function MyReflectionCard({reflection}: MyReflectionCardProps) {
             </span>{' '}
             to unlock your score.
           </p>
-          <Progress value={(reviewsCompleted / reviewsRequired) * 100} />
+          <Progress
+            value={
+              reviewsRequired > 0
+                ? Math.min((reviewsCompleted / reviewsRequired) * 100, 100)
+                : 100
+            }
+          />
         </div>
       ) : null}
 
