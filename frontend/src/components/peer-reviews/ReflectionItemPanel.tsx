@@ -54,10 +54,16 @@ export default function ReflectionItemPanel({
     useNextReflectionToReview(itemRef, hasSubmitted && isReviewing);
   const submitReview = useSubmitReview(itemRef);
 
+  // The item container gives this a full-height box; center the card in it
+  // rather than letting it sit crammed against the top of a tall empty page.
   const shell = (children: React.ReactNode) => (
-    <div className="mx-auto max-w-3xl space-y-4 p-4">
-      {title ? <h2 className="text-xl font-semibold">{title}</h2> : null}
-      {children}
+    <div className="flex min-h-full justify-center px-4 py-6 sm:py-10">
+      <div className="w-full max-w-2xl space-y-4">
+        {title ? (
+          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+        ) : null}
+        {children}
+      </div>
     </div>
   );
 
