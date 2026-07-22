@@ -392,6 +392,12 @@ export interface IBlogDetails {
 export interface IReflectionDetails {
   /** Optional instructor prompt shown above the editor. */
   prompt?: string;
+  /** Cap on how many peers may score one reflection. Defaults to 10. */
+  maxReviewsPerReflection?: number;
+  /** Reviews a student owes before their own score unlocks. Defaults to 10. */
+  requiredReviewsToUnlock?: number;
+  /** Reviews needed before an average is shown at all. Defaults to 3. */
+  minReviewsToReveal?: number;
 }
 
 export interface IFeedBackFormDetails {

@@ -11,12 +11,11 @@ import {
   Reflection,
 } from '../classes/transformers/Reflection.js';
 import {
+  DEFAULT_POLICY,
   MAX_REFLECTION_LENGTH,
   MAX_SCORE,
   MIN_REFLECTION_LENGTH,
-  MIN_REVIEWS_TO_REVEAL,
   MIN_SCORE,
-  REQUIRED_REVIEWS_TO_UNLOCK,
 } from '../constants.js';
 
 /**
@@ -107,6 +106,7 @@ export class ReflectionService {
     userId: string;
     itemId: string;
   }): Promise<AnonymousReflectionForReview | null> {
+    const policy = await this.repository.getPolicy(input.itemId);
     const reviewsCompleted = await this.repository.countReviewsByReviewer(
       input.userId,
       input.itemId,
@@ -114,6 +114,7 @@ export class ReflectionService {
     const reflection = await this.repository.findNextForReview({
       reviewerId: input.userId,
       itemId: input.itemId,
+      maxReviewsPerReflection: policy.maxReviewsPerReflection,
     });
     if (!reflection) return null;
 
@@ -121,7 +122,7 @@ export class ReflectionService {
       reflectionId: reflection._id!.toString(),
       text: reflection.text,
       reviewsCompleted,
-      reviewsRequired: REQUIRED_REVIEWS_TO_UNLOCK,
+      reviewsRequired: policy.requiredReviewsToUnlock,
     };
   }
 
@@ -148,6 +149,8 @@ export class ReflectionService {
       throw new ForbiddenError('You cannot review your own reflection.');
     }
 
+    const policy = await this.repository.getPolicy(reflection.itemId.toString());
+
     const result = await this.repository.recordReview({
       reflectionId: input.reflectionId,
       reviewerId: input.reviewerId,
@@ -155,6 +158,7 @@ export class ReflectionService {
       itemId: reflection.itemId.toString(),
       scores: input.scores,
       helpful: input.helpful,
+      maxReviewsPerReflection: policy.maxReviewsPerReflection,
     });
 
     if (result.applied === false) {
@@ -169,7 +173,10 @@ export class ReflectionService {
       input.reviewerId,
       reflection.itemId.toString(),
     );
-    return {reviewsCompleted, reviewsRequired: REQUIRED_REVIEWS_TO_UNLOCK};
+    return {
+      reviewsCompleted,
+      reviewsRequired: policy.requiredReviewsToUnlock,
+    };
   }
 
   /**
@@ -187,6 +194,7 @@ export class ReflectionService {
     );
     if (!reflection) return null;
 
+    const policy = await this.repository.getPolicy(input.itemId);
     const reviewsCompleted = await this.repository.countReviewsByReviewer(
       input.userId,
       input.itemId,
@@ -198,14 +206,14 @@ export class ReflectionService {
       confidence: reflection.confidence,
       reviewsReceived: reflection.reviewCount,
       reviewsCompleted,
-      reviewsRequired: REQUIRED_REVIEWS_TO_UNLOCK,
+      reviewsRequired: policy.requiredReviewsToUnlock,
       helpfulCount: reflection.helpfulCount,
     };
 
-    if (reviewsCompleted < REQUIRED_REVIEWS_TO_UNLOCK) {
+    if (reviewsCompleted < policy.requiredReviewsToUnlock) {
       return {...base, averageScore: null, lockedReason: 'REVIEWS_PENDING'};
     }
-    if (reflection.reviewCount < MIN_REVIEWS_TO_REVEAL) {
+    if (reflection.reviewCount < policy.minReviewsToReveal) {
       return {...base, averageScore: null, lockedReason: 'AWAITING_PEERS'};
     }
 
@@ -222,6 +230,13 @@ export class ReflectionService {
     itemId?: string;
     limit: number;
   }) {
+    // A listing may span items with different policies. When it is narrowed to
+    // one item that item's threshold applies; across a whole version there is no
+    // single correct threshold, so the default stands in.
+    const {minReviewsToReveal} = input.itemId
+      ? await this.repository.getPolicy(input.itemId)
+      : DEFAULT_POLICY;
+
     const reflections = await this.repository.listByCourseVersion(input);
     return reflections.map(r => ({
       reflectionId: r._id!.toString(),
@@ -232,7 +247,7 @@ export class ReflectionService {
       reviewsReceived: r.reviewCount,
       helpfulCount: r.helpfulCount,
       averageScore:
-        r.reviewCount >= MIN_REVIEWS_TO_REVEAL
+        r.reviewCount >= minReviewsToReveal
           ? Math.round((r.scoreSum / r.reviewCount) * 100) / 100
           : null,
       status: r.status,
@@ -245,10 +260,10 @@ export class ReflectionService {
     courseVersionId: string;
     itemId?: string;
   }) {
-    return this.repository.getStats({
-      ...input,
-      minReviewsToReveal: MIN_REVIEWS_TO_REVEAL,
-    });
+    const {minReviewsToReveal} = input.itemId
+      ? await this.repository.getPolicy(input.itemId)
+      : DEFAULT_POLICY;
+    return this.repository.getStats({...input, minReviewsToReveal});
   }
 
   private assertInScoreRange(value: number, field: string): void {

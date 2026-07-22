@@ -296,6 +296,42 @@ class ReflectionDetailsPayloadValidator {
   @IsString()
   @IsOptional()
   prompt?: string;
+
+  @JSONSchema({
+    description:
+      'Cap on how many peers may score one reflection (1-25). Defaults to 10.',
+    example: 10,
+    type: 'integer',
+  })
+  @IsInt()
+  @Min(1)
+  @Max(25)
+  @IsOptional()
+  maxReviewsPerReflection?: number;
+
+  @JSONSchema({
+    description:
+      'Reviews a student must complete before their own score unlocks (0-25). 0 disables reciprocity. Defaults to 10.',
+    example: 10,
+    type: 'integer',
+  })
+  @IsInt()
+  @Min(0)
+  @Max(25)
+  @IsOptional()
+  requiredReviewsToUnlock?: number;
+
+  @JSONSchema({
+    description:
+      'Reviews a reflection must receive before its average is shown (1-25). Defaults to 3.',
+    example: 3,
+    type: 'integer',
+  })
+  @IsInt()
+  @Min(1)
+  @Max(25)
+  @IsOptional()
+  minReviewsToReveal?: number;
 }
 
 class CreateItemBody implements Partial<IBaseItem> {

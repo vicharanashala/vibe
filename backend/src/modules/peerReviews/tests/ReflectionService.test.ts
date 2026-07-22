@@ -16,6 +16,9 @@ import {
   averageOfScores,
 } from '../classes/transformers/Reflection.js';
 import {
+  DEFAULT_POLICY,
+  ReflectionPolicy,
+  resolvePolicy,
   MAX_REVIEWS_PER_REFLECTION,
   MIN_REVIEWS_TO_REVEAL,
   REQUIRED_REVIEWS_TO_UNLOCK,
@@ -35,6 +38,12 @@ const scores = (n: number): IReflectionScores => ({
 class FakeRepo {
   reflections: IReflection[] = [];
   reviews: {reflectionId: string; reviewerId: string; itemId: string}[] = [];
+  /** Per-item instructor overrides; empty means "use the defaults". */
+  policyOverrides: Partial<ReflectionPolicy> = {};
+
+  async getPolicy(): Promise<ReflectionPolicy> {
+    return resolvePolicy(this.policyOverrides);
+  }
 
   async create(reflection: IReflection): Promise<string> {
     const _id = new ObjectId();
@@ -65,7 +74,11 @@ class FakeRepo {
     return (await this.listReviewedReflectionIds(reviewerId, itemId)).length;
   }
 
-  async findNextForReview(input: {reviewerId: string; itemId: string}) {
+  async findNextForReview(input: {
+    reviewerId: string;
+    itemId: string;
+    maxReviewsPerReflection: number;
+  }) {
     const seen = await this.listReviewedReflectionIds(
       input.reviewerId,
       input.itemId,
@@ -77,7 +90,7 @@ class FakeRepo {
             r.itemId.toString() === input.itemId &&
             r.status === 'OPEN' &&
             r.userId.toString() !== input.reviewerId &&
-            r.reviewCount < MAX_REVIEWS_PER_REFLECTION &&
+            r.reviewCount < input.maxReviewsPerReflection &&
             !seen.includes(r._id!.toString()),
         )
         .sort((a, b) => a.reviewCount - b.reviewCount)[0] ?? null
@@ -90,6 +103,7 @@ class FakeRepo {
     itemId: string;
     scores: IReflectionScores;
     helpful: boolean;
+    maxReviewsPerReflection: number;
   }) {
     const already = this.reviews.some(
       v =>
@@ -99,7 +113,7 @@ class FakeRepo {
     if (already) return {applied: false as const, reason: 'DUPLICATE' as const};
 
     const reflection = await this.findById(input.reflectionId);
-    if (!reflection || reflection.reviewCount >= MAX_REVIEWS_PER_REFLECTION) {
+    if (!reflection || reflection.reviewCount >= input.maxReviewsPerReflection) {
       return {applied: false as const, reason: 'CAPPED' as const};
     }
 
@@ -111,7 +125,7 @@ class FakeRepo {
     reflection.reviewCount += 1;
     reflection.scoreSum += averageOfScores(input.scores);
     if (input.helpful) reflection.helpfulCount += 1;
-    if (reflection.reviewCount >= MAX_REVIEWS_PER_REFLECTION) {
+    if (reflection.reviewCount >= input.maxReviewsPerReflection) {
       reflection.status = 'CLOSED';
     }
     return {applied: true as const, reviewCount: reflection.reviewCount};
@@ -356,5 +370,66 @@ describe('getMyReflection score reveal', () => {
       itemId: SECTION,
     });
     expect(mine).toBeNull();
+  });
+
+  describe('instructor-configured policy', () => {
+    it('reveals the score at the thresholds the instructor chose', async () => {
+      // A two-student demo: review one peer, receive one review.
+      repo.policyOverrides = {
+        requiredReviewsToUnlock: 1,
+        minReviewsToReveal: 1,
+      };
+
+      const author = new ObjectId().toString();
+      const {reflectionId} = await submit(author);
+
+      await reviewedByPeers(reflectionId, 1);
+      await completeQuota(author, 1);
+
+      const mine = await service.getMyReflection({userId: author, itemId: SECTION});
+      expect(mine!.lockedReason).toBeUndefined();
+      expect(mine!.averageScore).not.toBeNull();
+      expect(mine!.reviewsRequired).toBe(1);
+    });
+
+    it('caps reviews at the instructor lower limit', async () => {
+      repo.policyOverrides = {maxReviewsPerReflection: 2};
+
+      const {reflectionId} = await submit(new ObjectId().toString());
+      await reviewedByPeers(reflectionId, 2);
+
+      await expect(
+        service.submitReview({
+          reviewerId: new ObjectId().toString(),
+          reflectionId,
+          scores: scores(5),
+          helpful: false,
+        }),
+      ).rejects.toThrow(/enough reviews/i);
+    });
+
+    it('never reveals a score that needs more reviews than may be given', async () => {
+      // minReviewsToReveal is clamped down to the cap, otherwise a reflection
+      // limited to 2 reviews but needing 5 would stay hidden forever.
+      const policy = resolvePolicy({
+        maxReviewsPerReflection: 2,
+        minReviewsToReveal: 5,
+      });
+      expect(policy.minReviewsToReveal).toBe(2);
+    });
+
+    it('clamps values outside the permitted range instead of failing a read', async () => {
+      const policy = resolvePolicy({
+        maxReviewsPerReflection: 9999,
+        requiredReviewsToUnlock: -4,
+      });
+      expect(policy.maxReviewsPerReflection).toBe(25);
+      expect(policy.requiredReviewsToUnlock).toBe(0);
+    });
+
+    it('falls back to the defaults when nothing is configured', async () => {
+      expect(resolvePolicy(undefined)).toEqual(DEFAULT_POLICY);
+      expect(resolvePolicy({})).toEqual(DEFAULT_POLICY);
+    });
   });
 });

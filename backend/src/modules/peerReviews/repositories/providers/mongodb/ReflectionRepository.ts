@@ -10,7 +10,10 @@ import {
   Reflection,
   averageOfScores,
 } from '../../../classes/transformers/Reflection.js';
-import {MAX_REVIEWS_PER_REFLECTION} from '../../../constants.js';
+import {
+  ReflectionPolicy,
+  resolvePolicy,
+} from '../../../constants.js';
 
 /** Aggregate counters for one section, used by the instructor view. */
 export interface ISectionReflectionStats {
@@ -28,6 +31,8 @@ export interface ISectionReflectionStats {
 export class ReflectionRepository {
   private reflections!: Collection<IReflection>;
   private reviews!: Collection<IReflectionReview>;
+  /** The REFLECTION item documents, read only for their instructor policy. */
+  private items!: Collection<{_id: ObjectId; details?: Partial<ReflectionPolicy>}>;
   private initialized = false;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
@@ -38,6 +43,10 @@ export class ReflectionRepository {
     this.reviews = await this.db.getCollection<IReflectionReview>(
       'reflectionReviews',
     );
+    this.items = await this.db.getCollection<{
+      _id: ObjectId;
+      details?: Partial<ReflectionPolicy>;
+    }>('reflection_items');
     this.initialized = true;
 
     try {
@@ -69,6 +78,23 @@ export class ReflectionRepository {
     } catch {
       // Indexes already exist.
     }
+  }
+
+  /**
+   * The instructor policy configured on a reflection item, falling back to the
+   * defaults when the item is missing or carries no overrides.
+   *
+   * Read straight from the item collection rather than through the courses
+   * module, which keeps peerReviews free of a cross-module binding for what is
+   * a three-field lookup.
+   */
+  async getPolicy(itemId: string): Promise<ReflectionPolicy> {
+    await this.init();
+    const item = await this.items.findOne(
+      {_id: new ObjectId(itemId)},
+      {projection: {details: 1}},
+    );
+    return resolvePolicy(item?.details);
   }
 
   async create(reflection: Reflection): Promise<string> {
@@ -110,6 +136,7 @@ export class ReflectionRepository {
   async findNextForReview(input: {
     reviewerId: string;
     itemId: string;
+    maxReviewsPerReflection: number;
   }): Promise<IReflection | null> {
     await this.init();
     const reviewedIds = await this.listReviewedReflectionIds(
@@ -122,7 +149,7 @@ export class ReflectionRepository {
         status: 'OPEN',
         isDeleted: {$ne: true},
         userId: {$ne: new ObjectId(input.reviewerId)},
-        reviewCount: {$lt: MAX_REVIEWS_PER_REFLECTION},
+        reviewCount: {$lt: input.maxReviewsPerReflection},
         ...(reviewedIds.length > 0
           ? {_id: {$nin: reviewedIds.map(id => new ObjectId(id))}}
           : {}),
@@ -181,6 +208,7 @@ export class ReflectionRepository {
     itemId: string;
     scores: IReflectionScores;
     helpful: boolean;
+    maxReviewsPerReflection: number;
   }): Promise<
     {applied: true; reviewCount: number} | {applied: false; reason: 'DUPLICATE' | 'CAPPED'}
   > {
@@ -210,7 +238,7 @@ export class ReflectionRepository {
       {
         _id: reflectionId,
         status: 'OPEN',
-        reviewCount: {$lt: MAX_REVIEWS_PER_REFLECTION},
+        reviewCount: {$lt: input.maxReviewsPerReflection},
       },
       {
         $inc: {
@@ -229,7 +257,7 @@ export class ReflectionRepository {
     }
 
     // Close the reflection once it is full so it stops appearing in the pool.
-    if (updated.reviewCount >= MAX_REVIEWS_PER_REFLECTION) {
+    if (updated.reviewCount >= input.maxReviewsPerReflection) {
       await this.reflections.updateOne(
         {_id: reflectionId, status: 'OPEN'},
         {$set: {status: 'CLOSED', updatedAt: new Date()}},
