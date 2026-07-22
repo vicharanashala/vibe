@@ -3476,9 +3476,8 @@ function TeacherCourseContent() {
                       {selectedEntity.type === "item" && selectedEntity.data.type === "REFLECTION" && (
                         <ReflectionItemEditor
                           itemId={selectedEntity.data._id}
+                          courseId={courseId!}
                           versionId={versionId!}
-                          moduleId={selectedEntity.parentIds?.moduleId || ""}
-                          sectionId={selectedEntity.parentIds?.sectionId || ""}
                           name={selectedEntity.data.name}
                           description={selectedEntity.data.description}
                           details={(selectedItemData as any)?.details}

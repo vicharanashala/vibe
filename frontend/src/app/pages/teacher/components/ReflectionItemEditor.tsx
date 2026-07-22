@@ -5,7 +5,7 @@ import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {Textarea} from '@/components/ui/textarea';
 import {toast} from 'sonner';
-import {useUpdateItem} from '@/hooks/hooks';
+import {useUpdateCourseItem} from '@/hooks/hooks';
 
 /** Mirrors POLICY_LIMITS on the server, which clamps anything out of range. */
 const LIMITS = {
@@ -18,9 +18,8 @@ type PolicyField = keyof typeof LIMITS;
 
 interface ReflectionItemEditorProps {
   itemId: string;
+  courseId: string;
   versionId: string;
-  moduleId: string;
-  sectionId: string;
   name: string;
   description?: string;
   details?: {
@@ -74,15 +73,14 @@ function NumberField({
  */
 export default function ReflectionItemEditor({
   itemId,
+  courseId,
   versionId,
-  moduleId,
-  sectionId,
   name,
   description,
   details,
   onSaved,
 }: ReflectionItemEditorProps) {
-  const {mutateAsync: updateItem, isPending} = useUpdateItem();
+  const {mutateAsync: updateItem, isPending} = useUpdateCourseItem();
 
   const asText = (n?: number) => (typeof n === 'number' ? String(n) : '');
 
@@ -123,7 +121,7 @@ export default function ReflectionItemEditor({
   const handleSave = async () => {
     try {
       await updateItem({
-        params: {path: {versionId, moduleId, sectionId, itemId}},
+        params: {path: {courseId, versionId, itemId}},
         body: {
           name,
           description: description ?? '',
