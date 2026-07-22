@@ -128,7 +128,9 @@ export default function ReflectionItemEditor({
           name,
           description: description ?? '',
           type: 'REFLECTION',
-          reflectionDetails: {
+          // The update endpoint carries the payload on `details`, unlike create
+          // which uses a per-type field (`reflectionDetails`).
+          details: {
             prompt: prompt.trim() === '' ? undefined : prompt.trim(),
             maxReviewsPerReflection: parse(
               maxReviews,
@@ -145,7 +147,18 @@ export default function ReflectionItemEditor({
       toast.success('Reflection settings saved');
       onSaved();
     } catch (error: any) {
-      toast.error(error?.message || 'Could not save the reflection settings');
+      // Surface what the server actually objected to; a bare "could not save"
+      // leaves no way to tell a validation error from a permission one.
+      const detail =
+        error?.response?.data?.message ??
+        error?.data?.message ??
+        error?.message;
+      console.error('Reflection settings save failed', error);
+      toast.error(
+        detail
+          ? `Could not save: ${detail}`
+          : 'Could not save the reflection settings',
+      );
     }
   };
 
