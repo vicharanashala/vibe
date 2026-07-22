@@ -421,9 +421,7 @@ class QuestionService extends BaseService {
           apiKey: ANTHROPIC_CRED!,
         });
 
-        // TEMP DEBUG - remove before commit
-        console.log('=== [DEBUG] Chunk text being sent to Claude ===');
-        console.log(text);
+        
 
         const response = await anthropic.messages.create({
           model: ANTHROPIC_MODEL,
@@ -442,9 +440,6 @@ class QuestionService extends BaseService {
           ],
         });
 
-        // TEMP DEBUG - remove before commit
-        console.log('=== [DEBUG] Raw Claude response content ===');
-        console.log(JSON.stringify(response.content, null, 2));
 
         const finalOutput =
           response.content?.map(c => ('text' in c ? c.text : '')).join('') ??

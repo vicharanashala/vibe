@@ -476,14 +476,7 @@ class QuestionController {
 
     const chunks = chunkTranscriptByTimestamps(text);
 
-    // TEMP DEBUG - remove before commit
-    console.log('=== [DEBUG] Original transcript ===');
-    console.log(text);
-    console.log(`=== [DEBUG] chunkTranscriptByTimestamps produced ${chunks.length} chunk(s) ===`);
-    chunks.forEach((chunk, i) => {
-      console.log(`--- [DEBUG] Chunk ${i} (length ${chunk.length}) ---`);
-      console.log(chunk);
-    });
+   
 
     let allSegments: TranscriptResponse[] = [];
     // for (const chunk of chunks) {
