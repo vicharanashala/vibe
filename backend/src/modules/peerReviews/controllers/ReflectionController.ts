@@ -45,7 +45,7 @@ export class ReflectionController {
 
   @Authorized()
   @Post(
-    '/courses/:courseId/versions/:courseVersionId/modules/:moduleId/sections/:itemId/reflections',
+    '/courses/:courseId/versions/:courseVersionId/items/:itemId/reflections',
   )
   @HttpCode(201)
   async submitReflection(
@@ -65,7 +65,7 @@ export class ReflectionController {
 
   @Authorized()
   @Get(
-    '/courses/:courseId/versions/:courseVersionId/modules/:moduleId/sections/:itemId/reflections/me',
+    '/courses/:courseId/versions/:courseVersionId/items/:itemId/reflections/me',
   )
   @HttpCode(200)
   async getMyReflection(
@@ -86,7 +86,7 @@ export class ReflectionController {
    */
   @Authorized()
   @Get(
-    '/courses/:courseId/versions/:courseVersionId/modules/:moduleId/sections/:itemId/review-queue/next',
+    '/courses/:courseId/versions/:courseVersionId/items/:itemId/review-queue/next',
   )
   @HttpCode(200)
   async getNextForReview(

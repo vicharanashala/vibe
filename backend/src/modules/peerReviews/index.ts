@@ -3,7 +3,6 @@ import {RoutingControllersOptions, useContainer} from 'routing-controllers';
 import {sharedContainerModule} from '#root/container.js';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {authContainerModule} from '../auth/container.js';
-import {coursesContainerModule} from '../courses/container.js';
 import {peerReviewsContainerModule} from './container.js';
 import {ReflectionController} from './controllers/ReflectionController.js';
 import {
@@ -21,7 +20,6 @@ export const peerReviewsContainerModules: ContainerModule[] = [
   peerReviewsContainerModule,
   sharedContainerModule,
   authContainerModule,
-  coursesContainerModule,
 ];
 
 export const peerReviewsModuleControllers: Function[] = [ReflectionController];

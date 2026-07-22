@@ -286,6 +286,18 @@ class ProjectDetailsPayloadValidator implements IProjectDetails {
   description: string;
 }
 
+class ReflectionDetailsPayloadValidator {
+  @JSONSchema({
+    description:
+      'Optional prompt shown above the reflection editor. Defaults to a generic ask when omitted.',
+    example: 'What was the single most surprising idea in this section?',
+    type: 'string',
+  })
+  @IsString()
+  @IsOptional()
+  prompt?: string;
+}
+
 class CreateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
     description: 'Title of the item',
@@ -394,18 +406,6 @@ class CreateItemBody implements Partial<IBaseItem> {
   @ValidateNested()
   @Type(() => ReflectionDetailsPayloadValidator)
   reflectionDetails?: ReflectionDetailsPayloadValidator;
-}
-
-class ReflectionDetailsPayloadValidator {
-  @JSONSchema({
-    description:
-      'Optional prompt shown above the reflection editor. Defaults to a generic ask when omitted.',
-    example: 'What was the single most surprising idea in this section?',
-    type: 'string',
-  })
-  @IsString()
-  @IsOptional()
-  prompt?: string;
 }
 
 class UpdateItemBody implements Partial<IBaseItem> {
