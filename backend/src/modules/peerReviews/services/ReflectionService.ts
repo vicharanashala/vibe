@@ -238,21 +238,46 @@ export class ReflectionService {
       : DEFAULT_POLICY;
 
     const reflections = await this.repository.listByCourseVersion(input);
-    return reflections.map(r => ({
-      reflectionId: r._id!.toString(),
-      userId: r.userId.toString(),
-      itemId: r.itemId.toString(),
-      text: r.text,
-      confidence: r.confidence,
-      reviewsReceived: r.reviewCount,
-      helpfulCount: r.helpfulCount,
-      averageScore:
-        r.reviewCount >= minReviewsToReveal
+    const authorIds = reflections.map(r => r.userId.toString());
+    const [authors, reviewsGiven] = await Promise.all([
+      this.repository.findAuthors(authorIds),
+      this.repository.countReviewsByReviewers(authorIds, input.itemId),
+    ]);
+
+    return reflections.map(r => {
+      const authorId = r.userId.toString();
+      // The instructor sees the average whenever one exists. The reveal
+      // threshold protects a student from over-reading three opinions about
+      // their own work; it is not a reason to withhold the class picture from
+      // the person who has to act on it.  carries the caveat.
+      const averageScore =
+        r.reviewCount > 0
           ? Math.round((r.scoreSum / r.reviewCount) * 100) / 100
-          : null,
-      status: r.status,
-      createdAt: r.createdAt.toISOString(),
-    }));
+          : null;
+
+      return {
+        reflectionId: r._id!.toString(),
+        userId: authorId,
+        studentName: authors.get(authorId)?.name ?? 'Unknown student',
+        studentEmail: authors.get(authorId)?.email ?? '',
+        itemId: r.itemId.toString(),
+        text: r.text,
+        confidence: r.confidence,
+        reviewsReceived: r.reviewCount,
+        reviewsGiven: reviewsGiven.get(authorId) ?? 0,
+        helpfulCount: r.helpfulCount,
+        averageScore,
+        /** True when the average is below the item's reveal threshold. */
+        isProvisional: r.reviewCount > 0 && r.reviewCount < minReviewsToReveal,
+        /** The gap the instructor acts on: self-rating minus peer average. */
+        confidenceGap:
+          averageScore !== null
+            ? Math.round((r.confidence - averageScore) * 10) / 10
+            : null,
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+      };
+    });
   }
 
   /** Instructor roll-up: participation and the confidence-versus-peers gap. */

@@ -66,12 +66,21 @@ export interface MyReflection {
 export interface InstructorReflection {
   reflectionId: string;
   userId: string;
+  studentName: string;
+  studentEmail: string;
   itemId: string;
   text: string;
   confidence: number;
+  /** Reviews this reflection received from peers. */
   reviewsReceived: number;
+  /** Reviews this student completed for others. */
+  reviewsGiven: number;
   helpfulCount: number;
   averageScore: number | null;
+  /** True when the average rests on fewer reviews than the reveal threshold. */
+  isProvisional: boolean;
+  /** Self-rating minus peer average; large and positive means overconfident. */
+  confidenceGap: number | null;
   status: 'OPEN' | 'CLOSED' | 'WITHDRAWN';
   createdAt: string;
 }

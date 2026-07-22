@@ -33,6 +33,13 @@ export class ReflectionRepository {
   private reviews!: Collection<IReflectionReview>;
   /** The REFLECTION item documents, read only for their instructor policy. */
   private items!: Collection<{_id: ObjectId; details?: Partial<ReflectionPolicy>}>;
+  /** Read only to put a name against a reflection in the instructor view. */
+  private users!: Collection<{
+    _id: ObjectId;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  }>;
   private initialized = false;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
@@ -47,6 +54,12 @@ export class ReflectionRepository {
       _id: ObjectId;
       details?: Partial<ReflectionPolicy>;
     }>('reflection_items');
+    this.users = await this.db.getCollection<{
+      _id: ObjectId;
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+    }>('users');
     this.initialized = true;
 
     try {
@@ -95,6 +108,61 @@ export class ReflectionRepository {
       {projection: {details: 1}},
     );
     return resolvePolicy(item?.details);
+  }
+
+  /** Names and emails for a set of authors, keyed by user id. */
+  async findAuthors(
+    userIds: string[],
+  ): Promise<Map<string, {name: string; email: string}>> {
+    await this.init();
+    const out = new Map<string, {name: string; email: string}>();
+    if (userIds.length === 0) return out;
+
+    const docs = await this.users
+      .find(
+        {_id: {$in: [...new Set(userIds)].map(id => new ObjectId(id))}},
+        {projection: {firstName: 1, lastName: 1, email: 1}},
+      )
+      .toArray();
+
+    for (const d of docs) {
+      const name = [d.firstName, d.lastName].filter(Boolean).join(' ').trim();
+      out.set(d._id.toString(), {
+        name: name || d.email || 'Unknown student',
+        email: d.email ?? '',
+      });
+    }
+    return out;
+  }
+
+  /**
+   * How many reviews each of these users has completed, for one item or across
+   * the whole version. One grouped pass rather than a count per student.
+   */
+  async countReviewsByReviewers(
+    reviewerIds: string[],
+    itemId?: string,
+  ): Promise<Map<string, number>> {
+    await this.init();
+    const out = new Map<string, number>();
+    if (reviewerIds.length === 0) return out;
+
+    const rows = await this.reviews
+      .aggregate<{_id: ObjectId; count: number}>([
+        {
+          $match: {
+            reviewerId: {
+              $in: [...new Set(reviewerIds)].map(id => new ObjectId(id)),
+            },
+            ...(itemId ? {itemId: new ObjectId(itemId)} : {}),
+          },
+        },
+        {$group: {_id: '$reviewerId', count: {$sum: 1}}},
+      ])
+      .toArray();
+
+    for (const r of rows) out.set(r._id.toString(), r.count);
+    return out;
   }
 
   async create(reflection: Reflection): Promise<string> {

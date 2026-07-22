@@ -78,13 +78,12 @@ export default function ReflectionsPanel({
           label="Reflections"
           value={String(stats?.reflectionCount ?? 0)}
         />
-        <StatTile
-          label="Peer reviews"
-          value={String(stats?.reviewCount ?? 0)}
-        />
+        <StatTile label="Peer reviews" value={String(stats?.reviewCount ?? 0)} />
         <StatTile
           label="Average peer score"
-          value={stats?.averageScore != null ? stats.averageScore.toFixed(1) : '—'}
+          value={
+            stats?.averageScore != null ? stats.averageScore.toFixed(1) : '—'
+          }
           hint={`${stats?.scoredCount ?? 0} scored`}
         />
         <StatTile
@@ -106,64 +105,92 @@ export default function ReflectionsPanel({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Student</TableHead>
                 <TableHead>Reflection</TableHead>
-                <TableHead className="w-24 text-right">Self</TableHead>
-                <TableHead className="w-24 text-right">Peers</TableHead>
-                <TableHead className="w-24 text-right">Gap</TableHead>
+                <TableHead className="w-20 text-right">Self</TableHead>
+                <TableHead className="w-24 text-right">Peer avg</TableHead>
+                <TableHead className="w-20 text-right">Gap</TableHead>
                 <TableHead className="w-28 text-right">Reviews</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map(item => {
-                const gap =
-                  item.averageScore != null
-                    ? Math.round((item.confidence - item.averageScore) * 10) / 10
-                    : null;
-                return (
-                  <TableRow key={item.reflectionId}>
-                    <TableCell className="max-w-md">
-                      <p className="line-clamp-2 text-sm">{item.text}</p>
-                      {item.helpfulCount > 0 ? (
-                        <span className="text-xs text-muted-foreground">
-                          {item.helpfulCount} found this helpful
-                        </span>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {item.confidence}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {item.averageScore != null
-                        ? item.averageScore.toFixed(1)
-                        : '—'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {gap == null ? (
-                        <span className="text-muted-foreground">—</span>
-                      ) : (
-                        <Badge
-                          variant={gap >= 3 ? 'destructive' : 'secondary'}
-                          className={cn('tabular-nums')}
-                        >
-                          {gap > 0 ? `+${gap}` : gap}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {item.reviewsReceived}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {items.map(item => (
+                <TableRow key={item.reflectionId}>
+                  <TableCell className="align-top">
+                    <p className="text-sm font-medium leading-tight">
+                      {item.studentName}
+                    </p>
+                    {item.studentEmail ? (
+                      <p className="text-xs text-muted-foreground">
+                        {item.studentEmail}
+                      </p>
+                    ) : null}
+                  </TableCell>
+
+                  <TableCell className="max-w-md align-top">
+                    <p className="line-clamp-2 text-sm">{item.text}</p>
+                    {item.helpfulCount > 0 ? (
+                      <span className="text-xs text-muted-foreground">
+                        {item.helpfulCount} found this helpful
+                      </span>
+                    ) : null}
+                  </TableCell>
+
+                  <TableCell className="text-right align-top tabular-nums">
+                    {item.confidence}
+                  </TableCell>
+
+                  <TableCell className="text-right align-top tabular-nums">
+                    {item.averageScore != null ? (
+                      <>
+                        {item.averageScore.toFixed(1)}
+                        {item.isProvisional ? (
+                          <span
+                            className="ml-1 text-xs text-muted-foreground"
+                            title="Fewer reviews than the reveal threshold — the student cannot see this yet"
+                          >
+                            *
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+
+                  <TableCell className="text-right align-top">
+                    {item.confidenceGap == null ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : (
+                      <Badge
+                        variant={
+                          item.confidenceGap >= 3 ? 'destructive' : 'secondary'
+                        }
+                        className={cn('tabular-nums')}
+                      >
+                        {item.confidenceGap > 0
+                          ? `+${item.confidenceGap}`
+                          : item.confidenceGap}
+                      </Badge>
+                    )}
+                  </TableCell>
+
+                  <TableCell className="text-right align-top text-xs tabular-nums text-muted-foreground">
+                    <div>got {item.reviewsReceived}</div>
+                    <div>gave {item.reviewsGiven}</div>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </div>
       )}
 
       <p className="text-xs text-muted-foreground">
-        Gap is the student's self-rating minus their peer average. A large
-        positive gap flags overconfidence — usually the most useful place to
-        step in.
+        Gap is the student's self-rating minus their peer average — a large
+        positive gap flags overconfidence, usually the most useful place to step
+        in. An asterisk marks an average resting on fewer reviews than the reveal
+        threshold, so the student cannot see it yet.
       </p>
     </div>
   );
