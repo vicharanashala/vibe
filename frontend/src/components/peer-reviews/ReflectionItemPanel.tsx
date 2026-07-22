@@ -1,6 +1,14 @@
-import {useState} from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import {ArrowRight, Loader2} from 'lucide-react';
 import {Button} from '@/components/ui/button';
+import {useStartItem, useStopItem} from '@/hooks/hooks';
+import {useCourseStore} from '@/store/course-store';
 import {
   useMyReflection,
   useNextReflectionToReview,
@@ -22,6 +30,15 @@ interface ReflectionItemPanelProps {
   /** Advances to the next item in the section. */
   onNext: () => void;
   isProgressUpdating?: boolean;
+  /** True when this item was already completed on an earlier visit. */
+  isAlreadyWatched?: boolean;
+  /** Shared set of item ids completed this session, to avoid double-stopping. */
+  completedItemIdsRef: React.RefObject<Set<string>>;
+}
+
+export interface ReflectionItemPanelRef {
+  /** Called by the item container when the student navigates away. */
+  stopItem: () => Promise<void>;
 }
 
 /**
@@ -34,17 +51,73 @@ interface ReflectionItemPanelProps {
  * Reviewing never blocks `onNext` — the reciprocity pressure is that the score
  * stays hidden, not that the course does.
  */
-export default function ReflectionItemPanel({
-  courseId,
-  courseVersionId,
-  itemId,
-  title,
-  prompt,
-  onNext,
-  isProgressUpdating = false,
-}: ReflectionItemPanelProps) {
+const ReflectionItemPanel = forwardRef<
+  ReflectionItemPanelRef,
+  ReflectionItemPanelProps
+>(function ReflectionItemPanel(
+  {
+    courseId,
+    courseVersionId,
+    itemId,
+    title,
+    prompt,
+    onNext,
+    isProgressUpdating = false,
+    isAlreadyWatched = false,
+    completedItemIdsRef,
+  },
+  ref,
+) {
   const [isReviewing, setIsReviewing] = useState(false);
   const itemRef = {courseId, courseVersionId, itemId};
+
+  // Progress is recorded exactly as an article records it: started on arrival,
+  // stopped on the way out. Without this the item never completes, and with
+  // linear progression enabled the next lesson stays locked.
+  const {currentCourse} = useCourseStore();
+  const startItem = useStartItem();
+  const stopItem = useStopItem();
+  const itemStartedRef = useRef(false);
+  const startSentRef = useRef(false);
+
+  const alreadyDone = () =>
+    isAlreadyWatched || completedItemIdsRef.current?.has(itemId);
+
+  useEffect(() => {
+    if (startSentRef.current || !currentCourse?.itemId || alreadyDone()) return;
+    startSentRef.current = true;
+    itemStartedRef.current = true;
+    startItem.mutate({
+      params: {
+        path: {courseId, courseVersionId},
+      },
+      body: {
+        itemId,
+        moduleId: currentCourse.moduleId ?? '',
+        sectionId: currentCourse.sectionId ?? '',
+        cohortId: currentCourse.cohortId || undefined,
+      },
+    } as any);
+  }, [itemId, currentCourse?.itemId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useImperativeHandle(ref, () => ({
+    stopItem: async () => {
+      if (!currentCourse?.watchItemId || !itemStartedRef.current) return;
+      if (alreadyDone()) return;
+      await stopItem.mutateAsync({
+        params: {path: {courseId, courseVersionId}},
+        body: {
+          watchItemId: currentCourse.watchItemId,
+          itemId,
+          moduleId: currentCourse.moduleId ?? '',
+          sectionId: currentCourse.sectionId ?? '',
+          cohortId: currentCourse.cohortId || undefined,
+        },
+      } as any);
+      completedItemIdsRef.current?.add(itemId);
+      itemStartedRef.current = false;
+    },
+  }));
 
   const {reflection: mine, isLoading} = useMyReflection(itemRef);
   const submitReflection = useSubmitReflection(itemRef);
@@ -136,4 +209,6 @@ export default function ReflectionItemPanel({
       </div>
     </div>,
   );
-}
+});
+
+export default ReflectionItemPanel;

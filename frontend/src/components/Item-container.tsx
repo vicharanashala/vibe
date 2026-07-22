@@ -7,7 +7,7 @@ import type { ArticleRef } from "@/types/article.types";
 import type { QuizRef } from "@/types/quiz.types";
 import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
-import ReflectionItemPanel from '@/components/peer-reviews/ReflectionItemPanel';
+import ReflectionItemPanel, {type ReflectionItemPanelRef} from '@/components/peer-reviews/ReflectionItemPanel';
 import { useSubmitFeedback } from '@/hooks/hooks';
 
 export interface ISubmitFeedbackBody {
@@ -20,6 +20,7 @@ export interface ISubmitFeedbackBody {
 const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, isNavigatingToPrev, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, pauseSignal, awayPaused, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId, versionId, completedItemIdsRef, cohortId, cohortName, previousItem, pendingStudentQuestionContext, clearPendingStudentQuestionContext, focusMode }, ref) => {
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
+  const reflectionRef = useRef<ReflectionItemPanelRef>(null);
 
   // ✅ Expose stop function to parent - handles both article and quiz
   useImperativeHandle(ref, () => ({
@@ -28,6 +29,8 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
         await articleRef.current.stopItem();
       } else if (quizRef.current) {
         await quizRef.current.stopItem();
+      } else if (reflectionRef.current) {
+        await reflectionRef.current.stopItem();
       }
     },
     getCurrentDetails: () => {
@@ -162,6 +165,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       case 'reflection':
         return <ReflectionItemPanel
           key={item._id.toString()}
+          ref={reflectionRef}
           courseId={courseId}
           courseVersionId={versionId}
           itemId={item._id.toString()}
@@ -169,6 +173,8 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           prompt={item.details?.prompt}
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
+          isAlreadyWatched={item.isAlreadyWatched || false}
+          completedItemIdsRef={completedItemIdsRef}
         />;
 
       default:
