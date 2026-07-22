@@ -16,6 +16,17 @@ const LIMITS = {
 
 type PolicyField = keyof typeof LIMITS;
 
+/**
+ * Stands in when the item carries no description of its own.
+ *
+ * The shared UpdateItemBody validator requires a non-empty description for
+ * every item type, and this panel does not edit that field — so an item created
+ * without one could never be saved. Defaulting here keeps the constraint intact
+ * for the item types that rely on it.
+ */
+const DEFAULT_DESCRIPTION =
+  'Write what you learned, then review your peers anonymously';
+
 interface ReflectionItemEditorProps {
   itemId: string;
   courseId: string;
@@ -123,8 +134,8 @@ export default function ReflectionItemEditor({
       await updateItem({
         params: {path: {courseId, versionId, itemId}},
         body: {
-          name,
-          description: description ?? '',
+          name: name?.trim() || 'Reflection',
+          description: description?.trim() || DEFAULT_DESCRIPTION,
           type: 'REFLECTION',
           // The update endpoint carries the payload on `details`, unlike create
           // which uses a per-type field (`reflectionDetails`).
