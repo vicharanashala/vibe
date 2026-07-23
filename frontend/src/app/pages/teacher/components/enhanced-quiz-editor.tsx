@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  CheckCircle,
   Plus,
   Trash2,
   Eye,
@@ -24,6 +25,7 @@ import {
   RefreshCw,
   FlagTriangleRight,
   Edit,
+  XCircle,
   X,
   Download,
   ChartColumn,
@@ -56,6 +58,7 @@ import CreateQuestionDialog from './CreateQuestion';
 import CreateQuestionBankDialog from './CreateQuestionBank';
 import QuizSettingsDialog, { QuizSettingsForm } from './quiz-settings-dialog';
 import ConfirmationModal from './confirmation-modal';
+import { QuizBuilder } from '@/components/assessment/QuizBuilder';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { GradingSystemStatus, QuestionBankRef } from '@/types/quiz.types';
 import { Pagination } from '@/components/ui/Pagination';
@@ -211,9 +214,21 @@ const QuestionPerformanceRow: React.FC<QuestionPerformanceRowProps> = ({ perform
         )}
       </TableCell>
       <TableCell>
-        <div className='flex flex-col gap-2'>
-          <p className='text-right text-base font-medium'>{(performance.correctRate * 100).toFixed(1)}%</p>
-          <p className='text-right text-sm text-[#6A7282]'>{questionData?.attemptCount ?? 0} attempted • {questionData?.skipCount ?? 0} skipped</p>
+        <div className="flex flex-col gap-2 text-right">
+          <p className="text-base font-medium">{(performance.correctRate * 100).toFixed(1)}%</p>
+          <p className="text-sm text-[#6A7282]">{questionData?.attemptCount ?? 0} attempted</p>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-green-600">
+            <CheckCircle size={14} />
+            <span>{Math.round(performance.correctRate * (questionData?.attemptCount ?? 0))} Correct</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-red-600">
+            <XCircle size={14} />
+            <span>{Math.round((1 - performance.correctRate) * (questionData?.attemptCount ?? 0))} Incorrect</span>
+          </div>
         </div>
       </TableCell>
       <TableCell>
@@ -1028,6 +1043,10 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                   <HelpCircle className="h-4 w-4" />
                   Questions
                 </TabsTrigger>
+                <TabsTrigger value="builder" className="flex items-center gap-2 cursor-pointer">
+                  <Plus className="h-4 w-4" />
+                  Quiz Builder
+                </TabsTrigger>
                 <TabsTrigger value="submissions" className="flex items-center gap-2 cursor-pointer">
                   <Users className="h-4 w-4" />
                   Submissions
@@ -1371,7 +1390,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                                 data.map((p: any, index: number) => (
                                   <QuestionPerformanceRow key={p.questionId} index={index} performance={p} onCacheUpdate={handleCacheUpdate} />
                                 ))
-                              ) : (
+                              ) : ( 
                                 <TableRow>
                                   <TableCell colSpan={2} className="text-center">No performance data available</TableCell>
                                 </TableRow>
@@ -1438,6 +1457,12 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                   </div>
                 </div>
 
+              </TabsContent>
+
+              <TabsContent value="builder" className="h-full m-0 mt-4">
+                <div className="h-[calc(100vh-320px)] min-h-[500px]">
+                  <QuizBuilder />
+                </div>
               </TabsContent>
 
               <TabsContent value="submissions" className="h-full m-0 flex flex-col justify-center items-center">

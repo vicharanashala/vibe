@@ -1545,25 +1545,26 @@ export default function AISectionPage() {
   // Add state for question generation parameters
   const [questionGenParams, setQuestionGenParams] = useState<QuestionGenParams>({
     model: "gpt-4o",
-    SOL: 10,
-    SML: 0,
-    NAT: 0,
-    DES: 0,
-    BIN: 0,
-    numberOfQuestions: 10,
+    SOL: 3, // Single-choice questions
+    SML: 2, // Multi-choice questions
+    NAT: 1, // Numeric answer
+    DES: 0, // Descriptive answer
+    BIN: 2, // True/False questions
+    numberOfQuestions: 8,
     prompt: `
-You are an AI question generator.
+You are an expert AI Question Generator, designed to create engaging and effective learning assessments from video transcripts.
 
 ====================
 STRICT INSTRUCTIONS (MUST FOLLOW)
 ====================
-- DO NOT generate more or fewer questions
-- DO NOT bias toward any single question type
+- Generate the EXACT number of questions requested for each type (SOL, SML, BIN, DRAG_DROP, DROPDOWN).
+- Adhere strictly to the JSON structure provided for each question type.
+- Ensure the content of questions and options is directly based on the provided video transcript segment.
+- All text, including questions and options, must be professional, grammatically correct, and clear.
 
 ====================
 QUESTION RULES
 ====================
-
 - Focus on conceptual understanding
 - Avoid memorization (dates, numbers)
 - Answers must be inferable, not directly copied
@@ -1572,78 +1573,80 @@ QUESTION RULES
 - isParameterized = false unless variables exist
 
 ====================
-BINARY QUESTION RULE (VERY STRICT)
-====================
-
-- For BIN questions:
-  - ONLY 2 options allowed:
-    1. True
-    2. False
-  - NEVER generate more than 2 options
-  - NEVER add extra options
-
-====================
-CRITICAL INSTRUCTION
-====================
-
-- You MUST generate a MIX of question types exactly as specified
-- DO NOT generate only one type even if example shows one type
-- DISTRIBUTION IS STRICTLY REQUIRED
-
-====================
 REFERENCE EXAMPLE (FOR STRUCTURE ONLY - DO NOT COPY PATTERN)
 ====================
 
-The following is ONLY to understand JSON structure.
-DO NOT copy its question type distribution.
-If you are generating True/False questions then only understand this JSON structure.
-
+1. Multiple Choice (SELECT_ONE_IN_LOT):
+A question with multiple options where only one is correct.
 {
-  "question": {
-    "text": "Does Google Stitch allow users to generate interactive prototypes directly from design descriptions?",
-    "type": "SELECT_ONE_IN_LOT",
-    "isParameterized": false,
-    "parameters": [],
-    "hint": "The video emphasizes Stitch's ability to create interactive prototypes with a single click.",
-    "timeLimitSeconds": 60,
-    "points": 5
-  },
+  "question": { "text": "Which of the following best describes the primary goal of the new feature discussed in the video?", "type": "SELECT_ONE_IN_LOT" },
   "solution": {
+    "correctLotItem": { "text": "To streamline the user onboarding process.", "explaination": "Correct. The video explicitly mentions this as the main objective." },
     "incorrectLotItems": [
-      {
-        "text": "False",
-        "explaination": "Incorrect because the video confirms this feature."
-      }
-    ],
-    "correctLotItem": {
-      "text": "True",
-      "explaination": "The video confirms this capability."
-    }
+      { "text": "To increase the application's performance speed.", "explaination": "Incorrect. While a potential side-effect, this was not the primary goal mentioned." },
+      { "text": "To add more customization options to the user interface.", "explaination": "Incorrect. This was mentioned as a future possibility, not the current goal." }
+    ]
   },
-  "segmentId": 288.74,
+  "questionType": "SOL"
+}
+
+2. Multiple Response (SELECT_MANY_IN_LOT):
+A question with multiple options where one or more can be correct.
+{
+  "question": { "text": "According to the video, which of these are considered key benefits of the new system? (Select all that apply)", "type": "SELECT_MANY_IN_LOT" },
+  "solution": {
+    "correctLotItems": [
+      { "text": "Reduced operational costs.", "explaination": "Correct. This was highlighted in the financial overview section." },
+      { "text": "Improved data accuracy.", "explaination": "Correct. The presenter emphasized this as a major advantage." }
+    ],
+    "incorrectLotItems": [
+      { "text": "Faster deployment times.", "explaination": "Incorrect. This was not mentioned as a direct benefit." }
+    ]
+  },
+  "questionType": "SML"
+}
+
+3. True/False (BINARY):
+A statement that is either true or false.
+{
+  "question": { "text": "The video states that the new algorithm is less efficient for small datasets.", "type": "BINARY" },
+  "solution": {
+    "correctLotItem": { "text": "True", "explaination": "Correct. The speaker explicitly mentioned this limitation." },
+    "incorrectLotItems": [
+      { "text": "False", "explaination": "Incorrect. The video confirms this statement is true." }
+    ]
+  },
   "questionType": "BIN"
 }
-  CRITICAL OVERRIDE RULE:
 
-For ANY question where options are "True" and "False":
+4. Drag and Drop (ORDER_THE_LOTS):
+A question where items must be matched or placed in a correct sequence. For matching, provide pairs.
+{
+  "question": { "text": "Match the concept to its correct description as explained in the video.", "type": "ORDER_THE_LOTS" },
+  "solution": {
+    "correctLotItems": [
+      { "text": "Concept A", "explaination": "Description for A" },
+      { "text": "Concept B", "explaination": "Description for B" },
+      { "text": "Concept C", "explaination": "Description for C" }
+    ],
+    "incorrectLotItems": []
+  },
+  "questionType": "DRAG_DROP"
+}
 
-- The output MUST contain EXACTLY:
-  1 correct option
-  1 incorrect option
-
-- The options MUST be:
-  "True" and "False" ONLY
-
-- DO NOT generate:
-  - "Both"
-  - "None"
-  - "Cannot be determined"
-  - Any third option
-
-- If a third option is generated, the answer is INVALID.
-
-- Before returning output, VERIFY that:
-  True/False questions contain EXACTLY 2 options.
+5. Dropdown Fill-in-the-blanks (DROPDOWN):
+A sentence with a blank space where the user selects the correct word from a dropdown.
+{
+  "question": { "text": "The speaker concludes that the most critical factor for success is ____.", "type": "DROPDOWN" },
+  "solution": {
+    "correctLotItem": { "text": "consistent user feedback", "explaination": "Correct. This was the main takeaway from the final summary." },
+    "incorrectLotItems": [
+      { "text": "initial funding", "explaination": "Incorrect. While important, it was not cited as the most critical factor." },
+      { "text": "market timing", "explaination": "Incorrect. This was mentioned as a secondary consideration." }
+    ]
+  },
+  "questionType": "DROPDOWN"
+}
 `
   });
 
@@ -3820,8 +3823,4 @@ For ANY question where options are "True" and "False":
     </>
   );
 }
-
-
-
-
-
+ 

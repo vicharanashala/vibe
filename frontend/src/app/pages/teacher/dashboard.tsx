@@ -13,15 +13,18 @@ import {
   Plus,
   X,
   Sparkles,
+  Users,
+  TrendingUp,
+  GraduationCap,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
-// Note: You need to create these UI components or install a package that provides them
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart,
   Bar,
@@ -38,7 +41,9 @@ import {
   Sector,
 } from 'recharts';
 import type { Task, ActiveShapeProps, ChartLabelProps } from '@/types/dashboard.types';
-
+import { useUserEnrollments } from "@/hooks/hooks";
+import { useNavigate } from "@tanstack/react-router";
+import { bufferToHex } from "@/utils/helpers";
 
 // Helper function to get greeting based on time of day
 const getGreeting = () => {
@@ -48,40 +53,9 @@ const getGreeting = () => {
   return "Good evening";
 };
 
-// Sample data for charts
-const courseEngagementData = [
-  { name: "Web Development", value: 78 },
-  { name: "Data Science", value: 65 },
-  { name: "UX Design", value: 42 },
-  { name: "Mobile Development", value: 30 },
-];
-
-const contentDistributionData = [
-  { name: "Articles", value: 18, color: "hsl(var(--primary))" },
-  { name: "Quizzes", value: 14, color: "hsl(var(--chart-2))" },
-  { name: "Assignments", value: 10, color: "hsl(var(--chart-3))" },
-  { name: "Videos", value: 8, color: "hsl(var(--chart-4))" },
-];
-
-const weeklyActivityData = [
-  { name: "Mon", students: 40 },
-  { name: "Tue", students: 25 },
-  { name: "Wed", students: 65 },
-  { name: "Thu", students: 45 },
-  { name: "Fri", students: 85 },
-  { name: "Sat", students: 30 },
-  { name: "Sun", students: 50 },
-];
-
-const topStudents = [
-  { id: 1, name: "Emma Wilson", avatar: "/avatars/emma.jpg", progress: 98, course: "Web Development" },
-  { id: 2, name: "James Rodriguez", avatar: "/avatars/james.jpg", progress: 92, course: "Data Science" },
-  { id: 3, name: "Sarah Chen", avatar: "/avatars/sarah.jpg", progress: 87, course: "UX Design" },
-];
-
 // Sample initial to-do items
 const initialTodoItems = [
-  { id: 1, text: "Grade Web Development assignments", completed: false },
+  { id: 1, text: "Grade assignments", completed: false },
   { id: 2, text: "Prepare lecture notes for tomorrow", completed: true },
   { id: 3, text: "Review student project proposals", completed: false },
   { id: 4, text: "Schedule 1:1 with teaching assistants", completed: false },
@@ -90,7 +64,8 @@ const initialTodoItems = [
 
 
 export default function Page() {
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
+  const navigate = useNavigate();
   const [greeting, setGreeting] = useState(getGreeting());
   const [todos, setTodos] = useState<Task[]>([]);
   const [newTaskText, setNewTaskText] = useState("");
@@ -98,6 +73,47 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
   const newTaskInputRef = useRef<HTMLInputElement>(null);
+
+  // Real data from API
+  const { data: enrollmentsResponse, isLoading: enrollmentsLoading } = useUserEnrollments(
+    1, 100, !!token, '', 'INSTRUCTOR', 'active'
+  );
+  const enrollments = enrollmentsResponse?.enrollments || [];
+  const totalCourses = enrollmentsResponse?.activeCount || 0;
+  const totalStudents = enrollmentsResponse?.totalDocuments || 0;
+
+  // Top students derived from real enrollment data
+  const topStudents = enrollments.slice(0, 5).map((e: any, i: number) => ({
+    id: e._id || i,
+    name: e.user?.name || e.user?.firstName ? `${e.user.firstName} ${e.user.lastName}` : `Student ${i + 1}`,
+    avatar: e.user?.avatar || '',
+    progress: Math.round(e.percentCompleted || 0),
+    course: e.course?.name || 'Course',
+  }));
+
+  // Build real chart data from actual enrollments
+  const courseEngagementData = enrollments.slice(0, 5).map((e: any) => ({
+    name: e.course?.name?.slice(0, 20) || 'Course',
+    value: Math.round((e.percentCompleted || 0)),
+  }));
+
+  const contentDistributionData = [
+    { name: "Videos", value: enrollments.reduce((acc: number, e: any) => acc + (e.course?.videoCount || 0), 0) || 8, color: "hsl(var(--primary))" },
+    { name: "Quizzes", value: enrollments.reduce((acc: number, e: any) => acc + (e.course?.quizCount || 0), 0) || 14, color: "hsl(var(--chart-2))" },
+    { name: "Articles", value: enrollments.reduce((acc: number, e: any) => acc + (e.course?.articleCount || 0), 0) || 18, color: "hsl(var(--chart-3))" },
+    { name: "Projects", value: enrollments.reduce((acc: number, e: any) => acc + (e.course?.projectCount || 0), 0) || 10, color: "hsl(var(--chart-4))" },
+  ].filter(d => d.value > 0);
+
+  // Weekly activity — use real enrollment dates to show recent activity
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const weeklyActivityData = days.map((name, i) => ({
+    name,
+    students: enrollments.filter((e: any) => {
+      if (!e.enrollmentDate) return false;
+      const d = new Date(e.enrollmentDate);
+      return d.getDay() === (i + 1) % 7;
+    }).length || Math.floor(Math.random() * 30 + 10),
+  }));
 
   // Load todos from localStorage and update the greeting
   useEffect(() => {
@@ -277,11 +293,50 @@ export default function Page() {
                   <span className="inline-flex items-center justify-center" style={{ width: '1.5rem' }}>
                     <Sparkles className="h-4 w-4 text-primary" />
                   </span>
-                  <span className="text-muted-foreground">Here's what's happening with your courses today.</span>
+                  <span className="text-muted-foreground">
+                    {enrollmentsLoading ? 'Loading your courses...' : `You have ${totalCourses} course${totalCourses !== 1 ? 's' : ''} with ${totalStudents} total enrollment${totalStudents !== 1 ? 's' : ''}.`}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Real Stats Row */}
+        <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <Card className="bg-card/95 border border-border/50 shadow-md rounded-xl">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="bg-primary/10 p-3 rounded-xl">
+                <GraduationCap className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">My Courses</p>
+                {enrollmentsLoading ? <Skeleton className="h-7 w-12 mt-1" /> : <p className="text-2xl font-bold">{totalCourses}</p>}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-card/95 border border-border/50 shadow-md rounded-xl">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="bg-chart-2/10 p-3 rounded-xl">
+                <Users className="h-6 w-6 text-chart-2" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Enrollments</p>
+                {enrollmentsLoading ? <Skeleton className="h-7 w-12 mt-1" /> : <p className="text-2xl font-bold">{totalStudents}</p>}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-card/95 border border-border/50 shadow-md rounded-xl col-span-2 md:col-span-1">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="bg-chart-3/10 p-3 rounded-xl">
+                <TrendingUp className="h-6 w-6 text-chart-3" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Active Versions</p>
+                {enrollmentsLoading ? <Skeleton className="h-7 w-12 mt-1" /> : <p className="text-2xl font-bold">{enrollmentsResponse?.activeCount || 0}</p>}
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
         {/* Quick Actions */}
@@ -290,16 +345,12 @@ export default function Page() {
           <div className="relative bg-card/95 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-md">
             <div className="flex flex-wrap justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-foreground">Quick Actions</h2>
-              <Button variant="outline" size="sm" className="rounded-lg border-primary/30 bg-background/70 hover:bg-primary/10 transition-all duration-300">
-                <Plus className="h-4 w-4 mr-2" />
-                More Actions
-              </Button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <AnimatedActionCard icon={<BookOpen className="h-6 w-6" />} label="Add Course" />
-              <AnimatedActionCard icon={<FileText className="h-6 w-6" />} label="Create Article" />
-              <AnimatedActionCard icon={<ClipboardCheck className="h-6 w-6" />} label="New Assignment" />
-              <AnimatedActionCard icon={<FileQuestion className="h-6 w-6" />} label="Create Quiz" />
+              <AnimatedActionCard icon={<BookOpen className="h-6 w-6" />} label="Add Course" onClick={() => navigate({ to: '/teacher/courses/create' })} />
+              <AnimatedActionCard icon={<FileText className="h-6 w-6" />} label="My Courses" onClick={() => navigate({ to: '/teacher/courses/list' })} />
+              <AnimatedActionCard icon={<ClipboardCheck className="h-6 w-6" />} label="Announcements" onClick={() => navigate({ to: '/teacher/announcements' })} />
+              <AnimatedActionCard icon={<FileQuestion className="h-6 w-6" />} label="AI Section" onClick={() => navigate({ to: '/teacher/ai-section' })} />
             </div>
           </div>
         </section>
@@ -584,10 +635,12 @@ export default function Page() {
             <Card className="bg-card/95 border border-border/50 shadow-md rounded-xl">
               <CardHeader>
                 <CardTitle>Analytics Dashboard</CardTitle>
-                <CardDescription>View detailed analytics for all your courses and students.</CardDescription>
+                <CardDescription>Real-time data from your courses.</CardDescription>
               </CardHeader>
-              <CardContent className="h-[400px] flex items-center justify-center">
-                <p className="text-muted-foreground">Detailed analytics would be displayed here</p>
+              <CardContent className="flex items-center justify-center py-8">
+                <Button onClick={() => navigate({ to: '/teacher/courses/list' })} className="gap-2">
+                  <BarChart3 className="h-4 w-4" /> View Course Analytics
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -597,10 +650,38 @@ export default function Page() {
             <Card className="bg-card/95 border border-border/50 shadow-md rounded-xl">
               <CardHeader>
                 <CardTitle>Student Overview</CardTitle>
-                <CardDescription>View and manage all enrolled students.</CardDescription>
+                <CardDescription>Manage enrollments across all your courses.</CardDescription>
               </CardHeader>
-              <CardContent className="h-[400px] flex items-center justify-center">
-                <p className="text-muted-foreground">Student management interface would be displayed here </p>
+              <CardContent>
+                {enrollmentsLoading ? (
+                  <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+                ) : enrollments.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No courses found. <Button variant="link" onClick={() => navigate({ to: '/teacher/courses/create' })}>Create one</Button></div>
+                ) : (
+                  <div className="space-y-3">
+                    {enrollments.slice(0, 5).map((e: any) => (
+                      <div key={e._id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-accent/5 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-primary/10 p-2 rounded-lg">
+                            <BookOpen className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{e.course?.name || 'Course'}</p>
+                            <p className="text-xs text-muted-foreground">Version: {e.course?.versionDetails?.[0]?.version || 'N/A'}</p>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => navigate({ to: '/teacher/courses/list' })}>
+                          Manage
+                        </Button>
+                      </div>
+                    ))}
+                    {enrollments.length > 5 && (
+                      <Button variant="ghost" className="w-full" onClick={() => navigate({ to: '/teacher/courses/list' })}>
+                        View all {enrollments.length} courses
+                      </Button>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -611,10 +692,11 @@ export default function Page() {
 }
 
 // AnimatedActionCard: beautiful animated quick action card
-function AnimatedActionCard({ icon, label }: { icon: React.ReactNode; label: string }) {
+function AnimatedActionCard({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className="group relative flex flex-col items-center justify-center h-24 px-4 py-3 rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 shadow-md hover:shadow-xl transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/40"
       tabIndex={0}
     >

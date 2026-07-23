@@ -97,6 +97,7 @@ const getItemIcon = (type: string) => {
     case "VIDEO": return <VideoIcon className="h-3 w-3" />;
     case "QUIZ": return <ListChecks className="h-3 w-3" />;
     case "PROJECT": return <FolderKanban className="h-3 w-3" />;
+    case "ORDER_THE_LOTS": return <FolderKanban className="h-3 w-3" />;
     case "FEEDBACK": return <MessageSquare className="h-3 w-3" />
     default: return null;
   }
@@ -4016,11 +4017,3 @@ export function UserAnalytics({
     </div>
   );
 }
-
-
-
-
-
-
-
-
