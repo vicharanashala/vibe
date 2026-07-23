@@ -133,6 +133,28 @@ class QuestionBankRepository {
     return result.modifiedCount; // number of banks updated
   }
 
+  /**
+   * Detach a question from ONE bank, leaving the question document itself
+   * untouched. Distinct from QuestionBankService.removeQuestion, which soft
+   * deletes the underlying question — that is the right behaviour for "delete
+   * this question", but wrong when a question is merely moving between banks.
+   */
+  async pullQuestionFromBank(
+    questionBankId: string,
+    questionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+
+    const result = await this.questionBankCollection.updateOne(
+      {_id: new ObjectId(questionBankId)},
+      {$pull: {questions: new ObjectId(questionId)}},
+      {session},
+    );
+
+    return result.modifiedCount === 1;
+  }
+
   async update(
     questionBankId: string,
     updateData: Partial<IQuestionBank>,

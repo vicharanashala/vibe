@@ -675,12 +675,66 @@ export class StudentQuestionService {
       throw new NotFoundError('Student question not found for the given segment.');
     }
 
+    // Push the instructor's edits onto the staged quiz Question first, so a
+    // promotion below carries the corrected wording rather than the original.
+    await this._syncPromotedQuestionContent(existing, {
+      questionText: nextQuestionText,
+      options: nextOptions,
+      correctOptionIndex: nextCorrectIndex,
+    });
+
     if (statusTransition) {
       await this._notifyStatusChange(
         existing,
         statusTransition.status,
         statusTransition.rejectionReason,
       );
+      await this._syncPromotedQuestion(existing, statusTransition.status);
+    }
+  }
+
+  /**
+   * Mirror instructor edits from the student submission onto its staged quiz
+   * Question. Best-effort: the student-facing record is the source of truth,
+   * so a failure here must not fail the edit.
+   */
+  private async _syncPromotedQuestionContent(
+    question: {promotedQuestionId?: ObjectId | string | null; createdBy?: any},
+    content: {
+      questionText: string;
+      options: {text: string}[];
+      correctOptionIndex: number;
+    },
+  ): Promise<void> {
+    if (!question.promotedQuestionId) return;
+    try {
+      const solution: ISOLSolution = {
+        correctLotItem: {
+          text: content.options[content.correctOptionIndex].text,
+          explaination: '',
+        },
+        incorrectLotItems: content.options
+          .filter((_, i) => i !== content.correctOptionIndex)
+          .map(opt => ({text: opt.text, explaination: ''})),
+      };
+      const updated = new SOLQuestion(
+        question.createdBy,
+        {
+          text: content.questionText,
+          type: 'SELECT_ONE_IN_LOT',
+          isParameterized: false,
+          timeLimitSeconds: 60,
+          priority: 'LOW',
+          source: 'STUDENT_GENERATED',
+        } as any,
+        solution,
+      );
+      await this.questionService.update(
+        question.promotedQuestionId.toString(),
+        updated as any,
+      );
+    } catch (e) {
+      console.warn('crowd-q: failed to sync edited content to quiz question', e);
     }
   }
 
@@ -729,28 +783,51 @@ export class StudentQuestionService {
           input.status,
           input.reason?.trim(),
         );
-        // Sync the linked quiz Question.
-        if (question.promotedQuestionId) {
-          const promotedId = question.promotedQuestionId.toString();
-          if (input.status === 'APPROVED') {
-            // Mark approved AND move it from the "Submitted – Pending
-            // Validation" bank into the quiz's graded bank so it counts toward
-            // grading. Both are best-effort and must not fail the status update.
-            await this.questionService.setReviewStatus(promotedId, 'APPROVED').catch(e =>
-              console.warn('crowd-q: failed to approve quiz question', e),
-            );
-            await this.questionBankService
-              .promoteSubmittedQuestionToGraded(promotedId)
-              .catch(e =>
-                console.warn('crowd-q: failed to move approved question to graded bank', e),
-              );
-          } else {
-            await this.questionService.delete(promotedId).catch(e =>
-              console.warn('crowd-q: failed to delete quiz question', e),
-            );
-          }
-        }
+        await this._syncPromotedQuestion(question, input.status);
       }
+    }
+  }
+
+  /**
+   * Sync the staged quiz Question with an instructor decision on the student
+   * submission. On APPROVED, mark it approved and move it out of the
+   * "Submitted – Pending Validation" bank into the quiz's graded bank so it
+   * shows up in the segment's question bank and counts toward grading; on
+   * REJECTED, delete it. Best-effort — must never fail the status update.
+   *
+   * Called from BOTH approval paths: the status-only route and the review
+   * dialog's edit-then-approve route, which previously skipped promotion and
+   * left approved questions stranded in the hidden crowd bank.
+   */
+  private async _syncPromotedQuestion(
+    question: {promotedQuestionId?: ObjectId | string | null},
+    status: StudentQuestionStatus,
+  ): Promise<void> {
+    if (!question.promotedQuestionId) {
+      // Nothing was staged at submit time (e.g. the segment resolved to no
+      // quiz, or the quiz had no graded bank), so there is nothing to promote.
+      console.warn(
+        'crowd-q: no promotedQuestionId on student question; skipping bank sync',
+      );
+      return;
+    }
+    const promotedId = question.promotedQuestionId.toString();
+    if (status === 'APPROVED') {
+      await this.questionService
+        .setReviewStatus(promotedId, 'APPROVED')
+        .catch(e => console.warn('crowd-q: failed to approve quiz question', e));
+      await this.questionBankService
+        .promoteSubmittedQuestionToGraded(promotedId)
+        .catch(e =>
+          console.warn(
+            'crowd-q: failed to move approved question to graded bank',
+            e,
+          ),
+        );
+    } else if (status === 'REJECTED') {
+      await this.questionService
+        .delete(promotedId)
+        .catch(e => console.warn('crowd-q: failed to delete quiz question', e));
     }
   }
 
