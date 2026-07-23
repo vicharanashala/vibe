@@ -45,22 +45,29 @@ interface ReflectionItemEditorProps {
 function NumberField({
   id,
   label,
-  hint,
+  question,
+  example,
   field,
   value,
   onChange,
 }: {
   id: string;
   label: string;
-  hint: string;
+  /** The plain-language question this field answers. */
+  question: string;
+  /** A worked example using the current (or default) value. */
+  example: string;
   field: PolicyField;
   value: string;
   onChange: (next: string) => void;
 }) {
-  const {min, max} = LIMITS[field];
+  const {min, max, fallback} = LIMITS[field];
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
+    <div className="space-y-1.5 rounded-lg border p-3">
+      <Label htmlFor={id} className="text-sm font-semibold">
+        {label}
+      </Label>
+      <p className="text-xs text-muted-foreground">{question}</p>
       <Input
         id={id}
         type="number"
@@ -68,10 +75,13 @@ function NumberField({
         min={min}
         max={max}
         value={value}
-        placeholder={String(LIMITS[field].fallback)}
+        placeholder={`${fallback} (default)`}
         onChange={e => onChange(e.target.value)}
       />
-      <p className="text-xs text-muted-foreground">{hint}</p>
+      <p className="text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">e.g. </span>
+        {example}
+      </p>
     </div>
   );
 }
@@ -187,27 +197,53 @@ export default function ReflectionItemEditor({
         </p>
       </div>
 
+      <div className="space-y-2 rounded-lg bg-muted/40 p-4">
+        <p className="text-sm font-semibold">Peer review rules</p>
+        <p className="text-xs text-muted-foreground">
+          Every student writes one reflection, then reviews others' anonymously.
+          These three numbers decide how many reviews happen and when a student
+          finally sees their score. Leave any blank to use the default.
+        </p>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         <NumberField
           id="max-reviews"
-          label="Peers per reflection"
-          hint="How many peers may score one reflection before it leaves the pool."
+          label="1. Reviewers per answer"
+          question="How many classmates score each reflection?"
+          example={`each reflection is scored by up to ${
+            parse(maxReviews, 'maxReviewsPerReflection') ??
+            LIMITS.maxReviewsPerReflection.fallback
+          } classmates, then stops taking reviews.`}
           field="maxReviewsPerReflection"
           value={maxReviews}
           onChange={setMaxReviews}
         />
         <NumberField
           id="required-reviews"
-          label="Reviews to unlock"
-          hint="Reviews a student owes before their own score appears. 0 turns reciprocity off."
+          label="2. Reviews to give"
+          question="How many others must a student review to see their own score?"
+          example={
+            (parse(requiredReviews, 'requiredReviewsToUnlock') ??
+              LIMITS.requiredReviewsToUnlock.fallback) === 0
+              ? 'set to 0, so a student sees their score without reviewing anyone.'
+              : `a student must review ${
+                  parse(requiredReviews, 'requiredReviewsToUnlock') ??
+                  LIMITS.requiredReviewsToUnlock.fallback
+                } classmates before their own score is shown.`
+          }
           field="requiredReviewsToUnlock"
           value={requiredReviews}
           onChange={setRequiredReviews}
         />
         <NumberField
           id="min-reveal"
-          label="Reviews before a score"
-          hint="Below this, an average is too noisy to show."
+          label="3. Reviews to receive"
+          question="How many scores must a reflection collect before its average shows?"
+          example={`the average appears only once ${
+            parse(minReveal, 'minReviewsToReveal') ??
+            LIMITS.minReviewsToReveal.fallback
+          } classmates have scored it — fewer would be too random.`}
           field="minReviewsToReveal"
           value={minReveal}
           onChange={setMinReveal}
