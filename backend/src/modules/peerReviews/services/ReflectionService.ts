@@ -111,6 +111,13 @@ export class ReflectionService {
       input.userId,
       input.itemId,
     );
+    // The quota is a hard cap, not a floor: a student reviews exactly the
+    // configured number, so the review supply stays spread across the cohort
+    // instead of a few keen students draining the pool. A quota of 0 means
+    // reciprocity is off and reviewing is not part of this item.
+    if (reviewsCompleted >= policy.requiredReviewsToUnlock) {
+      return null;
+    }
     const reflection = await this.repository.findNextForReview({
       reviewerId: input.userId,
       itemId: input.itemId,
@@ -170,6 +177,19 @@ export class ReflectionService {
     }
 
     const policy = await this.repository.getPolicy(reflection.itemId.toString());
+
+    // Enforce the quota as a hard cap on the server, so it holds regardless of
+    // what the client offers. Checked before the write, so a student can never
+    // exceed the number of reviews the instructor set.
+    const alreadyDone = await this.repository.countReviewsByReviewer(
+      input.reviewerId,
+      reflection.itemId.toString(),
+    );
+    if (alreadyDone >= policy.requiredReviewsToUnlock) {
+      throw new BadRequestError(
+        'You have completed all the reviews assigned for this reflection.',
+      );
+    }
 
     const result = await this.repository.recordReview({
       reflectionId: input.reflectionId,

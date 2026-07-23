@@ -200,17 +200,13 @@ const ReflectionItemPanel = forwardRef<
       <MyReflectionCard reflection={mine!} />
 
       <div className="flex flex-col gap-2 sm:flex-row">
+        {reviewsRemaining > 0 ? (
+          <Button className="flex-1" onClick={() => setIsReviewing(true)}>
+            Review peers ({reviewsRemaining} to go)
+          </Button>
+        ) : null}
         <Button
-          className="flex-1"
-          variant={reviewsRemaining > 0 ? 'default' : 'outline'}
-          onClick={() => setIsReviewing(true)}
-        >
-          {reviewsRemaining > 0
-            ? `Review peers (${reviewsRemaining} to go)`
-            : 'Review more peers'}
-        </Button>
-        <Button
-          variant="secondary"
+          variant={reviewsRemaining > 0 ? 'secondary' : 'default'}
           className="flex-1"
           onClick={onNext}
           disabled={isProgressUpdating}
@@ -222,6 +218,11 @@ const ReflectionItemPanel = forwardRef<
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
+      {mine!.reviewsRequired > 0 && reviewsRemaining === 0 ? (
+        <p className="text-center text-xs text-muted-foreground">
+          You've completed all {mine!.reviewsRequired} of your reviews.
+        </p>
+      ) : null}
     </div>,
   );
 });

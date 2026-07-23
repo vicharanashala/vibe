@@ -278,6 +278,32 @@ describe('peer reviews — real MongoDB', () => {
     expect(row.reviewsReceived).toBe(2);
   });
 
+
+  it('caps a reviewer at the quota the instructor set', async () => {
+    // requiredReviewsToUnlock = 2: a student may review exactly two peers.
+    const item = await makeItem({requiredReviewsToUnlock: 2, maxReviewsPerReflection: 10});
+    const reviewer = new ObjectId().toString();
+
+    // Three other students each submit a reflection.
+    const targets = [];
+    for (let i = 0; i < 3; i++) {
+      targets.push((await submit(new ObjectId().toString(), item)).reflectionId);
+    }
+
+    // First two reviews are accepted.
+    await service.submitReview({reviewerId: reviewer, reflectionId: targets[0], scores: scores(6), helpful: false});
+    await service.submitReview({reviewerId: reviewer, reflectionId: targets[1], scores: scores(6), helpful: false});
+
+    // The queue now offers nothing more to this reviewer.
+    const next = await service.getNextForReview({userId: reviewer, itemId: item});
+    expect(next).toBeNull();
+
+    // And a third review is refused outright.
+    await expect(
+      service.submitReview({reviewerId: reviewer, reflectionId: targets[2], scores: scores(6), helpful: false}),
+    ).rejects.toThrow(/completed all the reviews/i);
+  });
+
   it('aggregates version stats correctly', async () => {
     const item = await makeItem({minReviewsToReveal: 2});
     // Two reflections, one scored above threshold, one below.
