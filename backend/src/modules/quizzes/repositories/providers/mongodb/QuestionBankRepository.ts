@@ -65,6 +65,26 @@ class QuestionBankRepository {
     );
   }
 
+  /**
+   * Find the crowd "Submitted – Pending Validation" bank staged for a given
+   * quiz (keyed by sourceQuizId). Returns null if this quiz has no crowd
+   * submissions yet — the bank is created lazily on first submission.
+   */
+  async findCrowdSubmittedBankByQuizId(
+    quizId: string,
+    session?: ClientSession,
+  ): Promise<IQuestionBank | null> {
+    await this.init();
+    return this.questionBankCollection.findOne(
+      {
+        crowdSubmitted: true,
+        sourceQuizId: new ObjectId(quizId),
+        isDeleted: {$ne: true},
+      },
+      {session},
+    );
+  }
+
   async getById(
     questionBankId: string,
     session?: ClientSession,

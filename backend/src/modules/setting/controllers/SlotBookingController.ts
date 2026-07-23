@@ -63,6 +63,19 @@ class SlotBookingController {
   @Authorized()
   @Post('/book')
   @HttpCode(200)
+  private formatBooking(b: any) {
+    if (!b) return b;
+    return {
+      ...b,
+      _id: b._id?.toString(),
+      userId: b.userId?.toString(),
+      enrollmentId: b.enrollmentId?.toString(),
+      courseId: b.courseId?.toString(),
+      courseVersionId: b.courseVersionId?.toString(),
+      cohortId: b.cohortId?.toString(),
+    };
+  }
+
   async bookSlot(
     @Body() body: BookSlotRequestBody,
     @CurrentUser() user: IUser,
@@ -79,7 +92,7 @@ class SlotBookingController {
       return {
         success: true,
         message: 'Time slot booked successfully',
-        data: booking,
+        data: this.formatBooking(booking),
       };
     } catch (error) {
       if (
@@ -146,7 +159,7 @@ class SlotBookingController {
         courseVersionId,
         date,
       );
-      return {success: true, data};
+      return {success: true, data: data.map(b => this.formatBooking(b))};
     } catch (error) {
       throw new InternalServerError(`Failed to get bookings: ${error}`);
     }
@@ -179,6 +192,33 @@ class SlotBookingController {
       throw new InternalServerError(
         `Failed to get extra bookings: ${error}`,
       );
+    }
+  }
+
+  @OpenAPI({
+    summary: "The student's committed-hours summary",
+    description:
+      "Returns the calling student's hours budget, hours reserved, and hours LOST to unused (unfulfilled) slots, so the UI can warn them about wasted budget.",
+  })
+  @Authorized()
+  @Get('/my/hours/course/:courseId/version/:courseVersionId')
+  @HttpCode(200)
+  async myHoursSummary(
+    @Param('courseId') courseId: string,
+    @Param('courseVersionId') courseVersionId: string,
+    @CurrentUser() user: IUser,
+    @QueryParam('cohortId') cohortId?: string,
+  ): Promise<BookingResponse> {
+    try {
+      const data = await this.slotBookingService.getStudentHoursSummary(
+        user._id.toString(),
+        courseId,
+        courseVersionId,
+        cohortId,
+      );
+      return {success: true, data};
+    } catch (error) {
+      throw new InternalServerError(`Failed to get hours summary: ${error}`);
     }
   }
 

@@ -9,6 +9,7 @@ import {
   useMyBookings,
   useSlotAvailability,
   useMyExtraBookings,
+  useMyHoursSummary,
   useBookSlot,
   useCancelBooking,
   bookableStudyDates,
@@ -93,6 +94,11 @@ export default function StudentTimeslotModal({
     courseVersionId,
     isOpen,
   );
+  const { data: hoursSummary, refetch: refetchHoursSummary } = useMyHoursSummary(
+    courseId,
+    courseVersionId,
+    isOpen,
+  );
   const { book, loading: booking } = useBookSlot();
   const { cancel, loading: cancelling } = useCancelBooking();
 
@@ -103,6 +109,7 @@ export default function StudentTimeslotModal({
     refetchBookings();
     refetchAvailability();
     refetchExtraBookings();
+    refetchHoursSummary();
   };
 
   const tsSettings = timeSlotsData as
@@ -221,12 +228,28 @@ export default function StudentTimeslotModal({
                 {extraBookings} awarded booking{extraBookings !== 1 ? 's' : ''} available
               </span>
             ) : null}
+            {hoursSummary?.hasBudget && hoursSummary.budgetHours != null ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted text-foreground px-2.5 py-0.5 text-xs font-medium">
+                <Clock className="h-3.5 w-3.5" />
+                {hoursSummary.remainingHours}h of {hoursSummary.budgetHours}h left
+              </span>
+            ) : null}
           </div>
           {bonusEarnedToday > 0 ? (
             <p className="mt-1 text-xs text-amber-700">
               🎉 You stayed active in {bonusEarnedToday} of your booked window
               {bonusEarnedToday !== 1 ? 's' : ''} today — that earned you{' '}
               {bonusEarnedToday} extra booking{bonusEarnedToday !== 1 ? 's' : ''}. Book another window below.
+            </p>
+          ) : null}
+          {hoursSummary && hoursSummary.lostHours > 0 ? (
+            <p className="mt-1 text-xs text-red-700">
+              ⚠️ You've lost {hoursSummary.lostHours}h
+              {hoursSummary.hasBudget && hoursSummary.budgetHours != null
+                ? ` of your ${hoursSummary.budgetHours}h budget`
+                : ''}{' '}
+              to missed slots (booked but not used). Cancel at least 1 hour before a
+              slot if you can't attend — that returns the hours.
             </p>
           ) : null}
         </DialogHeader>

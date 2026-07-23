@@ -577,6 +577,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Loader2, AlertTriangle, AlertCircle, BookOpen, Tag, ListChecks, Calendar, Eye, Hash, ThumbsDown, ThumbsUp, Clock, MessageSquare, User, Search, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
@@ -687,27 +688,23 @@ export default function CourseIssueReports() {
 
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-4 space-y-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="space-y-4">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              My Issues
-            </h1>
-            <p className="text-muted-foreground">
-              Review and manage all the issues you raised.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => issuesRefetch()}
-            disabled={isRefetching}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
-            {isRefetching ? "Refreshing..." : "Refresh"}
-          </Button>
-        </div>
+    <div className="bg-background">
+      <div className="min-w-0 space-y-8">
+        <PageHeader
+          title="My Issues"
+          description="Review and manage all the issues you raised."
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => issuesRefetch()}
+              disabled={isRefetching}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+              {isRefetching ? "Refreshing..." : "Refresh"}
+            </Button>
+          }
+        />
 
         <IssueFilters
           searchTerm={searchTerm}
@@ -720,10 +717,10 @@ export default function CourseIssueReports() {
         />
 
         {/* Table */}
-        <Card className="border-0 shadow-lg overflow-hidden min-h-[50vh]">
+        <Card className="border shadow-sm min-h-[50vh]">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="w-full overflow-x-auto rounded-xl">
+              <Table className="min-w-[720px]">
                 <TableHeader>
                   <TableRow className="border-border bg-muted/30">
                     <TableHead className="w-[50px]">
@@ -827,8 +824,10 @@ export default function CourseIssueReports() {
                             {index + 1 + (currentPage - 1) * PAGE_LIMIT}
                           </TableCell>
 
-                          <TableCell className="py-4 font-medium">
-                            {detail.reason || '-'}
+                          <TableCell className="py-4 font-medium max-w-[260px]">
+                            <span className="block truncate" title={detail.reason || '-'}>
+                              {detail.reason || '-'}
+                            </span>
                           </TableCell>
 
                           <TableCell className="py-4">

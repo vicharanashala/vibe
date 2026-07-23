@@ -23,6 +23,19 @@ import { notificationsContainerModule } from '#root/modules/notifications/contai
 import { quizzesContainerModule } from '#root/modules/quizzes/container.js';
 import { usersContainerModule } from '#root/modules/users/container.js';
 import { anomaliesContainerModule } from '../container.js';
+import { settingContainerModule } from '#root/modules/setting/container.js';
+import { courseRegistrationContainerModule } from '#root/modules/courseRegistration/container.js';
+import { projectsContainerModule } from '#root/modules/projects/container.js';
+import { reportsContainerModule } from '#root/modules/reports/container.js';
+import { hpSystemContainerModule } from '#root/modules/hpSystem/container.js';
+import { ejectionPolicyContainerModule } from '#root/modules/ejectionPolicy/container.js';
+import { emotionsContainerModule } from '#root/modules/emotions/container.js';
+import { genAIContainerModule } from '#root/modules/genAI/container.js';
+import { studentQuestionsContainerModule } from '#root/modules/studentQuestions/container.js';
+import { announcementsContainerModule } from '#root/modules/announcements/container.js';
+import { auditTrailsContainerModule } from '#root/modules/auditTrails/container.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import { AnomalyData, NewAnomalyData } from '../classes/validators/AnomalyValidators.js';
 import { AnomalyType } from '../classes/transformers/Anomaly.js';
 const ContainerModules: ContainerModule[] = [
@@ -32,7 +45,18 @@ const ContainerModules: ContainerModule[] = [
   authContainerModule,
   notificationsContainerModule,
   usersContainerModule,
-  quizzesContainerModule
+  quizzesContainerModule,
+  settingContainerModule,
+  courseRegistrationContainerModule,
+  projectsContainerModule,
+  reportsContainerModule,
+  hpSystemContainerModule,
+  ejectionPolicyContainerModule,
+  emotionsContainerModule,
+  genAIContainerModule,
+  studentQuestionsContainerModule,
+  announcementsContainerModule,
+  auditTrailsContainerModule,
 ]
 const validImageBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
   'base64',);
@@ -46,6 +70,8 @@ describe('Anomaly Controller Integration Tests', () => {
     await container.load(...ContainerModules);
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
+    const db = container.get<MongoDatabase>(GLOBAL_TYPES.Database);
+    await db.connect();
     app = useExpressServer(appInstance, {
       controllers: [AnomalyController, AuthController, CourseController, CourseVersionController, ModuleController, SectionController, ItemController],
       validation: true,

@@ -21,9 +21,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8 # or your pnpm version
+        uses: pnpm/action-setup@v4
+        # No version pin: use the repo's `packageManager` (pnpm 10).
 
       - name: Install dependencies
         run: pnpm install
