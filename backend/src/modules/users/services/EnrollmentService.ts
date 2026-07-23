@@ -2996,4 +2996,48 @@ export class EnrollmentService extends BaseService {
       learners,
     };
   }
+
+  /**
+   * Returns a paginated roster of candidates who have completed a single,
+   * specific course. Backs the server-to-server integration endpoint.
+   */
+  async getCourseCompletions(
+    courseId: string,
+    page: number,
+    limit: number,
+  ): Promise<{
+    page: number;
+    limit: number;
+    totalCandidates: number;
+    totalPages: number;
+    candidates: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      courseVersionId: string;
+      completedAt?: Date;
+    }>;
+  }> {
+    if (!ObjectId.isValid(courseId)) {
+      throw new BadRequestError(`Invalid courseId: ${courseId}`);
+    }
+
+    const safePage = Math.max(1, Math.floor(page) || 1);
+    const safeLimit = Math.min(Math.max(1, Math.floor(limit) || 50), 200);
+    const skip = (safePage - 1) * safeLimit;
+
+    const { total, candidates } = await this.enrollmentRepo.getCourseCompletions(
+      courseId,
+      skip,
+      safeLimit,
+    );
+
+    return {
+      page: safePage,
+      limit: safeLimit,
+      totalCandidates: total,
+      totalPages: Math.ceil(total / safeLimit),
+      candidates,
+    };
+  }
 }
