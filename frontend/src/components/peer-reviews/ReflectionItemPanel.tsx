@@ -74,7 +74,7 @@ const ReflectionItemPanel = forwardRef<
   // Progress is recorded exactly as an article records it: started on arrival,
   // stopped on the way out. Without this the item never completes, and with
   // linear progression enabled the next lesson stays locked.
-  const {currentCourse} = useCourseStore();
+  const {currentCourse, setWatchItemId} = useCourseStore();
   const startItem = useStartItem();
   const stopItem = useStopItem();
   const itemStartedRef = useRef(false);
@@ -83,10 +83,10 @@ const ReflectionItemPanel = forwardRef<
   const alreadyDone = () =>
     isAlreadyWatched || completedItemIdsRef.current?.has(itemId);
 
+  // Fire the start once on arrival.
   useEffect(() => {
     if (startSentRef.current || !currentCourse?.itemId || alreadyDone()) return;
     startSentRef.current = true;
-    itemStartedRef.current = true;
     startItem.mutate({
       params: {
         path: {courseId, courseVersionId},
@@ -99,6 +99,21 @@ const ReflectionItemPanel = forwardRef<
       },
     } as any);
   }, [itemId, currentCourse?.itemId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The stop needs the watchItemId the start returns; the item counts as
+  // started only once that lands. Marking it started on mount (before the id
+  // exists) is what made stopItem no-op earlier — so the item never completed
+  // and the next lesson stayed locked.
+  useEffect(() => {
+    if (
+      startItem.data?.watchItemId &&
+      startSentRef.current &&
+      !itemStartedRef.current
+    ) {
+      setWatchItemId(startItem.data.watchItemId);
+      itemStartedRef.current = true;
+    }
+  }, [startItem.data?.watchItemId, setWatchItemId]);
 
   useImperativeHandle(ref, () => ({
     stopItem: async () => {
