@@ -165,13 +165,16 @@ export default function ReflectionItemEditor({
       } as any);
       toast.success('Reflection settings saved');
       onSaved();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Surface what the server actually objected to; a bare "could not save"
       // leaves no way to tell a validation error from a permission one.
+      const err = error as {
+        response?: {data?: {message?: string}};
+        data?: {message?: string};
+        message?: string;
+      };
       const detail =
-        error?.response?.data?.message ??
-        error?.data?.message ??
-        error?.message;
+        err?.response?.data?.message ?? err?.data?.message ?? err?.message;
       console.error('Reflection settings save failed', error);
       toast.error(
         detail
