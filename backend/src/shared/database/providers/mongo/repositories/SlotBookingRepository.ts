@@ -13,9 +13,27 @@ import {
 } from '#shared/database/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 
-/** Accepts a string or ObjectId and returns an ObjectId. */
-const oid = (value: string | ObjectId | null | undefined): ObjectId =>
-  value instanceof ObjectId ? value : new ObjectId(String(value));
+/** Accepts a string, ObjectId, or serialized object/buffer representation and returns an ObjectId. */
+const oid = (value: any): ObjectId => {
+  if (value instanceof ObjectId) return value;
+  if (!value) return new ObjectId();
+  if (typeof value === 'string') return new ObjectId(value);
+  if (typeof value === 'object') {
+    if (value.id) {
+      if (typeof value.id === 'string') return new ObjectId(value.id);
+      if (value.id.type === 'Buffer' && Array.isArray(value.id.data)) {
+        return new ObjectId(Buffer.from(value.id.data));
+      }
+    }
+    if (value.toString && typeof value.toString === 'function') {
+      const str = value.toString();
+      if (str !== '[object Object]' && str.length === 24) {
+        return new ObjectId(str);
+      }
+    }
+  }
+  return new ObjectId(String(value));
+};
 
 /**
  * MongoDB implementation of the slot-bookings repository — the per-day
@@ -88,7 +106,7 @@ export class SlotBookingRepository implements ISlotBookingRepository {
     await this.init();
     return this.slotBookingsCollection.findOne(
       {
-        _id: new ObjectId(bookingId),
+        _id: oid(bookingId),
         status: {$ne: SlotBookingStatus.CANCELLED},
         isDeleted: {$ne: true},
       } as any,
@@ -105,9 +123,9 @@ export class SlotBookingRepository implements ISlotBookingRepository {
   ): Promise<ISlotBooking[]> {
     await this.init();
     const query: Record<string, unknown> = {
-      userId: new ObjectId(userId),
-      courseId: new ObjectId(courseId),
-      courseVersionId: new ObjectId(courseVersionId),
+      userId: oid(userId),
+      courseId: oid(courseId),
+      courseVersionId: oid(courseVersionId),
       status: {$ne: SlotBookingStatus.CANCELLED},
       isDeleted: {$ne: true},
     };
@@ -125,8 +143,8 @@ export class SlotBookingRepository implements ISlotBookingRepository {
     await this.init();
     return this.slotBookingsCollection.countDocuments(
       {
-        courseId: new ObjectId(courseId),
-        courseVersionId: new ObjectId(courseVersionId),
+        courseId: oid(courseId),
+        courseVersionId: oid(courseVersionId),
         date,
         from: slot.from,
         to: slot.to,
@@ -149,9 +167,9 @@ export class SlotBookingRepository implements ISlotBookingRepository {
         [
           {
             $match: {
-              userId: new ObjectId(userId),
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(courseVersionId),
+              userId: oid(userId),
+              courseId: oid(courseId),
+              courseVersionId: oid(courseVersionId),
               status: {$ne: SlotBookingStatus.CANCELLED},
               isDeleted: {$ne: true},
             },
@@ -178,9 +196,9 @@ export class SlotBookingRepository implements ISlotBookingRepository {
   ): Promise<number> {
     await this.init();
     const match: Record<string, unknown> = {
-      userId: new ObjectId(userId),
-      courseId: new ObjectId(courseId),
-      courseVersionId: new ObjectId(courseVersionId),
+      userId: oid(userId),
+      courseId: oid(courseId),
+      courseVersionId: oid(courseVersionId),
       status: SlotBookingStatus.UNFULFILLED,
       isDeleted: {$ne: true},
     };
@@ -206,7 +224,7 @@ export class SlotBookingRepository implements ISlotBookingRepository {
   ): Promise<boolean> {
     await this.init();
     const result = await this.slotBookingsCollection.updateOne(
-      {_id: new ObjectId(bookingId)} as any,
+      {_id: oid(bookingId)} as any,
       {$set: {status: SlotBookingStatus.CANCELLED, updatedAt: new Date()}},
       {session},
     );
@@ -239,7 +257,7 @@ export class SlotBookingRepository implements ISlotBookingRepository {
   ): Promise<boolean> {
     await this.init();
     const result = await this.slotBookingsCollection.updateOne(
-      {_id: new ObjectId(bookingId)} as any,
+      {_id: oid(bookingId)} as any,
       {$set: {status, activePct, fulfilledAt, updatedAt: new Date()}},
       {session},
     );
@@ -262,9 +280,9 @@ export class SlotBookingRepository implements ISlotBookingRepository {
     const docs = await this.watchTimeCollection
       .find(
         {
-          userId: new ObjectId(userId),
-          courseId: new ObjectId(courseId),
-          courseVersionId: new ObjectId(courseVersionId),
+          userId: oid(userId),
+          courseId: oid(courseId),
+          courseVersionId: oid(courseVersionId),
           startTime: {$lt: endUTC},
           $or: [{endTime: {$gte: startUTC}}, {lastSeenAt: {$gte: startUTC}}],
           isDeleted: {$ne: true},
