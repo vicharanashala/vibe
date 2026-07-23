@@ -19,6 +19,10 @@ import {
   CourseActions,
   getCourseAbility,
 } from '../../courses/abilities/courseAbilities.js';
+import {
+  ItemActions,
+  getItemAbility,
+} from '../../courses/abilities/itemAbilities.js';
 import {PEER_REVIEW_TYPES} from '../types.js';
 import {ReflectionService} from '../services/ReflectionService.js';
 import {
@@ -52,7 +56,9 @@ export class ReflectionController {
     @Params() params: ReflectionItemPathParams,
     @Body() body: CreateReflectionBody,
     @CurrentUser() user: IUser,
+    @Ability(getItemAbility) {ability}: any,
   ): Promise<{reflectionId: string}> {
+    this.assertCanAccessItem(ability, params);
     return this.service.submitReflection({
       userId: this.requireUserId(user),
       courseId: params.courseId,
@@ -71,7 +77,9 @@ export class ReflectionController {
   async getMyReflection(
     @Params() params: ReflectionItemPathParams,
     @CurrentUser() user: IUser,
+    @Ability(getItemAbility) {ability}: any,
   ) {
+    this.assertCanAccessItem(ability, params);
     const result = await this.service.getMyReflection({
       userId: this.requireUserId(user),
       itemId: params.itemId,
@@ -92,7 +100,9 @@ export class ReflectionController {
   async getNextForReview(
     @Params() params: ReflectionItemPathParams,
     @CurrentUser() user: IUser,
+    @Ability(getItemAbility) {ability}: any,
   ) {
+    this.assertCanAccessItem(ability, params);
     const reflection = await this.service.getNextForReview({
       userId: this.requireUserId(user),
       itemId: params.itemId,
@@ -107,7 +117,14 @@ export class ReflectionController {
     @Params() params: ReflectionIdPathParams,
     @Body() body: CreateReviewBody,
     @CurrentUser() user: IUser,
+    @Ability(getItemAbility) {ability}: any,
   ) {
+    // The review path carries only the reflection id, so the course context to
+    // authorise against is read from the reflection itself.
+    const context = await this.service.getReflectionContext(
+      params.reflectionId,
+    );
+    this.assertCanAccessItem(ability, context);
     return this.service.submitReview({
       reviewerId: this.requireUserId(user),
       reflectionId: params.reflectionId,
@@ -160,6 +177,31 @@ export class ReflectionController {
    * Instructor listings expose author identities, so they are gated on the same
    * permission that governs editing the course rather than mere enrolment.
    */
+  /**
+   * A student may only act on a reflection item they can actually reach: the
+   * item ability already encodes enrolment and, when linear progression is on,
+   * the completed-plus-current allow list. Without this a logged-in user could
+   * submit or review against any course whose ids they could name.
+   */
+  private assertCanAccessItem(
+    ability: any,
+    ref: {courseId: string; courseVersionId: string; itemId: string},
+  ): void {
+    const allowed = ability.can(
+      ItemActions.View,
+      subject('Item', {
+        courseId: ref.courseId,
+        versionId: ref.courseVersionId,
+        itemId: ref.itemId,
+      }),
+    );
+    if (!allowed) {
+      throw new ForbiddenError(
+        'You do not have access to this reflection item.',
+      );
+    }
+  }
+
   private assertCanManageCourse(ability: any, courseId: string): void {
     if (!ability.can(CourseActions.Modify, subject('Course', {courseId}))) {
       throw new ForbiddenError(

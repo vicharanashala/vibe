@@ -127,6 +127,26 @@ export class ReflectionService {
   }
 
   /**
+   * The course/version/item a reflection belongs to, for authorising a review
+   * whose request path carries only the reflection id.
+   */
+  async getReflectionContext(reflectionId: string): Promise<{
+    courseId: string;
+    courseVersionId: string;
+    itemId: string;
+  }> {
+    const reflection = await this.repository.findById(reflectionId);
+    if (!reflection) {
+      throw new NotFoundError('Reflection not found.');
+    }
+    return {
+      courseId: reflection.courseId.toString(),
+      courseVersionId: reflection.courseVersionId.toString(),
+      itemId: reflection.itemId.toString(),
+    };
+  }
+
+  /**
    * Score a peer's reflection. Rejects self-review and double-review; a
    * reflection that hit its cap between being served and being submitted is
    * reported as such so the client can simply fetch the next one.
