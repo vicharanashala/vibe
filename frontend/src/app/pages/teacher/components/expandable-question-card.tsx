@@ -74,6 +74,8 @@ interface ExpandableQuestionCardProps {
   onDuplicate: () => void;
   isFlagged?: boolean;
   refreshTrigger?: number;
+  /** Hides Edit/Duplicate/Delete — for viewing questions in a bank the instructor shouldn't modify directly (e.g. crowd "To Be Verified"). */
+  readOnly?: boolean;
 }
 
 const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
@@ -81,7 +83,8 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
   onDelete,
   onDuplicate,
   isFlagged = false,
-  refreshTrigger
+  refreshTrigger,
+  readOnly = false
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -1113,20 +1116,22 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                     )}
                   </div>
                 </div>
-                <div className="flex gap-1 xl:ml-4 flex-shrink-0 self-start min-w-0" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm" onClick={onDuplicate} title="Duplicate" className="h-7 w-7 p-0 flex-shrink-0">
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onDelete}
-                    className="text-destructive hover:text-destructive h-7 w-7 p-0 flex-shrink-0"
-                    title="Delete"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+                {!readOnly && (
+                  <div className="flex gap-1 xl:ml-4 flex-shrink-0 self-start min-w-0" onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm" onClick={onDuplicate} title="Duplicate" className="h-7 w-7 p-0 flex-shrink-0">
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onDelete}
+                      className="text-destructive hover:text-destructive h-7 w-7 p-0 flex-shrink-0"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </CollapsibleTrigger>
@@ -1167,11 +1172,12 @@ const ExpandableQuestionCard: React.FC<ExpandableQuestionCardProps> = ({
                       )}
                     </Button>
                   </>
-                ) : (
+                ) : !readOnly ? (
                   <Button variant="outline" size="sm" onClick={handleStartEdit} className="w-full sm:w-auto">
                     <Edit2 className="h-4 w-4 mr-2" />
                     Edit Question
                   </Button>
+                ) : null
                 )}
               </div>
             </div>
