@@ -51,7 +51,7 @@ import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
 import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
-import {ItemType} from '#shared/interfaces/models.js';
+import {ItemType, IUser} from '#shared/interfaces/models.js';
 import {HideModuleBody} from '../classes/index.js';
 import {createObjectCsvStringifier} from 'csv-writer';
 import {Response} from 'express';
@@ -647,7 +647,7 @@ Access control logic:
 - Only instructors, managers, and teaching assistants can access analytics.
 - Students are restricted from viewing analytics.`,
   })
-  // @Authorized()
+  @Authorized()
   @Get('/:courseId/versions/:versionId/item/:itemId/analytics/users')
   @HttpCode(200)
   @ResponseSchema(VideoUserAnalytics, {
@@ -665,8 +665,25 @@ Access control logic:
   async getVideoAnalyticsPerStudent(
     @Params() params: GetVideoAnalyticsParams,
     @QueryParams() query: VideoUserAnalyticsQuery,
+    @CurrentUser() user: IUser,
   ): Promise<VideoUserAnalyticsResponse> {
     const {courseId, versionId, itemId: videoId} = params;
+
+    const userId = user._id.toString();
+    if (user.roles !== 'admin') {
+      const enrollments = await this.enrollmentService.getAllEnrollments(userId);
+      const hasAccess = enrollments.some(e =>
+        e.courseId === courseId &&
+        e.courseVersionId === versionId &&
+        ['INSTRUCTOR', 'MANAGER', 'TA'].includes(e.role),
+      );
+      if (!hasAccess) {
+        throw new ForbiddenError(
+          'You do not have permission to view video analytics for this course version',
+        );
+      }
+    }
+
     return await this.itemService.getVideoUserAnalytics(
       courseId,
       versionId,

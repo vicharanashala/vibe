@@ -19,7 +19,9 @@ import {
   QueryParams,
   QueryParam,
   Param,
+  CurrentUser,
 } from 'routing-controllers';
+import { IUser } from '#root/shared/interfaces/models.js';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { COURSES_TYPES } from '#courses/types.js';
 import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
@@ -450,6 +452,7 @@ Accessible to:
     summary: 'Get course version watch time',
     description: `Returns total watch time for a specific course version`,
   })
+  @Authorized()
   @Get('/:courseId/versions/:versionId/watch-time')
   @ResponseSchema(CourseVersionWatchTimeResponse, {
     description: 'Course version watch time fetched successfully',
@@ -464,11 +467,27 @@ Accessible to:
   })
   async getCourseVersionWatchTime(
     @Params() params: GetCourseVersionWatchTimeParams,
+    @CurrentUser() user: IUser,
   ): Promise<CourseVersionWatchTimeResponse> {
     const { courseId, versionId } = params;
 
     if (!courseId || !versionId) {
       throw new BadRequestError('Course ID and Version ID are required');
+    }
+
+    const userId = user._id.toString();
+    if (user.roles !== 'admin') {
+      const enrollments = await this.enrollmentService.getAllEnrollments(userId);
+      const hasAccess = enrollments.some(e =>
+        e.courseId === courseId &&
+        e.courseVersionId === versionId &&
+        ['INSTRUCTOR', 'MANAGER', 'TA'].includes(e.role),
+      );
+      if (!hasAccess) {
+        throw new ForbiddenError(
+          'You do not have permission to view watch time for this course version',
+        );
+      }
     }
     const result = await this.courseVersionService.getCourseVersionTotalWatchTime(
       courseId,
