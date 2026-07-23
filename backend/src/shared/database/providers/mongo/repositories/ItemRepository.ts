@@ -479,6 +479,10 @@ export class ItemRepository implements IItemRepository {
       })) ||
       (await this.feedbackFormCollection.findOne({
         _id: objectId,
+      })) ||
+      (await this.reflectionCollection.findOne({
+        _id: objectId,
+        isDeleted: { $ne: true },
       }));
 
     if (!item) {
