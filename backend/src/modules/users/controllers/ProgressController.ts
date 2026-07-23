@@ -962,6 +962,7 @@ It returns an empty body with a 200 status code.
   }
 
   ///////////////////////////////////////////////////// TO CORRECT THE WATCHTIME DOC COUNT OF STUDENTS ////////////////////////////////////////////
+  @Authorized()
   @Post('/progress/watch-time/bulk')
   @HttpCode(201)
   @OpenAPI({
@@ -973,8 +974,31 @@ It returns an empty body with a 200 status code.
     description: 'Failed to create watch-time records',
     statusCode: 500,
   })
-  async createBulkWatchiTimeDocs(@Body() body: any): Promise<any> {
+  async createBulkWatchiTimeDocs(
+    @Body() body: any,
+    @Ability(getProgressAbility) { ability },
+  ): Promise<any> {
     const { courseId, versionId, userId } = body;
+
+    const targetUserId = userId ?? null;
+    if (!targetUserId) {
+      // Bulk update for all users in the course version
+      const progressResource = subject('Progress', { courseId, versionId });
+      if (!ability.can(ProgressActions.Modify, progressResource)) {
+        throw new ForbiddenError('You do not have permission to modify progress for all users');
+      }
+    } else {
+      // Update for a specific user
+      const progressResource = subject('Progress', {
+        userId: targetUserId,
+        courseId,
+        versionId,
+      });
+      if (!ability.can(ProgressActions.Modify, progressResource)) {
+        throw new ForbiddenError('You do not have permission to modify progress for this user');
+      }
+    }
+
     return this.progressService.createBulkWatchiTimeDocs(
       courseId,
       versionId,
@@ -983,6 +1007,7 @@ It returns an empty body with a 200 status code.
   }
 
   /////////////////////////////// TEMP ENDPOINT WITHOUT AUTH //////////////////////////////////
+  @Authorized()
   @Get('/progress/courses/:courseId/versions/:versionId/leaderboard/no-auth')
   @OpenAPI({
     summary: 'Get course leaderboard without authorization',
@@ -999,15 +1024,18 @@ It returns an empty body with a 200 status code.
   })
   async getNoAuthLeaderboard(
     @Params() params: GetUserProgressParams,
+    @Ability(getProgressAbility) { ability },
   ): Promise<GetLeaderboardResponse> {
     const { courseId, versionId } = params;
-    // const {page = 1, limit = 10} = query;
+
+    const progressResource = subject('Progress', { courseId, versionId });
+    if (!ability.can(ProgressActions.View, progressResource)) {
+      throw new ForbiddenError('You do not have permission to view this leaderboard');
+    }
 
     return await this.progressService.getLeaderboardNoAuth(
       courseId,
       versionId,
-      // page,
-      // limit,
     );
   }
 }
