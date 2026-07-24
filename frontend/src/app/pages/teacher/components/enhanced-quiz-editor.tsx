@@ -393,6 +393,15 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
   let { data: questionBanks, refetch: refetchQuestionBanks } = useGetAllQuestionBanksForQuiz(quizId || '');
   const { data: selectedBankData, refetch: refetchSelectedBank } = useQuestionBankById(selectedQuestionBank || '');
 
+  // The "To Be Verified" bank (crowd-sourced student submissions) is surfaced
+  // by the backend alongside the quiz's real question banks, flagged
+  // crowdSubmitted:true. It's never part of questionBankRefs (never counted
+  // toward the graded draw), so it must be excluded from every flow that adds
+  // to / configures / saves the quiz's actual bank list.
+  const regularQuestionBanks = questionBanks?.filter((bank: any) => !bank.crowdSubmitted);
+  const crowdSubmittedBank = questionBanks?.find((bank: any) => bank.crowdSubmitted);
+  const isCrowdBankSelected = !!crowdSubmittedBank && selectedQuestionBank === crowdSubmittedBank.bankId;
+
   // Mutations
   const createQuestionBank = useCreateQuestionBank();
   const addQuestionBankToQuiz = useAddQuestionBankToQuiz();
@@ -490,7 +499,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
       if (!questionBanks) questionBanks = [];
 
-      const questionBankRefs: QuestionBankRef[] = questionBanks?.map((bank: QuestionBankRef) => ({
+      const questionBankRefs: QuestionBankRef[] = regularQuestionBanks?.map((bank: QuestionBankRef) => ({
         bankId: bank.bankId,
         count: bank.count,
         difficulty: bank.difficulty,
@@ -913,10 +922,10 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
 
   // Initialize question bank selection
   useEffect(() => {
-    if (questionBanks && questionBanks?.length > 0 && !selectedQuestionBank) {
-      setSelectedQuestionBank(questionBanks[0].bankId);
+    if (regularQuestionBanks && regularQuestionBanks?.length > 0 && !selectedQuestionBank) {
+      setSelectedQuestionBank(regularQuestionBanks[0].bankId);
     }
-  }, [questionBanks]);
+  }, [regularQuestionBanks]);
 
   useEffect(() => {
     setSelectedQuestionBank(null);
@@ -1127,7 +1136,32 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                     {/* List of question banks */}
                     <ScrollArea className="lg:h-[calc(100vh-200px)] h-auto">
                       <div className="p-4 space-y-2">
-                        {questionBanks?.map((bank: any) => (
+                        {crowdSubmittedBank && (
+                          <Card
+                            key={crowdSubmittedBank.bankId}
+                            className={`cursor-pointer transition-colors hover:bg-accent border-dashed border-amber-400/60 ${selectedQuestionBank === crowdSubmittedBank.bankId ? 'border-primary bg-accent/40' : ''
+                              }`}
+                            onClick={() => setSelectedQuestionBank(crowdSubmittedBank.bankId)}
+                          >
+                            <CardContent className="px-3">
+                              <div className="flex items-center gap-2">
+                                <div className="h-5 w-5">
+                                  <BookOpen className="h-5 w-5 text-amber-600" />
+                                </div>
+                                <div>
+                                  <p className="text-md font-semibold">To Be Verified</p>
+                                  <p className="text-[12px] font-normal text-muted-foreground">
+                                    Student-submitted questions pending review
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {crowdSubmittedBank.count || 0} question{crowdSubmittedBank.count === 1 ? '' : 's'} awaiting verification
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                        {regularQuestionBanks?.map((bank: any) => (
                           <Card
                             key={bank.bankId}
                             className={`cursor-pointer transition-colors hover:bg-accent ${selectedQuestionBank === bank.bankId ? 'border-primary bg-accent/40' : ''
@@ -1177,7 +1211,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                           </Card>
                         ))}
 
-                        {(!questionBanks || questionBanks?.length === 0) && (
+                        {(!regularQuestionBanks || regularQuestionBanks?.length === 0) && !crowdSubmittedBank && (
                           <div className="text-center text-muted-foreground py-8">
                             <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
                             <p className="text-md">No question banks</p>
@@ -1192,19 +1226,27 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                   <div className="flex-1">
                     {selectedQuestionBank ? (
                       <div className="h-full flex flex-col">
-                        {/* Add Question trigger for questions */}
-                        <CreateQuestionDialog
-                          showCreateQuestionDialog={showCreateQuestionDialog}
-                          setShowCreateQuestionDialog={setShowCreateQuestionDialog}
-                          selectedBankId={selectedQuestionBank}
-                          questionBanks={questionBanks}
-                          onRequestEditBank={(bankId) => {
-                            const bank = questionBanks?.find((b: any) => b.bankId === bankId);
-                            if (bank) {
-                              handleEditQuestionBank(bank);
-                            }
-                          }}
-                        />
+                        {/* Add Question trigger for questions — not available in the
+                            read-only "To Be Verified" crowd bank */}
+                        {!isCrowdBankSelected && (
+                          <CreateQuestionDialog
+                            showCreateQuestionDialog={showCreateQuestionDialog}
+                            setShowCreateQuestionDialog={setShowCreateQuestionDialog}
+                            selectedBankId={selectedQuestionBank}
+                            questionBanks={regularQuestionBanks}
+                            onRequestEditBank={(bankId) => {
+                              const bank = regularQuestionBanks?.find((b: any) => b.bankId === bankId);
+                              if (bank) {
+                                handleEditQuestionBank(bank);
+                              }
+                            }}
+                          />
+                        )}
+                        {isCrowdBankSelected && (
+                          <div className="px-4 py-3 xl:px-6 border-b bg-amber-50 dark:bg-amber-950/20 text-sm text-amber-800 dark:text-amber-200">
+                            Student-submitted questions awaiting review. Approve or reject them from the Student Question Review page.
+                          </div>
+                        )}
                         <ScrollArea className="flex-1">
                           <div className="xl:p-4 py-4 space-y-4">
                             {selectedBankData?.questions?.map((qId: string) => (
@@ -1213,6 +1255,7 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                                 questionId={qId}
                                 isFlagged={questionId === qId}
                                 refreshTrigger={questionRefreshTrigger}
+                                readOnly={isCrowdBankSelected}
                                 onDelete={() => handleDeleteQuestion(qId)}
                                 onDuplicate={async () => {
                                   await replaceQuestionWithDuplicate.mutateAsync({
@@ -1226,12 +1269,18 @@ const EnhancedQuizEditor: React.FC<EnhancedQuizEditorProps> = ({
                             {(!selectedBankData?.questions || selectedBankData.questions?.length === 0) && (
                               <div className="text-center text-muted-foreground py-12">
                                 <HelpCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                <h3 className="font-medium mb-2">No questions yet</h3>
-                                <p className="text-sm mb-4">Add your first question to get started</p>
-                                <Button onClick={() => setShowCreateQuestionDialog(true)}>
-                                  <Plus className="h-4 w-4 mr-2" />
-                                  Create Question
-                                </Button>
+                                <h3 className="font-medium mb-2">
+                                  {isCrowdBankSelected ? 'No questions pending' : 'No questions yet'}
+                                </h3>
+                                {!isCrowdBankSelected && (
+                                  <>
+                                    <p className="text-sm mb-4">Add your first question to get started</p>
+                                    <Button onClick={() => setShowCreateQuestionDialog(true)}>
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Create Question
+                                    </Button>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>

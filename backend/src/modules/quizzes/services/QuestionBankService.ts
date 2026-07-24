@@ -182,6 +182,81 @@ class QuestionBankService extends BaseService {
       );
     });
   }
+
+  /**
+   * Find (or lazily create) the crowd "Submitted – Pending Validation" bank
+   * for a quiz's graded bank. Crowd-sourced student questions are parked here
+   * instead of the graded bank until peer-validated + instructor-approved, so
+   * they never enter graded quiz draws. The bank is NOT added to the quiz's
+   * questionBankRefs. See studentQuestions/CROWD_QUESTION_BANK.md.
+   */
+  async findOrCreateCrowdSubmittedBank(
+    gradedBankId: string,
+    sourceQuizId?: string | ObjectId,
+  ): Promise<string> {
+    const existing =
+      await this.questionBankRepository.findCrowdSubmittedBankByGradedBankId(
+        gradedBankId,
+      );
+    if (existing?._id) {
+      return existing._id.toString();
+    }
+
+    const gradedBank = await this.questionBankRepository.getById(gradedBankId);
+    if (!gradedBank) {
+      throw new NotFoundError(
+        `Graded question bank with ID ${gradedBankId} not found`,
+      );
+    }
+
+    const now = new Date();
+    const doc: IQuestionBank = {
+      courseId: gradedBank.courseId
+        ? new ObjectId(gradedBank.courseId.toString())
+        : undefined,
+      courseVersionId: gradedBank.courseVersionId
+        ? new ObjectId(gradedBank.courseVersionId.toString())
+        : undefined,
+      title: 'Submitted – Pending Validation: ' + (gradedBank.title || 'Quiz'),
+      description:
+        'Crowd-sourced student questions awaiting peer validation + instructor approval. Not part of the graded quiz.',
+      questions: [],
+      tags: ['CROWD_SUBMITTED'],
+      crowdSubmitted: true,
+      sourceGradedBankId: new ObjectId(gradedBankId),
+      sourceQuizId: sourceQuizId ? new ObjectId(sourceQuizId.toString()) : undefined,
+      createdAt: now,
+      updatedAt: now,
+    };
+    return this.questionBankRepository.create(doc);
+  }
+
+  /**
+   * Instructor-approval step of the crowd pipeline: move a peer-validated,
+   * instructor-approved crowd question OUT of its "Submitted – Pending
+   * Validation" bank and INTO the quiz's graded bank, so it counts toward
+   * grading. Idempotent and best-effort. Adds to graded BEFORE removing from
+   * submitted, so an interruption leaves the question in both (recoverable),
+   * never neither. Returns the graded bank id it was moved into, or null if
+   * the question is not in any crowd-submitted bank (e.g. already moved).
+   */
+  async promoteSubmittedQuestionToGraded(
+    questionId: string,
+  ): Promise<string | null> {
+    const banks =
+      (await this.questionBankRepository.getQuestionBanksByQuestionId(
+        questionId,
+      )) ?? [];
+    const submitted = banks.find(b => (b as IQuestionBank).crowdSubmitted);
+    if (!submitted || !submitted._id || !submitted.sourceGradedBankId) {
+      return null;
+    }
+    const gradedBankId = submitted.sourceGradedBankId.toString();
+    await this.addQuestion(gradedBankId, questionId);
+    await this.removeQuestion(submitted._id.toString(), questionId);
+    return gradedBankId;
+  }
+
   async removeQuestion(
     questionBankId: string,
     questionId: string,

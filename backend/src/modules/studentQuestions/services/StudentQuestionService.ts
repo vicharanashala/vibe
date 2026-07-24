@@ -22,11 +22,27 @@ import {COURSES_TYPES} from '../../courses/types.js';
 import {SOLQuestion} from '../../quizzes/classes/transformers/Question.js';
 import {IQuizDetails, ItemType} from '#root/shared/interfaces/models.js';
 import {ISOLSolution} from '#root/shared/interfaces/quiz.js';
+import {isEligibleForReview} from './crowdGate.js';
+import {ScreeningService, ScreeningResult} from './screening/ScreeningService.js';
+import {SegmentContextProvider} from './context/SegmentContextProvider.js';
+import {IScreeningVerdict} from '../classes/transformers/StudentSegmentQuestion.js';
+import {screeningConfig} from '#root/config/screening.js';
 
 const REPEATED_CHAR_PATTERN = /(.)\1{7,}/;
 const REPEATED_WORD_PATTERN = /(\b\w+\b)(\s+\1){4,}/;
 const URL_TOKEN_PATTERN = /^https?:\/\/\S+$/i;
 const NOTIFICATION_QUESTION_PREVIEW_CHARS = 80;
+
+/** Result of a submission after screening — drives the student-facing response. */
+export interface CreateQuestionResult {
+  decision: 'pass' | 'reject' | 'hold';
+  reasonCode: string;
+  message: string;
+  /** Present unless rejected (no live record is kept for a reject beyond the stub). */
+  questionId?: string;
+  /** For a `typo` reject: the corrected question text the student can one-tap apply. */
+  suggestedFix?: string;
+}
 
 @injectable()
 export class StudentQuestionService {
@@ -43,9 +59,13 @@ export class StudentQuestionService {
     private readonly questionBankService: QuestionBankService,
     @inject(COURSES_TYPES.ItemRepo)
     private readonly itemRepo: ItemRepository,
+    @inject(STUDENT_QUESTION_TYPES.ScreeningService)
+    private readonly screeningService: ScreeningService,
+    @inject(STUDENT_QUESTION_TYPES.SegmentContextProvider)
+    private readonly segmentContextProvider: SegmentContextProvider,
   ) {}
 
-  private async _promoteToQuestionBank(
+  private async _stageToSubmittedBank(
     studentQuestionId: string,
     input: {
       segmentId: string;
@@ -57,14 +77,17 @@ export class StudentQuestionService {
   ): Promise<void> {
     try {
       // `segmentId` is the VIDEO item the student just finished. The question
-      // belongs in the quiz that immediately follows that video in the same
-      // section, so resolve that quiz's question bank.
+      // belongs to the quiz immediately following that video. We do NOT add it
+      // to that quiz's GRADED bank — under the V3 crowd-question design
+      // (CROWD_QUESTION_BANK.md) crowd questions are parked in a separate
+      // "Submitted – Pending Validation" bank until peer-validated + instructor
+      // approved, so they never enter graded quiz draws.
       const quizItem = await this._resolveTargetQuiz(input.segmentId);
       if (!quizItem) return;
 
-      const bankId = ((quizItem as any).details as IQuizDetails | undefined)
+      const gradedBankId = ((quizItem as any).details as IQuizDetails | undefined)
         ?.questionBankRefs?.[0]?.bankId?.toString();
-      if (!bankId) return;
+      if (!gradedBankId) return;
 
       const solution: ISOLSolution = {
         correctLotItem: {
@@ -88,12 +111,17 @@ export class StudentQuestionService {
       }, solution);
 
       const promotedId = await this.questionService.create(solQuestion);
-      await this.questionBankService.addQuestion(bankId, promotedId).catch(e =>
-        console.warn('crowd-q: failed to add to bank', e),
-      );
+      const submittedBankId =
+        await this.questionBankService.findOrCreateCrowdSubmittedBank(
+          gradedBankId,
+          (quizItem as any)._id,
+        );
+      await this.questionBankService
+        .addQuestion(submittedBankId, promotedId)
+        .catch(e => console.warn('crowd-q: failed to add to submitted bank', e));
       await this.repository.setPromotedQuestionId(studentQuestionId, promotedId).catch(() => {});
     } catch (err) {
-      console.warn('crowd-q: promotion failed (non-fatal)', err);
+      console.warn('crowd-q: staging to submitted bank failed (non-fatal)', err);
     }
   }
 
@@ -274,7 +302,7 @@ export class StudentQuestionService {
     options: IStudentQuestionOption[];
     correctOptionIndex: number;
     createdBy: string;
-  }): Promise<string> {
+  }): Promise<CreateQuestionResult> {
     await this.ensureSubmissionEnabled(input.courseId, input.courseVersionId);
 
     if (input.questionType !== 'SELECT_ONE_IN_LOT') {
@@ -300,16 +328,68 @@ export class StudentQuestionService {
       correctOptionIndex: input.correctOptionIndex,
     });
 
-    const duplicate = await this.repository.findDuplicate({
+    // Exact-resubmit guard (free, idempotent): identical content on this segment
+    // is a definite duplicate — reject without spending an LLM call.
+    const exact = await this.repository.findDuplicate({
       courseVersionId: input.courseVersionId,
       segmentId: input.segmentId,
       normalizedSignature,
     });
-    if (duplicate) {
-      throw new BadRequestError(
-        'A similar question already exists for this segment.',
-      );
+    if (exact) {
+      return {
+        decision: 'reject',
+        reasonCode: 'duplicate',
+        message: 'You have already submitted this exact question for this lesson. Try asking about something different.',
+      };
     }
+
+    // AI screening: build the dedup reference pool + lesson context (relevance),
+    // then run the ordered short-circuiting checks. The pool is every prior
+    // question for this segment the new one could duplicate: existing student
+    // submissions (PENDING/HELD/APPROVED) AND the graded question bank, merged
+    // and de-duplicated. Comparing against pending submissions — not just
+    // approved/graded ones — is what catches a repeat before any teacher acts.
+    const [gradedPool, submissionPool] = await Promise.all([
+      this.fetchGradedPool(input.segmentId),
+      this.fetchSubmissionPool({
+        courseId: input.courseId,
+        courseVersionId: input.courseVersionId,
+        segmentId: input.segmentId,
+      }),
+    ]);
+    const existingQuestions = this.mergePool(gradedPool, submissionPool);
+
+    // Lesson context for the on-topic + answer-correctness checks. Layered:
+    // precomputed transcript when available, else the graded stems we just
+    // fetched (as a proxy), else null. Fail-open — never blocks a submission.
+    //
+    // ON HOLD: context (relevance) checking is disabled until real per-segment
+    // transcripts exist — the graded-stem proxy is too weak a relevance signal
+    // and would risk false off-topic rejections. When context is null the
+    // ScreeningService skips the on-topic gate and runs answer-correctness on
+    // model knowledge. Flip SCREENING_CONTEXT_ENABLED=true to re-enable (that
+    // also grounds the answer check in the lesson). See CROWD_QUESTION_BANK.md.
+    const context = screeningConfig.contextCheckEnabled
+      ? await this.segmentContextProvider.getContext({
+          segmentId: input.segmentId,
+          courseVersionId: input.courseVersionId,
+          gradedStems: gradedPool,
+        })
+      : null;
+
+    const verdict = await this.screeningService.screen({
+      questionText,
+      options: options.map(o => o.text),
+      correctOptionIndex: input.correctOptionIndex,
+      existingQuestions,
+      context,
+    });
+
+    const persisted = this.toPersistedVerdict(verdict);
+
+    // pass → live PENDING; hold → HELD (awaits instructor); reject → rejected stub.
+    const status: StudentQuestionStatus =
+      verdict.decision === 'pass' ? 'PENDING' : verdict.decision === 'hold' ? 'HELD' : 'REJECTED';
 
     const question = new StudentSegmentQuestion({
       courseId: input.courseId,
@@ -321,19 +401,138 @@ export class StudentQuestionService {
       correctOptionIndex: input.correctOptionIndex,
       normalizedSignature,
       createdBy: input.createdBy,
+      status,
+      screening: persisted,
+      rejectionReason: verdict.decision === 'reject' ? verdict.reasonCode : undefined,
     });
 
     const createdId = await this.repository.create(question);
 
-    await this._promoteToQuestionBank(createdId, {
-      segmentId: input.segmentId,
-      questionText,
-      options,
-      correctOptionIndex: input.correctOptionIndex,
-      createdBy: input.createdBy,
-    });
+    // Only a clean PASS enters the served/collecting pool.
+    if (verdict.decision === 'pass') {
+      await this._stageToSubmittedBank(createdId, {
+        segmentId: input.segmentId,
+        questionText,
+        options,
+        correctOptionIndex: input.correctOptionIndex,
+        createdBy: input.createdBy,
+      });
+    }
 
-    return createdId;
+    return {
+      decision: verdict.decision,
+      reasonCode: verdict.reasonCode,
+      message: verdict.message,
+      questionId: verdict.decision === 'reject' ? undefined : createdId,
+      ...(verdict.suggestedFix ? {suggestedFix: verdict.suggestedFix} : {}),
+    };
+  }
+
+  /** Map the transient screening result to the persisted verdict subdocument. */
+  private toPersistedVerdict(v: ScreeningResult): IScreeningVerdict {
+    return {
+      decision: v.decision,
+      reasonCode: v.reasonCode,
+      check: v.check,
+      message: v.message,
+      checks: v.checks,
+      matchQuestion: v.matchQuestion,
+      provider: v.provider,
+      model: v.model,
+      latencyMs: v.latencyMs,
+      at: new Date(),
+    };
+  }
+
+  /**
+   * The duplicate-check reference pool: existing question stems in the segment's
+   * graded question bank. Best-effort — any failure yields an empty pool (screen
+   * still runs the other checks). No new query engine; reuses existing services.
+   */
+  private async fetchGradedPool(segmentId: string): Promise<string[]> {
+    try {
+      const quizItem = await this._resolveTargetQuiz(segmentId);
+      const bankRef = (quizItem as any)?.details?.questionBankRefs?.[0];
+      if (!bankRef) return [];
+      // NOTE: getQuestions() honours the ref's `count` (a random draw the quiz
+      // shows the learner — often 1-5), not the whole bank. For dedup we need
+      // EVERY stem in the bank, so override count to the dedup pool limit.
+      const ids = await this.questionBankService.getQuestions({
+        ...bankRef,
+        count: screeningConfig.dedupPoolLimit,
+      });
+      const questions = await Promise.all(
+        ids.map(id => this.questionService.getByIdWithoutExplanation(id, true).catch(() => null)),
+      );
+      const stems = questions
+        .map(q => (q as any)?.text)
+        .filter((t: unknown): t is string => typeof t === 'string' && t.trim().length > 0);
+      return stems;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Existing student submissions for this segment that a new one could
+   * duplicate — PENDING, HELD or APPROVED (rejected stubs are ignored so a
+   * student can retry a fixed version). Returns their question stems.
+   */
+  private async fetchSubmissionPool(input: {
+    courseId: string;
+    courseVersionId: string;
+    segmentId: string;
+  }): Promise<string[]> {
+    try {
+      const existing = await this.repository.listBySegment({
+        ...input,
+        limit: screeningConfig.dedupPoolLimit,
+      });
+      return existing
+        .filter(q => q.status !== 'REJECTED')
+        .map(q => q.questionText)
+        .filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
+    } catch {
+      return [];
+    }
+  }
+
+  /** Merge dedup sources, drop case/space-insensitive repeats, cap at the pool limit. */
+  private mergePool(...sources: string[][]): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const stem of sources.flat()) {
+      const key = this.normalize(stem);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(stem);
+      if (out.length >= screeningConfig.dedupPoolLimit) break;
+    }
+    return out;
+  }
+
+  /**
+   * Stage-2 capture: record one student's ungraded response (answer correctness
+   * + optional 👍/👎) to a served crowd question, then evaluate the promotion
+   * gate. Idempotent per (question, student). When the gate passes, flips the
+   * question to ELIGIBLE so it surfaces in the instructor review queue.
+   * Best-effort: never throws into the quiz-submission path.
+   */
+  async recordPeerResponse(input: {
+    studentQuestionId: string;
+    userId: string;
+    isCorrect: boolean;
+    thumb?: 'UP' | 'DOWN';
+  }): Promise<void> {
+    try {
+      const counters = await this.repository.recordCrowdResponse(input);
+      if (!counters) return; // already responded — no double count
+      if (isEligibleForReview(counters)) {
+        await this.repository.markEligible(input.studentQuestionId);
+      }
+    } catch (err) {
+      console.warn('crowd-q: failed to record peer response', err);
+    }
   }
 
   async listSegmentQuestions(input: {
@@ -530,13 +729,21 @@ export class StudentQuestionService {
           input.status,
           input.reason?.trim(),
         );
-        // Sync the promoted quiz Question's reviewStatus.
+        // Sync the linked quiz Question.
         if (question.promotedQuestionId) {
           const promotedId = question.promotedQuestionId.toString();
           if (input.status === 'APPROVED') {
+            // Mark approved AND move it from the "Submitted – Pending
+            // Validation" bank into the quiz's graded bank so it counts toward
+            // grading. Both are best-effort and must not fail the status update.
             await this.questionService.setReviewStatus(promotedId, 'APPROVED').catch(e =>
               console.warn('crowd-q: failed to approve quiz question', e),
             );
+            await this.questionBankService
+              .promoteSubmittedQuestionToGraded(promotedId)
+              .catch(e =>
+                console.warn('crowd-q: failed to move approved question to graded bank', e),
+              );
           } else {
             await this.questionService.delete(promotedId).catch(e =>
               console.warn('crowd-q: failed to delete quiz question', e),

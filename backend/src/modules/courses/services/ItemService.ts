@@ -59,7 +59,7 @@ import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
 import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
 import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
 import { QuestionProcessor } from '#root/modules/quizzes/question-processing/QuestionProcessor.js';
-import { CourseSettingService, SETTING_TYPES } from '#root/modules/setting/index.js';
+import { CourseSettingService, SETTING_TYPES, TimeSlotService } from '#root/modules/setting/index.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -92,6 +92,8 @@ export class ItemService extends BaseService {
     private readonly questionService: QuestionService,
     @inject(SETTING_TYPES.CourseSettingService)
     private readonly courseSettingService: CourseSettingService,
+    @inject(SETTING_TYPES.TimeSlotService)
+    private readonly timeSlotService: TimeSlotService,
   ) {
     super(database);
   }
@@ -602,6 +604,27 @@ export class ItemService extends BaseService {
         _id: item._id.toString(),
       };
     }
+
+    // Time-slot commitment gate: a student may load item content only during a
+    // window they've booked (when the course has slot booking active). Enforced
+    // here at the content chokepoint so it can't be bypassed by navigating
+    // straight to the player or calling this endpoint directly. canStudentAccessCourse
+    // short-circuits to allow when the feature is off / no slots configured.
+    if (courseId) {
+      const slotAccess = await this.timeSlotService.canStudentAccessCourse(
+        userId,
+        courseId,
+        versionId,
+        cohortId,
+      );
+      if (!slotAccess.canAccess) {
+        throw new ForbiddenError(
+          slotAccess.message ||
+            'Course access is only allowed during your booked time slot.',
+        );
+      }
+    }
+
     // Student should not see items it course Version is archived
 
     const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId);

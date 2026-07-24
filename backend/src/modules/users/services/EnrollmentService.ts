@@ -2126,6 +2126,55 @@ export class EnrollmentService extends BaseService {
   }
 
   /**
+   * Award a student extra bookings (instructor action). Adds to the consumable
+   * pool so the student can book beyond their normal daily allowance. Returns
+   * the enrollment's new total commitmentExtraBookings.
+   */
+  async grantCommitmentExtraBookings(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    extraBookings: number,
+    session?: ClientSession,
+  ): Promise<number> {
+    const execute = async (session: ClientSession) => {
+      const enrollment = await this.enrollmentRepo.findActiveEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        null,
+        session,
+      );
+      if (!enrollment) {
+        throw new NotFoundError('Enrollment not found for this student.');
+      }
+      return this.enrollmentRepo.addCommitmentExtraBookings(
+        enrollment._id?.toString(),
+        extraBookings,
+        session,
+      );
+    };
+
+    return session ? execute(session) : this._withTransaction(execute);
+  }
+
+  /**
+   * Consume one booking from a student's awarded extra-bookings pool. Called
+   * within the booking transaction when a student books beyond their normal
+   * daily allowance. Returns the new pool total.
+   */
+  async consumeCommitmentExtraBooking(
+    enrollmentId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    return this.enrollmentRepo.addCommitmentExtraBookings(
+      enrollmentId,
+      -1,
+      session,
+    );
+  }
+
+  /**
    * Remove assigned time slot from student enrollment
    */
   async removeStudentTimeSlot(
@@ -2945,6 +2994,50 @@ export class EnrollmentService extends BaseService {
       totalLearners: total,
       totalPages: Math.ceil(total / safeLimit),
       learners,
+    };
+  }
+
+  /**
+   * Returns a paginated roster of candidates who have completed a single,
+   * specific course. Backs the server-to-server integration endpoint.
+   */
+  async getCourseCompletions(
+    courseId: string,
+    page: number,
+    limit: number,
+  ): Promise<{
+    page: number;
+    limit: number;
+    totalCandidates: number;
+    totalPages: number;
+    candidates: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      courseVersionId: string;
+      completedAt?: Date;
+    }>;
+  }> {
+    if (!ObjectId.isValid(courseId)) {
+      throw new BadRequestError(`Invalid courseId: ${courseId}`);
+    }
+
+    const safePage = Math.max(1, Math.floor(page) || 1);
+    const safeLimit = Math.min(Math.max(1, Math.floor(limit) || 50), 200);
+    const skip = (safePage - 1) * safeLimit;
+
+    const { total, candidates } = await this.enrollmentRepo.getCourseCompletions(
+      courseId,
+      skip,
+      safeLimit,
+    );
+
+    return {
+      page: safePage,
+      limit: safeLimit,
+      totalCandidates: total,
+      totalPages: Math.ceil(total / safeLimit),
+      candidates,
     };
   }
 }

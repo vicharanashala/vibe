@@ -50,6 +50,18 @@ import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/
 import { ISettingRepository } from '#root/shared/database/interfaces/ISettingRepository.js';
 import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
 
+/**
+ * Transient transaction errors (e.g. write conflicts with concurrent watch-time
+ * heartbeats) must reach BaseService._withTransaction unwrapped, with their
+ * errorLabels intact, so the transaction is retried instead of surfacing a 500.
+ */
+function isTransientTransactionError(error: unknown): boolean {
+  return (
+    Array.isArray((error as any)?.errorLabels) &&
+    (error as any).errorLabels.includes('TransientTransactionError')
+  );
+}
+
 @injectable()
 export class CourseRepository implements ICourseRepository {
   private courseCollection: Collection<Course>;
@@ -757,6 +769,9 @@ export class CourseRepository implements ICourseRepository {
       if (error instanceof InternalServerError) {
         throw error;
       }
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to delete module.\n More Details: ' + error,
       );
@@ -814,6 +829,12 @@ export class CourseRepository implements ICourseRepository {
       //   throw new InternalServerError('Failed to update course version');
       // }
     } catch (error) {
+      if (error instanceof InternalServerError) {
+        throw error;
+      }
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to update course version.\n More Details: ' + error,
       );
@@ -972,13 +993,14 @@ export class CourseRepository implements ICourseRepository {
         );
         if (items) {
           try {
-            for (const item of items.items) {
-              await this.progressRepo.deleteWatchTimeByItemId(
-                item._id.toString(),
-                session,
-              );
-            }
+            await this.progressRepo.deleteWatchTimeByItemIds(
+              (items.items || []).map(item => item._id),
+              session,
+            );
           } catch (err) {
+            if (isTransientTransactionError(err)) {
+              throw err;
+            }
             console.error('Error deleting watch time by item ID:', err);
             throw new InternalServerError('Failed to delete item watch time');
           }
@@ -999,6 +1021,9 @@ export class CourseRepository implements ICourseRepository {
             throw new InternalServerError('Failed to delete item groups');
           }
         } catch (error) {
+          if (isTransientTransactionError(error)) {
+            throw error;
+          }
           throw new InternalServerError('Item deletion failed');
         }
       } else {
@@ -1042,6 +1067,9 @@ export class CourseRepository implements ICourseRepository {
 
         return updateResult;
       } catch (error) {
+        if (isTransientTransactionError(error)) {
+          throw error;
+        }
         console.error('Error updating course version modules:', error);
         throw new InternalServerError('Database update failed: ' + error);
       }
@@ -1050,6 +1078,9 @@ export class CourseRepository implements ICourseRepository {
         throw error;
       }
       if (error instanceof InternalServerError) {
+        throw error;
+      }
+      if (isTransientTransactionError(error)) {
         throw error;
       }
       throw new InternalServerError(
@@ -1096,38 +1127,31 @@ export class CourseRepository implements ICourseRepository {
           section => new ObjectId(section.itemsGroupId),
         );
 
-        // Get item ids from item groups before deletion and delete watch time by item id
-        for (const itemGroupId of itemGroupsIds) {
-          const items = await this.itemsGroupCollection.findOne(
-            { _id: itemGroupId },
+        // Get item ids from item groups before deletion and delete watch time
+        // for all of them in a single batched update
+        const itemGroups = await this.itemsGroupCollection
+          .find({ _id: { $in: itemGroupsIds } }, { session })
+          .toArray();
+
+        const itemIds = itemGroups.flatMap(group =>
+          (group.items || []).map(item => item._id),
+        );
+        await this.progressRepo.deleteWatchTimeByItemIds(itemIds, session);
+
+        if (itemGroups.length > 0) {
+          const itemDeletionResult = await this.itemsGroupCollection.updateMany(
+            {
+              _id: { $in: itemGroupsIds },
+            },
+            {
+              $set: { isDeleted: true, deletedAt: new Date() },
+            },
             { session },
           );
 
-          if (items) {
-            // Delete watch time by item id
-            await Promise.all(
-              items.items.map(item =>
-                this.progressRepo.deleteWatchTimeByItemId(
-                  item._id.toString(),
-                  session,
-                )
-              )
-            );
+          if (itemDeletionResult.matchedCount !== itemGroups.length) {
+            throw new InternalServerError('Failed to delete item groups');
           }
-        }
-
-        const itemDeletionResult = await this.itemsGroupCollection.updateMany(
-          {
-            _id: { $in: itemGroupsIds },
-          },
-          {
-            $set: { isDeleted: true, deletedAt: new Date() },
-          },
-          { session },
-        );
-
-        if (itemDeletionResult.modifiedCount === 0) {
-          throw new InternalServerError('Failed to delete item groups');
         }
       }
 
@@ -1164,6 +1188,9 @@ export class CourseRepository implements ICourseRepository {
         throw error;
       }
       if (error instanceof InternalServerError) {
+        throw error;
+      }
+      if (isTransientTransactionError(error)) {
         throw error;
       }
       throw new InternalServerError(
