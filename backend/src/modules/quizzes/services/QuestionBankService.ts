@@ -252,8 +252,23 @@ class QuestionBankService extends BaseService {
       return null;
     }
     const gradedBankId = submitted.sourceGradedBankId.toString();
-    await this.addQuestion(gradedBankId, questionId);
-    await this.removeQuestion(submitted._id.toString(), questionId);
+
+    // Add to the graded bank, then detach the reference from the Submitted
+    // bank. We must NOT use removeQuestion() here: it soft-deletes the
+    // underlying Question document, which would make the just-promoted question
+    // disappear from graded draws (getById filters out soft-deleted questions).
+    // Guard addQuestion so a retry after a partial failure (already in graded,
+    // not yet detached) neither duplicates the ref nor loses the question.
+    const alreadyGraded = banks.some(
+      b => b._id?.toString() === gradedBankId,
+    );
+    if (!alreadyGraded) {
+      await this.addQuestion(gradedBankId, questionId);
+    }
+    await this.questionBankRepository.removeQuestionRefFromBank(
+      submitted._id.toString(),
+      questionId,
+    );
     return gradedBankId;
   }
 
