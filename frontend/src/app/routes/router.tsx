@@ -18,6 +18,7 @@ import EjectionPoliciesPage from '../pages/teacher/ejection-policies'
 import StudentLayout from '@/layouts/student-layout'
 import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
+import LearningAnalytics from "@/app/pages/student/analytics/LearningAnalytics";
 import StudentProfile from "@/app/pages/student/profile";
 import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
 import StudentMySubmissions from "../pages/student/StudentMySubmissions";
@@ -493,6 +494,13 @@ const studentCoursesRoute = new Route({
   component: StudentCourses,
 });
 
+// Student learning analytics route
+const studentAnalyticsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/analytics',
+  component: LearningAnalytics,
+});
+
 // Student notifications route
 const studentNotificationsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -712,6 +720,7 @@ const routeTree = rootRoute.addChildren([
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
+    studentAnalyticsRoute,
     studentProfileRoute,
     studentCourseInviteRegistration,
     studentIssuesRoute,
