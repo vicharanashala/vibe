@@ -16,6 +16,7 @@ import { usersContainerModule } from '../users/container.js';
 import { quizzesContainerModule } from '../quizzes/container.js';
 import { COURSE_VALIDATORS, COURSEVERSION_VALIDATORS, ITEM_VALIDATORS, MODULE_VALIDATORS, SECTION_VALIDATORS } from './classes/validators/index.js';
 import { notificationsContainerModule } from '../notifications/container.js';
+import { anomaliesContainerModule } from '../anomalies/container.js';
 
 export const coursesContainerModules: ContainerModule[] = [
   coursesContainerModule,
@@ -23,7 +24,8 @@ export const coursesContainerModules: ContainerModule[] = [
   authContainerModule,
   usersContainerModule,
   quizzesContainerModule,
-  notificationsContainerModule
+  notificationsContainerModule,
+  anomaliesContainerModule,
 ];
 
 export const coursesModuleControllers: Function[] = [

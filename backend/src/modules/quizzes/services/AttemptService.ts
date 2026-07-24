@@ -18,6 +18,7 @@ import {
 } from '#quizzes/classes/transformers/Submission.js';
 import { IQuestionRenderView } from '#quizzes/question-processing/index.js';
 import { QuestionProcessor } from '#quizzes/question-processing/QuestionProcessor.js';
+import { SelectionContext } from '#shared/interfaces/quiz.js';
 
 import {
   generateRandomParameterMap,
@@ -37,6 +38,7 @@ import { ClientSession, ObjectId } from 'mongodb';
 import { NotFoundError, BadRequestError, ForbiddenError } from 'routing-controllers';
 import { QuestionBankService } from './QuestionBankService.js';
 import { QuestionService } from './QuestionService.js';
+import { AdaptiveSelectionContextBuilder } from './AdaptiveSelectionContextBuilder.js';
 import { QUIZZES_TYPES } from '../types.js';
 import { instanceToPlain } from 'class-transformer';
 import { QuizRepository } from '../repositories/providers/mongodb/QuizRepository.js';
@@ -116,6 +118,9 @@ class AttemptService extends BaseService {
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
+
+    @inject(QUIZZES_TYPES.SelectionContextBuilder)
+    private readonly selectionContextBuilder: AdaptiveSelectionContextBuilder,
   ) {
     super(database);
   }
@@ -123,16 +128,34 @@ class AttemptService extends BaseService {
   private async _getQuestionsForAttempt(
     quiz: QuizItem,
     userId: string,
+    cohortId?: string,
+    session?: ClientSession,
   ): Promise<{
     questionDetails: IQuestionDetails[];
     questionRenderViews: IQuestionRenderView[];
   }> {
+    console.log('[AttemptService._getQuestionsForAttempt] Start');
     const questionsBankRefs = quiz.details.questionBankRefs || [];
     const selectedQuestionIds: string[] = [];
+    const quizIdStr = quiz._id ? quiz._id.toString() : '';
+
+    // Build the ACRE context once per attempt and share it across all bank
+    // refs on the quiz.  This avoids redundant DB reads when a quiz draws
+    // from multiple banks and ensures every bank draw uses the same
+    // consistent student-history snapshot.
+    const selectionContext = await this.selectionContextBuilder.buildContext(
+      userId,
+      quizIdStr,
+      cohortId,
+      session,
+    );
 
     for (const questionBankRef of questionsBankRefs) {
-      const questionIdsForBank =
-        await this.questionBankService.getQuestions(questionBankRef);
+      const questionIdsForBank = await this.questionBankService.getQuestions(
+        questionBankRef,
+        selectionContext,
+        session,
+      );
       selectedQuestionIds.push(...questionIdsForBank);
     }
 
@@ -351,10 +374,12 @@ class AttemptService extends BaseService {
     quizId: string,
     cohortId?: string
   ): Promise<{ attemptId: string; questionRenderViews: IQuestionRenderView[] }> {
+    console.log(`[ACRE] Attempt started | quizId=${quizId} userId=${userId}`);
     return this._withTransaction(async session => {
 
 
       //1. Check if UserQuizMetrics exists for the user and quiz
+      console.log('[AttemptService.attempt] Fetching UserQuizMetrics...');
       let metrics = await this.userQuizMetricsRepository.get(
         userId,
         quizId,
@@ -362,6 +387,7 @@ class AttemptService extends BaseService {
         session,
       );
 
+      console.log('[AttemptService.attempt] Fetching Quiz...');
       const quiz = await this.quizRepository.getById(quizId, session);
 
       if (!quiz) {
@@ -381,8 +407,10 @@ class AttemptService extends BaseService {
           cohortObjectId
         );
         //1b Create new UserQuizMetrics
+        console.log('[AttemptService.attempt] Creating UserQuizMetrics...');
         await this.userQuizMetricsRepository.create(newMetrics, session);
 
+        console.log('[AttemptService.attempt] Fetching UserQuizMetrics again...');
         metrics = await this.userQuizMetricsRepository.get(
           userId,
           quizId,
@@ -424,14 +452,16 @@ class AttemptService extends BaseService {
       }
 
       //4. Fetch questions for the quiz attempt
+      console.log('[AttemptService.attempt] Fetching questions for attempt...');
       const { questionDetails, questionRenderViews } =
-        await this._getQuestionsForAttempt(quiz, userObjecId.toString());
+        await this._getQuestionsForAttempt(quiz, userObjecId.toString(), cohortId, session);
 
 
       //5. Create a new attempt
 
       const newAttempt = new Attempt(quizObjecId, userObjecId, questionDetails, cohortObjectId);
 
+      console.log('[AttemptService.attempt] Creating attempt...');
       const attemptId = await this.attemptRepository.create(
         newAttempt,
         session,
@@ -447,6 +477,7 @@ class AttemptService extends BaseService {
       metrics.remainingAttempts =
         quiz.details.maxAttempts === -1 ? -1 : metrics.remainingAttempts - 1;
       metrics.attempts.push({ attemptId: attemptObjectId });
+      console.log('[AttemptService.attempt] Updating metrics...');
       const updatedMetrics = await this.userQuizMetricsRepository.update(
         metrics._id.toString(),
         metrics,
@@ -540,10 +571,9 @@ class AttemptService extends BaseService {
       }
 
       if (metrics.attempts.length === 0) {
-        console.log("Metrices lenght is: ", metrics.attempts.length);
-        isFirst = true
+        isFirst = true;
       } else {
-        isFirst = false
+        isFirst = false;
       }
 
       if (isSkipped) {
@@ -618,7 +648,7 @@ class AttemptService extends BaseService {
     await this.submissionRepository.update(submissionId, { gradingResult });
 
     const isPassed = gradingResult.gradingStatus === "PASSED"
-    if (!isSkipped && (!isItemCompleted || isPassed)) {
+    if (!isSkipped && (!isItemCompleted || !isPassed)) {
       // Resolve the quiz's actual moduleId/sectionId rather than trusting
       // progress.currentModule/currentSection, which can be stale if the
       // student's cursor has drifted ahead via optimistic UI. Without this,
@@ -644,7 +674,22 @@ class AttemptService extends BaseService {
           }
         }
       }
-      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId, quizModuleId, quizSectionId);
+      const failedQuestionIds = gradingResult.overallFeedback
+        .filter((each: any) => each.status === 'INCORRECT' || each.status === 'PARTIAL')
+        .map((each: any) => each.questionId.toString());
+
+      await this.progressService.handleQuizeProgressAfterSubmission(
+        userId,
+        quizId,
+        courseId,
+        courseVersionId,
+        isPassed,
+        watchItemId,
+        cohortId,
+        quizModuleId,
+        quizSectionId,
+        failedQuestionIds,
+      );
     }
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */
