@@ -421,9 +421,11 @@ class QuestionService extends BaseService {
           apiKey: ANTHROPIC_CRED!,
         });
 
+        
+
         const response = await anthropic.messages.create({
           model: ANTHROPIC_MODEL,
-          max_tokens: 4000,
+          max_tokens: 8000,
           temperature: 0.0,
           messages: [
             {
@@ -437,6 +439,7 @@ class QuestionService extends BaseService {
             },
           ],
         });
+
 
         const finalOutput =
           response.content?.map(c => ('text' in c ? c.text : '')).join('') ??
