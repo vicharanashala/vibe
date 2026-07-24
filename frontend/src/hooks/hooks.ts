@@ -2410,6 +2410,11 @@ export function useListStudentQuestions(): {
     segmentId: string,
     limit?: number,
   ) => Promise<import('@/types/student-question.types').StudentQuestionListResponse>;
+  getSegmentDetails: (
+    courseId: string,
+    courseVersionId: string,
+    segmentId: string,
+  ) => Promise<import('@/types/student-question.types').SegmentDetails>;
   loading: boolean;
   error: string | null;
 } {
@@ -2476,7 +2481,16 @@ export function useListStudentQuestions(): {
     return await request(url);
   }, [request]);
 
-  return { listForCourseVersion, listForSegment, loading, error };
+  const getSegmentDetails = useCallback(async (
+    courseId: string,
+    courseVersionId: string,
+    segmentId: string,
+  ) => {
+    const url = `${import.meta.env.VITE_BASE_URL}/student-questions/courses/${courseId}/versions/${courseVersionId}/segments/${segmentId}/details`;
+    return await request(url);
+  }, [request]);
+
+  return { listForCourseVersion, listForSegment, getSegmentDetails, loading, error };
 }
 
 export function useListMyStudentQuestions(): {

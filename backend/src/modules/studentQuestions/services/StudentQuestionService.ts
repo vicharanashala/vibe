@@ -126,6 +126,50 @@ export class StudentQuestionService {
   }
 
   /**
+   * Read-only view data for the teacher review screen: what segment is this
+   * submission attached to, and which quiz would receive it on approval.
+   *
+   * Deliberately does NOT go through ItemService.readItem, which requires an
+   * active enrollment — reviewing teachers are typically not enrolled in the
+   * course they administer.
+   */
+  async getSegmentDetails(segmentId: string): Promise<{
+    segmentId: string;
+    name?: string;
+    description?: string;
+    type?: string;
+    videoDetails?: {URL?: string; startTime?: string; endTime?: string; points?: number};
+    quiz?: {itemId: string; name?: string};
+  } | null> {
+    const item: any = await this.itemRepo
+      .readItemById(segmentId)
+      .catch(() => null);
+    if (!item) return null;
+
+    const quizItem: any = await this._resolveTargetQuiz(segmentId);
+    const details = item.details ?? {};
+
+    return {
+      segmentId,
+      name: item.name,
+      description: item.description,
+      type: item.type,
+      videoDetails:
+        item.type === ItemType.VIDEO
+          ? {
+              URL: details.URL,
+              startTime: details.startTime,
+              endTime: details.endTime,
+              points: details.points,
+            }
+          : undefined,
+      quiz: quizItem
+        ? {itemId: quizItem._id?.toString(), name: quizItem.name}
+        : undefined,
+    };
+  }
+
+  /**
    * Resolve the quiz whose question bank should receive a submission.
    *
    * Student questions are submitted at a video→quiz transition and stored
