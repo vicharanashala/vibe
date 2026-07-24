@@ -475,6 +475,9 @@ class QuestionController {
     };
 
     const chunks = chunkTranscriptByTimestamps(text);
+
+   
+
     let allSegments: TranscriptResponse[] = [];
     // for (const chunk of chunks) {
     //   const segments = await this.questionService.generateQuestionsWithAI(
