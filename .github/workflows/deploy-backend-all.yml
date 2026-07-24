@@ -99,6 +99,7 @@ jobs:
             ENABLE_HP_JOB=${{ secrets.ENABLE_HP_JOB }}
             GCP_BACKUP_ACTIVITY_BUCKET=${{ secrets.GCP_BACKUP_ACTIVITY_BUCKET }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
+            INTEGRATION_API_KEY=${{ secrets.INTEGRATION_API_KEY }}
           flags: --allow-unauthenticated
 
   deploy_production:
@@ -143,4 +144,5 @@ jobs:
             ENABLE_HP_JOB=${{ secrets.ENABLE_HP_JOB }}
             GCP_BACKUP_ACTIVITY_BUCKET=${{ secrets.GCP_BACKUP_ACTIVITY_BUCKET }}
             AI_PROXY_ADDRESS=socks5h://localhost:1055
+            INTEGRATION_API_KEY=${{ secrets.INTEGRATION_API_KEY }}
           flags: --allow-unauthenticated
