@@ -310,6 +310,7 @@ export enum ItemType {
   BLOG = 'BLOG',
   PROJECT = 'PROJECT',
   FEEDBACK = 'FEEDBACK',
+  REFLECTION = 'REFLECTION',
 }
 
 export interface IBaseItem {
@@ -381,6 +382,22 @@ export interface IBlogDetails {
   content: string;
   points: number;
   estimatedReadTimeInMinutes: number;
+}
+
+/**
+ * A peer-reviewed reflection item: the student writes what they learned, and
+ * peers score it anonymously. Carries no answer key or grading config — the
+ * scoring lives entirely in the peerReviews module.
+ */
+export interface IReflectionDetails {
+  /** Optional instructor prompt shown above the editor. */
+  prompt?: string;
+  /** Cap on how many peers may score one reflection. Defaults to 10. */
+  maxReviewsPerReflection?: number;
+  /** Reviews a student owes before their own score unlocks. Defaults to 10. */
+  requiredReviewsToUnlock?: number;
+  /** Reviews needed before an average is shown at all. Defaults to 3. */
+  minReviewsToReveal?: number;
 }
 
 export interface IFeedBackFormDetails {

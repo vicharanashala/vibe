@@ -43,6 +43,7 @@ import AnomaliesList from '../pages/teacher/AnomaliesList'
 // import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import StudentQuestionReview from '../pages/teacher/StudentQuestionReview'
+import ReflectionReview from '../pages/teacher/ReflectionReview'
 import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
 // import LoginPage from '../pages/LoginPage'
@@ -364,6 +365,12 @@ const teacherStudentQuestionsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/student-questions',
   component: StudentQuestionReview,
+})
+
+const teacherReflectionsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/reflections',
+  component: ReflectionReview,
 })
 
 
@@ -695,6 +702,7 @@ const routeTree = rootRoute.addChildren([
     // teacherCourseInstructorsRoute,
     teacherCourseRegistrationRequests,
     teacherStudentQuestionsRoute,
+    teacherReflectionsRoute,
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
     teacherAuditRoute,

@@ -286,6 +286,54 @@ class ProjectDetailsPayloadValidator implements IProjectDetails {
   description: string;
 }
 
+class ReflectionDetailsPayloadValidator {
+  @JSONSchema({
+    description:
+      'Optional prompt shown above the reflection editor. Defaults to a generic ask when omitted.',
+    example: 'What was the single most surprising idea in this section?',
+    type: 'string',
+  })
+  @IsString()
+  @IsOptional()
+  prompt?: string;
+
+  @JSONSchema({
+    description:
+      'Cap on how many peers may score one reflection (1-25). Defaults to 10.',
+    example: 10,
+    type: 'integer',
+  })
+  @IsInt()
+  @Min(1)
+  @Max(25)
+  @IsOptional()
+  maxReviewsPerReflection?: number;
+
+  @JSONSchema({
+    description:
+      'Reviews a student must complete before their own score unlocks (0-25). 0 disables reciprocity. Defaults to 10.',
+    example: 10,
+    type: 'integer',
+  })
+  @IsInt()
+  @Min(0)
+  @Max(25)
+  @IsOptional()
+  requiredReviewsToUnlock?: number;
+
+  @JSONSchema({
+    description:
+      'Reviews a reflection must receive before its average is shown (1-25). Defaults to 3.',
+    example: 3,
+    type: 'integer',
+  })
+  @IsInt()
+  @Min(1)
+  @Max(25)
+  @IsOptional()
+  minReviewsToReveal?: number;
+}
+
 class CreateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
     description: 'Title of the item',
@@ -330,7 +378,7 @@ class CreateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK', 'REFLECTION'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -384,6 +432,16 @@ class CreateItemBody implements Partial<IBaseItem> {
   @ValidateNested()
   @Type(() => FeedBackFormPayloadValidator)
   feedbackFormDetails?: FeedBackFormPayloadValidator;
+
+  @JSONSchema({
+    description: 'Details specific to peer-reviewed reflection items',
+    type: 'object',
+  })
+  @ValidateIf(o => o.type === ItemType.REFLECTION)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ReflectionDetailsPayloadValidator)
+  reflectionDetails?: ReflectionDetailsPayloadValidator;
 }
 
 class UpdateItemBody implements Partial<IBaseItem> {
@@ -430,7 +488,7 @@ class UpdateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, QUIZ or PROJECT',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK', 'REFLECTION'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -486,6 +544,8 @@ class UpdateItemBody implements Partial<IBaseItem> {
         return ProjectDetailsPayloadValidator;
       case ItemType.FEEDBACK:
         return FeedBackFormPayloadValidator;
+      case ItemType.REFLECTION:
+        return ReflectionDetailsPayloadValidator;
       default:
         throw new Error(`Unknown item type: ${itemType}`);
     }
@@ -495,7 +555,8 @@ class UpdateItemBody implements Partial<IBaseItem> {
     | BlogDetailsPayloadValidator
     | QuizDetailsPayloadValidator
     | ProjectDetailsPayloadValidator
-    | FeedBackFormPayloadValidator;
+    | FeedBackFormPayloadValidator
+    | ReflectionDetailsPayloadValidator;
 }
 
 class MoveItemBody {
@@ -1078,6 +1139,7 @@ export {
   VideoDetailsPayloadValidator,
   QuizDetailsPayloadValidator,
   BlogDetailsPayloadValidator,
+  ReflectionDetailsPayloadValidator,
   VersionModuleSectionItemParams,
   CourseVersionModuleSectionParams,
   CSVItemBody,

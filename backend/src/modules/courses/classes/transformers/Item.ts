@@ -14,6 +14,7 @@ import {
   IVideoDetails,
   IBlogDetails,
   IFeedBackFormDetails,
+  IReflectionDetails,
 } from '#root/shared/interfaces/models.js';
 
 export type Item = QuizItem | VideoItem | BlogItem | ProjectItem;
@@ -153,6 +154,48 @@ class BlogItem {
     this.details = details;
     this.isDeleted = false;
     this.deletedAt = undefined;
+  }
+}
+
+/**
+ * A peer-reviewed reflection placed in a section like any other item, so it
+ * inherits progression, completion and navigation instead of reimplementing
+ * them. Holds only the prompt; scores live in the peerReviews module.
+ */
+class ReflectionItem {
+  @Expose()
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  _id?: ID;
+
+  @Expose()
+  name: string;
+
+  @Expose()
+  description: string;
+
+  @Expose()
+  isOptional: boolean;
+
+  @Expose()
+  type: ItemType = ItemType.REFLECTION;
+
+  @Expose()
+  details: IReflectionDetails;
+
+  constructor(
+    name: string,
+    description: string,
+    _id: ID,
+    details?: IReflectionDetails,
+    isOptional: boolean = false,
+  ) {
+    this._id = _id;
+    this.type = ItemType.REFLECTION;
+    this.name = name;
+    this.isOptional = isOptional;
+    this.description = description;
+    this.details = details ?? {};
   }
 }
 
@@ -384,6 +427,15 @@ class ItemBase {
             this.itemId,
             itemBody.feedbackFormDetails,
           );
+          break;
+        case ItemType.REFLECTION:
+          this.itemDetails = new ReflectionItem(
+            itemBody.name,
+            itemBody.description,
+            this.itemId,
+            itemBody.reflectionDetails,
+          );
+          break;
         default:
           break;
       }
@@ -481,4 +533,5 @@ export {
   ProjectItem,
   FeedBackFormItem,
   FeedbackSubmissionItem,
+  ReflectionItem,
 };
