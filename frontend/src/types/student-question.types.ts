@@ -17,6 +17,19 @@ export interface StudentQuestionSubmissionPayload {
   correctOptionIndex: number;
 }
 
+/** AI screening verdict returned by the submit endpoint. */
+export type ScreeningDecision = 'pass' | 'reject' | 'hold';
+
+export interface StudentQuestionSubmissionResult {
+  decision: ScreeningDecision;
+  reasonCode: string;
+  message: string;
+  /** Present unless rejected. */
+  questionId?: string;
+  /** For a 'typo' reject: corrected question text the student can one-tap apply. */
+  suggestedFix?: string;
+}
+
 export type StudentQuestionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface StudentQuestionListItem {

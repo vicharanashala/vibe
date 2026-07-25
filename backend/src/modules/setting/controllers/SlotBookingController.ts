@@ -55,6 +55,19 @@ class SlotBookingController {
     private readonly slotBookingService: SlotBookingService,
   ) {}
 
+  private formatBooking(b: any) {
+    if (!b) return b;
+    return {
+      ...b,
+      _id: b._id?.toString(),
+      userId: b.userId?.toString(),
+      enrollmentId: b.enrollmentId?.toString(),
+      courseId: b.courseId?.toString(),
+      courseVersionId: b.courseVersionId?.toString(),
+      cohortId: b.cohortId?.toString(),
+    };
+  }
+
   @OpenAPI({
     summary: 'Book a time slot',
     description:
@@ -79,7 +92,7 @@ class SlotBookingController {
       return {
         success: true,
         message: 'Time slot booked successfully',
-        data: booking,
+        data: this.formatBooking(booking),
       };
     } catch (error) {
       if (
@@ -146,7 +159,7 @@ class SlotBookingController {
         courseVersionId,
         date,
       );
-      return {success: true, data};
+      return {success: true, data: data.map(b => this.formatBooking(b))};
     } catch (error) {
       throw new InternalServerError(`Failed to get bookings: ${error}`);
     }

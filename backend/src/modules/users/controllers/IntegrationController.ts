@@ -6,6 +6,7 @@ import {
   JsonController,
   Get,
   HttpCode,
+  Param,
   QueryParam,
   UseBefore,
 } from 'routing-controllers';
@@ -63,6 +64,40 @@ class IntegrationController {
     }>;
   }> {
     return await this.enrollmentService.getLearnersWithCompletedCourses(
+      page,
+      limit,
+    );
+  }
+
+  @OpenAPI({
+    summary: 'List candidates who completed a specific course',
+    description:
+      'Returns a paginated roster of candidates who have completed the ' +
+      'given course (identified by `courseId`). Authenticate with the ' +
+      '`X-API-Key` header. Use `page` and `limit` (max 200) to page through ' +
+      'candidates.',
+  })
+  @Get('/courses/:courseId/completions')
+  @HttpCode(200)
+  async getCourseCompletions(
+    @Param('courseId') courseId: string,
+    @QueryParam('page') page = 1,
+    @QueryParam('limit') limit = 50,
+  ): Promise<{
+    page: number;
+    limit: number;
+    totalCandidates: number;
+    totalPages: number;
+    candidates: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      courseVersionId: string;
+      completedAt?: Date;
+    }>;
+  }> {
+    return await this.enrollmentService.getCourseCompletions(
+      courseId,
       page,
       limit,
     );

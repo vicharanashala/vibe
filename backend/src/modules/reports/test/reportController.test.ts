@@ -1,6 +1,7 @@
 import request from 'supertest';
 import {
   useExpressServer,
+  useContainer,
   Action,
   RoutingControllersOptions,
 } from 'routing-controllers';
@@ -11,8 +12,26 @@ import {faker} from '@faker-js/faker';
 import {reportsContainerModules, reportsModuleOptions} from '../index.js';
 import {afterAll, afterEach, beforeAll, describe, expect, it, vi} from 'vitest';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
-import {useContainer} from 'class-validator';
 import {ReportBody} from '../classes/index.js';
+import {sharedContainerModule} from '#root/container.js';
+import {authContainerModule} from '#root/modules/auth/container.js';
+import {usersContainerModule} from '#root/modules/users/container.js';
+import {coursesContainerModule} from '#root/modules/courses/container.js';
+import {quizzesContainerModule} from '#root/modules/quizzes/container.js';
+import {notificationsContainerModule} from '#root/modules/notifications/container.js';
+import {anomaliesContainerModule} from '#root/modules/anomalies/container.js';
+import {settingContainerModule} from '#root/modules/setting/container.js';
+import {courseRegistrationContainerModule} from '#root/modules/courseRegistration/container.js';
+import {projectsContainerModule} from '#root/modules/projects/container.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {hpSystemContainerModule} from '#root/modules/hpSystem/container.js';
+import {ejectionPolicyContainerModule} from '#root/modules/ejectionPolicy/container.js';
+import {emotionsContainerModule} from '#root/modules/emotions/container.js';
+import {genAIContainerModule} from '#root/modules/genAI/container.js';
+import {studentQuestionsContainerModule} from '#root/modules/studentQuestions/container.js';
+import {announcementsContainerModule} from '#root/modules/announcements/container.js';
+import {auditTrailsContainerModule} from '#root/modules/auditTrails/container.js';
 
 describe('Report Controller Integration Test', () => {
   const App = Express();
@@ -37,9 +56,30 @@ describe('Report Controller Integration Test', () => {
 
   beforeAll(async () => {
     const container = new Container();
-    await container.load(...reportsContainerModules);
+    await container.load(
+      ...reportsContainerModules,
+      sharedContainerModule,
+      authContainerModule,
+      usersContainerModule,
+      coursesContainerModule,
+      quizzesContainerModule,
+      notificationsContainerModule,
+      anomaliesContainerModule,
+      settingContainerModule,
+      courseRegistrationContainerModule,
+      projectsContainerModule,
+      hpSystemContainerModule,
+      ejectionPolicyContainerModule,
+      emotionsContainerModule,
+      genAIContainerModule,
+      studentQuestionsContainerModule,
+      announcementsContainerModule,
+      auditTrailsContainerModule,
+    );
     const inversifyAdapter = new InversifyAdapter(container);
     useContainer(inversifyAdapter);
+    const db = container.get<MongoDatabase>(GLOBAL_TYPES.Database);
+    await db.connect();
 
     currentUserCheckerSpy = vi
       .spyOn(Current, 'currentUserChecker')
