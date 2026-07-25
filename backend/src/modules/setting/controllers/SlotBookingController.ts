@@ -55,14 +55,6 @@ class SlotBookingController {
     private readonly slotBookingService: SlotBookingService,
   ) {}
 
-  @OpenAPI({
-    summary: 'Book a time slot',
-    description:
-      'A student books a time slot for a study day (default today). Booking for day D opens at 9 AM IST on D-2, and each slot stays bookable until its own start time on D, subject to the slot capacity cap and their per-day allowance.',
-  })
-  @Authorized()
-  @Post('/book')
-  @HttpCode(200)
   private formatBooking(b: any) {
     if (!b) return b;
     return {
@@ -76,6 +68,14 @@ class SlotBookingController {
     };
   }
 
+  @OpenAPI({
+    summary: 'Book a time slot',
+    description:
+      'A student books a time slot for a study day (default today). Booking for day D opens at 9 AM IST on D-2, and each slot stays bookable until its own start time on D, subject to the slot capacity cap and their per-day allowance.',
+  })
+  @Authorized()
+  @Post('/book')
+  @HttpCode(200)
   async bookSlot(
     @Body() body: BookSlotRequestBody,
     @CurrentUser() user: IUser,
