@@ -6017,4 +6017,122 @@ export class EnrollmentRepository {
 
     return { total, learners: learners as any };
   }
+
+  /**
+   * Returns the paginated roster of candidates who have completed one
+   * specific course (an active STUDENT enrollment on that course with a
+   * matching `progress` record where `completed: true`).
+   *
+   * Used by the server-to-server integration endpoint so external
+   * applications can pull completions for a single course.
+   */
+  async getCourseCompletions(
+    courseId: string,
+    skip: number,
+    limit: number,
+  ): Promise<{
+    total: number;
+    candidates: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      courseVersionId: string;
+      completedAt?: Date;
+    }>;
+  }> {
+    await this.init();
+
+    const matchStage = {
+      role: { $regex: /^student$/i },
+      status: { $regex: /^active$/i },
+      isDeleted: { $ne: true },
+      $expr: { $eq: [{ $toString: '$courseId' }, courseId] },
+    };
+
+    const progressLookup = {
+      $lookup: {
+        from: 'progress',
+        let: {
+          uid: '$userId',
+          cid: '$courseId',
+          cvid: '$courseVersionId',
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: [{ $toString: '$userId' }, { $toString: '$$uid' }] },
+                  { $eq: [{ $toString: '$courseId' }, { $toString: '$$cid' }] },
+                  {
+                    $eq: [
+                      { $toString: '$courseVersionId' },
+                      { $toString: '$$cvid' },
+                    ],
+                  },
+                ],
+              },
+              completed: true,
+              isDeleted: { $ne: true },
+            },
+          },
+          { $project: { _id: 0, completedAt: 1 } },
+        ],
+        as: 'progress',
+      },
+    };
+
+    const [countResult] = await this.enrollmentCollection
+      .aggregate([
+        { $match: matchStage },
+        progressLookup,
+        { $match: { 'progress.0': { $exists: true } } },
+        { $count: 'total' },
+      ])
+      .toArray();
+    const total: number = countResult?.total ?? 0;
+
+    const candidates = await this.enrollmentCollection
+      .aggregate([
+        { $match: matchStage },
+        progressLookup,
+        { $match: { 'progress.0': { $exists: true } } },
+        { $unwind: '$progress' },
+        { $sort: { 'progress.completedAt': 1, userId: 1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        { $unwind: '$user' },
+        {
+          $project: {
+            _id: 0,
+            userId: { $toString: '$userId' },
+            courseVersionId: { $toString: '$courseVersionId' },
+            email: '$user.email',
+            name: {
+              $trim: {
+                input: {
+                  $concat: [
+                    { $ifNull: ['$user.firstName', ''] },
+                    ' ',
+                    { $ifNull: ['$user.lastName', ''] },
+                  ],
+                },
+              },
+            },
+            completedAt: '$progress.completedAt',
+          },
+        },
+      ])
+      .toArray();
+
+    return { total, candidates: candidates as any };
+  }
 }

@@ -2346,7 +2346,7 @@ export function useSubmitStudentQuestion(): {
     courseVersionId: string,
     segmentId: string,
     payload: import('@/types/student-question.types').StudentQuestionSubmissionPayload,
-  ) => Promise<{ questionId: string }>;
+  ) => Promise<import('@/types/student-question.types').StudentQuestionSubmissionResult>;
   loading: boolean;
   error: string | null;
 } {
@@ -2358,7 +2358,7 @@ export function useSubmitStudentQuestion(): {
     courseVersionId: string,
     segmentId: string,
     payload: import('@/types/student-question.types').StudentQuestionSubmissionPayload,
-  ): Promise<{ questionId: string }> => {
+  ): Promise<import('@/types/student-question.types').StudentQuestionSubmissionResult> => {
     setLoading(true);
     setError(null);
 
@@ -5251,6 +5251,11 @@ export const useHideItem = (): {
 
 export interface GenerateAIQuestionsBody {
   text?: string;
+  courseId?: string;
+  versionId?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  focusAreas?: string;
+  avoidTopics?: string;
 }
 
 export const useGenerateAIQuestions = (): {

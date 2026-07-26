@@ -116,25 +116,26 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     clearPendingStudentQuestionContext?.();
   }, [clearPendingStudentQuestionContext]);
 
+  // Returns the AI screening verdict to the composer, which shows the result
+  // and lets the student edit & retry on a reject. (No toast/close here — the
+  // composer owns the pass/reject/hold UX.)
   const handleQuestionSubmit = useCallback(async (payload: StudentQuestionSubmissionPayload) => {
     if (!pendingStudentQuestionContext) {
-      toast.error('Unable to submit question for this video.');
-      return;
+      throw new Error('Unable to submit question for this video.');
     }
-    try {
-      await submitQuestion(
-        pendingStudentQuestionContext.courseId,
-        pendingStudentQuestionContext.courseVersionId,
-        pendingStudentQuestionContext.segmentId,
-        payload,
-      );
-      toast.success('Question submitted successfully');
-      setShowQuestionModal(false);
-      clearPendingStudentQuestionContext?.();
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to submit question');
-    }
-  }, [clearPendingStudentQuestionContext, pendingStudentQuestionContext, submitQuestion]);
+    return await submitQuestion(
+      pendingStudentQuestionContext.courseId,
+      pendingStudentQuestionContext.courseVersionId,
+      pendingStudentQuestionContext.segmentId,
+      payload,
+    );
+  }, [pendingStudentQuestionContext, submitQuestion]);
+
+  // Called after a terminal verdict (contributed / sent for review) is dismissed.
+  const handleQuestionDone = useCallback(() => {
+    setShowQuestionModal(false);
+    clearPendingStudentQuestionContext?.();
+  }, [clearPendingStudentQuestionContext]);
 
   useEffect(() => {
     if (!pendingStudentQuestionContext) {
@@ -1234,10 +1235,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             <CardHeader className="pb-4">
               <div className="space-y-3">
                 <CardTitle className="text-2xl font-bold">
-                  Before the Quiz, Submit an MCQ for This Video
+                  Contribute a Question for This Video
                 </CardTitle>
                 <CardDescription className="text-base text-muted-foreground">
-                  You just completed the video segment. Please submit one MCQ for this segment before proceeding to the quiz.
+                  You just finished this segment — contribute one MCQ. We'll verify it with AI before it goes to your instructor.
                 </CardDescription>
               </div>
             </CardHeader>
@@ -1247,7 +1248,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   onClick={() => setShowQuestionModal(true)}
                   disabled={isSubmittingQuestion}
                 >
-                  Submit MCQ Question
+                  Contribute Question
                 </Button>
                 <Button
                   variant="outline"
@@ -1277,13 +1278,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               onEscapeKeyDown={e => e.preventDefault()}
             >
               <DialogHeader>
-                <DialogTitle>Submit an MCQ Question</DialogTitle>
+                <DialogTitle>Contribute a Question</DialogTitle>
               </DialogHeader>
               <StudentQuestionComposer
                 isOpen={showQuestionModal}
-                isSubmitting={isSubmittingQuestion}
                 onCancel={() => setShowQuestionModal(false)}
                 onSubmit={handleQuestionSubmit}
+                onDone={handleQuestionDone}
               />
             </DialogContent>
           </Dialog>

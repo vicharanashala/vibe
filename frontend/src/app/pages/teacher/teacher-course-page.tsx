@@ -1715,6 +1715,8 @@ function TeacherCourseContent() {
       <QuestionUploadDialog
         open={showCSVUpload}
         onOpenChange={setShowCSVUpload}
+        courseId={courseId}
+        versionId={versionId}
         onUploadComplete={async (youtubeUrl: string, csvFile: File) => {
           // Let errors propagate so QuestionUploadDialog can report the real
           // failure rather than showing a false "Content uploaded" success.

@@ -174,6 +174,16 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
     derivedPerSlotCap: number;
   } | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Hooks
   const { data: timeSlotsData, refetch: refetchTimeSlots } = useGetTimeSlots(
     courseId && courseId.length === 24 && courseVersionId && courseVersionId.length === 24
@@ -334,8 +344,8 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
     courseId && courseId.length === 24 ? courseId : undefined,
     courseVersionId && courseVersionId.length === 24 ? courseVersionId : undefined,
     1,
-    1000,
-    "",
+    30, // Limit to 30 results to prevent timeout
+    debouncedSearch,
     "name",
     "asc",
     true,
@@ -961,6 +971,7 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                               options={studentOptions}
                               value={extendStudentId}
                               onChange={setExtendStudentId}
+                              onSearchChange={setSearchQuery}
                               loading={enrollmentsLoading}
                               placeholder={studentPlaceholder}
                             />
@@ -1010,6 +1021,7 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                               options={studentOptions}
                               value={grantBookingsStudentId}
                               onChange={setGrantBookingsStudentId}
+                              onSearchChange={setSearchQuery}
                               loading={enrollmentsLoading}
                               placeholder={studentPlaceholder}
                             />
