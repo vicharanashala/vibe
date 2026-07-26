@@ -5251,6 +5251,11 @@ export const useHideItem = (): {
 
 export interface GenerateAIQuestionsBody {
   text?: string;
+  courseId?: string;
+  versionId?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  focusAreas?: string;
+  avoidTopics?: string;
 }
 
 export const useGenerateAIQuestions = (): {
