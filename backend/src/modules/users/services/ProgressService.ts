@@ -49,6 +49,8 @@ import { CourseSettingService } from '#root/modules/setting/index.js';
 import { getContainer } from '#root/bootstrap/loadModules.js';
 import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
 import type { InviteService } from '#root/modules/notifications/services/InviteService.js';
+import { CERTIFICATE_TYPES } from '#root/modules/certificates/types.js';
+import type { CertificateService } from '#root/modules/certificates/services/CertificateService.js';
 import type { InviteRepository } from '#shared/database/providers/mongo/repositories/InviteRepository.js';
 
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
@@ -579,6 +581,23 @@ class ProgressService extends BaseService {
           percentCompleted = guruProgress.percentCompleted;
         }
 
+        // Fire-and-forget certificate issuance. Deliberately not awaited —
+        // issuing a certificate should never slow down or fail the progress
+        // update itself. issueCertificateIfCompleted() is idempotent, so
+        // it's safe even if this bulk method runs again for an
+        // already-completed enrollment (e.g. a retried job, or watching an
+        // optional item after finishing the course).
+        if (percentCompleted >= 100) {
+          this.issueCertificateIfCompleted(userId, courseId, versionId).catch(
+            err => {
+              // Swallow + log only. A failed certificate issuance is a
+              // support ticket, not a reason to fail the student's
+              // progress update.
+              console.error('Certificate issuance failed:', err);
+            },
+          );
+        }
+
         return {
           updateOne: {
             filter: {
@@ -601,6 +620,36 @@ class ProgressService extends BaseService {
       return this.enrollmentRepo.bulkUpdateEnrollments(bulkOps, session);
     }
     return null;
+  }
+
+  /**
+   * Resolves CertificateService lazily via the global container (same
+   * pattern used above for InviteService) rather than constructor
+   * injection, so this module doesn't create a load-order dependency on
+   * the certificates module.
+   */
+  private async issueCertificateIfCompleted(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<void> {
+    const [user, course] = await Promise.all([
+      this.userRepo.findById(userId),
+      this.courseRepo.read(courseId),
+    ]);
+    if (!user || !course) return;
+
+    const certificateService = getContainer().get<CertificateService>(
+      CERTIFICATE_TYPES.CertificateService,
+    );
+
+    await certificateService.issueIfNotExists({
+      userId,
+      courseId,
+      courseVersionId,
+      studentName: `${user.firstName} ${user.lastName ?? ''}`.trim(),
+      courseName: course.name,
+    });
   }
 
   // Helper to calculate progress based on completed items
