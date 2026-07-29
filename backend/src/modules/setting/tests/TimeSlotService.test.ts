@@ -67,6 +67,9 @@ function makeService(
         Promise.resolve(bookings.filter(b => !date || b.date === date)),
       ),
     createBooking: vi.fn().mockResolvedValue({_id: 'booking-new'}),
+    // Capacity guard: how many active bookings a slot already holds. Default 0;
+    // override per-test to exercise the "don't cap below booked" clamp.
+    countActiveInSlot: vi.fn().mockResolvedValue(0),
   };
   const db = {} as any;
 
@@ -535,6 +538,118 @@ describe('TimeSlotService.configureFulfillment', () => {
     await expect(
       svc.configureFulfillment(COURSE, VERSION, 150, true),
     ).rejects.toThrowError(/between 0 and 100/i);
+  });
+});
+
+describe('TimeSlotService.configureCapacity', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('derives per-slot caps from the budget, dividing by max overlap', async () => {
+    // Two slots overlap (09–11 and 10–12) → maxOverlap 2. One disjoint (14–15).
+    const { svc, settingsRepo } = makeService({
+      timeslots: {
+        isActive: true,
+        slots: [
+          { from: '09:00', to: '11:00' },
+          { from: '10:00', to: '12:00' },
+          { from: '14:00', to: '15:00' },
+        ] as any,
+        dailyBaseAllowance: 2,
+      },
+    });
+
+    // 1000 × 0.7 / 2 = 350
+    const res = await svc.configureCapacity(COURSE, VERSION, 1000, 0.7);
+
+    expect(res.maxOverlappingWindows).toBe(2);
+    expect(res.derivedPerSlotCap).toBe(350);
+    expect(res.slots.every(s => s.maxStudents === 350)).toBe(true);
+
+    const saved = settingsRepo.updateTimeslotsSettings.mock.calls[0][2];
+    expect(saved).toMatchObject({
+      targetConcurrentStudents: 1000,
+      capacityHeadroomFactor: 0.7,
+      dailyBaseAllowance: 2, // preserved
+    });
+    expect(saved.slots.every((s: any) => s.maxStudents === 350)).toBe(true);
+  });
+
+  it('defaults the headroom factor to 0.7', async () => {
+    const { svc } = makeService({
+      timeslots: { isActive: true, slots: [{ from: '09:00', to: '10:00' }] as any },
+    });
+    // disjoint single slot → overlap 1 → 200 × 0.7 / 1 = 140
+    const res = await svc.configureCapacity(COURSE, VERSION, 200, undefined);
+    expect(res.capacityHeadroomFactor).toBe(0.7);
+    expect(res.derivedPerSlotCap).toBe(140);
+  });
+
+  it('never caps a slot below its already-booked count', async () => {
+    const { svc, slotBookingRepo } = makeService({
+      timeslots: { isActive: true, slots: [{ from: '09:00', to: '10:00' }] as any },
+    });
+    // derived would be 10 × 0.7 / 1 = 7, but the slot already has 12 booked.
+    slotBookingRepo.countActiveInSlot.mockResolvedValue(12);
+
+    const res = await svc.configureCapacity(COURSE, VERSION, 10, 0.7);
+
+    expect(res.derivedPerSlotCap).toBe(7);
+    expect(res.slots[0].maxStudents).toBe(12); // clamped up to booked
+  });
+
+  it('treats back-to-back slots as non-overlapping (overlap 1)', async () => {
+    const { svc } = makeService({
+      timeslots: {
+        isActive: true,
+        slots: [
+          { from: '09:00', to: '10:00' },
+          { from: '10:00', to: '11:00' },
+        ] as any,
+      },
+    });
+    const res = await svc.configureCapacity(COURSE, VERSION, 100, 1);
+    expect(res.maxOverlappingWindows).toBe(1);
+    expect(res.derivedPerSlotCap).toBe(100);
+  });
+
+  it('counts an overnight slot as overlapping the early-morning window', async () => {
+    // 22:00→02:00 (overnight) overlaps 01:00→03:00 between 01:00 and 02:00.
+    const { svc } = makeService({
+      timeslots: {
+        isActive: true,
+        slots: [
+          { from: '22:00', to: '02:00' },
+          { from: '01:00', to: '03:00' },
+        ] as any,
+      },
+    });
+    const res = await svc.configureCapacity(COURSE, VERSION, 100, 1);
+    expect(res.maxOverlappingWindows).toBe(2);
+  });
+
+  it('rejects a non-positive target', async () => {
+    const { svc } = makeService({
+      timeslots: { isActive: true, slots: [{ from: '09:00', to: '10:00' }] as any },
+    });
+    await expect(
+      svc.configureCapacity(COURSE, VERSION, 0, 0.7),
+    ).rejects.toThrowError(/greater than 0/i);
+  });
+
+  it('rejects a headroom factor outside (0, 1]', async () => {
+    const { svc } = makeService({
+      timeslots: { isActive: true, slots: [{ from: '09:00', to: '10:00' }] as any },
+    });
+    await expect(
+      svc.configureCapacity(COURSE, VERSION, 100, 1.5),
+    ).rejects.toThrowError(/between 0/i);
+  });
+
+  it('rejects when no slots are defined', async () => {
+    const { svc } = makeService({ timeslots: { isActive: true, slots: [] } });
+    await expect(
+      svc.configureCapacity(COURSE, VERSION, 100, 0.7),
+    ).rejects.toThrowError(/No time slots/i);
   });
 });
 

@@ -34,8 +34,6 @@ import {
   ItemsGroup,
   QuizItem,
 } from '#root/modules/courses/classes/index.js';
-import { AttemptRepository } from '#root/modules/quizzes/repositories/index.js';
-import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
 import { IProjectSubmission } from '#root/modules/projects/repositories/model.js';
 import { IReport } from '#root/shared/interfaces/reports.js';
@@ -64,8 +62,6 @@ export class EnrollmentRepository {
   private userActivityEventCollection!: Collection<IUserActivityEvent>;
 
   constructor(
-    @inject(QUIZZES_TYPES.AttemptRepo)
-    private attemptRepository: AttemptRepository,
     @inject(GLOBAL_TYPES.Database) private db: MongoDatabase,
   ) { }
 
@@ -1615,7 +1611,14 @@ export class EnrollmentRepository {
       { $match: matchStage },
       {
         $addFields: {
-          userIdObj: { $toObjectId: '$userId' },
+          userIdObj: {
+            $convert: {
+              input: '$userId',
+              to: 'objectId',
+              onError: null,
+              onNull: null,
+            },
+          },
         },
       },
       {
@@ -1693,7 +1696,13 @@ export class EnrollmentRepository {
     // 4. Enrich only with basic user data and assigned time slots (no heavy watchTime/itemsGroup lookups)
     paginatedPipeline.push({
       $addFields: {
-        userId: { $toString: '$userInfo._id' },
+        userId: {
+          $cond: [
+            { $ifNull: ['$userInfo._id', false] },
+            { $toString: '$userInfo._id' },
+            '$userId',
+          ],
+        },
         _id: { $toString: '$_id' },
         courseId: { $toString: '$courseId' },
         courseVersionId: { $toString: '$courseVersionId' },
@@ -1791,7 +1800,13 @@ export class EnrollmentRepository {
       {
         $project: {
           _id: { $toString: '$_id' },
-          userId: { $toString: '$userInfo._id' },
+          userId: {
+            $cond: [
+              { $ifNull: ['$userInfo._id', false] },
+              { $toString: '$userInfo._id' },
+              '$userId',
+            ],
+          },
           firstName: '$userInfo.firstName',
           lastName: '$userInfo.lastName',
           email: '$userInfo.email',
@@ -3667,6 +3682,31 @@ export class EnrollmentRepository {
   }
 
   /**
+   * Lightweight count of active student enrollments for a course version,
+   * across all cohorts. Used to scale the crowd-question peer-validation gate
+   * threshold to cohort size (see studentQuestions/services/crowdGate.ts) —
+   * intentionally a countDocuments rather than the fuller
+   * getVersionEnrollmentStats aggregation, since only the count is needed.
+   */
+  async countActiveStudents(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    return await this.enrollmentCollection.countDocuments(
+      {
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+        role: 'STUDENT',
+        status: { $regex: /^active$/i },
+        isDeleted: { $ne: true },
+      },
+      { session },
+    );
+  }
+
+  /**
    * Returns the distinct student user IDs whose progress for a given course
    * version is at or above `minPercent`, across all cohorts. Used to backfill
    * follow-up invites for students who reached the threshold but never received
@@ -4467,6 +4507,41 @@ export class EnrollmentRepository {
     );
 
     return (updated as any)?.commitmentExtraHours ?? 0;
+  }
+
+  /**
+   * Add (increment) the consumable extra-bookings pool on an enrollment and
+   * return the new total. Pass a negative delta to consume one when a student
+   * books beyond their normal daily allowance. The pool is clamped at 0 so it
+   * never goes negative.
+   */
+  async addCommitmentExtraBookings(
+    enrollmentId: string,
+    delta: number,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    const updated = await this.enrollmentCollection.findOneAndUpdate(
+      { _id: new ObjectId(enrollmentId) },
+      {
+        $inc: { commitmentExtraBookings: delta },
+        $set: { updatedAt: new Date() },
+      },
+      { session, returnDocument: 'after' },
+    );
+
+    const total = (updated as any)?.commitmentExtraBookings ?? 0;
+    if (total < 0) {
+      // Clamp back to 0 if a concurrent consume drove it negative.
+      await this.enrollmentCollection.updateOne(
+        { _id: new ObjectId(enrollmentId) },
+        { $set: { commitmentExtraBookings: 0, updatedAt: new Date() } },
+        { session },
+      );
+      return 0;
+    }
+    return total;
   }
 
   /**
@@ -5966,5 +6041,123 @@ export class EnrollmentRepository {
       .toArray();
 
     return { total, learners: learners as any };
+  }
+
+  /**
+   * Returns the paginated roster of candidates who have completed one
+   * specific course (an active STUDENT enrollment on that course with a
+   * matching `progress` record where `completed: true`).
+   *
+   * Used by the server-to-server integration endpoint so external
+   * applications can pull completions for a single course.
+   */
+  async getCourseCompletions(
+    courseId: string,
+    skip: number,
+    limit: number,
+  ): Promise<{
+    total: number;
+    candidates: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      courseVersionId: string;
+      completedAt?: Date;
+    }>;
+  }> {
+    await this.init();
+
+    const matchStage = {
+      role: { $regex: /^student$/i },
+      status: { $regex: /^active$/i },
+      isDeleted: { $ne: true },
+      $expr: { $eq: [{ $toString: '$courseId' }, courseId] },
+    };
+
+    const progressLookup = {
+      $lookup: {
+        from: 'progress',
+        let: {
+          uid: '$userId',
+          cid: '$courseId',
+          cvid: '$courseVersionId',
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: [{ $toString: '$userId' }, { $toString: '$$uid' }] },
+                  { $eq: [{ $toString: '$courseId' }, { $toString: '$$cid' }] },
+                  {
+                    $eq: [
+                      { $toString: '$courseVersionId' },
+                      { $toString: '$$cvid' },
+                    ],
+                  },
+                ],
+              },
+              completed: true,
+              isDeleted: { $ne: true },
+            },
+          },
+          { $project: { _id: 0, completedAt: 1 } },
+        ],
+        as: 'progress',
+      },
+    };
+
+    const [countResult] = await this.enrollmentCollection
+      .aggregate([
+        { $match: matchStage },
+        progressLookup,
+        { $match: { 'progress.0': { $exists: true } } },
+        { $count: 'total' },
+      ])
+      .toArray();
+    const total: number = countResult?.total ?? 0;
+
+    const candidates = await this.enrollmentCollection
+      .aggregate([
+        { $match: matchStage },
+        progressLookup,
+        { $match: { 'progress.0': { $exists: true } } },
+        { $unwind: '$progress' },
+        { $sort: { 'progress.completedAt': 1, userId: 1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
+          },
+        },
+        { $unwind: '$user' },
+        {
+          $project: {
+            _id: 0,
+            userId: { $toString: '$userId' },
+            courseVersionId: { $toString: '$courseVersionId' },
+            email: '$user.email',
+            name: {
+              $trim: {
+                input: {
+                  $concat: [
+                    { $ifNull: ['$user.firstName', ''] },
+                    ' ',
+                    { $ifNull: ['$user.lastName', ''] },
+                  ],
+                },
+              },
+            },
+            completedAt: '$progress.completedAt',
+          },
+        },
+      ])
+      .toArray();
+
+    return { total, candidates: candidates as any };
   }
 }

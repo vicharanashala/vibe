@@ -21,6 +21,18 @@ export interface VideoProps {
   completedItemIdsRef: React.RefObject<Set<string>>;
   nextItemId: string;
   cohortId?:string;
+  /**
+   * Increment this counter to pause the video imperatively WITHOUT showing the
+   * proctoring/anomaly overlay (used when the learner clicks a floating control
+   * in the focused learn UI). Each change in value triggers a single pause.
+   */
+  pauseSignal?: number;
+  /**
+   * Sustained "learner stepped away" pause (cursor left the page). Pausing
+   * remembers whether the video was playing; when this returns to false the
+   * video auto-resumes (unless blocked by a proctoring anomaly/gesture).
+   */
+  awayPaused?: boolean;
 }
 
 

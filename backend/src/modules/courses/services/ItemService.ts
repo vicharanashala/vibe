@@ -59,7 +59,7 @@ import { QuizService } from '#root/modules/quizzes/services/QuizService.js';
 import { QuestionService } from '#root/modules/quizzes/services/QuestionService.js';
 import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
 import { QuestionProcessor } from '#root/modules/quizzes/question-processing/QuestionProcessor.js';
-import { CourseSettingService, SETTING_TYPES } from '#root/modules/setting/index.js';
+import { CourseSettingService, SETTING_TYPES, TimeSlotService } from '#root/modules/setting/index.js';
 
 @injectable()
 export class ItemService extends BaseService {
@@ -92,6 +92,8 @@ export class ItemService extends BaseService {
     private readonly questionService: QuestionService,
     @inject(SETTING_TYPES.CourseSettingService)
     private readonly courseSettingService: CourseSettingService,
+    @inject(SETTING_TYPES.TimeSlotService)
+    private readonly timeSlotService: TimeSlotService,
   ) {
     super(database);
   }
@@ -602,6 +604,27 @@ export class ItemService extends BaseService {
         _id: item._id.toString(),
       };
     }
+
+    // Time-slot commitment gate: a student may load item content only during a
+    // window they've booked (when the course has slot booking active). Enforced
+    // here at the content chokepoint so it can't be bypassed by navigating
+    // straight to the player or calling this endpoint directly. canStudentAccessCourse
+    // short-circuits to allow when the feature is off / no slots configured.
+    if (courseId) {
+      const slotAccess = await this.timeSlotService.canStudentAccessCourse(
+        userId,
+        courseId,
+        versionId,
+        cohortId,
+      );
+      if (!slotAccess.canAccess) {
+        throw new ForbiddenError(
+          slotAccess.message ||
+            'Course access is only allowed during your booked time slot.',
+        );
+      }
+    }
+
     // Student should not see items it course Version is archived
 
     const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId);
@@ -1424,6 +1447,25 @@ export class ItemService extends BaseService {
                 .get(timestamp)!)
             : previousEndTime + 300;
 
+          if (timestamp !== undefined && Number.isNaN(endTime)) {
+            throw new Error(
+              `Segment ${segmentNumber} has an invalid timestamp "${timestamp}". Expected "MM:SS" format.`,
+            );
+          }
+
+          // A video segment's timestamp marks where its context ends, so segments
+          // must be strictly increasing; otherwise this segment's video would
+          // start after (or at) the point it's supposed to end.
+          if (endTime <= previousEndTime) {
+            throw new Error(
+              `Segment ${segmentNumber}'s timestamp (${this._formatSecondsToHHMMSS(
+                endTime,
+              )}) must be after the previous segment's end time (${this._formatSecondsToHHMMSS(
+                previousEndTime,
+              )}). Segments must appear in increasing chronological order.`,
+            );
+          }
+
           // Create video item
           const videoItem = await this.createItem(
             versionId,
@@ -1494,7 +1536,10 @@ export class ItemService extends BaseService {
 
           // Process questions
           for (const question of segmentQuestions) {
-            const options = [
+            // Index against the full, unfiltered A-D array so the letter in
+            // "Correct Answer" always lines up with its own column, even when
+            // an earlier option is blank.
+            const allOptions = [
               {
                 text: question['Option A'] || '',
                 explanation: question['Expln-A'] || '',
@@ -1511,17 +1556,19 @@ export class ItemService extends BaseService {
                 text: question['Option D'] || '',
                 explanation: question['Expln-D'] || '',
               },
-            ].filter(opt => opt.text);
+            ];
 
             const correctAnswer = question['Correct Answer']?.toUpperCase();
             const correctOptionIndex = correctAnswer
               ? correctAnswer.charCodeAt(0) - 65
               : -1;
 
-            if (
-              correctOptionIndex >= 0 &&
-              correctOptionIndex < options.length
-            ) {
+            const correctOption =
+              correctOptionIndex >= 0 && correctOptionIndex < allOptions.length
+                ? allOptions[correctOptionIndex]
+                : undefined;
+
+            if (correctOption && correctOption.text) {
               const questionBody = {
                 question: {
                   text: question.Question || '',
@@ -1535,13 +1582,12 @@ export class ItemService extends BaseService {
                 },
                 solution: {
                   correctLotItem: {
-                    text: options[correctOptionIndex].text,
+                    text: correctOption.text,
                     explaination:
-                      options[correctOptionIndex].explanation ||
-                      'No explanation provided',
+                      correctOption.explanation || 'No explanation provided',
                   },
-                  incorrectLotItems: options
-                    .filter((_, i) => i !== correctOptionIndex)
+                  incorrectLotItems: allOptions
+                    .filter((opt, i) => i !== correctOptionIndex && opt.text)
                     .map(opt => ({
                       text: opt.text,
                       explaination:

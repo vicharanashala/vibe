@@ -17,7 +17,27 @@ export interface StudentQuestionSubmissionPayload {
   correctOptionIndex: number;
 }
 
+/** AI screening verdict returned by the submit endpoint. */
+export type ScreeningDecision = 'pass' | 'reject' | 'hold';
+
+export interface StudentQuestionSubmissionResult {
+  decision: ScreeningDecision;
+  reasonCode: string;
+  message: string;
+  /** Present unless rejected. */
+  questionId?: string;
+  /** For a 'typo' reject: corrected question text the student can one-tap apply. */
+  suggestedFix?: string;
+}
+
 export type StudentQuestionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/**
+ * Peer-validation lifecycle state; only meaningful while status === 'PENDING'.
+ * COLLECTING = served ungraded to students, gathering answers + 👍/👎.
+ * ELIGIBLE = passed the gate and now awaits instructor approval.
+ */
+export type StudentQuestionGateState = 'COLLECTING' | 'ELIGIBLE';
 
 export interface StudentQuestionListItem {
   _id: string;
@@ -34,6 +54,11 @@ export interface StudentQuestionListItem {
   reviewedBy?: string;
   reviewedAt?: string;
   rejectionReason?: string;
+  gateState?: StudentQuestionGateState;
+  responseCount?: number;
+  correctCount?: number;
+  thumbsUpCount?: number;
+  thumbsDownCount?: number;
 }
 
 export interface StudentQuestionListResponse {
@@ -45,6 +70,8 @@ export type StudentQuestionStatusFilter =
   | 'APPROVED'
   | 'REJECTED'
   | 'ALL';
+
+export type StudentQuestionGateStateFilter = StudentQuestionGateState | 'ALL';
 
 export interface UpdateStudentQuestionPayload {
   questionText?: string;

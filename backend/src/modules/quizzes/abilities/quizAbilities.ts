@@ -41,10 +41,8 @@ export function setupQuizAbilities(
             case 'STUDENT':
                 break;
             case 'INSTRUCTOR':
-                can(QuizActions.ModifyBank, 'Quiz', courseBounded);
-                can(QuizActions.View, 'Quiz', courseBounded);
-                can(QuizActions.GetStats, 'Quiz', courseBounded);
-                can(QuizActions.ModifySubmissions, 'Quiz', courseBounded);
+                // Instructor == admin, scoped to their own courses.
+                can('manage', 'Quiz', courseBounded);
                 break;
             case 'MANAGER':
                 can('manage', 'Quiz', courseBounded);

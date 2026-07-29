@@ -8,12 +8,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Check, AlertCircle, Eye, EyeOff, Camera, Upload, RefreshCcw, X } from "lucide-react";
+import { Check, AlertCircle, Eye, EyeOff, Camera, Upload, RefreshCcw, X, CheckCircle2, XCircle, Info, ShieldAlert, Target, Sun } from "lucide-react";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 import { cn } from "@/utils/utils";
 import { useSignup } from "@/hooks/hooks.ts";
 import ReCAPTCHA from "react-google-recaptcha";
+import { toast } from "sonner";
 import { LeftHeroSection } from "@/components/Auth/LeftHeroSection";
 
 type AuthPageProps = {
@@ -64,6 +65,27 @@ export default function AuthPage({ role }: AuthPageProps) {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const faceModelsLoadedRef = useRef(false);
 
+  // Live validator checks state
+  const [liveChecks, setLiveChecks] = useState({
+    faceDetected: false,
+    faceCentered: false,
+    properLighting: false,
+    overallPassed: false,
+  });
+
+  // Upload quality checks state
+  const [uploadChecks, setUploadChecks] = useState({
+    faceDetected: null as boolean | null,
+    faceCentered: null as boolean | null,
+    properLighting: null as boolean | null,
+    matchesWebcam: null as boolean | null,
+    overallPassed: false,
+  });
+
+  const [isVerifyingUpload, setIsVerifyingUpload] = useState(false);
+  const uploadEmbeddingRef = useRef<number[] | null>(null);
+  const liveAnalysisTimeoutRef = useRef<number | null>(null);
+
   // Removed the unused clearUser variable
   const setUser = useAuthStore((state) => state.setUser);
 
@@ -91,11 +113,143 @@ export default function AuthPage({ role }: AuthPageProps) {
     setFormErrors({});
   };
 
+  useEffect(() => {
+    return () => {
+      stopCameraStream();
+      if (studentPhotoPreview && studentPhotoPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(studentPhotoPreview);
+      }
+      if (liveAnalysisTimeoutRef.current) {
+        clearTimeout(liveAnalysisTimeoutRef.current);
+      }
+    };
+  }, [studentPhotoPreview]);
+
+  // Live webcam analyzer loop for AuthPage
+  useEffect(() => {
+    let active = true;
+    if (!isCameraOpen) {
+      setLiveChecks({
+        faceDetected: false,
+        faceCentered: false,
+        properLighting: false,
+        overallPassed: false,
+      });
+      return;
+    }
+
+    const runLiveAnalysis = async () => {
+      if (!active) return;
+      const videoElement = videoCaptureRef.current;
+      if (!videoElement || videoElement.readyState < 2) {
+        liveAnalysisTimeoutRef.current = window.setTimeout(runLiveAnalysis, 400);
+        return;
+      }
+
+      try {
+        await ensureFaceModelsLoaded();
+        const detection = await faceapi
+          .detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        if (!detection) {
+          if (active) {
+            setLiveChecks({
+              faceDetected: false,
+              faceCentered: false,
+              properLighting: false,
+              overallPassed: false,
+            });
+          }
+        } else {
+          // Face detected!
+          // 1. Centering check
+          const box = detection.detection.box;
+          const videoWidth = videoElement.videoWidth || 640;
+          const videoHeight = videoElement.videoHeight || 480;
+
+          const faceCenterX = box.x + box.width / 2;
+          const faceCenterY = box.y + box.height / 2;
+          const frameCenterX = videoWidth / 2;
+          const frameCenterY = videoHeight / 2;
+
+          const toleranceX = videoWidth * 0.18;
+          const toleranceY = videoHeight * 0.18;
+
+          const isCentered =
+            Math.abs(faceCenterX - frameCenterX) < toleranceX &&
+            Math.abs(faceCenterY - frameCenterY) < toleranceY;
+
+          // 2. Lighting check
+          const canvas = document.createElement("canvas");
+          canvas.width = 100;
+          canvas.height = 100;
+          const ctx = canvas.getContext("2d");
+          let avgBrightness = 120;
+          if (ctx) {
+            ctx.drawImage(videoElement, 0, 0, 100, 100);
+            const imgData = ctx.getImageData(0, 0, 100, 100);
+            let totalBrightness = 0;
+            for (let i = 0; i < imgData.data.length; i += 4) {
+              const r = imgData.data[i];
+              const g = imgData.data[i + 1];
+              const b = imgData.data[i + 2];
+              totalBrightness += 0.299 * r + 0.587 * g + 0.114 * b;
+            }
+            avgBrightness = totalBrightness / 10000;
+          }
+
+          const isProperLight = avgBrightness >= 50 && avgBrightness <= 230;
+          const overallPassed = isCentered && isProperLight;
+
+          if (active) {
+            setLiveChecks({
+              faceDetected: true,
+              faceCentered: isCentered,
+              properLighting: isProperLight,
+              overallPassed,
+            });
+
+            // Perform cross-matching if validating an uploaded image
+            if (studentPhotoFile && uploadEmbeddingRef.current) {
+              const liveEmbedding = Array.from(detection.descriptor);
+              const distance = faceapi.euclideanDistance(uploadEmbeddingRef.current, liveEmbedding);
+              const isMatch = distance < 0.40;
+
+              setUploadChecks((prev) => ({
+                ...prev,
+                matchesWebcam: isMatch,
+                overallPassed: prev.faceDetected === true && prev.faceCentered === true && prev.properLighting === true && isMatch,
+              }));
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Live analysis error in AuthPage", err);
+      }
+
+      if (active) {
+        liveAnalysisTimeoutRef.current = window.setTimeout(runLiveAnalysis, 400);
+      }
+    };
+
+    runLiveAnalysis();
+
+    return () => {
+      active = false;
+      if (liveAnalysisTimeoutRef.current) {
+        clearTimeout(liveAnalysisTimeoutRef.current);
+      }
+    };
+  }, [isCameraOpen, studentPhotoFile]);
+
   const stopCameraStream = () => {
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
     }
+    setIsCameraOpen(false);
   };
 
   const resetStudentPhoto = () => {
@@ -103,7 +257,16 @@ export default function AuthPage({ role }: AuthPageProps) {
     setStudentPhotoFile(null);
     setCameraError("");
     setIsCameraOpen(false);
+    setIsVerifyingUpload(false);
+    uploadEmbeddingRef.current = null;
     stopCameraStream();
+    setUploadChecks({
+      faceDetected: null,
+      faceCentered: null,
+      properLighting: null,
+      matchesWebcam: null,
+      overallPassed: false,
+    });
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -133,6 +296,11 @@ export default function AuthPage({ role }: AuthPageProps) {
   };
 
   const capturePhoto = () => {
+    if (!liveChecks.overallPassed) {
+      setCameraError("Cannot capture: Ensure your face is centered and well-lit.");
+      return;
+    }
+
     const videoElement = videoCaptureRef.current;
     if (!videoElement || videoElement.videoWidth === 0 || videoElement.videoHeight === 0) {
       setCameraError("Camera is not ready yet. Please try again.");
@@ -169,7 +337,7 @@ export default function AuthPage({ role }: AuthPageProps) {
     }, "image/jpeg", 0.92);
   };
 
-  const handleStudentPhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleStudentPhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -183,6 +351,86 @@ export default function AuthPage({ role }: AuthPageProps) {
     setStudentPhotoPreview(URL.createObjectURL(file));
     setIsCameraOpen(false);
     stopCameraStream();
+
+    try {
+      setLoading(true);
+      await ensureFaceModelsLoaded();
+      const image = await createImageElementFromFile(file);
+
+      const detection = await faceapi
+        .detectSingleFace(image, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!detection) {
+        setUploadChecks({
+          faceDetected: false,
+          faceCentered: false,
+          properLighting: false,
+          matchesWebcam: null,
+          overallPassed: false,
+        });
+        setCameraError("No face detected in the uploaded image. Please try a different photo.");
+        return;
+      }
+
+      // Check centering
+      const box = detection.detection.box;
+      const isCentered =
+        box.x + box.width / 2 > image.width * 0.25 &&
+        box.x + box.width / 2 < image.width * 0.75 &&
+        box.y + box.height / 2 > image.height * 0.25 &&
+        box.y + box.height / 2 < image.height * 0.75;
+
+      // Check lighting
+      const canvas = document.createElement("canvas");
+      canvas.width = 100;
+      canvas.height = 100;
+      const ctx = canvas.getContext("2d");
+      let avgBrightness = 120;
+      if (ctx) {
+        ctx.drawImage(image, 0, 0, 100, 100);
+        const imgData = ctx.getImageData(0, 0, 100, 100);
+        let totalBrightness = 0;
+        for (let i = 0; i < imgData.data.length; i += 4) {
+          const r = imgData.data[i];
+          const g = imgData.data[i + 1];
+          const b = imgData.data[i + 2];
+          totalBrightness += 0.299 * r + 0.587 * g + 0.114 * b;
+        }
+        avgBrightness = totalBrightness / 10000;
+      }
+      const isProperLight = avgBrightness >= 50 && avgBrightness <= 230;
+
+      const descriptor = Array.from(detection.descriptor);
+      uploadEmbeddingRef.current = descriptor;
+
+      setUploadChecks({
+        faceDetected: true,
+        faceCentered: isCentered,
+        properLighting: isProperLight,
+        matchesWebcam: null,
+        overallPassed: false,
+      });
+
+      if (!isCentered) {
+        setCameraError("The uploaded face is not centered in the image. Please use a centered portrait.");
+      } else if (!isProperLight) {
+        setCameraError("The uploaded photo has poor lighting (too dark or too bright). Please use a well-lit photo.");
+      } else {
+        toast.info("Uploaded photo validation successful. Webcam verification is now required.");
+      }
+    } catch (err: any) {
+      console.error("[AuthPage] Failed to analyze upload", err);
+      setCameraError(err?.message || "Failed to analyze the uploaded image.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startWebcamVerification = () => {
+    setIsVerifyingUpload(true);
+    void openCamera();
   };
 
   const convertFileToDataUrl = (file: File) =>
@@ -420,12 +668,20 @@ export default function AuthPage({ role }: AuthPageProps) {
       setCameraError("Please capture or upload a clear face photo to continue.");
       return;
     }
+
+    // Double check validator checks
+    const isUploaded = !!uploadEmbeddingRef.current;
+    if (isUploaded && !uploadChecks.overallPassed) {
+      setCameraError("Verification incomplete. Uploaded image must pass quality checks and match your live webcam feed.");
+      return;
+    }
+
     try {
       setLoading(true);
       setCameraError("");
 
       const profileImage = await convertFileToDataUrl(studentPhotoFile);
-      const faceEmbedding = await generateFaceEmbedding(studentPhotoFile);
+      const faceEmbedding = uploadEmbeddingRef.current || await generateFaceEmbedding(studentPhotoFile);
 
       const authToken = localStorage.getItem("firebase-auth-token");
       if (!authToken) {
@@ -467,12 +723,19 @@ export default function AuthPage({ role }: AuthPageProps) {
       return;
     }
 
+    // Double check validator checks
+    const isUploaded = !!uploadEmbeddingRef.current;
+    if (isUploaded && !uploadChecks.overallPassed) {
+      setCameraError("Verification incomplete. Uploaded image must pass quality checks and match your live webcam feed.");
+      return;
+    }
+
     try {
       setLoading(true);
       setCameraError("");
 
       const profileImage = await convertFileToDataUrl(studentPhotoFile);
-      const faceEmbedding = await generateFaceEmbedding(studentPhotoFile);
+      const faceEmbedding = uploadEmbeddingRef.current || await generateFaceEmbedding(studentPhotoFile);
       await finishGoogleSignup(profileImage, faceEmbedding);
     } catch (error: any) {
       console.error("Google signup completion failed", error);
@@ -614,7 +877,7 @@ export default function AuthPage({ role }: AuthPageProps) {
           : undefined;
       const faceEmbedding =
         activeRole === "student" && studentPhotoFile
-          ? await generateFaceEmbedding(studentPhotoFile)
+          ? (uploadEmbeddingRef.current || await generateFaceEmbedding(studentPhotoFile))
           : undefined;
 
       // const result = await createUserWithEmail(email, password, fullName);
@@ -733,16 +996,327 @@ export default function AuthPage({ role }: AuthPageProps) {
     };
   }, [isCameraOpen]);
 
-  useEffect(() => {
-    return () => {
-      stopCameraStream();
-      if (studentPhotoPreview.startsWith("blob:")) {
-        URL.revokeObjectURL(studentPhotoPreview);
-      }
-    };
-  }, [studentPhotoPreview]);
+  const renderFaceRegistrationControls = (isOptional = false) => {
+    const isUploaded = !!uploadEmbeddingRef.current;
+    
+    return (
+      <div className="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4">
+        {/* Guidelines section */}
+        <div className="space-y-3.5 border-b border-border/60 pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-primary text-xs font-semibold uppercase tracking-wider">
+              <Camera className="h-4 w-4" />
+              Face Identity Guidelines
+            </div>
+            {isOptional ? (
+              <span className="text-[10px] font-semibold bg-muted text-muted-foreground px-2 py-0.5 rounded-full border border-border/40">
+                Optional
+              </span>
+            ) : (
+              <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
+                Required
+              </span>
+            )}
+          </div>
+          
+          <div className="rounded border border-destructive/20 bg-destructive/10 p-2.5 flex items-start gap-2">
+            <ShieldAlert className="h-4.5 w-4.5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="text-[10px] font-bold text-destructive">PERMANENT PHOTO</span>
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                You cannot change your face reference photo after registration. It will be used to verify your attendance during courses.
+              </p>
+            </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-muted-foreground pt-1">
+            <div className="flex items-center gap-1">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
+              <span>Face centered & clear</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
+              <span>Good even lighting</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <XCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
+              <span>No beauty filters</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <XCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
+              <span>No accessories/hats</span>
+            </div>
+          </div>
+        </div>
 
+        {/* Action / Preview section */}
+        {!studentPhotoPreview ? (
+          <div className="space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button type="button" className="flex-1 text-xs" onClick={openCamera}>
+                <Camera className="mr-1.5 h-3.5 w-3.5" />
+                Use Webcam (Recommended)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 text-xs"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="mr-1.5 h-3.5 w-3.5" />
+                Upload Photo
+              </Button>
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleStudentPhotoUpload}
+            />
+
+            {isCameraOpen && (
+              <div className="space-y-3 rounded-lg border border-border p-3 bg-card shadow-sm">
+                <div className="relative overflow-hidden rounded-lg bg-slate-950">
+                  <video
+                    ref={videoCaptureRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="h-56 w-full object-cover"
+                    style={{ transform: "scaleX(-1)" }}
+                  />
+                  
+                  {/* Live Tracking overlay checklist */}
+                  <div className="absolute bottom-2 left-2 right-2 bg-black/80 backdrop-blur-sm rounded p-2 text-[10px] text-white space-y-1 border border-white/10">
+                    <div className="flex justify-between items-center font-semibold text-[9px] uppercase tracking-wider text-muted-foreground pb-0.5 border-b border-white/5">
+                      <span>Webcam Quality</span>
+                      <span className={liveChecks.overallPassed ? "text-green-400" : "text-amber-400 animate-pulse"}>
+                        {liveChecks.overallPassed ? "Ready to Capture" : "Calibrating..."}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-1">
+                      <div className="flex items-center gap-1">
+                        {liveChecks.faceDetected ? (
+                          <CheckCircle2 className="h-3 w-3 text-green-400" />
+                        ) : (
+                          <XCircle className="h-3 w-3 text-red-400" />
+                        )}
+                        <span>Face detected</span>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        {liveChecks.faceCentered ? (
+                          <CheckCircle2 className="h-3 w-3 text-green-400" />
+                        ) : (
+                          <XCircle className="h-3 w-3 text-red-400" />
+                        )}
+                        <span>Centered</span>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        {liveChecks.properLighting ? (
+                          <CheckCircle2 className="h-3 w-3 text-green-400" />
+                        ) : (
+                          <XCircle className="h-3 w-3 text-red-400" />
+                        )}
+                        <span>Good light</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    className="flex-1 text-xs"
+                    onClick={capturePhoto}
+                    disabled={!liveChecks.overallPassed}
+                  >
+                    <Camera className="mr-1.5 h-3.5 w-3.5" />
+                    Capture Photo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="flex-1 text-xs"
+                    onClick={stopCameraStream}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase">Reference image</span>
+                <img
+                  src={studentPhotoPreview}
+                  alt="Student preview"
+                  className="h-36 w-full rounded-lg object-cover border border-border bg-card"
+                />
+              </div>
+
+              {/* Upload Validation status */}
+              {isUploaded ? (
+                <div className="space-y-1 flex flex-col justify-between">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">Quality Checks</span>
+                  
+                  <div className="space-y-1.5 rounded-lg border border-border bg-card p-2 text-[10px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Target className="h-3 w-3 text-primary" /> Face:
+                      </span>
+                      <span className={uploadChecks.faceDetected ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                        {uploadChecks.faceDetected ? "OK" : "No"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Target className="h-3 w-3 text-primary" /> Centered:
+                      </span>
+                      <span className={uploadChecks.faceCentered ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                        {uploadChecks.faceCentered ? "OK" : "No"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Sun className="h-3 w-3 text-primary" /> Light:
+                      </span>
+                      <span className={uploadChecks.properLighting ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                        {uploadChecks.properLighting ? "OK" : "Bad"}
+                      </span>
+                    </div>
+
+                    <div className="border-t border-border/80 pt-1.5 flex items-center justify-between font-semibold">
+                      <span>Webcam match:</span>
+                      <span className={
+                        uploadChecks.matchesWebcam === true 
+                          ? "text-green-600" 
+                          : uploadChecks.matchesWebcam === false 
+                          ? "text-red-600 animate-pulse" 
+                          : "text-amber-500"
+                      }>
+                        {uploadChecks.matchesWebcam === true 
+                          ? "Verified" 
+                          : uploadChecks.matchesWebcam === false 
+                          ? "Mismatch!" 
+                          : "Required"
+                        }
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center border border-dashed rounded-lg h-36 text-muted-foreground text-[10px] p-3 text-center bg-card">
+                  Photo captured directly from webcam is fully verified.
+                </div>
+              )}
+            </div>
+
+            {/* Verification live match camera */}
+            {isVerifyingUpload && isCameraOpen && (
+              <div className="space-y-2 rounded-lg border border-border p-2 bg-card">
+                <div className="relative overflow-hidden rounded-lg bg-slate-950">
+                  <video
+                    ref={videoCaptureRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="h-36 w-full object-cover"
+                    style={{ transform: "scaleX(-1)" }}
+                  />
+                  <div className="absolute bottom-1.5 left-1.5 right-1.5 bg-black/75 backdrop-blur-sm rounded px-1.5 py-1 text-[9px] text-white flex items-center justify-between border border-white/10">
+                    <span className="flex items-center gap-0.5 animate-pulse">
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-500"></span> Live Verification
+                    </span>
+                    <span className={uploadChecks.matchesWebcam === true ? "text-green-400 font-semibold" : "text-amber-400 font-semibold"}>
+                      {uploadChecks.matchesWebcam === true ? "Match Verified!" : "Analyzing..."}
+                    </span>
+                  </div>
+                </div>
+                
+                {uploadChecks.matchesWebcam === false && (
+                  <div className="text-[10px] text-destructive flex items-start gap-1 p-0.5">
+                    <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                    <span>Face in webcam does not match uploaded file. Please use a current photo of yourself.</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Webcam Match Prompt Button */}
+            {isUploaded && !uploadChecks.matchesWebcam && !isVerifyingUpload && (
+              <Button
+                type="button"
+                variant="destructive"
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                onClick={startWebcamVerification}
+              >
+                <Camera className="mr-1.5 h-3.5 w-3.5" />
+                Verify Photo via Webcam (Required)
+              </Button>
+            )}
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 text-xs"
+                onClick={() => {
+                  setStudentPhotoPreview("");
+                  setStudentPhotoFile(null);
+                  setCameraError("");
+                  setIsVerifyingUpload(false);
+                  uploadEmbeddingRef.current = null;
+                  stopCameraStream();
+                  setUploadChecks({
+                    faceDetected: null,
+                    faceCentered: null,
+                    properLighting: null,
+                    matchesWebcam: null,
+                    overallPassed: false,
+                  });
+                }}
+              >
+                <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
+                Retake / Replace
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="flex-1 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={resetStudentPhoto}
+              >
+                <X className="mr-1.5 h-3.5 w-3.5" />
+                Remove
+              </Button>
+            </div>
+            
+            {studentPhotoFile && !isUploaded && (
+              <p className="text-[10px] text-muted-foreground text-center">
+                Captured: {studentPhotoFile.name}
+              </p>
+            )}
+          </div>
+        )}
+
+        {cameraError && (
+          <div className="flex items-start gap-2 text-destructive text-[11px] mt-2 rounded bg-destructive/10 p-2 border border-destructive/20">
+            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+            <p>{cameraError}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Return the new beautiful auth page with Magic UI
   return (
@@ -1107,128 +1681,7 @@ export default function AuthPage({ role }: AuthPageProps) {
                         )}
                       </div>
 
-                      {activeRole === "student" && (
-                        <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
-                          <div className="space-y-1">
-                            <Label className="font-medium">Student Photo (optional)</Label>
-                            <p className="text-xs text-muted-foreground">
-                              Optional now. You can add a face photo here, or do it later
-                              when entering a proctored course that requires it.
-                            </p>
-                          </div>
-
-                          {!studentPhotoPreview ? (
-                            <div className="space-y-3">
-                              <div className="flex flex-col gap-2 sm:flex-row">
-                                <Button
-                                  type="button"
-                                  className="flex-1"
-                                  onClick={openCamera}
-                                >
-                                  <Camera className="mr-2 h-4 w-4" />
-                                  Use webcam
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="flex-1"
-                                  onClick={() => fileInputRef.current?.click()}
-                                >
-                                  <Upload className="mr-2 h-4 w-4" />
-                                  Upload photo
-                                </Button>
-                              </div>
-
-                              <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={handleStudentPhotoUpload}
-                              />
-
-                              {isCameraOpen && (
-                                <div className="space-y-3 rounded-lg border border-border p-3">
-                                  <video
-                                    ref={videoCaptureRef}
-                                    autoPlay
-                                    muted
-                                    playsInline
-                                    className="h-56 w-full rounded-lg bg-slate-950 object-cover"
-                                  />
-                                  <div className="flex flex-col gap-2 sm:flex-row">
-                                    <Button
-                                      type="button"
-                                      className="flex-1"
-                                      onClick={capturePhoto}
-                                    >
-                                      <Camera className="mr-2 h-4 w-4" />
-                                      Capture photo
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      className="flex-1"
-                                      onClick={() => {
-                                        setIsCameraOpen(false);
-                                        stopCameraStream();
-                                      }}
-                                    >
-                                      Cancel
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              <img
-                                src={studentPhotoPreview}
-                                alt="Student preview"
-                                className="h-56 w-full rounded-lg object-cover"
-                              />
-                              <div className="flex flex-col gap-2 sm:flex-row">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="flex-1"
-                                  onClick={openCamera}
-                                >
-                                  <RefreshCcw className="mr-2 h-4 w-4" />
-                                  Retake
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="flex-1"
-                                  onClick={() => fileInputRef.current?.click()}
-                                >
-                                  <Upload className="mr-2 h-4 w-4" />
-                                  Replace
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  className="flex-1 text-red-600 hover:text-red-700"
-                                  onClick={resetStudentPhoto}
-                                >
-                                  <X className="mr-2 h-4 w-4" />
-                                  Remove
-                                </Button>
-                              </div>
-                              {studentPhotoFile && (
-                                <p className="text-xs text-muted-foreground">
-                                  Selected: {studentPhotoFile.name}
-                                </p>
-                              )}
-                            </div>
-                          )}
-
-                          {cameraError && (
-                            <p className="text-xs text-destructive">{cameraError}</p>
-                          )}
-                        </div>
-                      )}
+                      {activeRole === "student" && renderFaceRegistrationControls(true)}
 
                       {/* reCAPTCHA */}
                       {isRecaptchaEnabled ?
@@ -1284,7 +1737,7 @@ export default function AuthPage({ role }: AuthPageProps) {
 
       {googleSignupPending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <Card className="w-full max-w-lg">
+          <Card className="w-full max-w-xl">
             <CardHeader>
               <CardTitle>Add a face photo (optional)</CardTitle>
               <CardDescription>
@@ -1294,93 +1747,7 @@ export default function AuthPage({ role }: AuthPageProps) {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
-                {!studentPhotoPreview ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button type="button" className="flex-1" onClick={openCamera}>
-                        <Camera className="mr-2 h-4 w-4" />
-                        Use webcam
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload photo
-                      </Button>
-                    </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleStudentPhotoUpload}
-                    />
-                    {isCameraOpen && (
-                      <div className="space-y-3 rounded-lg border border-border p-3">
-                        <video
-                          ref={videoCaptureRef}
-                          autoPlay
-                          muted
-                          playsInline
-                          className="h-56 w-full rounded-lg bg-slate-950 object-cover"
-                        />
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                          <Button type="button" className="flex-1" onClick={capturePhoto}>
-                            <Camera className="mr-2 h-4 w-4" />
-                            Capture photo
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="flex-1"
-                            onClick={() => {
-                              setIsCameraOpen(false);
-                              stopCameraStream();
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <img
-                      src={studentPhotoPreview}
-                      alt="Student preview"
-                      className="h-56 w-full rounded-lg object-cover"
-                    />
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={openCamera}
-                      >
-                        <RefreshCcw className="mr-2 h-4 w-4" />
-                        Retake
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="flex-1 text-red-600 hover:text-red-700"
-                        onClick={resetStudentPhoto}
-                      >
-                        <X className="mr-2 h-4 w-4" />
-                        Remove
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                {cameraError && (
-                  <p className="text-xs text-destructive">{cameraError}</p>
-                )}
-              </div>
+              {renderFaceRegistrationControls(true)}
             </CardContent>
             <CardFooter className="flex flex-col gap-2 sm:flex-row">
               <Button
@@ -1396,7 +1763,7 @@ export default function AuthPage({ role }: AuthPageProps) {
                 type="button"
                 className="flex-1"
                 onClick={completeGoogleSignup}
-                disabled={loading || !studentPhotoFile}
+                disabled={loading || !studentPhotoFile || (!!uploadEmbeddingRef.current && !uploadChecks.overallPassed)}
               >
                 {loading ? "Finishing…" : "Submit and continue"}
               </Button>
@@ -1407,7 +1774,7 @@ export default function AuthPage({ role }: AuthPageProps) {
 
       {completeFaceMode && isAuthenticated && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <Card className="w-full max-w-lg">
+          <Card className="w-full max-w-xl">
             <CardHeader>
               <CardTitle>Face photo required</CardTitle>
               <CardDescription>
@@ -1416,100 +1783,14 @@ export default function AuthPage({ role }: AuthPageProps) {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
-                {!studentPhotoPreview ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button type="button" className="flex-1" onClick={openCamera}>
-                        <Camera className="mr-2 h-4 w-4" />
-                        Use webcam
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload photo
-                      </Button>
-                    </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleStudentPhotoUpload}
-                    />
-                    {isCameraOpen && (
-                      <div className="space-y-3 rounded-lg border border-border p-3">
-                        <video
-                          ref={videoCaptureRef}
-                          autoPlay
-                          muted
-                          playsInline
-                          className="h-56 w-full rounded-lg bg-slate-950 object-cover"
-                        />
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                          <Button type="button" className="flex-1" onClick={capturePhoto}>
-                            <Camera className="mr-2 h-4 w-4" />
-                            Capture photo
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="flex-1"
-                            onClick={() => {
-                              setIsCameraOpen(false);
-                              stopCameraStream();
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <img
-                      src={studentPhotoPreview}
-                      alt="Student preview"
-                      className="h-56 w-full rounded-lg object-cover"
-                    />
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={openCamera}
-                      >
-                        <RefreshCcw className="mr-2 h-4 w-4" />
-                        Retake
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="flex-1 text-red-600 hover:text-red-700"
-                        onClick={resetStudentPhoto}
-                      >
-                        <X className="mr-2 h-4 w-4" />
-                        Remove
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                {cameraError && (
-                  <p className="text-xs text-destructive">{cameraError}</p>
-                )}
-              </div>
+              {renderFaceRegistrationControls(false)}
             </CardContent>
             <CardFooter>
               <Button
                 type="button"
                 className="w-full"
                 onClick={saveFaceReference}
-                disabled={loading || !studentPhotoFile}
+                disabled={loading || !studentPhotoFile || (!!uploadEmbeddingRef.current && !uploadChecks.overallPassed)}
               >
                 {loading ? "Saving…" : "Save and continue"}
               </Button>

@@ -6,6 +6,8 @@ import {
   IsArray,
   IsBoolean,
   IsOptional,
+  IsInt,
+  Min,
   validate,
   ValidationError,
 } from 'class-validator';
@@ -23,6 +25,14 @@ export class TimeSlotDto implements ITimeSlot {
   @IsNotEmpty()
   @IsArray()
   studentIds: string[];
+
+  // Optional manual per-slot cap. Normally DERIVED via PUT /timeslots/capacity
+  // (Option A), but accepted here so a slot can also carry a hand-set ceiling
+  // instead of being silently stripped by validation. Undefined = unlimited.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxStudents?: number;
 }
 
 export class AddTimeSlotsDto {

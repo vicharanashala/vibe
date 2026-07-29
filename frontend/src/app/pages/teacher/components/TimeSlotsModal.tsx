@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { StudentPicker } from "./StudentPicker";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +19,9 @@ import {
   useRemoveStudentFromTimeSlot,
   useSetHoursBudget,
   useGrantExtraHours,
+  useGrantExtraBookings,
   useSetFulfillmentConfig,
+  useSetCapacityConfig,
   useSlotDemand,
 } from "@/hooks/hooks";
 import { ClockTimePicker } from "./ClockTimePicker";
@@ -155,9 +158,31 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   // Grant extra committed hours to a specific student.
   const [extendStudentId, setExtendStudentId] = useState<string>("");
   const [extendHours, setExtendHours] = useState<number>(1);
+  // Award extra bookings (consumable pool) to a specific student.
+  const [grantBookingsStudentId, setGrantBookingsStudentId] = useState<string>("");
+  const [grantBookingsCount, setGrantBookingsCount] = useState<number>(1);
   // Phase 3: fulfillment threshold (active share of a window) + bonus toggle.
   const [fulfillmentThresholdPct, setFulfillmentThresholdPct] = useState<number>(90);
   const [bonusOnFulfillment, setBonusOnFulfillment] = useState<boolean>(false);
+  // Capacity planning (Option A): one knob — total students the backend is
+  // provisioned to serve at once — from which each slot's seat cap is derived.
+  // Headroom is shown as a percent to the instructor; sent as a 0–1 factor.
+  const [targetConcurrentStudents, setTargetConcurrentStudents] = useState<number>(0);
+  const [headroomPct, setHeadroomPct] = useState<number>(70);
+  const [capacityResult, setCapacityResult] = useState<{
+    maxOverlappingWindows: number;
+    derivedPerSlotCap: number;
+  } | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Hooks
   const { data: timeSlotsData, refetch: refetchTimeSlots } = useGetTimeSlots(
@@ -176,7 +201,9 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   const removeStudentFromTimeSlotMutation = useRemoveStudentFromTimeSlot();
   const { setHoursBudget, loading: budgetLoading } = useSetHoursBudget();
   const { grantExtraHours, loading: extendLoading } = useGrantExtraHours();
+  const { grantExtraBookings, loading: grantBookingsLoading } = useGrantExtraBookings();
   const { setFulfillmentConfig, loading: fulfillmentLoading } = useSetFulfillmentConfig();
+  const { setCapacityConfig, loading: capacityLoading } = useSetCapacityConfig();
 
   // Seed any saved budget/estimates when the modal loads.
   useEffect(() => {
@@ -192,6 +219,12 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
     }
     if (typeof ts?.bonusOnFulfillment === 'boolean') {
       setBonusOnFulfillment(ts.bonusOnFulfillment);
+    }
+    if (typeof ts?.targetConcurrentStudents === 'number') {
+      setTargetConcurrentStudents(ts.targetConcurrentStudents);
+    }
+    if (typeof ts?.capacityHeadroomFactor === 'number') {
+      setHeadroomPct(Math.round(ts.capacityHeadroomFactor * 100));
     }
   }, [timeSlotsData]);
 
@@ -211,6 +244,31 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
       );
     } catch (error: any) {
       toast.error(error?.message || 'Failed to set fulfillment settings');
+    }
+  };
+
+  const handleSaveCapacity = async () => {
+    try {
+      const result = await setCapacityConfig(
+        courseId,
+        courseVersionId,
+        targetConcurrentStudents,
+        Math.max(0.01, Math.min(1, headroomPct / 100)),
+      );
+      setTargetConcurrentStudents(result.targetConcurrentStudents);
+      setHeadroomPct(Math.round(result.capacityHeadroomFactor * 100));
+      setCapacityResult({
+        maxOverlappingWindows: result.maxOverlappingWindows,
+        derivedPerSlotCap: result.derivedPerSlotCap,
+      });
+      toast.success(
+        `Capacity set: ${result.derivedPerSlotCap} seats/slot ` +
+          `(${result.maxOverlappingWindows} overlapping window${
+            result.maxOverlappingWindows === 1 ? '' : 's'
+          })`,
+      );
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to set capacity settings');
     }
   };
 
@@ -252,13 +310,42 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
     }
   };
 
+  const handleGrantBookings = async () => {
+    if (!grantBookingsStudentId) {
+      toast.error('Select a student first');
+      return;
+    }
+    if (!grantBookingsCount || grantBookingsCount <= 0) {
+      toast.error('Enter a positive number of bookings');
+      return;
+    }
+    try {
+      const result = await grantExtraBookings(
+        courseId,
+        courseVersionId,
+        grantBookingsStudentId,
+        grantBookingsCount,
+      );
+      toast.success(
+        `Awarded ${grantBookingsCount} booking(s) — student can now book ${result.commitmentExtraBookings} extra time(s)`,
+      );
+      setGrantBookingsCount(1);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to award extra bookings');
+    }
+  };
+
   // Get enrolled students for selection
-  const { data: enrollmentsData } = useCourseVersionEnrollments(
+  const {
+    data: enrollmentsData,
+    isLoading: enrollmentsLoading,
+    error: enrollmentsError,
+  } = useCourseVersionEnrollments(
     courseId && courseId.length === 24 ? courseId : undefined,
     courseVersionId && courseVersionId.length === 24 ? courseVersionId : undefined,
     1,
-    1000,
-    "",
+    30, // Limit to 30 results to prevent timeout
+    debouncedSearch,
     "name",
     "asc",
     true,
@@ -267,6 +354,29 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
   );
 
   const enrolledStudents = enrollmentsData?.enrollments || [];
+
+  // Build {id,label} options for the student pickers with a robust label:
+  // "First Last — email", falling back to email, then the id, when a name is
+  // missing. Keeps the picker usable even for accounts with blank names.
+  const studentOptions = enrolledStudents
+    .filter((enr: any) => enr.user)
+    .map((enr: any) => {
+      const name = `${enr.user.firstName ?? ""} ${enr.user.lastName ?? ""}`.trim();
+      const label = name
+        ? enr.user.email
+          ? `${name} — ${enr.user.email}`
+          : name
+        : enr.user.email || enr.user._id;
+      return { id: enr.user._id, label };
+    });
+
+  // Placeholder for the typeahead pickers — reflects an error/empty state so an
+  // empty picker is never silent (loading is handled inside StudentPicker).
+  const studentPlaceholder = enrollmentsError
+    ? "Failed to load students"
+    : studentOptions.length === 0
+      ? "No students found"
+      : "Search students by name or email…";
 
   // Demand schedule for today (booked load per window) — the capacity-planning view.
   const {
@@ -767,6 +877,80 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                     </CardContent>
                   </Card>
 
+                  {/* Booking capacity (Option A: capacity-derived seat caps) */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Clock className="h-5 w-5" />
+                          Booking capacity
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Set how many students the backend can serve at once. Each slot's seat cap is derived automatically as <span className="font-medium">target × headroom ÷ overlapping windows</span>, so concurrent load stays within budget. Headroom reserves room for booking rushes and other traffic.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-4">
+                        <div className="w-48">
+                          <Label className="text-xs">Target concurrent students</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={targetConcurrentStudents || ""}
+                            onChange={(e) =>
+                              setTargetConcurrentStudents(
+                                Math.max(0, Number(e.target.value)),
+                              )
+                            }
+                            className="mt-1"
+                            placeholder="e.g. 1000"
+                          />
+                        </div>
+                        <div className="w-32">
+                          <Label className="text-xs">Headroom (%)</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={headroomPct}
+                            onChange={(e) =>
+                              setHeadroomPct(
+                                Math.max(1, Math.min(100, Number(e.target.value))),
+                              )
+                            }
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      {capacityResult && (
+                        <p className="text-xs text-muted-foreground">
+                          Derived:{" "}
+                          <span className="font-medium text-foreground">
+                            {capacityResult.derivedPerSlotCap}
+                          </span>{" "}
+                          seats per slot across{" "}
+                          {capacityResult.maxOverlappingWindows} overlapping
+                          window
+                          {capacityResult.maxOverlappingWindows === 1 ? "" : "s"}.
+                          Slots already fuller than this keep their booked count.
+                        </p>
+                      )}
+                      <div>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveCapacity}
+                          disabled={capacityLoading || !targetConcurrentStudents}
+                        >
+                          {capacityLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4 mr-2" />
+                          )}
+                          Apply capacity
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   {/* Grant extra hours to a student */}
                   <Card className="border shadow-sm">
                     <CardContent className="p-4 space-y-3">
@@ -782,20 +966,16 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                       <div className="flex items-end gap-2">
                         <div className="flex-1">
                           <Label className="text-xs">Student</Label>
-                          <select
-                            value={extendStudentId}
-                            onChange={(e) => setExtendStudentId(e.target.value)}
-                            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          >
-                            <option value="">Select a student…</option>
-                            {enrolledStudents.map((enr: any) =>
-                              enr.user ? (
-                                <option key={enr.user._id} value={enr.user._id}>
-                                  {enr.user.firstName} {enr.user.lastName}
-                                </option>
-                              ) : null,
-                            )}
-                          </select>
+                          <div className="mt-1">
+                            <StudentPicker
+                              options={studentOptions}
+                              value={extendStudentId}
+                              onChange={setExtendStudentId}
+                              onSearchChange={setSearchQuery}
+                              loading={enrollmentsLoading}
+                              placeholder={studentPlaceholder}
+                            />
+                          </div>
                         </div>
                         <div className="w-24">
                           <Label className="text-xs">Hours</Label>
@@ -816,6 +996,56 @@ function TimeSlotsModal({ isOpen, onClose, courseId, courseVersionId }: TimeSlot
                             <Plus className="h-4 w-4 mr-2" />
                           )}
                           Grant
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Award extra bookings to a student (consumable pool) */}
+                  <Card className="border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Plus className="h-5 w-5" />
+                          Award extra bookings
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Let a specific student book again beyond their daily limit. Each award is a one-time pool — every extra booking they make uses one up. These bookings ignore the slot capacity cap and hours budget.
+                        </p>
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <Label className="text-xs">Student</Label>
+                          <div className="mt-1">
+                            <StudentPicker
+                              options={studentOptions}
+                              value={grantBookingsStudentId}
+                              onChange={setGrantBookingsStudentId}
+                              onSearchChange={setSearchQuery}
+                              loading={enrollmentsLoading}
+                              placeholder={studentPlaceholder}
+                            />
+                          </div>
+                        </div>
+                        <div className="w-24">
+                          <Label className="text-xs">Bookings</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={grantBookingsCount}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                              setGrantBookingsCount(e.target.value === "" ? 0 : parseInt(e.target.value))
+                            }
+                            className="mt-1"
+                          />
+                        </div>
+                        <Button size="sm" onClick={handleGrantBookings} disabled={grantBookingsLoading}>
+                          {grantBookingsLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4 mr-2" />
+                          )}
+                          Award
                         </Button>
                       </div>
                     </CardContent>

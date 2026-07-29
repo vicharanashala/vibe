@@ -46,6 +46,45 @@ class QuestionBankRepository {
     throw new Error('Failed to create question bank');
   }
 
+  /**
+   * Find the crowd "Submitted – Pending Validation" bank for a given graded
+   * bank (keyed by sourceGradedBankId). Returns null if none exists yet.
+   */
+  async findCrowdSubmittedBankByGradedBankId(
+    gradedBankId: string,
+    session?: ClientSession,
+  ): Promise<IQuestionBank | null> {
+    await this.init();
+    return this.questionBankCollection.findOne(
+      {
+        crowdSubmitted: true,
+        sourceGradedBankId: new ObjectId(gradedBankId),
+        isDeleted: {$ne: true},
+      },
+      {session},
+    );
+  }
+
+  /**
+   * Find the crowd "Submitted – Pending Validation" bank staged for a given
+   * quiz (keyed by sourceQuizId). Returns null if this quiz has no crowd
+   * submissions yet — the bank is created lazily on first submission.
+   */
+  async findCrowdSubmittedBankByQuizId(
+    quizId: string,
+    session?: ClientSession,
+  ): Promise<IQuestionBank | null> {
+    await this.init();
+    return this.questionBankCollection.findOne(
+      {
+        crowdSubmitted: true,
+        sourceQuizId: new ObjectId(quizId),
+        isDeleted: {$ne: true},
+      },
+      {session},
+    );
+  }
+
   async getById(
     questionBankId: string,
     session?: ClientSession,

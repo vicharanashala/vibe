@@ -58,19 +58,18 @@ export class UserRepository implements IUserRepository {
    */
   async create(user: IUser, session?: ClientSession): Promise<string> {
     await this.init();
-    const existingUser = await this.usersCollection.findOne(
-      {email: user.email},
-      {session},
-    );
-
-    if (existingUser) {
-      throw new Error('User already exists');
+    if (!user._id) {
+      user._id = new ObjectId();
     }
-    const result = await this.usersCollection.insertOne(user, {session});
-    if (!result.acknowledged) {
+    const result = await this.usersCollection.findOneAndUpdate(
+      { firebaseUID: user.firebaseUID },
+      { $setOnInsert: user },
+      { upsert: true, returnDocument: 'after', session },
+    );
+    if (!result) {
       throw new InternalServerError('Failed to create user');
     }
-    return result.insertedId.toString();
+    return result._id.toString();
   }
 
   /**

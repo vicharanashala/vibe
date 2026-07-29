@@ -242,7 +242,30 @@ class QuizService extends BaseService {
           };
         }),
       );
-      return banks.filter(Boolean);
+
+      // Surface the crowd "To Be Verified" bank for this quiz, if one exists.
+      // It is deliberately NOT part of questionBankRefs (never counted toward
+      // the quiz's graded draw) — this only makes pending student submissions
+      // visible to instructors from the quiz item itself.
+      const crowdBank = await this.questionBankRepo.findCrowdSubmittedBankByQuizId(
+        quizId,
+        session,
+      );
+      const crowdEntry = crowdBank
+        ? [
+            {
+              bankId: crowdBank._id.toString(),
+              count: crowdBank.questions?.length ?? 0,
+              title: 'To Be Verified',
+              description: crowdBank.description,
+              tags: crowdBank.tags,
+              difficulty: undefined as string[] | undefined,
+              crowdSubmitted: true,
+            },
+          ]
+        : [];
+
+      return [...banks.filter(Boolean), ...crowdEntry];
     });
   }
   getUserMetricsForQuiz(userId: string, quizId: string, cohortId?: string) {

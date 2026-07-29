@@ -57,6 +57,10 @@ export interface ItemContainerProps {
   setAttemptId?: (attemptId: string) => void;
   rewindVid?: boolean;
   pauseVid?: boolean;
+  /** Increment to pause the video without showing the anomaly overlay (focused learn UI). */
+  pauseSignal?: number;
+  /** Sustained away-pause (cursor left page); auto-resumes on return if it was playing. */
+  awayPaused?: boolean;
   displayNextLesson?: boolean;
   setQuizPassed?: (passed: number) => void; // Function to update quizPassed
   anomalies?: string[];
