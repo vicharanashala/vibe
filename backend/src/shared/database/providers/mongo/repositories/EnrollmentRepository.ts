@@ -3682,6 +3682,31 @@ export class EnrollmentRepository {
   }
 
   /**
+   * Lightweight count of active student enrollments for a course version,
+   * across all cohorts. Used to scale the crowd-question peer-validation gate
+   * threshold to cohort size (see studentQuestions/services/crowdGate.ts) —
+   * intentionally a countDocuments rather than the fuller
+   * getVersionEnrollmentStats aggregation, since only the count is needed.
+   */
+  async countActiveStudents(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    return await this.enrollmentCollection.countDocuments(
+      {
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
+        role: 'STUDENT',
+        status: { $regex: /^active$/i },
+        isDeleted: { $ne: true },
+      },
+      { session },
+    );
+  }
+
+  /**
    * Returns the distinct student user IDs whose progress for a given course
    * version is at or above `minPercent`, across all cohorts. Used to backfill
    * follow-up invites for students who reached the threshold but never received

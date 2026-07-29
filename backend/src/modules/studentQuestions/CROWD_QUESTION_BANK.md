@@ -31,25 +31,31 @@ mechanism for engagement + assessment quality).
 > Remaining V3 work (student answer + 👍/👎, the peer-validation gate, and
 > approval→graded promotion) is still open.
 
-> 🛑 **CURRENT STATE (as of 2026-07-17): crowd questions are NOT YET served to
-> students** — serving is still disabled in code
-> (`AttemptService._getQuestionsForAttempt` does not append a COLLECTING
-> question). The serving helpers (`_findPrecedingVideoSegments`,
-> `_pickCollectingQuestion`, `_adaptStudentQuestionToRenderView`) are retained
-> but dormant.
+> ✅ **CURRENT STATE (as of 2026-07-27): crowd questions ARE served to
+> students.** `AttemptService._getQuestionsForAttempt` appends at most one
+> COLLECTING crowd question per quiz attempt (via `_findPrecedingVideoSegments`
+> → `_pickCollectingQuestion` → `_adaptStudentQuestionToRenderView`), students
+> can answer + 👍/👎 it, and `_capturePeerResponses` records the response on
+> submit via `StudentQuestionService.recordPeerResponse`. The instructor queue
+> can filter to `gateState=ELIGIBLE`.
 >
-> ✅ **AGREED TARGET WORKFLOW (2026-07-17).** Serving is re-enabled, but **only
-> behind an LLM-judge screen** that runs first (new **Stage 0**, below). The
-> judge validates each submission against the source-video **transcript** on two
-> axes: **(1) context relevance** — is the question actually about that segment's
-> content? — and **(2) answer-key correctness** — does the marked correct option
-> actually follow from the transcript? Only questions that pass BOTH are then
-> served to *other* students as an **ungraded** item, where each student
-> **answers** it and gives a **thumbs up / thumbs down**. The judge fixes the two
-> things peer voting never could — off-topic/gibberish screening and an
-> independently-verified answer key — so the peer `correctRate` / thumbs signal
-> is meaningful rather than confounded. Instructor approval remains the final
-> gate into the graded bank.
+> **Deliberate scope decision (2026-07-27): serving was re-enabled WITHOUT
+> waiting for the Stage-0 relevance/on-topic check** (see Stage 0 below —
+> `SCREENING_CONTEXT_ENABLED` stays `false`, blocked on the transcript
+> backfill). The other Stage-0 checks (well-formedness, duplicate, answer-key
+> correctness on model knowledge) already run on every submission and were
+> judged sufficient gating to unblock the peer-validation loop now; the
+> transcript-grounded relevance check remains a follow-up, not a prerequisite.
+>
+> **Gate threshold scaled to cohort size.** A fixed `responseCount ≥ 200` is
+> unreachable on small pilot cohorts (see Open q. 8, resolved below).
+> `crowdGate.ts` now derives the threshold from active enrollment via
+> `computeMinResponsesForGate()` instead of a hardcoded constant.
+>
+> Below is the original V3 serving design (still accurate for the mechanics —
+> author/already-answered exclusion, fewest-responses-first pick, ungraded
+> scoring skip); only the "Stage 0 required first" framing is superseded by the
+> above.
 
 ---
 
@@ -133,10 +139,8 @@ Both signals are recorded per (question, student) and feed the gate.
 
 ### Serving rules — one extra question per quiz attempt
 
-> 🛑 **Disabled as of 2026-06-24** — see "CURRENT STATE" note at the top. No
-> crowd question is served to students until the relevance/quality filter
-> (Future work) is in place. The rules below describe the *original* V3 serving
-> design, retained for when serving is re-enabled.
+> ✅ **Live as of 2026-07-27** — see "CURRENT STATE" note at the top. The rules
+> below are the current implementation.
 
 When a student starts a quiz attempt, **exactly one** additional **ungraded**
 crowd question is appended to the attempt, drawn from that quiz's pending /
@@ -182,10 +186,12 @@ On attempt submission, for the served crowd question:
 A COLLECTING question becomes **ELIGIBLE** (sent to the instructor for
 approval) when **ALL** of the following hold:
 
-1. **Minimum sample:** at least **200** students have answered it
-   (`responseCount ≥ 200`). Below this the rates below are not evaluated — the
-   question keeps collecting. This guards against promoting on noise from a
-   handful of responses.
+1. **Minimum sample:** at least `computeMinResponsesForGate(enrolledStudentCount)`
+   students have answered it — half the course version's active enrollment,
+   floored at 5 and capped at 200 (see `services/crowdGate.ts`). A fixed 200 is
+   unreachable on small pilot cohorts (Open q. 8, resolved 2026-07-27 by
+   scaling instead of leaving fixed). Below this the rates below are not
+   evaluated — the question keeps collecting.
 2. **Difficulty band:** the proportion of students who answer it **correctly**
    is **≥ 30% and ≤ 70%** (`0.30 ≤ correctRate ≤ 0.70`). This is the classic
    item-difficulty / discrimination band — too-easy and too-hard questions are
@@ -196,8 +202,13 @@ If a question does not meet the gate, it stays in COLLECTING and keeps
 gathering responses.
 
 The thresholds live in code in `services/crowdGate.ts`
-(`MIN_RESPONSES_FOR_GATE = 200`, `MIN/MAX_CORRECT_RATE`, `MAX_THUMBS_DOWN_RATE`)
-— `evaluateCrowdGate()` / `isEligibleForReview()` are the single source of truth.
+(`computeMinResponsesForGate()`, `MIN/MAX_CORRECT_RATE`, `MAX_THUMBS_DOWN_RATE`)
+— `evaluateCrowdGate()` / `isEligibleForReview()` are the single source of
+truth. `evaluateCrowdGate`/`isEligibleForReview` now take the resolved
+`minResponses` as an explicit argument rather than reading a module constant,
+so the gate module itself stays pure/dependency-free; the caller
+(`StudentQuestionService.recordPeerResponse`) resolves it via
+`EnrollmentRepository.countActiveStudents()` on each response.
 
 ### Counters per submitted question
 
@@ -231,27 +242,32 @@ The thresholds live in code in `services/crowdGate.ts`
   `crowdSubmitted:true` on the `questionBanks` doc, keyed to its quiz via
   `sourceGradedBankId` / `sourceQuizId`; never added to the quiz's
   `questionBankRefs`, so it stays out of graded draws.
-- **🆕 Stage-0 LLM-judge screen (NOT built — agreed 2026-07-17).** New on-submit
-  step that validates context relevance + answer-key correctness against the
-  segment transcript (see "Stage 0" below). Gates entry into COLLECTING; also run
-  as a one-time backfill over the 788-question backlog.
-- **🔁 Serve crowd questions to students (currently DISABLED; to be re-enabled
-  behind Stage 0).** `AttemptService._getQuestionsForAttempt` **currently** does
-  not append a COLLECTING crowd question. The serving helpers
-  (`_pickCollectingQuestion`: fewest-responses-first, excludes the author and
-  already-answered; plus `_findPrecedingVideoSegments` /
-  `_adaptStudentQuestionToRenderView`) and the `peerCorrectLotItemId` capture
-  plumbing remain in place but dormant. Re-enable so that **only Stage-0-passed
-  (COLLECTING)** questions are served ungraded for answer + 👍/👎.
-- **✅ Capture + gate evaluation (DONE).** On submit,
-  `AttemptService._capturePeerResponses` scores the answer, reads the `thumb`,
-  and calls `StudentQuestionRepository.recordCrowdResponse` (idempotent per
-  (question, student) via a unique index on `studentCrowdResponses`), which
-  bumps counters; then `isEligibleForReview()` flips the question to ELIGIBLE
-  (`markEligible`) once it passes the 200-response gate.
-- ⛔ **Instructor queue** should source from ELIGIBLE, not all PENDING. *(not
-  built — `listCourseVersionQuestions` still lists all PENDING; needs a
-  gateState=ELIGIBLE filter.)*
+- **🆕 Stage-0 LLM-judge screen — PARTIAL.** Well-formedness, duplicate, and
+  answer-key-vs-model-knowledge checks run on every submission. The context
+  (on-topic relevance) check is built but held off behind
+  `SCREENING_CONTEXT_ENABLED=false` pending the transcript backfill — see
+  "Stage 0" below. **Not a prerequisite for serving** (see 2026-07-27 scope
+  decision at the top of this doc).
+- **✅ Serve crowd questions to students (DONE, 2026-07-27).**
+  `AttemptService._getQuestionsForAttempt` appends one COLLECTING crowd
+  question per attempt via `_findPrecedingVideoSegments` →
+  `_pickCollectingQuestion` (fewest-responses-first, excludes the author and
+  already-answered, via `StudentQuestionRepository.findCollectingForSegments` /
+  `listAnsweredQuestionIds`) → `_adaptStudentQuestionToRenderView` (also
+  returns the shuffled `peerCorrectLotItemId` for scoring at capture).
+- **✅ Capture + gate evaluation (DONE, 2026-07-27).** On submit,
+  `AttemptService._capturePeerResponses` scores the answer against
+  `peerCorrectLotItemId`, reads the `thumb`, and calls
+  `StudentQuestionService.recordPeerResponse` →
+  `StudentQuestionRepository.recordCrowdResponse` (idempotent per (question,
+  student) via a unique index on `studentCrowdResponses`), which bumps
+  counters; then `isEligibleForReview()` (with the enrollment-scaled
+  threshold) flips the question to ELIGIBLE (`markEligible`) once it passes
+  the gate.
+- **✅ Instructor queue (DONE, 2026-07-27).** `listCourseVersionQuestions` /
+  `listByCourseVersion` accept an optional `gateState=COLLECTING|ELIGIBLE`
+  filter; the teacher review UI defaults to `ELIGIBLE` (selectable back to any
+  gate state) and shows a response-count badge per COLLECTING question.
 - **✅ On Approve, promote into the graded QB (DONE).**
   `updateQuestionStatus(...,'APPROVED')` now calls
   `QuestionBankService.promoteSubmittedQuestionToGraded(promotedId)`, which
@@ -260,11 +276,15 @@ The thresholds live in code in `services/crowdGate.ts`
   soft-deletes the question.
 
 Affected files (current):
+- `backend/src/modules/quizzes/services/AttemptService.ts` (serving + capture)
 - `backend/src/modules/studentQuestions/services/StudentQuestionService.ts`
+- `backend/src/modules/studentQuestions/services/crowdGate.ts` (scaled threshold)
+- `backend/src/shared/database/providers/mongo/repositories/EnrollmentRepository.ts` (`countActiveStudents`)
 - `backend/src/modules/studentQuestions/classes/transformers/StudentSegmentQuestion.ts` (status enum, counters)
-- `backend/src/modules/studentQuestions/repositories/StudentQuestionRepository.ts`
+- `backend/src/modules/studentQuestions/repositories/providers/mongodb/StudentQuestionRepository.ts`
 - `backend/src/modules/studentQuestions/controllers/StudentQuestionController.ts`
-- Frontend: crowd-question answer + thumbs UI; instructor review queue.
+- `backend/src/modules/studentQuestions/classes/validators/StudentQuestionValidator.ts` (`gateState` filter)
+- Frontend: `components/quiz.tsx` (peer question thumbs UI), `app/pages/teacher/StudentQuestionReview.tsx` + `components/StudentQuestionRow.tsx` (gate-state filter/badge).
 
 ---
 
@@ -334,21 +354,30 @@ Open q. 9); how to handle segments whose transcript is missing / low quality.
    (`MIN_RESPONSES_FOR_GATE` in `services/crowdGate.ts`).
 3. ~~**Thumbs-down denominator.**~~ **RESOLVED: out of all votes (👍+👎)** —
    `thumbsDownRate = thumbsDownCount / (thumbsUpCount + thumbsDownCount)`.
-4. **Status enum** — add `COLLECTING` and `ELIGIBLE`, or reuse `PENDING` +
-   an `eligibleForReview` boolean?
-5. **Who sees crowd questions** — same cohort only? Exclude the author?
-   One vote/answer per student enforced how?
-6. **Non-graduating questions** — do COLLECTING questions that never pass the
-   gate expire, get discarded, or live forever?
+4. ~~**Status enum**~~ **RESOLVED: reuse `PENDING` + a separate `gateState`
+   field** (`'COLLECTING' | 'ELIGIBLE'`, only meaningful while
+   `status === 'PENDING'`) — already on `StudentSegmentQuestion`.
+5. ~~**Who sees crowd questions**~~ **RESOLVED:** author excluded via
+   `findCollectingForSegments`'s `createdBy: {$ne: excludeUserId}`; one
+   vote/answer per student enforced by a unique `(studentQuestionId, userId)`
+   index on `studentCrowdResponses`. Explicit same-cohort scoping isn't
+   needed on top of this — a student can only ever attempt quizzes within
+   their own enrolled course version, so serving is implicitly cohort-scoped.
+6. **Non-graduating questions — DEFERRED (2026-07-27).** COLLECTING questions
+   that never pass the gate accumulate indefinitely for now; no expiry/discard
+   job exists. Research-instrumentation value in retaining full history
+   outweighs UI clutter at current volumes. An instructor can manually
+   REJECT a stale COLLECTING question via the existing status-update endpoint
+   if needed.
 7. **Data migration** — the 208 already-submitted (currently PENDING +
    wrongly promoted) questions in *Fundamentals of AI – Summership 2026*:
    roll back their V1.1 promotions and move them into the Submitted QB?
-8. **Gate threshold vs. cohort size.** `MIN_RESPONSES_FOR_GATE = 200` is
-   unreachable on the courses that currently have submission enabled (5 and 10
-   learners; `responseCount` = 0 across all 788 collected to date). Confirm we
-   keep 200 (peer-validation only meaningfully runs on large cohorts; small
-   pilots effectively rely on Stage-0 judge + instructor), or scale the
-   threshold to enrollment.
+8. ~~**Gate threshold vs. cohort size.**~~ **RESOLVED (2026-07-27): scaled to
+   enrollment**, not left fixed. `computeMinResponsesForGate()` in
+   `services/crowdGate.ts` derives the threshold from
+   `EnrollmentRepository.countActiveStudents()`: half the active cohort,
+   floored at 5, capped at 200.
 9. **Key-mismatch handling.** When the Stage-0 judge disagrees with the marked
    answer: auto-reject to HELD, or keep + flag for the instructor with the
-   judge's suggested key?
+   judge's suggested key? (Moot until the relevance/key-check half of Stage 0
+   is re-enabled — see top of doc.)

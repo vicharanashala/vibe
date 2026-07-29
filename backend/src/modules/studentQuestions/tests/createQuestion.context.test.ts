@@ -65,6 +65,7 @@ function makeService(overrides: {
     itemRepo,
     screeningService,
     segmentContextProvider,
+    {} as any, // enrollmentRepo
   );
 }
 

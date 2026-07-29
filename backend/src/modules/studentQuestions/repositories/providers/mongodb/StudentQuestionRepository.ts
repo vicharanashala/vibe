@@ -159,6 +159,7 @@ export class StudentQuestionRepository {
     courseId: string;
     courseVersionId: string;
     status?: StudentQuestionStatus;
+    gateState?: 'COLLECTING' | 'ELIGIBLE';
     limit: number;
   }): Promise<IStudentSegmentQuestion[]> {
     await this.init();
@@ -169,6 +170,9 @@ export class StudentQuestionRepository {
     };
     if (input.status) {
       filter.status = input.status;
+    }
+    if (input.gateState) {
+      filter.gateState = input.gateState;
     }
     return await this.collection
       .find(filter)
