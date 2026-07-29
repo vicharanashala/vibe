@@ -148,6 +148,54 @@ describe('Role matrix: admin vs instructor', () => {
     });
   });
 
+  describe('Export is an admin and manager capability, held at course level', () => {
+    it('lets an admin export any course', () => {
+      const ability = getCourseAbility(admin);
+      expect(ability.can(CourseActions.Export, ownCourse)).toBe(true);
+      expect(ability.can(CourseActions.Export, otherCourse)).toBe(true);
+    });
+
+    it('lets a manager export their own course but not another', () => {
+      const ability = getCourseAbility(manager);
+      expect(ability.can(CourseActions.Export, ownCourse)).toBe(true);
+      expect(ability.can(CourseActions.Export, otherCourse)).toBe(false);
+    });
+
+    it('denies instructors, TAs and students', () => {
+      for (const user of [instructor, ta, student]) {
+        expect(
+          getCourseAbility(user).can(CourseActions.Export, ownCourse),
+        ).toBe(false);
+      }
+    });
+
+    it('does not let an instructor inherit export from their manage grant', () => {
+      // Regression guard: instructors hold `manage` on their own course, which
+      // covers every action unless export is denied explicitly.
+      const ability = getCourseAbility(instructor);
+      expect(ability.can(CourseActions.Modify, ownCourse)).toBe(true);
+      expect(ability.can(CourseActions.Export, ownCourse)).toBe(false);
+    });
+
+    it('still lets someone export a course they manage while instructing another', () => {
+      const both: AuthenticatedUser = {
+        userId: 'u-both',
+        globalRole: 'user',
+        enrollments: [
+          {courseId: COURSE, versionId: VERSION, role: 'INSTRUCTOR'} as any,
+          {
+            courseId: OTHER_COURSE,
+            versionId: OTHER_VERSION,
+            role: 'MANAGER',
+          } as any,
+        ],
+      };
+      const ability = getCourseAbility(both);
+      expect(ability.can(CourseActions.Export, otherCourse)).toBe(true);
+      expect(ability.can(CourseActions.Export, ownCourse)).toBe(false);
+    });
+  });
+
   describe('Students and TAs are unaffected', () => {
     it('keeps students read-only on their own course', () => {
       const ability = getCourseAbility(student);

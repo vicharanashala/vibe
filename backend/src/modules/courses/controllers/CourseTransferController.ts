@@ -31,10 +31,6 @@ import {
   ExportCourseVersionParams,
   ImportCourseResponse,
 } from '#courses/classes/validators/CourseTransferValidators.js';
-import {
-  CourseVersionActions,
-  getCourseVersionAbility,
-} from '../abilities/versionAbilities.js';
 import {CourseActions, getCourseAbility} from '../abilities/courseAbilities.js';
 import {CourseNotFoundErrorResponse} from '#courses/classes/validators/CourseValidators.js';
 
@@ -55,8 +51,9 @@ export class CourseTransferController {
 
   @OpenAPI({
     summary: 'Export a course version',
-    description: `Serialises a course version into a self-contained JSON bundle that can be imported on another ViBe server.<br/><br/>${NOT_CARRIED_BY_BUNDLE}<br/><br/>Accessible to:
-- Instructor or Manager of the course version.`,
+    description: `Serialises the named course version into a self-contained JSON bundle that can be imported on another ViBe server. The version to bundle is always given explicitly, and the bundle records which one it was.<br/><br/>${NOT_CARRIED_BY_BUNDLE}<br/><br/>Accessible to:
+- Admins, for any course.
+- Managers of the course.`,
   })
   @Authorized()
   @Get('/:courseId/version/:versionId/export')
@@ -71,16 +68,19 @@ export class CourseTransferController {
   })
   async export(
     @Params() params: ExportCourseVersionParams,
-    @Ability(getCourseVersionAbility) {ability, user},
+    @Ability(getCourseAbility) {ability, user},
     @Req() req: any,
     @Res() res: any,
   ) {
     const {courseId, versionId} = params;
 
-    const versionSubject = subject('CourseVersion', {versionId});
-    if (!ability.can(CourseVersionActions.Modify, versionSubject)) {
+    // Gated at the course level, not the version: exporting is a
+    // whole-course capability held by admins and managers, and deliberately
+    // not by instructors of the course.
+    const courseSubject = subject('Course', {courseId});
+    if (!ability.can(CourseActions.Export, courseSubject)) {
       throw new ForbiddenError(
-        'You do not have permission to export this course version',
+        'You do not have permission to export this course',
       );
     }
 

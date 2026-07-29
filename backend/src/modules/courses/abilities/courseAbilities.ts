@@ -7,7 +7,8 @@ export enum CourseActions {
     Create = "create",
     Modify = "modify",
     Delete = "delete",
-    View = "view"
+    View = "view",
+    Export = "export"
 }
 
 // Subjects
@@ -42,9 +43,14 @@ export function setupCourseAbilities(
                 break;
             case 'INSTRUCTOR':
                 // Instructors hold the same permissions as an admin, narrowed
-                // to their own courses — except creating and deleting courses.
+                // to their own courses — except creating and deleting courses,
+                // and exporting one.
                 can('manage', 'Course', courseBounded);
                 cannot(CourseActions.Delete, 'Course', courseBounded);
+                // Exporting lifts an entire course out of the platform, so it
+                // stays with admins and managers. The deny is explicit because
+                // the `manage` grant above would otherwise cover it.
+                cannot(CourseActions.Export, 'Course', courseBounded);
                 break;
             case 'MANAGER':
                 can('manage', 'Course', courseBounded);
