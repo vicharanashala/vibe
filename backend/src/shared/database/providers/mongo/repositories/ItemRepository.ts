@@ -493,6 +493,18 @@ export class ItemRepository implements IItemRepository {
       })) ||
       (await this.feedbackFormCollection.findOne({
         _id: objectId,
+      })) ||
+      // Peer-review items live in the peer_review_assessments
+      // collection (created by PeerReviewAssessmentService.create via
+      // ItemRepository.createItem, which routes
+      // PEER_REVIEW_ASSESSMENT to peerReviewAssessmentCollection).
+      // Without this lookup, ProgressService.stopItem throws
+      // "Item not found" when a student starts a peer-review item via
+      // useStartItem and then submits, which breaks the entire
+      // student submission flow. Match the same collection the
+      // create-time insert uses.
+      (await this.peerReviewAssessmentCollection.findOne({
+        _id: objectId,
       }));
 
     if (!item) {
