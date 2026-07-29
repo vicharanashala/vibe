@@ -801,9 +801,13 @@ export class CourseRepository implements ICourseRepository {
       }
       const { _id: _, ...fields } = courseVersion;
 
-      const isExistVersion = await this.courseVersionCollection.findOne({
-        _id: new ObjectId(versionId),
-      });
+      // Must read in the caller's session: a version created earlier in the
+      // same transaction is invisible to a session-less read, so the check
+      // below would spuriously reject it.
+      const isExistVersion = await this.courseVersionCollection.findOne(
+        { _id: new ObjectId(versionId) },
+        { session },
+      );
 
       if (!isExistVersion)
         throw new InternalServerError(
