@@ -30,7 +30,7 @@ class QuestionRepository {
     session?: ClientSession,
   ): Promise<string | null> {
     await this.init();
-    const result = await this.questionCollection.insertOne(question);
+    const result = await this.questionCollection.insertOne(question, {session});
     if (result.acknowledged && result.insertedId) {
       return result.insertedId.toString();
     }
