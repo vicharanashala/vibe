@@ -32,6 +32,11 @@ import {
  */
 export class RubricCriterionDto {
   @Expose()
+  @IsOptional()
+  @IsString()
+  criterionId?: string;
+
+  @Expose()
   @IsString()
   @MinLength(1)
   @MaxLength(100)
