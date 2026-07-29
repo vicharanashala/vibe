@@ -29,6 +29,7 @@ import {
   RotateCcw,
   FlagTriangleRight,
   Copy,
+  Download,
   UserCheck,
   Headphones,
   ExternalLink,
@@ -74,6 +75,7 @@ import type { RawEnrollment } from "@/types/course.types"
 import { components } from "@/types/schema"
 import { useAnomalyStore } from "@/store/anomaly-store"
 import { ProjectSubmissionsDownloadButton } from "./components/ProjectSubmissionsDownloadButton"
+import { downloadCourseBundle } from "@/lib/course-transfer"
 import { toast } from "sonner"
 import ConfirmationModal from "./components/confirmation-modal"
 import { AnnouncementModal } from "@/components/announcements/AnnouncementModal"
@@ -1219,6 +1221,7 @@ function VersionCard({
   const { setCurrentCourseFlag } = useFlagStore()
   const { setCurrentAnomaly } = useAnomalyStore();
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Edit state variables 
   const [editingVersion, setEditingVersion] = useState(false)
@@ -1538,6 +1541,23 @@ function VersionCard({
       toast.error('Failed to generate link. Please try again.');
     }
   };
+  // Downloads the version as a portable bundle for import on another server.
+  const handleExportVersion = async () => {
+    if (!courseId || !selectedVersionId) {
+      toast.error('Failed to find course or version id, try again!');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const fileName = await downloadCourseBundle(courseId, selectedVersionId);
+      toast.success(`Exported as ${fileName}`);
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to export this course version');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleCopy = async () => {
     try {
       if (!courseId || !selectedVersionId) {
@@ -1691,6 +1711,15 @@ function VersionCard({
                       <DropdownMenuItem onClick={() => setIsCopyModalOpen(true)}>
                         <Copy className="mr-2 h-4 w-4" />
                         Clone
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem onClick={handleExportVersion} disabled={isExporting}>
+                        {isExporting ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="mr-2 h-4 w-4" />
+                        )}
+                        Export
                       </DropdownMenuItem>
 
                       <DropdownMenuItem onClick={configureCohorts}>
