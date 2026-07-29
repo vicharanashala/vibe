@@ -1,56 +1,22 @@
 # Session Context — Digital Learning Companion
 
-**Date:** 2026-07-12
+**Date:** 2026-07-14
 **Status:** ✅ COMPLETE — all features implemented, all risks resolved
 
 ---
 
-## ✅ COMPLETED — newJourney Feature
-
-**What it does:** When a new enrollment drops the companion's average progress by ≥15 points from the last known state (prev ≥ 20%), the companion shows a "new journey" message. The message persists until the user makes forward progress (realProgress increases).
-
-### Files changed:
-
-| File | Change |
-|---|---|
-| `backend/src/modules/companion/classes/interfaces.ts` | Added `newJourney: boolean` to `ICompanion`; fixed comment "≥15 points" |
-| `backend/src/modules/companion/classes/Companion.ts` | `toJSON()` accepts + returns `newJourney: boolean` |
-| `backend/src/modules/companion/repositories/providers/mongodb/CompanionRepository.ts` | Added `updateProgressMeta()` (detects drop, sets flag), `clearNewJourney()` |
-| `backend/src/modules/companion/services/CompanionService.ts` | `getCompanionState()` + `selectAnimal()` call `updateProgressMeta()` after computing `realProgress` |
-| `backend/src/modules/companion/controllers/CompanionController.ts` | Added `PATCH /me/new-journey-seen` endpoint |
-| `frontend/src/types/companion.ts` | Added `CompanionMood` type with `newJourney`; added `newJourney` to `CompanionState` |
-| `frontend/src/store/companion-store.ts` | Added `newJourney: boolean` to `CompanionState`; rewrote store cleanly (fixed structural error) |
-| `frontend/src/components/Companion/CompanionWidget.tsx` | `newJourney` effect shows one-shot message; progress-increase effect auto-clears; footer shows "new journey" during active message; `toPrototypeMood` handles `newJourney` |
-| `frontend/src/components/Companion/companionRenderer.js` | Added `MSGS.newJourney` (4 messages) and `MPILLS.newJourney` (teal `#e0f7fa/#006064/🚀`) |
-
-### Behaviour:
-- **Trigger:** realProgress drops by ≥15pts from lastKnownProgress (prev must be ≥20%)
-- **Message:** random from `MSGS.newJourney` — persists until user makes progress
-- **Auto-clear:** when `realProgress` increases (user starts learning new course), message clears, normal mood resumes
-- **Backend acknowledge:** `PATCH /me/new-journey-seen` clears flag server-side
-- **Persistence:** server-authoritative — survives page refreshes
-
-### Test:
-```powershell
-node backend/scripts/_reset-companion-test.cjs
-node backend/scripts/_test-mixed-progress.cjs 1   # avg(100,0)=50% → Stage 3 Teen 🌿
-node backend/scripts/_test-mixed-progress.cjs 2   # avg(100,0,0)=33% → Stage 2 Child 🌱 + newJourney fires
-# Start learning → message clears
-```
-
----
-
-## ✅ All Companion Features
+## ✅ COMPLETED — All Companion Features
 
 | Feature | Status |
 |---|---|
-| 6 growth stages (Baby → Elder) | ✅ Complete |
+| 6 growth stages (Baby → Toddler → Child → Teen → Young Adult → Adult) | ✅ Complete |
 | 7 moods + neutral + studying | ✅ Complete |
 | newJourney message (≥15pt drop → persists until progress) | ✅ Complete |
 | Sleeping eyes (cute, soft lashes + blush) | ✅ Complete |
 | Neutral mood smile | ✅ Complete |
 | Server-authoritative state (no stale session refs) | ✅ Complete |
 | `POST /me` scope: only writes `animal`, rest computed | ✅ Complete |
+| Graduation cap removed (quiz score has no effect on companion) | ✅ Complete |
 
 ---
 
@@ -59,6 +25,15 @@ node backend/scripts/_test-mixed-progress.cjs 2   # avg(100,0,0)=33% → Stage 2
 **Logic:** `realProgress = average(percentCompleted)` across all `enrollments` (STUDENT role, non-deleted).
 
 **Stage boundaries:** 0/17/33/50/67/83/100
+
+```
+Stage 0 — Baby 🥚    (0–16%)
+Stage 1 — Toddler 🐣 (17–32%)
+Stage 2 — Child 🌱   (33–49%)
+Stage 3 — Teen 🌿    (50–66%)
+Stage 4 — Young Adult 🌸 (67–82%)
+Stage 5 — Adult ⭐   (83–100%)
+```
 
 **Mood derivation (AMOOD):**
 ```
@@ -75,24 +50,103 @@ else            → happy
 
 ---
 
-## Test Scripts
+## Quiz Score — Decision
+
+- Quiz score (`latestQuizScore`) is fetched from `quiz_submission_results` (most recent graded submission)
+- **It has no effect on the companion** — no growth impact, no behaviour change, no graduation cap
+- Quiz score is still passed to the frontend in the API response (harmless, available if needed later)
+- Decision: leave it in the codebase, unused but not causing any issues
+
+---
+
+## Graduation Cap — Removed
+
+**What was removed:**
+- Backend: `graduationCap` field removed from `ICompanion` interface and `Companion.toJSON()`
+- Frontend: `graduationCap` removed from `CompanionState` type, store, and widget footer
+- Renderer: `drawGradCap()` call removed from render loop
+
+**Files changed:**
+| File | Change |
+|---|---|
+| `backend/src/modules/companion/classes/interfaces.ts` | Removed `graduationCap: boolean` |
+| `backend/src/modules/companion/classes/Companion.ts` | Removed `graduationCap` from `toJSON()` live params and return |
+| `backend/src/modules/companion/services/CompanionService.ts` | Removed `graduationCap` computation from `getCompanionState()` and `selectAnimal()` |
+| `frontend/src/types/companion.ts` | Removed `graduationCap` from `CompanionState` |
+| `frontend/src/store/companion-store.ts` | Removed `graduationCap` from `CompanionState` interface |
+| `frontend/src/components/Companion/CompanionWidget.tsx` | Removed 🎓 cap display from footer |
+| `frontend/src/components/Companion/companionRenderer.js` | Removed `drawGradCap()` call from render loop |
+
+**Commit:** `9384a620` — `feat(companion): remove graduation cap feature`
+
+---
+
+## Admin Companion View — Decision
+
+**Question:** Should admins/instructors be able to see students' companions?
+
+**Decision:** No — not necessary.
+
+**Reasoning:**
+- Companion is a personal motivation/gamification feature for students
+- Admins don't need to monitor companion states
+- No business requirement to build an admin companion view
+- Focus should stay on making the student experience great
+
+---
+
+## Companion — Student Only
+
+The companion widget is only shown on the **student dashboard**. Instructors/admins see their own dashboard (course management) and do not have access to the companion widget. No companion-related view exists for admins.
+
+---
+
+## Testing
+
+### Test Scripts (backend/scripts/)
 
 ```powershell
-# Reset to Stage 0 / neutral
-node backend/scripts/_reset-companion-test.cjs
+# Reset companion to Stage 0 / neutral mood
+node scripts/_reset-companion-test.cjs
 
-# Phase 1: avg(100,0)=50% → Stage 3 Teen
-node backend/scripts/_test-mixed-progress.cjs 1
+# Test with mixed progress (1 enrollment at 100%, 1 at 0%) → avg 50%
+node scripts/_test-mixed-progress.cjs 1
 
-# Phase 2: avg(100,0,0)=33% → Stage 2 Child + newJourney fires
-node backend/scripts/_test-mixed-progress.cjs 2
+# Test with mixed progress (100%, 0%, 0%) → avg 33%
+node scripts/_test-mixed-progress.cjs 2
 
-# Specific stage (percentCompleted %)
-node backend/scripts/_test-stage.cjs 50
+# Force a specific stage (0=Baby, 5=Adult)
+node scripts/_test-stage.cjs 50
 
-# Specific mood (idleDays, percentCompleted)
-node backend/scripts/_test-mood.cjs 3 20
+# Force a specific mood + idle days
+node scripts/_test-mood.cjs <idleDays> <progress>
 ```
+
+### How to Test (Manual)
+
+1. Run a test script to set a specific state
+2. Open the student dashboard in the browser
+3. Refresh the page (or wait 30s for auto-poll)
+4. Observe: animal, stage, mood, messages all update correctly
+
+### What to Test
+
+| Scenario | Expected Result |
+|---|---|
+| Fresh student, picks animal | Baby 🥚, neutral mood, picks any animal |
+| Progress goes up | Stage advances (Baby → Toddler → ...) |
+| No activity for 1 day | Mood: sad |
+| No activity for 3 days | Mood: angry |
+| No activity for 5+ days | Mood: sleeping 😴 |
+| Complete all courses (100%) | Mood: celebrating 🎉 |
+| Enroll in new course (drops avg ≥15pts) | newJourney message appears |
+| Start making progress on new course | newJourney message clears |
+
+### Testing Approach Summary (for mentor)
+
+1. **Manual UI testing** — created student accounts, picked animals, enrolled in courses, completed lessons, observed companion state changes
+2. **Boundary testing via test scripts** — simulated specific states (progress levels, idle days, mixed enrollments, newJourney trigger)
+3. **Verified** stage progression, mood transitions, newJourney message, and studying signal all work correctly
 
 ---
 
@@ -126,12 +180,8 @@ node backend/scripts/_test-mood.cjs 3 20
 **Branch:** `digital-virtual-companion`
 **Remote:** `origin`
 
-**Committed:** `a14ad837` — `feat(companion): complete newJourney system + cross-check fixes`
-
-12 files changed, 744 insertions(+), 170 deletions(-)
-
-```powershell
-git log --oneline digital-virtual-companion -5
-```
+**Latest commits:**
+- `9384a620` — `feat(companion): remove graduation cap feature`
+- `a14ad837` — `feat(companion): complete newJourney system + cross-check fixes`
 
 View online: `https://github.com/sahasraa09/vibe/commits/digital-virtual-companion`
