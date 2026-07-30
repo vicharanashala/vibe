@@ -162,22 +162,14 @@ export class PeerReviewAssignmentService extends BaseService {
         );
       }
     }
-    // Pull assignments for these other assessments via the underlying
-    // collection — the repo doesn't expose findByAssessment yet. We
-    // do a raw query through the DB reference.
-    const db = (this as any).database as MongoDatabase;
-    const assignColl = await db.getCollection('peer_review_assignments');
-    const { ObjectId: MongoObjectId } = await import('mongodb');
+    // Pull assignments for these other assessments via the repo, which
+    // handles the ObjectId coercion internally (this whole bug class —
+    // a filter shaped as {assessmentId: '<hex>'} against a stored
+    // ObjectId field silently returns [] and the algorithm reports
+    // 'already_ran' without persisting anything). See vibe-debugging-
+    // pitfalls skill: server-side ObjectId coercion bug class.
     for (const otherId of otherAssessmentIds) {
-      const filter: any = {};
-      if (MongoObjectId.isValid(otherId)) {
-        filter.assessmentId = new MongoObjectId(otherId);
-      } else {
-        filter.assessmentId = otherId;
-      }
-      const rows = await assignColl
-        .find(filter)
-        .toArray();
+      const rows = await this.assignmentRepo.findByAssessment(otherId);
       for (const row of rows) {
         priorPairs.push(
           ...pairsFromAssignments(
@@ -190,7 +182,6 @@ export class PeerReviewAssignmentService extends BaseService {
         );
       }
     }
-    void MongoObjectId;
 
     // 3. Run the algorithm
     const result = assignReviewers(
