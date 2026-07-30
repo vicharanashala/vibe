@@ -119,7 +119,6 @@ export function assignReviewers(
 
   // --- primary attempt loop: collision-checked circular-shift ---
   const maxAttempts = config.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
-  let lastFallbackPairs: AssignmentOutput[] | null = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const rng = makeRng(seed + attempt * 31);
     const order = shuffle(submissions, rng);
@@ -166,23 +165,14 @@ export function assignReviewers(
   const pairs: AssignmentOutput[] = [];
   for (let i = 0; i < N; i++) {
     const submitter = order[i];
-    // Pick `target` distinct reviewers from `order` excluding self. With
-    // N >= 2 and target < N there's always enough non-self candidates.
-    const candidates = order.filter(
-      (o) => o.studentId !== submitter.studentId,
-    );
-    const picked = new Set<string>();
-    for (const c of candidates) {
-      if (picked.size >= target) break;
-      picked.add(c.studentId);
-    }
-    // If candidates ran out (extremely small N), fall back to
-    // round-robin through order.
-    if (picked.size < target) {
-      for (const o of order) {
-        if (picked.size >= target) break;
-        if (o.studentId !== submitter.studentId) picked.add(o.studentId);
-      }
+    // Pick `target` distinct reviewers from `order` excluding self.
+    // The early `N < 2` guard above guarantees order.length >= 2 and
+    // target < N, so there are always enough non-self candidates and
+    // a single pass through `order` suffices.
+    const picked: string[] = [];
+    for (const o of order) {
+      if (picked.length >= target) break;
+      if (o.studentId !== submitter.studentId) picked.push(o.studentId);
     }
     for (const reviewerId of picked) {
       pairs.push({
@@ -192,7 +182,6 @@ export function assignReviewers(
       });
     }
   }
-  void lastFallbackPairs; // silence unused-var lint for j
   return {
     ok: true,
     algorithm: 'fallback-uniform-random',
