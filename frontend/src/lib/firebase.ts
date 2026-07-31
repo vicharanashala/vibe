@@ -1,7 +1,7 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth, 
+  connectAuthEmulator,
   GoogleAuthProvider, 
   signInWithPopup, 
   signInWithEmailAndPassword, 
@@ -12,28 +12,33 @@ import { getAuth,
   confirmPasswordReset,
   verifyPasswordResetCode } from "firebase/auth";
 import { useAuthStore } from "../store/auth-store";
-import { useLoginWithGoogle } from "@/hooks/hooks";
-
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-key",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "vibe-5b35a.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "vibe-5b35a",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "vibe-5b35a.appspot.com",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "123456789",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:123456789:web:123456789",
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
-
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
+
+// Connect to Firebase Auth Emulator in local dev mode
+const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === "true" || import.meta.env.DEV;
+if (useEmulator) {
+  const emulatorHost = import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_HOST || "http://127.0.0.1:9099";
+  try {
+    connectAuthEmulator(auth, emulatorHost, { disableWarnings: true });
+  } catch (error) {
+    // connectAuthEmulator throws if already connected (e.g. Vite HMR)
+  }
+}
 
 // Firebase authentication functions
 export const loginWithGoogle = async () => {
@@ -61,7 +66,6 @@ export const loginWithEmail = async (email: string, password: string) => {
 
 // Add a function to create a user with email and password
 export const createUserWithEmail = async (email: string, password: string, displayName?: string) => {
-  const auth = getAuth(app);
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   
   // Update user profile if display name is provided
@@ -79,8 +83,6 @@ export const createUserWithEmail = async (email: string, password: string, displ
  * Firebase automatically handles email delivery
  */
 export const sendPasswordResetEmail = async (email: string) => {
-  const auth = getAuth(app);
-  
   try {
     // This triggers Firebase to send password reset email
     await firebaseSendPasswordResetEmail(auth, email, {
@@ -114,8 +116,6 @@ export const sendPasswordResetEmail = async (email: string) => {
  * Verifies a password reset code is valid
  */
 export const verifyResetCode = async (code: string) => {
-  const auth = getAuth(app);
-  
   try {
     const email = await verifyPasswordResetCode(auth, code);
     return { valid: true, email };
@@ -138,8 +138,6 @@ export const verifyResetCode = async (code: string) => {
  * Resets password using the code from email
  */
 export const resetPassword = async (code: string, newPassword: string) => {
-  const auth = getAuth(app);
-  
   try {
     await confirmPasswordReset(auth, code, newPassword);
     return {

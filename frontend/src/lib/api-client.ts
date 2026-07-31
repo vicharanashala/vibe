@@ -1,3 +1,7 @@
+import { auth } from "./firebase";
+
+import { useAuthStore } from "@/store/auth-store";
+
 type ApiResponse<T = unknown> = {
   data: T;
 };
@@ -8,9 +12,20 @@ type RequestOptions = {
 
 const getBaseUrl = () => import.meta.env.VITE_BASE_URL ?? "";
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("firebase-auth-token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+const getAuthToken = async (): Promise<string | null> => {
+  if (auth.currentUser) {
+    try {
+      const token = await auth.currentUser.getIdToken();
+      if (token) {
+        localStorage.setItem("firebase-auth-token", token);
+        useAuthStore.getState().setToken(token);
+        return token;
+      }
+    } catch (e) {
+      console.error("Failed to get Firebase ID token:", e);
+    }
+  }
+  return useAuthStore.getState().token || localStorage.getItem("firebase-auth-token");
 };
 
 async function request<T>(
@@ -19,15 +34,41 @@ async function request<T>(
 ): Promise<ApiResponse<T>> {
   const baseUrl = getBaseUrl();
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const response = await fetch(`${baseUrl}${normalizedPath}`, {
+  const token = await getAuthToken();
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...((init.headers as Record<string, string>) || {}),
+  };
+
+  let response = await fetch(`${baseUrl}${normalizedPath}`, {
     ...init,
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-      ...(init.headers || {}),
-    },
+    headers,
   });
+
+  // Handle 401 by attempting token refresh once if firebase auth user exists
+  if (response.status === 401) {
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const freshToken = await currentUser.getIdToken(true);
+        if (freshToken) {
+          localStorage.setItem("firebase-auth-token", freshToken);
+          useAuthStore.getState().setToken(freshToken);
+          headers["Authorization"] = `Bearer ${freshToken}`;
+          response = await fetch(`${baseUrl}${normalizedPath}`, {
+            ...init,
+            credentials: "include",
+            headers,
+          });
+        }
+      }
+    } catch (refreshErr) {
+      console.error("Token refresh retry failed in apiClient:", refreshErr);
+    }
+  }
 
   const data = await response.json();
 

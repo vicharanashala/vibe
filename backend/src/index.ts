@@ -14,7 +14,7 @@ import { getContainer, loadAppModules } from './bootstrap/loadModules.js';
 import { createRateLimiter, HttpErrorHandler, MongoDatabase } from './shared/index.js';
 import { apiReference } from '@scalar/express-api-reference';
 import { printStartupSummary } from './utils/logDetails.js';
-import type { CorsOptions } from 'cors';
+import cors, { type CorsOptions } from 'cors';
 import { authorizationChecker } from './shared/functions/authorizationChecker.js';
 import { currentUserChecker } from './shared/functions/currentUserChecker.js';
 import { startCron } from './utils/startCron.js';
@@ -40,6 +40,8 @@ const corsOptions: CorsOptions = {
   credentials: true,
   optionsSuccessStatus: 204,
 };
+
+app.use(cors(corsOptions));
 
 const moduleOptions: RoutingControllersOptions = {
   controllers: controllers,
