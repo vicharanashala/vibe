@@ -40,6 +40,12 @@ export default function StudentQuestionRow({
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={STATUS_VARIANT[question.status]}>{question.status}</Badge>
+              {isPending && question.gateState && (
+                <Badge variant={question.gateState === 'ELIGIBLE' ? 'default' : 'outline'}>
+                  {question.gateState === 'ELIGIBLE' ? 'Eligible for review' : 'Collecting'}
+                  {typeof question.responseCount === 'number' && ` · ${question.responseCount} responses`}
+                </Badge>
+              )}
               {showSegmentBadge && (
                 <span className="text-xs text-muted-foreground">
                   segment: <code className="font-mono">{question.segmentId.slice(-6)}</code>

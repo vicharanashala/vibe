@@ -3,13 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, BookOpen, Plus, AlertCircle, CheckCircle, Rocket, GitBranch, HelpCircle, Lightbulb, Info, GraduationCap, Activity  } from "lucide-react";
+import { Loader2, BookOpen, Plus, AlertCircle, CheckCircle, Rocket, GitBranch, HelpCircle, Lightbulb, Info, GraduationCap, Activity, Upload  } from "lucide-react";
 import { useCreateCourse } from "@/hooks/hooks";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ImportCourseBundle from "./components/ImportCourseBundle";
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -129,7 +131,19 @@ export default function CreateCourse() {
       <div className="max-w-4xl mx-auto py-4 space-y-8">
         <CreateCourseHeader />
 
-        <div className="space-y-8">
+        <Tabs defaultValue="create" className="space-y-8">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="create">
+              <Plus className="h-4 w-4 mr-2" />
+              Create new
+            </TabsTrigger>
+            <TabsTrigger value="import">
+              <Upload className="h-4 w-4 mr-2" />
+              Import bundle
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="create" className="space-y-8">
 
           <CourseMetaForm
             courseDescription={courseDescription}
@@ -180,7 +194,12 @@ export default function CreateCourse() {
             />
           )}
 
-        </div>
+          </TabsContent>
+
+          <TabsContent value="import">
+            <ImportCourseBundle />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
@@ -294,7 +313,7 @@ export const CreateCourseHeader = () => {
               d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          Only administrators can create new courses.
+          Only administrators can create or import courses.
         </p>
       </div>
     </div>

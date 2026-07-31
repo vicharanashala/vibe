@@ -32,6 +32,13 @@ export interface StudentQuestionSubmissionResult {
 
 export type StudentQuestionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
+/**
+ * Peer-validation lifecycle state; only meaningful while status === 'PENDING'.
+ * COLLECTING = served ungraded to students, gathering answers + 👍/👎.
+ * ELIGIBLE = passed the gate and now awaits instructor approval.
+ */
+export type StudentQuestionGateState = 'COLLECTING' | 'ELIGIBLE';
+
 export interface StudentQuestionListItem {
   _id: string;
   segmentId: string;
@@ -47,6 +54,11 @@ export interface StudentQuestionListItem {
   reviewedBy?: string;
   reviewedAt?: string;
   rejectionReason?: string;
+  gateState?: StudentQuestionGateState;
+  responseCount?: number;
+  correctCount?: number;
+  thumbsUpCount?: number;
+  thumbsDownCount?: number;
 }
 
 export interface StudentQuestionListResponse {
@@ -58,6 +70,8 @@ export type StudentQuestionStatusFilter =
   | 'APPROVED'
   | 'REJECTED'
   | 'ALL';
+
+export type StudentQuestionGateStateFilter = StudentQuestionGateState | 'ALL';
 
 export interface UpdateStudentQuestionPayload {
   questionText?: string;

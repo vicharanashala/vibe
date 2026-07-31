@@ -22,11 +22,12 @@ import {COURSES_TYPES} from '../../courses/types.js';
 import {SOLQuestion} from '../../quizzes/classes/transformers/Question.js';
 import {IQuizDetails, ItemType} from '#root/shared/interfaces/models.js';
 import {ISOLSolution} from '#root/shared/interfaces/quiz.js';
-import {isEligibleForReview} from './crowdGate.js';
+import {computeMinResponsesForGate, isEligibleForReview} from './crowdGate.js';
 import {ScreeningService, ScreeningResult} from './screening/ScreeningService.js';
 import {SegmentContextProvider} from './context/SegmentContextProvider.js';
 import {IScreeningVerdict} from '../classes/transformers/StudentSegmentQuestion.js';
 import {screeningConfig} from '#root/config/screening.js';
+import {EnrollmentRepository} from '#root/shared/index.js';
 
 const REPEATED_CHAR_PATTERN = /(.)\1{7,}/;
 const REPEATED_WORD_PATTERN = /(\b\w+\b)(\s+\1){4,}/;
@@ -63,6 +64,8 @@ export class StudentQuestionService {
     private readonly screeningService: ScreeningService,
     @inject(STUDENT_QUESTION_TYPES.SegmentContextProvider)
     private readonly segmentContextProvider: SegmentContextProvider,
+    @inject(GLOBAL_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo: EnrollmentRepository,
   ) {}
 
   private async _stageToSubmittedBank(
@@ -527,7 +530,19 @@ export class StudentQuestionService {
     try {
       const counters = await this.repository.recordCrowdResponse(input);
       if (!counters) return; // already responded — no double count
-      if (isEligibleForReview(counters)) {
+
+      const question = (
+        await this.repository.findByIds([input.studentQuestionId])
+      )[0];
+      if (!question) return;
+
+      const enrolledCount = await this.enrollmentRepo.countActiveStudents(
+        question.courseId.toString(),
+        question.courseVersionId.toString(),
+      );
+      const minResponses = computeMinResponsesForGate(enrolledCount);
+
+      if (isEligibleForReview(counters, minResponses)) {
         await this.repository.markEligible(input.studentQuestionId);
       }
     } catch (err) {
@@ -548,6 +563,7 @@ export class StudentQuestionService {
     courseId: string;
     courseVersionId: string;
     status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
+    gateState?: 'COLLECTING' | 'ELIGIBLE';
     limit: number;
   }) {
     const repoStatus =
@@ -556,6 +572,7 @@ export class StudentQuestionService {
       courseId: input.courseId,
       courseVersionId: input.courseVersionId,
       status: repoStatus,
+      gateState: input.gateState,
       limit: input.limit,
     });
   }

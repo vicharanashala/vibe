@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown } from "lucide-react";
+import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse, useSkipOptionalItem, useSubmitStudentQuestion } from '@/hooks/hooks';
 import StudentQuestionComposer from './StudentQuestionComposer';
 import type { StudentQuestionSubmissionPayload } from '@/types/student-question.types';
@@ -66,6 +66,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // ===== CORE STATE =====
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | number | number[] | string[]>>({});
+  // Stage-2 crowd questions: the student's optional 👍/👎 on a peer-contributed question.
+  const [peerThumbs, setPeerThumbs] = useState<Record<string, 'UP' | 'DOWN'>>({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
@@ -236,6 +238,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, []);
 
   const isAnswerValid = useCallback((question: QuizQuestion, answer: string | number | number[] | string[]): boolean => {
+    // Stage-2 crowd questions are optional — never block Next/Finish on them.
+    if (question.isPeerContributed) return true;
     if (answer === undefined || answer === null) return false;
 
     switch (question.type) {
@@ -257,6 +261,18 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       default:
         return false;
     }
+  }, []);
+
+  const togglePeerThumb = useCallback((questionId: string, thumb: 'UP' | 'DOWN') => {
+    setPeerThumbs(prev => {
+      const next = { ...prev };
+      if (next[questionId] === thumb) {
+        delete next[questionId];
+      } else {
+        next[questionId] = thumb;
+      }
+      return next;
+    });
   }, []);
 
   // ===== DATA CONVERSION FUNCTIONS =====
@@ -342,7 +358,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       answerText?: string;
       value?: number;
       orders?: Order[];
-    }
+    };
+    // Stage-2 crowd questions only: the student's 👍/👎 on the ungraded peer question.
+    thumb?: 'UP' | 'DOWN';
   }> => {
     return quizQuestions
       .map(question => {
@@ -435,7 +453,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         return {
           questionId: question.id,
           questionType: question.type,
-          answer: saveAnswer
+          answer: saveAnswer,
+          ...(question.isPeerContributed && peerThumbs[question.id]
+            ? { thumb: peerThumbs[question.id] }
+            : {}),
         };
       })
       .filter(questionAnswer => {
@@ -446,7 +467,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           (!Array.isArray(value) || value.length > 0)
         );
       });
-  }, [quizQuestions, answers]);
+  }, [quizQuestions, answers, peerThumbs]);
 
   // ===== COURSE ITEM TRACKING FUNCTIONS =====
   const handleSendStartItem = useCallback(async (forceStart = false) => {
@@ -1974,6 +1995,29 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               </Badge>
             )}
           </div>
+          {currentQuestion.isPeerContributed && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                Was this a good question? (optional)
+              </span>
+              <Button
+                type="button"
+                variant={peerThumbs[currentQuestion.id] === 'UP' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => togglePeerThumb(currentQuestion.id, 'UP')}
+              >
+                <ThumbsUp className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant={peerThumbs[currentQuestion.id] === 'DOWN' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => togglePeerThumb(currentQuestion.id, 'DOWN')}
+              >
+                <ThumbsDown className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           <h2 className="text-2xl font-semibold leading-tight">
             {/* <MathRenderer>
               {preprocessMathContent(currentQuestion.question.replace(/\\n/g, '\n'))}

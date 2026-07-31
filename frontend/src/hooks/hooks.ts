@@ -2403,6 +2403,7 @@ export function useListStudentQuestions(): {
     courseVersionId: string,
     status?: import('@/types/student-question.types').StudentQuestionStatusFilter,
     limit?: number,
+    gateState?: import('@/types/student-question.types').StudentQuestionGateStateFilter,
   ) => Promise<import('@/types/student-question.types').StudentQuestionListResponse>;
   listForSegment: (
     courseId: string,
@@ -2456,9 +2457,11 @@ export function useListStudentQuestions(): {
     courseVersionId: string,
     status: import('@/types/student-question.types').StudentQuestionStatusFilter = 'ALL',
     limit = 100,
+    gateState?: import('@/types/student-question.types').StudentQuestionGateStateFilter,
   ) => {
     const params = new URLSearchParams();
     if (status && status !== 'ALL') params.set('status', status);
+    if (gateState && gateState !== 'ALL') params.set('gateState', gateState);
     params.set('limit', String(limit));
     const url = `${import.meta.env.VITE_BASE_URL}/student-questions/courses/${courseId}/versions/${courseVersionId}?${params.toString()}`;
     return await request(url);
@@ -5251,6 +5254,11 @@ export const useHideItem = (): {
 
 export interface GenerateAIQuestionsBody {
   text?: string;
+  courseId?: string;
+  versionId?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  focusAreas?: string;
+  avoidTopics?: string;
 }
 
 export const useGenerateAIQuestions = (): {

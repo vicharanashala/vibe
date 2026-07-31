@@ -55,7 +55,7 @@ export class StudentQuestionController {
     }
     const questions = await this.service.listMyQuestions({
       userId,
-      status: query.status,
+      status: query.status as 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL' | undefined,
       limit: query.limit ?? 100,
     });
     return {
@@ -154,7 +154,8 @@ export class StudentQuestionController {
     const questions = await this.service.listCourseVersionQuestions({
       courseId: params.courseId,
       courseVersionId: params.courseVersionId,
-      status: query.status,
+      status: query.status as 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL' | undefined,
+      gateState: query.gateState as 'COLLECTING' | 'ELIGIBLE' | undefined,
       limit: query.limit ?? 100,
     });
     return {
@@ -173,6 +174,11 @@ export class StudentQuestionController {
         reviewedBy: q.reviewedBy?.toString(),
         reviewedAt: q.reviewedAt?.toISOString(),
         rejectionReason: q.rejectionReason,
+        gateState: q.gateState,
+        responseCount: q.responseCount,
+        correctCount: q.correctCount,
+        thumbsUpCount: q.thumbsUpCount,
+        thumbsDownCount: q.thumbsDownCount,
       })),
     };
   }
