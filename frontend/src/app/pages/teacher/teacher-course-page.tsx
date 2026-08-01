@@ -4403,7 +4403,7 @@ function PeerReviewTeacherPanel({
     );
     setEditLatePenaltyPercent(Number(a.config?.latePenaltyPercent ?? a.latePenaltyPercent ?? 10));
     setEditTeacherManualReviewEnabled(
-      Boolean(a.config?.teacherManualReviewEnabled ?? a.teacherManualReviewEnabled),
+      Boolean(a.config?.teacherManualReviewEnabled ?? a.teacherManualReviewEnabled ?? true),
     );
     setEditNotificationsEnabled(
       Boolean(a.config?.notificationsEnabled ?? a.notificationsEnabled ?? true),
@@ -4888,6 +4888,7 @@ function PeerReviewSubmissionsSection({
   rubric: Array<{ criterionId: string; label: string; maxPoints: number }>;
   teacherManualReviewEnabled: boolean;
 }) {
+  const queryClient = useQueryClient();
   const { data, isLoading, error, refetch } = useTeacherSubmissionsForAssessment(assessmentId);
   const reviewsQueryResult = useTeacherReviewsForAssessment(assessmentId);
   const overrideMutation = useTeacherOverrideReview();
@@ -4899,6 +4900,66 @@ function PeerReviewSubmissionsSection({
   const [overrideComment, setOverrideComment] = useState('');
   const [overrideReason, setOverrideReason] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'flagged'>('all');
+
+  const handleStartOverride = (review: any) => {
+    setEditingReviewId(review.reviewId);
+    setOverrideComment(review.overallComment || '');
+    setOverrideReason('');
+    const scoresMap: Record<string, number> = {};
+    for (const s of review.scores || []) {
+      scoresMap[s.criterionId] = s.score;
+    }
+    setOverrideScores(scoresMap);
+  };
+
+  const handleSaveOverride = async (reviewId: string) => {
+    if (overrideReason.trim().length < 20) {
+      toast.error('Override reason must be at least 20 characters.');
+      return;
+    }
+    try {
+      const scoresPayload = Object.entries(overrideScores).map(([cid, val]) => ({
+        criterionId: cid,
+        score: val,
+      }));
+
+      await overrideMutation.mutateAsync({
+        params: { path: { id: reviewId } },
+        body: {
+          scores: scoresPayload,
+          overallComment: overrideComment.trim(),
+          reason: overrideReason.trim(),
+        },
+      });
+
+      toast.success('Score overridden successfully');
+      setEditingReviewId(null);
+      queryClient.invalidateQueries();
+      refetch();
+      reviewsQueryResult.refetch();
+    } catch (e: any) {
+      toast.error('Override failed: ' + (e?.message || 'unknown error'));
+    }
+  };
+
+  const handleResetOverride = async (reviewId: string) => {
+    try {
+      await overrideMutation.mutateAsync({
+        params: { path: { id: reviewId } },
+        body: {
+          reset: true,
+          reason: 'Resetting override to original score',
+        },
+      });
+      toast.success('Reset to original scores');
+      setEditingReviewId(null);
+      queryClient.invalidateQueries();
+      refetch();
+      reviewsQueryResult.refetch();
+    } catch (e: any) {
+      toast.error('Reset failed: ' + (e?.message || 'unknown error'));
+    }
+  };
 
   const submissions = useMemo(() => data?.submissions ?? [], [data]);
   const reviews = useMemo(() => reviewsQueryResult.data?.reviews ?? [], [reviewsQueryResult.data]);
@@ -5330,7 +5391,7 @@ function PeerReviewSubmissionsSection({
                                   )}
 
                                   {/* Override Controls */}
-                                  {teacherManualReviewEnabled && (
+                                  {teacherManualReviewEnabled !== false && (
                                     <div className="pt-2 border-t flex flex-col gap-2">
                                       {!isEditing ? (
                                         <div className="flex justify-end gap-2">
