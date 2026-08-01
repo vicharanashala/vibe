@@ -1121,24 +1121,15 @@ function TeacherCourseContent() {
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');
     panel.setAttribute('aria-label', 'Peer-Review Assessment');
-    panel.style.cssText = [
-      'background: white',
-      'border-radius: 12px',
-      'width: 100%',
-      'max-width: 800px',
-      'max-height: 90vh',
-      'overflow-y: auto',
-      'padding: 24px',
-      'box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25)',
-    ].join(';');
+    panel.className = "bg-popover text-popover-foreground border border-border rounded-xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-4";
 
     panel.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="margin:0;font-size:20px;font-weight:600;">Peer-Review Assessment</h2>
+      <div class="flex items-center justify-between pb-3 border-b border-border">
+        <h3 class="text-lg font-bold text-foreground">Peer-Review Assessment</h3>
         <button type="button" id="__pr_imperative_modal_close__" aria-label="Close"
-          style="background:transparent;border:none;font-size:24px;cursor:pointer;line-height:1;padding:4px;">×</button>
+          class="text-muted-foreground hover:text-foreground text-2xl font-bold p-1 rounded transition-colors">&times;</button>
       </div>
-      <div id="__pr_imperative_modal_body__"><p>Loading...</p></div>
+      <div id="__pr_imperative_modal_body__"><p class="text-xs text-muted-foreground">Loading...</p></div>
     `;
 
     overlay.appendChild(panel);
@@ -1151,11 +1142,11 @@ function TeacherCourseContent() {
     panel.querySelector('#__pr_imperative_modal_close__')?.addEventListener('click', () => overlay.remove());
 
     const body = panel.querySelector('#__pr_imperative_modal_body__') as HTMLElement;
-    body.innerHTML = '<p>Loading cohorts...</p>';
+    body.innerHTML = '<p class="text-xs text-muted-foreground">Loading cohorts...</p>';
 
     // Step 1: require a versionId — without it the modal can't ask the backend for cohorts.
     if (!versionId) {
-      body.innerHTML = '<p style="color:#b91c1c;">No version selected. Open the course and try again.</p>';
+      body.innerHTML = '<p class="text-xs font-semibold text-destructive">No version selected. Open the course and try again.</p>';
       return;
     }
 
@@ -1173,16 +1164,16 @@ function TeacherCourseContent() {
         cohortsData?.cohorts || cohortsData?.data?.cohorts || cohortsData?.data || [];
       cohorts = list.map((c: any) => ({ id: String(c.id ?? c._id), name: String(c.name) })).filter(c => c.id);
     } catch (e: any) {
-      body.innerHTML = `<p style="color:#b91c1c;">Failed to load cohorts: ${String(e?.message || e)}</p>
-        <p>The backend at <code>${BACKEND_BASE}</code> may be unreachable or your session may have expired. Refresh the page and try again.</p>`;
+      body.innerHTML = `<p class="text-xs font-semibold text-destructive">Failed to load cohorts: ${String(e?.message || e)}</p>
+        <p class="text-xs text-muted-foreground mt-1">The backend at <code>${BACKEND_BASE}</code> may be unreachable or your session may have expired. Refresh the page and try again.</p>`;
       return;
     }
 
     // Step 3: render form.
     if (cohorts.length === 0) {
       body.innerHTML = `
-        <p style="color:#b91c1c;">No cohorts exist on this course version yet.</p>
-        <p>Create a cohort first (Course → HP System → Cohorts), then come back here.</p>`;
+        <p class="text-xs font-semibold text-destructive">No cohorts exist on this course version yet.</p>
+        <p class="text-xs text-muted-foreground mt-1">Create a cohort first (Course → HP System → Cohorts), then come back here.</p>`;
       return;
     }
 
@@ -1191,44 +1182,48 @@ function TeacherCourseContent() {
     const sevenDaysFromNow = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16);
 
     body.innerHTML = `
-      <p style="margin:0 0 16px 0;color:#475569;font-size:14px;">Creating a peer-review assessment in this section. Students in the chosen cohort will be paired to review each other.</p>
-      <label style="display:block;margin-bottom:12px;">
-        <span style="display:block;font-weight:600;margin-bottom:4px;">Title</span>
-        <input id="__pr_title__" type="text" value="${defaultTitle}"
-          style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;" />
-      </label>
-      <label style="display:block;margin-bottom:12px;">
-        <span style="display:block;font-weight:600;margin-bottom:4px;">Description</span>
-        <textarea id="__pr_desc__" rows="3"
-          style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">${defaultDesc}</textarea>
-      </label>
-      <label style="display:block;margin-bottom:12px;">
-        <span style="display:block;font-weight:600;margin-bottom:4px;">Cohort</span>
-        <select id="__pr_cohort__" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
-          ${cohorts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
-        </select>
-      </label>
-      <label style="display:block;margin-bottom:12px;">
-        <span style="display:block;font-weight:600;margin-bottom:4px;">Submission deadline</span>
-        <input id="__pr_deadline__" type="datetime-local" value="${sevenDaysFromNow}"
-          style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;" />
-      </label>
-      <label style="display:block;margin-bottom:12px;">
-        <span style="display:block;font-weight:600;margin-bottom:4px;">Reviews per submission (and per reviewer)</span>
-        <input id="__pr_reviews__" type="number" min="1" max="5" value="3"
-          style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;" />
-      </label>
-      <label style="display:block;margin-bottom:12px;">
-        <span style="display:block;font-weight:600;margin-bottom:4px;">Review window (days after deadline)</span>
-        <input id="__pr_window__" type="number" min="1" max="60" value="7"
-          style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;" />
-      </label>
-      <div id="__pr_error__" style="color:#b91c1c;margin-top:8px;display:none;"></div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
-        <button type="button" id="__pr_cancel__"
-          style="padding:8px 16px;border:1px solid #cbd5e1;border-radius:6px;background:white;cursor:pointer;font-size:14px;">Cancel</button>
-        <button type="button" id="__pr_save__"
-          style="padding:8px 16px;border:none;border-radius:6px;background:linear-gradient(135deg,#fbbf24,#ec4899);color:black;font-weight:600;cursor:pointer;font-size:14px;">Create Assessment</button>
+      <p class="text-xs text-muted-foreground mb-4">Creating a peer-review assessment in this section. Students in the chosen cohort will be paired to review each other.</p>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-foreground mb-1">Title</label>
+          <input id="__pr_title__" type="text" value="${defaultTitle}"
+            class="w-full p-2.5 text-xs rounded-md border border-input bg-background text-foreground focus:ring-1 focus:ring-primary outline-none" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-foreground mb-1">Description</label>
+          <textarea id="__pr_desc__" rows="3"
+            class="w-full p-2.5 text-xs rounded-md border border-input bg-background text-foreground focus:ring-1 focus:ring-primary outline-none">${defaultDesc}</textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-foreground mb-1">Cohort</label>
+          <select id="__pr_cohort__" class="w-full p-2.5 text-xs rounded-md border border-input bg-background text-foreground focus:ring-1 focus:ring-primary outline-none">
+            ${cohorts.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-foreground mb-1">Submission deadline</label>
+          <input id="__pr_deadline__" type="datetime-local" value="${sevenDaysFromNow}"
+            class="w-full p-2.5 text-xs rounded-md border border-input bg-background text-foreground focus:ring-1 focus:ring-primary outline-none" />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-foreground mb-1">Reviews per submission (and per reviewer)</label>
+            <input id="__pr_reviews__" type="number" min="1" max="5" value="3"
+              class="w-full p-2.5 text-xs rounded-md border border-input bg-background text-foreground focus:ring-1 focus:ring-primary outline-none font-mono" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-foreground mb-1">Review window (days after deadline)</label>
+            <input id="__pr_window__" type="number" min="1" max="60" value="7"
+              class="w-full p-2.5 text-xs rounded-md border border-input bg-background text-foreground focus:ring-1 focus:ring-primary outline-none font-mono" />
+          </div>
+        </div>
+        <div id="__pr_error__" class="text-xs font-medium text-destructive mt-2 hidden"></div>
+        <div class="flex items-center justify-end gap-2 pt-4 border-t border-border">
+          <button type="button" id="__pr_cancel__"
+            class="px-4 py-2 border border-input rounded-md bg-background hover:bg-accent text-foreground text-xs font-medium cursor-pointer transition-colors">Cancel</button>
+          <button type="button" id="__pr_save__"
+            class="px-4 py-2 rounded-md bg-primary text-primary-foreground font-semibold text-xs cursor-pointer hover:opacity-90 transition-opacity">Create Assessment</button>
+        </div>
       </div>
     `;
 
