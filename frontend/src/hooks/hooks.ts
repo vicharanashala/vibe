@@ -1751,11 +1751,11 @@ export function useTeacherOverrideReview(): {
 export function useTeacherOverrideSubmissionFinalScore(): {
   mutate: (variables: {
     params: { path: { submissionId: string } },
-    body: { finalScore?: number, reason?: string, reset?: boolean },
+    body: { finalScore?: number, scores?: Array<{ criterionId: string; score: number }>, reason?: string, reset?: boolean },
   }) => void,
   mutateAsync: (variables: {
     params: { path: { submissionId: string } },
-    body: { finalScore?: number, reason?: string, reset?: boolean },
+    body: { finalScore?: number, scores?: Array<{ criterionId: string; score: number }>, reason?: string, reset?: boolean },
   }) => Promise<any>,
   isPending: boolean,
   error: string | null,

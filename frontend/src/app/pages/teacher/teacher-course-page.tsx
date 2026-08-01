@@ -4944,13 +4944,20 @@ function PeerReviewSubmissionsSection({
 
   const overrideSubmissionMutation = useTeacherOverrideSubmissionFinalScore();
   const [editingSubmissionFinalScoreId, setEditingSubmissionFinalScoreId] = useState<string | null>(null);
-  const [overrideFinalScoreVal, setOverrideFinalScoreVal] = useState<number>(0);
+  const [overrideRubricScores, setOverrideRubricScores] = useState<Record<string, number>>({});
   const [overrideFinalScoreReason, setOverrideFinalScoreReason] = useState<string>('');
 
   const handleStartOverrideFinalScore = (sub: any) => {
     setEditingSubmissionFinalScoreId(sub.submissionId);
-    setOverrideFinalScoreVal(sub.finalScore ?? 0);
     setOverrideFinalScoreReason('');
+
+    const scoresMap: Record<string, number> = {};
+    const existingOverrideScores = sub.teacherOverrideScores || [];
+    for (const r of rubric || []) {
+      const existing = existingOverrideScores.find((s: any) => s.criterionId === r.criterionId);
+      scoresMap[r.criterionId] = existing ? Number(existing.score) : Number(r.maxPoints);
+    }
+    setOverrideRubricScores(scoresMap);
   };
 
   const handleSaveOverrideFinalScore = async (submissionId: string) => {
@@ -4959,15 +4966,20 @@ function PeerReviewSubmissionsSection({
       return;
     }
     try {
+      const scoresPayload = Object.entries(overrideRubricScores).map(([cid, val]) => ({
+        criterionId: cid,
+        score: val,
+      }));
+
       await overrideSubmissionMutation.mutateAsync({
         params: { path: { submissionId } },
         body: {
-          finalScore: overrideFinalScoreVal,
+          scores: scoresPayload,
           reason: overrideFinalScoreReason.trim(),
         },
       });
 
-      toast.success('Submission final score overridden successfully');
+      toast.success('Submission rubric score overridden successfully');
       setEditingSubmissionFinalScoreId(null);
       queryClient.invalidateQueries();
       refetch();
@@ -5371,15 +5383,17 @@ function PeerReviewSubmissionsSection({
                     </div>
                   </div>
 
-                  {/* Submission Overall Final Score Override Form */}
+                  {/* Submission Rubric Override Form */}
                   {editingSubmissionFinalScoreId === sub.submissionId && (
                     <div className="bg-muted/20 border border-primary/30 rounded-lg p-3 space-y-3 mt-2">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between border-b pb-2">
                         <p className="font-semibold text-xs text-primary flex items-center gap-1.5">
                           <Pencil className="h-3.5 w-3.5" />
-                          Override Overall Final Score for {sub.studentName}
+                          Teacher Rubric Evaluation Override for {sub.studentName}
                         </p>
-                        <span className="text-[10px] text-muted-foreground">Max Rubric Score: {totalMaxScore} pts</span>
+                        <span className="text-[10px] font-mono font-bold text-primary">
+                          Total Score: {Object.values(overrideRubricScores).reduce((a, b) => a + b, 0)} / {totalMaxScore} pts
+                        </span>
                       </div>
 
                       {sub.teacherOverrideReason && (
@@ -5389,19 +5403,35 @@ function PeerReviewSubmissionsSection({
                       )}
 
                       <div className="space-y-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold">New Overall Final Score (0 - {totalMaxScore})</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={totalMaxScore}
-                            className="w-32 h-8 text-xs font-mono font-bold text-primary"
-                            value={overrideFinalScoreVal}
-                            onChange={e => {
-                              const num = Math.max(0, Math.min(totalMaxScore, Number(e.target.value) || 0));
-                              setOverrideFinalScoreVal(num);
-                            }}
-                          />
+                        <div className="space-y-2">
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rubric Criteria Scores</Label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {rubric.map((r: any) => {
+                              const currentVal = overrideRubricScores[r.criterionId] ?? 0;
+                              return (
+                                <div key={r.criterionId} className="bg-background border rounded p-2 flex items-center justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <Label className="text-xs font-semibold truncate block">{r.label || r.criterionId}</Label>
+                                    <span className="text-[10px] text-muted-foreground">Max {r.maxPoints} pts</span>
+                                  </div>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={r.maxPoints}
+                                    className="w-20 h-8 text-xs font-mono font-bold"
+                                    value={currentVal}
+                                    onChange={e => {
+                                      const num = Math.max(0, Math.min(r.maxPoints, Number(e.target.value) || 0));
+                                      setOverrideRubricScores(prev => ({
+                                        ...prev,
+                                        [r.criterionId]: num,
+                                      }));
+                                    }}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
 
                         <div className="space-y-1">
@@ -5413,7 +5443,7 @@ function PeerReviewSubmissionsSection({
                           </Label>
                           <Input
                             className="text-xs"
-                            placeholder="e.g. Overriding overall score to 85 pts after manual instructor evaluation..."
+                            placeholder="e.g. Overriding rubric scores after manual instructor evaluation..."
                             value={overrideFinalScoreReason}
                             onChange={e => setOverrideFinalScoreReason(e.target.value)}
                           />
@@ -5422,23 +5452,28 @@ function PeerReviewSubmissionsSection({
                           )}
                         </div>
 
-                        <div className="flex justify-end gap-2 pt-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 text-[11px]"
-                            onClick={() => setEditingSubmissionFinalScoreId(null)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="h-7 text-[11px]"
-                            disabled={overrideFinalScoreReason.length < 20 || overrideSubmissionMutation.isPending}
-                            onClick={() => handleSaveOverrideFinalScore(sub.submissionId)}
-                          >
-                            {overrideSubmissionMutation.isPending ? 'Saving Override…' : 'Save Final Score Override'}
-                          </Button>
+                        <div className="flex items-center justify-between pt-1">
+                          <div className="text-xs font-mono font-bold text-primary">
+                            Final Score: {Object.values(overrideRubricScores).reduce((a, b) => a + b, 0)} pts
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-[11px]"
+                              onClick={() => setEditingSubmissionFinalScoreId(null)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-7 text-[11px]"
+                              disabled={overrideFinalScoreReason.length < 20 || overrideSubmissionMutation.isPending}
+                              onClick={() => handleSaveOverrideFinalScore(sub.submissionId)}
+                            >
+                              {overrideSubmissionMutation.isPending ? 'Saving Override…' : 'Save Rubric Override'}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>

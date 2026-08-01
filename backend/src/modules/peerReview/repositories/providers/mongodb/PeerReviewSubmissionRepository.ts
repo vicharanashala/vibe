@@ -297,6 +297,8 @@ export class PeerReviewSubmissionRepository {
     id: string,
     override: {
       finalScore: number;
+      breakdown?: any[];
+      scores?: Array<{ criterionId: string; score: number }>;
       reason: string;
       overriddenBy?: string;
     },
@@ -311,8 +313,10 @@ export class PeerReviewSubmissionRepository {
       {
         $set: {
           finalScore: override.finalScore,
+          finalScoreBreakdown: override.breakdown ?? [],
           teacherOverridden: true,
           teacherOverrideScore: override.finalScore,
+          teacherOverrideScores: override.scores ?? [],
           teacherOverrideReason: override.reason,
           teacherOverriddenBy: override.overriddenBy,
           teacherOverriddenAt: new Date(),
@@ -337,6 +341,7 @@ export class PeerReviewSubmissionRepository {
         $set: {
           teacherOverridden: false,
           teacherOverrideScore: null,
+          teacherOverrideScores: null,
           teacherOverrideReason: null,
           teacherOverriddenBy: null,
           teacherOverriddenAt: null,

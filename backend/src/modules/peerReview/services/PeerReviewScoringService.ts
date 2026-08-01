@@ -105,10 +105,21 @@ export class PeerReviewScoringService extends BaseService {
     teacherOverridden: boolean;
   }> {
     if (submission.teacherOverridden && typeof submission.teacherOverrideScore === 'number') {
+      const rubric = (assessment as any).rubric ?? [];
+      const overrideScores = submission.teacherOverrideScores ?? [];
+      const breakdown = rubric.map((c: any) => {
+        const item = overrideScores.find((s: any) => s.criterionId === c.criterionId);
+        return {
+          criterionId: c.criterionId,
+          meanScore: item ? Number(item.score) : 0,
+          maxPoints: c.maxPoints,
+        };
+      });
+
       await this.submissionRepo.setFinalScore(
         submissionId,
         submission.teacherOverrideScore,
-        [],
+        breakdown,
       );
       return {
         totalScore: submission.teacherOverrideScore,

@@ -189,6 +189,7 @@ export class PeerReviewTeacherController {
     @Body()
     body: {
       finalScore?: number;
+      scores?: Array<{ criterionId: string; score: number }>;
       reason?: string;
       reset?: boolean;
     },
@@ -209,22 +210,38 @@ export class PeerReviewTeacherController {
         'A reason of at least 20 characters is required for teacher overrides.',
       );
     }
-    if (typeof body.finalScore !== 'number' || Number.isNaN(body.finalScore)) {
-      throw new BadRequestError('A valid numeric finalScore is required.');
-    }
-
-    await this.submissionRepo.applyTeacherOverride(submissionId, {
-      finalScore: body.finalScore,
-      reason: body.reason,
-      overriddenBy: user._id!.toString(),
-    });
 
     const assessment = await this.assessmentRepo.findById(
       (submission as any).assessmentId?.toString(),
     );
+    const rubric = (assessment as any)?.rubric ?? [];
+
+    let finalScore = body.finalScore;
+    const scores = body.scores ?? [];
+    if (scores.length > 0) {
+      finalScore = scores.reduce((acc, s) => acc + (Number(s.score) || 0), 0);
+    } else if (typeof finalScore !== 'number' || Number.isNaN(finalScore)) {
+      throw new BadRequestError('A valid numeric finalScore or rubric scores list is required.');
+    }
+
+    const breakdown = rubric.map((c: any) => {
+      const item = scores.find((s) => s.criterionId === c.criterionId);
+      return {
+        criterionId: c.criterionId,
+        meanScore: item ? Number(item.score) : 0,
+        maxPoints: c.maxPoints,
+      };
+    });
+
+    await this.submissionRepo.applyTeacherOverride(submissionId, {
+      finalScore: finalScore!,
+      breakdown,
+      scores,
+      reason: body.reason,
+      overriddenBy: user._id!.toString(),
+    });
 
     if (assessment) {
-      const rubric = (assessment as any).rubric ?? [];
       const totalMax = rubric.reduce(
         (acc: number, c: any) => acc + (c.maxPoints ?? 0),
         0,
@@ -232,7 +249,7 @@ export class PeerReviewTeacherController {
       await this.notifier.notifyTeacherOverride({
         userId: (submission as any).studentId?.toString() ?? '',
         assessmentTitle: (assessment as any).title ?? 'Assessment',
-        newFinalScore: body.finalScore,
+        newFinalScore: finalScore!,
         totalMax,
         assessmentId: (assessment as any)._id?.toString(),
         courseId: (assessment as any).courseId?.toString(),
