@@ -285,3 +285,33 @@ describe('PeerReviewAssessmentService.close', () => {
     ).rejects.toThrow(/already closed/);
   });
 });
+
+describe('PeerReviewAssessmentService.delete', () => {
+  it('soft-deletes an assessment when no submissions exist', async () => {
+    const created = await service.create(teacher, makeValidBody());
+    await service.delete(teacher, created.assessmentId);
+    const reloaded = await assessmentRepo.findById(created.assessmentId);
+    expect(reloaded!.isDeleted).toBe(true);
+  });
+
+  it('rejects deletion when a student has already submitted', async () => {
+    const created = await service.create(teacher, makeValidBody());
+    await submissionRepo.upsertForStudent(created.assessmentId, 'student-1', {
+      notes: 'n',
+      links: [
+        {
+          url: 'https://drive.google.com/file/d/abc/view',
+          label: 'Report',
+          kind: 'drive',
+          lastAccessible: true,
+        },
+      ],
+      submittedAt: new Date(),
+      isLate: false,
+      attachmentsAccessibilityChecked: true,
+    });
+    await expect(
+      service.delete(teacher, created.assessmentId),
+    ).rejects.toThrow(/Cannot delete an assessment after a student has submitted/);
+  });
+});

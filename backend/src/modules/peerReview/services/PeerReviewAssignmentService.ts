@@ -225,14 +225,18 @@ export class PeerReviewAssignmentService extends BaseService {
     const ids = await this.assignmentRepo.createMany(docs);
 
     // 5. Also update each submission's reviewsTotal + push assignment IDs.
+    const assignmentsPerSub = new Map<string, number>();
+    for (const d of docs) {
+      const subId = (d.submissionId as any).toString();
+      assignmentsPerSub.set(subId, (assignmentsPerSub.get(subId) ?? 0) + 1);
+    }
+
     for (let i = 0; i < docs.length; i++) {
       const d = docs[i];
       const subId = (d.submissionId as any).toString();
       const assignmentId = ids[i];
-      await this.submissionRepo.setReviewsTotal(
-        subId,
-        assessment.config.reviewsPerSubmission,
-      );
+      const actualTotal = assignmentsPerSub.get(subId) ?? assessment.config.reviewsPerSubmission;
+      await this.submissionRepo.setReviewsTotal(subId, actualTotal);
       await this.submissionRepo.appendReviewAssignmentId(subId, assignmentId);
     }
 

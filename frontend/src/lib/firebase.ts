@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth, 
+  connectAuthEmulator,
   GoogleAuthProvider, 
   signInWithPopup, 
   signInWithEmailAndPassword, 
@@ -34,6 +35,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
+
+const authEmulatorHost = import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_HOST;
+if (authEmulatorHost && !auth.emulatorConfig) {
+  const emulatorUrl = authEmulatorHost.startsWith("http")
+    ? authEmulatorHost
+    : `http://${authEmulatorHost}`;
+  connectAuthEmulator(auth, emulatorUrl, { disableWarnings: true });
+}
 
 // Firebase authentication functions
 export const loginWithGoogle = async () => {
@@ -168,4 +177,16 @@ export const logout = () => {
   useAuthStore.getState().clearUser();
 };
 
-export const analytics = getAnalytics(app);
+export const analytics = (() => {
+  if (import.meta.env.DEV || !import.meta.env.VITE_FIREBASE_MEASUREMENT_ID) {
+    return null;
+  }
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    return getAnalytics(app);
+  } catch {
+    return null;
+  }
+})();

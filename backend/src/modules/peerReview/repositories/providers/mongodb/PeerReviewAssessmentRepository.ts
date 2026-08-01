@@ -58,9 +58,9 @@ export class PeerReviewAssessmentRepository {
     // the query matches.
     const filter = (() => {
       try {
-        return { itemId: new ObjectId(itemId) as any };
+        return { itemId: new ObjectId(itemId) as any, isDeleted: { $ne: true } };
       } catch (_) {
-        return { itemId: itemId as any };
+        return { itemId: itemId as any, isDeleted: { $ne: true } };
       }
     })();
     const doc = await this.collection.findOne(filter);

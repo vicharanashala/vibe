@@ -151,4 +151,30 @@ export class PeerReviewReviewRepository {
       { session },
     );
   }
+
+  async clearTeacherOverride(
+    id: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    const filter = ObjectId.isValid(id)
+      ? { _id: new ObjectId(id) as any }
+      : { _id: id as any };
+    await this.collection.updateOne(
+      filter,
+      {
+        $set: {
+          teacherOverridden: false,
+          updatedAt: new Date(),
+        },
+        $unset: {
+          teacherOverrideScores: '',
+          teacherOverrideReason: '',
+          teacherOverrideAt: '',
+          teacherOverrideBy: '',
+        },
+      },
+      { session },
+    );
+  }
 }

@@ -104,8 +104,8 @@ export function ReviewerDashboard() {
                 <Card key={a._id}>
                   <CardHeader>
                     <div className="flex justify-between items-center">
-                      <CardTitle className="text-base">
-                        Assessment Details
+                      <CardTitle className="text-base font-semibold">
+                        {a.assessmentTitle || "Peer-review Assessment"}
                       </CardTitle>
                       <div className="flex gap-2">
                         {a.status === "OVERDUE" || overdue ? (

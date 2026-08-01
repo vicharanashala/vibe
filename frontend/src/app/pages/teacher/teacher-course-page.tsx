@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics, useClosePeerReviewAssessment, usePeerReviewAssessmentByItemId, useUpdatePeerReviewAssessment, useTeacherSubmissionsForAssessment, useTeacherReviewsForAssessment, useTeacherOverrideReview } from '@/hooks/hooks';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics, useClosePeerReviewAssessment, useDeletePeerReviewAssessment, usePeerReviewAssessmentByItemId, useUpdatePeerReviewAssessment, useTeacherSubmissionsForAssessment, useTeacherReviewsForAssessment, useTeacherOverrideReview } from '@/hooks/hooks';
 import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, LockOpen, Lock, ExternalLink } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -24,6 +24,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
@@ -4350,6 +4351,7 @@ function PeerReviewTeacherPanel({
   const refetchAssessment = (queryResult as any).refetch;
   const closeMutation = useClosePeerReviewAssessment();
   const updateMutation = useUpdatePeerReviewAssessment();
+  const deleteMutation = useDeletePeerReviewAssessment();
 
   // Local edit state. Initialized from the loaded assessment, kept in
   // sync via a useEffect when the assessment re-loads after a save.
@@ -4386,17 +4388,19 @@ function PeerReviewTeacherPanel({
         : '',
     );
     setEditReviewWindowDays(
-      Number(a.config?.reviewWindowDays ?? 7),
+      Number(a.config?.reviewWindowDays ?? a.reviewWindowDays ?? 7),
     );
     setEditLatePolicy(
-      (a.config?.latePolicy as 'penalty-only' | 'hard-exclude') ??
+      (a.config?.latePolicy ?? a.latePolicy as 'penalty-only' | 'hard-exclude') ??
         'penalty-only',
     );
-    setEditLatePenaltyPercent(Number(a.config?.latePenaltyPercent ?? 10));
+    setEditLatePenaltyPercent(Number(a.config?.latePenaltyPercent ?? a.latePenaltyPercent ?? 10));
     setEditTeacherManualReviewEnabled(
-      !!a.config?.teacherManualReviewEnabled,
+      Boolean(a.config?.teacherManualReviewEnabled ?? a.teacherManualReviewEnabled),
     );
-    setEditNotificationsEnabled(!!a.config?.notificationsEnabled);
+    setEditNotificationsEnabled(
+      Boolean(a.config?.notificationsEnabled ?? a.notificationsEnabled ?? true),
+    );
     setHydrated(true);
   }, [assessment, hydrated]);
 
@@ -4517,17 +4521,9 @@ function PeerReviewTeacherPanel({
       return;
     }
     try {
-      const BACKEND_BASE =
-        (import.meta as any).env?.VITE_BACKEND_BASE_URL || '';
-      const token = (useAuthStore.getState() as any)?.token;
-      const res = await fetch(`${BACKEND_BASE}/api/peer-review-assessments/${aid}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token ?? ''}` },
-      });
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || `HTTP ${res.status}`);
-      }
+      await deleteMutation.mutateAsync({
+        params: { path: { id: String(aid) } },
+      } as any);
       toast.success('Assessment deleted');
       onAfterDelete?.();
       onAfterClose?.();
@@ -4947,6 +4943,24 @@ function PeerReviewSubmissionsSection({
     }
   };
 
+  const handleResetOverride = async (reviewId: string) => {
+    try {
+      await overrideMutation.mutateAsync({
+        params: { path: { id: reviewId } },
+        body: {
+          reset: true,
+          reason: 'Resetting override to original score',
+        },
+      });
+      toast.success('Reset to original scores');
+      setEditingReviewId(null);
+      refetch();
+      reviewsQueryResult.refetch();
+    } catch (e: any) {
+      toast.error('Reset failed: ' + (e?.message || 'unknown error'));
+    }
+  };
+
   return (
     <Card className="border bg-card">
       <CardHeader>
@@ -5080,14 +5094,24 @@ function PeerReviewSubmissionsSection({
                                   {teacherManualReviewEnabled && (
                                     <div className="pt-2 border-t flex flex-col gap-2">
                                       {!isEditing ? (
-                                        <div className="flex justify-end">
+                                        <div className="flex justify-end gap-2">
+                                          {rev.teacherOverridden && (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="h-7 text-[11px] text-destructive hover:bg-destructive/10 border-destructive/30"
+                                              onClick={() => handleResetOverride(rev.reviewId)}
+                                            >
+                                              Reset to Original
+                                            </Button>
+                                          )}
                                           <Button
                                             size="sm"
                                             variant="outline"
                                             className="h-7 text-[11px]"
                                             onClick={() => handleStartOverride(rev)}
                                           >
-                                            Override Scores
+                                            {rev.teacherOverridden ? 'Edit Override' : 'Override Scores'}
                                           </Button>
                                         </div>
                                       ) : (

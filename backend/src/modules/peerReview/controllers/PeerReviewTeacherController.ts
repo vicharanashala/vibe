@@ -130,6 +130,30 @@ export class PeerReviewTeacherController {
           reassignmentCount: a.reassignmentCount,
         });
       }
+      const actualReviewsTotal = assignments.length > 0
+        ? assignments.length
+        : (s.reviewsTotal || (assessment as any).config?.reviewsPerSubmission || 3);
+
+      let finalScore = s.finalScore ?? null;
+      if (
+        finalScore === null &&
+        ((s.reviewsCompleted ?? 0) > 0 || (assessment as any).closedAt)
+      ) {
+        try {
+          const res = await this.scoringService.scoreSubmission(
+            (s._id as any).toString(),
+          );
+          if (res && typeof res.totalScore === 'number') {
+            finalScore = res.totalScore;
+          }
+        } catch (err) {
+          console.warn(
+            `[listSubmissionsForTeacher] auto-score failed for ${(s._id as any).toString()}:`,
+            err,
+          );
+        }
+      }
+
       out.push({
         submissionId: (s._id as any).toString(),
         studentId,
@@ -140,8 +164,8 @@ export class PeerReviewTeacherController {
         notes: s.notes,
         links: s.links ?? [],
         reviewsCompleted: s.reviewsCompleted ?? 0,
-        reviewsTotal: s.reviewsTotal ?? 0,
-        finalScore: s.finalScore ?? null,
+        reviewsTotal: actualReviewsTotal,
+        finalScore,
         pendingTeacherIntervention: !!s.pendingTeacherIntervention,
         assignmentsToReviewers: reviewerDetails,
       });
@@ -190,6 +214,16 @@ export class PeerReviewTeacherController {
     const out: any[] = [];
     for (const { r, studentId } of reviewsWithDetails) {
       const reviewerId = (r.reviewerId as any)?.toString();
+      const isOverridden = !!r.teacherOverridden;
+      const effectiveScores =
+        isOverridden && r.teacherOverrideScores && r.teacherOverrideScores.length > 0
+          ? r.teacherOverrideScores
+          : (r.scores ?? []);
+      const effectiveTotalScore =
+        isOverridden && r.teacherOverrideScores && r.teacherOverrideScores.length > 0
+          ? effectiveScores.reduce((sum: number, s: any) => sum + (s.score ?? 0), 0)
+          : (r.totalScore ?? 0);
+
       out.push({
         reviewId: (r._id as any).toString(),
         submissionId: (r.submissionId as any).toString(),
@@ -199,12 +233,14 @@ export class PeerReviewTeacherController {
         reviewerId,
         reviewerName: userMap.get(reviewerId)?.name || 'Unknown',
         reviewerEmail: userMap.get(reviewerId)?.email || '',
-        scores: r.scores ?? [],
+        scores: effectiveScores,
+        originalScores: r.scores ?? [],
         overallComment: r.overallComment ?? '',
-        totalScore: r.totalScore ?? 0,
+        totalScore: effectiveTotalScore,
+        originalTotalScore: r.totalScore ?? 0,
         submittedAt: r.submittedAt,
         isLate: r.isLate,
-        teacherOverridden: !!r.teacherOverridden,
+        teacherOverridden: isOverridden,
         teacherOverrideReason: r.teacherOverrideReason ?? null,
       });
     }
@@ -222,31 +258,36 @@ export class PeerReviewTeacherController {
     body: {
       scores?: Array<{ criterionId: string; score: number }>;
       overallComment?: string;
-      reason: string;
+      reason?: string;
+      reset?: boolean;
     },
   ): Promise<any> {
+    const review = await this.reviewRepo.findById(id);
+    if (!review || (review as any).isDeleted) {
+      throw new NotFoundError('Review not found.');
+    }
+    const subId = (review as any).submissionId?.toString();
+
+    if (body.reset) {
+      await this.reviewRepo.clearTeacherOverride(id);
+      if (subId) {
+        await this.scoringService.recomputeSubmission(subId);
+      }
+      return { success: true, reset: true };
+    }
+
     if (!body.reason || body.reason.length < 20) {
       throw new BadRequestError(
         'A reason of at least 20 characters is required for teacher overrides.',
       );
     }
-    const review = await this.reviewRepo.findById(id);
-    if (!review || (review as any).isDeleted) {
-      throw new NotFoundError('Review not found.');
-    }
-    // Look up the assessment for the notification payload (Phase 5.2.4
-    // notify-on-override requires the assessment's title + rubric for
-    // the message body).
+    // Look up the assessment for the notification payload
     const assessment = await this.assessmentRepo.findById(
       (review as any).assessmentId?.toString(),
     );
     if (!assessment || (assessment as any).isDeleted) {
       throw new NotFoundError('Assessment not found for this review.');
     }
-    // Apply the override. The repo method requires
-    // teacherOverrideScores with a `comment` field per item; default
-    // to empty string. The comment alone (without new scores) is
-    // enough to flag the override.
     await this.reviewRepo.applyTeacherOverride(id, {
       teacherOverrideScores: (body.scores ?? []).map((s) => ({
         criterionId: s.criterionId,

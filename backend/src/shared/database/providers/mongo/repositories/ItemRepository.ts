@@ -193,8 +193,11 @@ export class ItemRepository implements IItemRepository {
             `Unsupported item type: ${(item as any).type}`,
           );
       }
+      const queryFilter = item.type === ItemType.PEER_REVIEW_ASSESSMENT
+        ? { $or: [{ _id: new ObjectId(item._id) }, { itemId: new ObjectId(item._id) }], isDeleted: { $ne: true } }
+        : { _id: new ObjectId(item._id), isDeleted: { $ne: true } };
       const existingItem = await collection.findOne(
-        { _id: new ObjectId(item._id), isDeleted: { $ne: true } },
+        queryFilter as any,
         { session },
       );
       if (existingItem) {
@@ -204,7 +207,7 @@ export class ItemRepository implements IItemRepository {
           type: item.type,
           order: item.order,
           isHidden: item.isHidden,
-          name: existingItem.name || 'Untitled',
+          name: existingItem.name || existingItem.title || 'Untitled',
         };
         // console.log(`[ItemRepository] Item ${item._id} (${item.type}): name="${itemRef.name}"`);
         filteredItems.push(itemRef);

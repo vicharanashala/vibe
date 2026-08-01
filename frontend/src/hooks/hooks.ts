@@ -1467,6 +1467,26 @@ export function useClosePeerReviewAssessment(): {
   };
 }
 
+// DELETE /peer-review-assessments/:id
+export function useDeletePeerReviewAssessment(): {
+  mutate: (variables: { params: { path: { id: string } } }) => void,
+  mutateAsync: (variables: { params: { path: { id: string } } }) => Promise<any>,
+  data: any,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'failed' | 'error'
+} {
+  const result = (api as any).useMutation('delete', '/peer-review-assessments/{id}');
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Delete failed') : null,
+  };
+}
+
 // POST /courses/:courseId/versions/:versionId/items/:itemId/submit  (Phase 3.2.4)
 //
 // Cast to `any` until OpenAPI schema regen picks up the new route. Same

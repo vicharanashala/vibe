@@ -87,6 +87,7 @@ beforeAll(async () => {
     submissionRepo,
     assessmentRepo,
     reviewRepo,
+    c.get(PEERREVIEW_TYPES.PeerReviewScoringService),
   );
 }, 30000);
 

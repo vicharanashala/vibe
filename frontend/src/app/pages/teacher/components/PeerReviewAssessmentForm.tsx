@@ -96,19 +96,19 @@ export function PeerReviewAssessmentForm({
     ),
   );
   const [reviewWindowDays, setReviewWindowDays] = useState(
-    existingAssessment?.config?.reviewWindowDays ?? 7,
+    existingAssessment?.config?.reviewWindowDays ?? existingAssessment?.reviewWindowDays ?? 7,
   );
   const [teacherManualReviewEnabled, setTeacherManualReviewEnabled] = useState(
-    existingAssessment?.config?.teacherManualReviewEnabled ?? true,
+    existingAssessment?.config?.teacherManualReviewEnabled ?? existingAssessment?.teacherManualReviewEnabled ?? true,
   );
   const [notificationsEnabled, setNotificationsEnabled] = useState(
-    existingAssessment?.config?.notificationsEnabled ?? true,
+    existingAssessment?.config?.notificationsEnabled ?? existingAssessment?.notificationsEnabled ?? true,
   );
   const [latePolicy, setLatePolicy] = useState<'penalty-only' | 'hard-exclude'>(
-    existingAssessment?.config?.latePolicy ?? 'penalty-only',
+    existingAssessment?.config?.latePolicy ?? existingAssessment?.latePolicy ?? 'penalty-only',
   );
   const [latePenaltyPercent, setLatePenaltyPercent] = useState(
-    existingAssessment?.config?.latePenaltyPercent ?? 10,
+    existingAssessment?.config?.latePenaltyPercent ?? existingAssessment?.latePenaltyPercent ?? 10,
   );
   const [antiCollusionMode, setAntiCollusionMode] = useState<'circular-shift-collision-check' | 'uniform-random'>(
     existingAssessment?.config?.antiCollusionMode ?? 'circular-shift-collision-check',

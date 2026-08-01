@@ -271,6 +271,40 @@ export class UpdatePeerReviewAssessmentBody {
   latePenaltyPercent?: number;
 }
 
+export class PeerReviewAssessmentConfigDto {
+  @Expose()
+  @IsInt()
+  reviewsPerSubmission!: number;
+
+  @Expose()
+  @IsInt()
+  reviewsPerReviewer!: number;
+
+  @Expose()
+  @IsEnum(['circular-shift-collision-check', 'uniform-random'])
+  antiCollusionMode!: PeerReviewAntiCollusionMode;
+
+  @Expose()
+  @IsEnum(['penalty-only', 'hard-exclude'])
+  latePolicy!: PeerReviewLatePolicy;
+
+  @Expose()
+  @IsNumber()
+  latePenaltyPercent!: number;
+
+  @Expose()
+  @IsBoolean()
+  teacherManualReviewEnabled!: boolean;
+
+  @Expose()
+  @IsBoolean()
+  notificationsEnabled!: boolean;
+
+  @Expose()
+  @IsInt()
+  reviewWindowDays!: number;
+}
+
 /**
  * Response shape for GET endpoints. Hides audit-only fields from non-teachers
  * (controllers strip them via the authorize path).
@@ -326,25 +360,48 @@ export class PeerReviewAssessmentResponse {
   totalMaxPoints!: number;
 
   @Expose()
-  teacherManualReviewEnabled!: boolean;
+  @Type(() => PeerReviewAssessmentConfigDto)
+  config?: PeerReviewAssessmentConfigDto;
 
   @Expose()
-  notificationsEnabled!: boolean;
+  get teacherManualReviewEnabled(): boolean {
+    return this.config?.teacherManualReviewEnabled ?? false;
+  }
 
   @Expose()
-  latePolicy!: PeerReviewLatePolicy;
+  get notificationsEnabled(): boolean {
+    return this.config?.notificationsEnabled ?? true;
+  }
 
   @Expose()
-  latePenaltyPercent!: number;
+  get latePolicy(): PeerReviewLatePolicy {
+    return this.config?.latePolicy ?? 'penalty-only';
+  }
 
   @Expose()
-  antiCollusionMode!: PeerReviewAntiCollusionMode;
+  get latePenaltyPercent(): number {
+    return this.config?.latePenaltyPercent ?? 10;
+  }
 
   @Expose()
-  reviewsPerSubmission!: number;
+  get antiCollusionMode(): PeerReviewAntiCollusionMode {
+    return this.config?.antiCollusionMode ?? 'circular-shift-collision-check';
+  }
 
   @Expose()
-  reviewsPerReviewer!: number;
+  get reviewsPerSubmission(): number {
+    return this.config?.reviewsPerSubmission ?? 3;
+  }
+
+  @Expose()
+  get reviewsPerReviewer(): number {
+    return this.config?.reviewsPerReviewer ?? 3;
+  }
+
+  @Expose()
+  get reviewWindowDays(): number {
+    return this.config?.reviewWindowDays ?? 7;
+  }
 
   @Expose()
   cohortId!: string;

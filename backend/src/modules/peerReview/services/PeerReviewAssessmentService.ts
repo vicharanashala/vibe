@@ -18,6 +18,7 @@ import {
 } from '../repositories/providers/mongodb/PeerReviewSubmissionRepository.js';
 import { PeerReviewAssignmentService } from './PeerReviewAssignmentService.js';
 import { PeerReviewNotificationService } from './PeerReviewNotificationService.js';
+import { PeerReviewScoringService } from './PeerReviewScoringService.js';
 import { IItemRepository, ICourseRepository } from '#root/shared/index.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 import { PeerReviewAssessmentItem } from '#courses/classes/transformers/Item.js';
@@ -60,6 +61,8 @@ export class PeerReviewAssessmentService extends BaseService {
     private readonly assignmentService: PeerReviewAssignmentService,
     @inject(PEERREVIEW_TYPES.PeerReviewNotificationService)
     private readonly notifier: PeerReviewNotificationService,
+    @inject(PEERREVIEW_TYPES.PeerReviewScoringService)
+    private readonly scoringService: PeerReviewScoringService,
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepo: ICourseRepository,
     @inject(USERS_TYPES.ItemRepo)
@@ -461,13 +464,16 @@ export class PeerReviewAssessmentService extends BaseService {
     }
 
     // 3. Tell every submitter the window has closed and their peer
-    //    reviews are due. Read submissions fresh (not from the
-    //    possibly-stale `a` shape) so we have accurate studentIds.
+    //    reviews are due. Also calculate scores for any submissions with completed reviews.
     const submissions = await this.submissionRepo.findByAssessment(assessmentId);
     const reviewsPerSubmission =
       (a as any).config?.reviewsPerSubmission ?? 2;
     for (const s of submissions as any[]) {
       try {
+        const subId = (s._id as any)?.toString?.() ?? s._id;
+        if (subId) {
+          await this.scoringService.scoreSubmission(subId);
+        }
         const studentId = (s.studentId as any)?.toString?.() ?? s.studentId;
         if (!studentId) continue;
         await this.notifier.notifySubmissionsClosed({

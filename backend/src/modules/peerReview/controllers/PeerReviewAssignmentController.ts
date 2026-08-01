@@ -19,6 +19,7 @@ import { PeerReviewAssignmentRepository } from '../repositories/providers/mongod
 import { PeerReviewSubmissionRepository } from '../repositories/providers/mongodb/PeerReviewSubmissionRepository.js';
 import { PeerReviewAssessmentRepository } from '../repositories/providers/mongodb/PeerReviewAssessmentRepository.js';
 import { PeerReviewReviewRepository } from '../repositories/providers/mongodb/PeerReviewReviewRepository.js';
+import { PeerReviewScoringService } from '../services/PeerReviewScoringService.js';
 import { IUser, IPeerReviewReview, PeerReviewAssignmentStatus } from '#shared/interfaces/models.js';
 import {
   stripSubmitterIdentity,
@@ -66,6 +67,8 @@ export class PeerReviewAssignmentController {
     private readonly assessmentRepo: PeerReviewAssessmentRepository,
     @inject(PEERREVIEW_TYPES.PeerReviewReviewRepo)
     private readonly reviewRepo: PeerReviewReviewRepository,
+    @inject(PEERREVIEW_TYPES.PeerReviewScoringService)
+    private readonly scoringService: PeerReviewScoringService,
   ) {}
 
   @Get('/students/me/peer-review-assignments')
@@ -77,10 +80,19 @@ export class PeerReviewAssignmentController {
     const raw = await this.assignmentRepo.findPendingForReviewer(
       user._id!.toString(),
     );
-    // Strip any submitter identity (defense in depth — the repo only
-    // returns reviewerId+submissionId, never studentId, but we make
-    // sure).
-    return raw.map((a: any) => stripSubmitterIdentity(a));
+    // Attach assessmentTitle and strip any submitter identity for double-blind safety
+    const results: any[] = [];
+    for (const a of raw as any[]) {
+      const clean = stripSubmitterIdentity(a);
+      const assessment = await this.assessmentRepo.findById(
+        (a as any).assessmentId?.toString(),
+      );
+      results.push({
+        ...clean,
+        assessmentTitle: assessment?.title ?? 'Peer-review assessment',
+      });
+    }
+    return results;
   }
 
   @Get('/peer-review-assignments/:id/submission')
@@ -201,9 +213,16 @@ export class PeerReviewAssignmentController {
     };
     const reviewId = await this.reviewRepo.create(review);
     await this.assignmentRepo.setSubmittedReviewId(id, reviewId);
-    await this.submissionRepo.incrementReviewsCompleted(
-      (assignment as any).submissionId?.toString(),
-    );
+    const subId = (assignment as any).submissionId?.toString();
+    if (subId) {
+      await this.submissionRepo.incrementReviewsCompleted(subId);
+      const sub = await this.submissionRepo.findById(subId);
+      const assignments = await this.assignmentRepo.findBySubmission(subId);
+      const expectedReviews = assignments.length > 0 ? assignments.length : (sub?.reviewsTotal ?? 3);
+      if (sub && (sub.reviewsCompleted ?? 0) >= expectedReviews) {
+        await this.scoringService.scoreSubmission(subId);
+      }
+    }
     return { reviewId };
   }
 

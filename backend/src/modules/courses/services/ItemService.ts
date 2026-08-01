@@ -939,6 +939,24 @@ export class ItemService extends BaseService {
         // Check item type
         if (item.type === 'FEEDBACK') {
           await this.feedbackRepo.deleteSubmissionsByFormId(itemId, session);
+        } else if (item.type === 'PEER_REVIEW_ASSESSMENT') {
+          const subColl = await this.database.getCollection('peer_review_submissions');
+          const queryId = ObjectId.isValid(itemId) ? new ObjectId(itemId) : itemId;
+          const assessmentColl = await this.database.getCollection('peer_review_assessments');
+          const assessment = await assessmentColl.findOne({ itemId: queryId as any });
+          if (assessment) {
+            const subCount = await subColl.countDocuments({ assessmentId: assessment._id as any });
+            if (subCount > 0) {
+              throw new ForbiddenError(
+                'Cannot delete an assessment after a student has submitted. Submissions are part of the student audit trail.',
+              );
+            }
+            await assessmentColl.updateOne(
+              { _id: assessment._id },
+              { $set: { isDeleted: true, deletedAt: new Date() } },
+              { session },
+            );
+          }
         }
         // Step 1: Delete item
         const deleted = await this.itemRepo.deleteItem(
