@@ -3050,4 +3050,73 @@ export class EnrollmentService extends BaseService {
       candidates,
     };
   }
+
+  /**
+   * Returns the paginated progress roster for one course version — every
+   * active student with a completion percentage, not just those who finished.
+   * Backs the server-to-server integration endpoint.
+   *
+   * An unknown course/version or an empty cohort yields an empty page rather
+   * than an error: "nobody has started yet" is a valid answer, not a fault.
+   */
+  async getCourseVersionProgress(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string | undefined,
+    page: number,
+    limit: number,
+  ): Promise<{
+    page: number;
+    limit: number;
+    totalLearners: number;
+    totalPages: number;
+    cohortId: string | null;
+    learners: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      courseVersionId: string;
+      cohortId: string | null;
+      percentCompleted: number;
+      completedItems: number;
+      totalItems: number;
+      completed: boolean;
+      completedAt?: Date;
+      enrolledAt?: Date;
+    }>;
+  }> {
+    if (!ObjectId.isValid(courseId)) {
+      throw new BadRequestError(`Invalid courseId: ${courseId}`);
+    }
+    if (!ObjectId.isValid(courseVersionId)) {
+      throw new BadRequestError(`Invalid courseVersionId: ${courseVersionId}`);
+    }
+    // Reject rather than silently ignore: a typo'd cohortId that fell through
+    // would return every cohort's rows and look like correct data.
+    if (cohortId && !ObjectId.isValid(cohortId)) {
+      throw new BadRequestError(`Invalid cohortId: ${cohortId}`);
+    }
+
+    const safePage = Math.max(1, Math.floor(page) || 1);
+    const safeLimit = Math.min(Math.max(1, Math.floor(limit) || 50), 200);
+    const skip = (safePage - 1) * safeLimit;
+
+    const { total, learners } =
+      await this.enrollmentRepo.getCourseProgressRoster(
+        courseId,
+        courseVersionId,
+        cohortId,
+        skip,
+        safeLimit,
+      );
+
+    return {
+      page: safePage,
+      limit: safeLimit,
+      totalLearners: total,
+      totalPages: Math.ceil(total / safeLimit),
+      cohortId: cohortId ?? null,
+      learners,
+    };
+  }
 }
