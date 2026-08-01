@@ -46,6 +46,13 @@ describe('ConceptMapService', () => {
       expect(a).toEqual(b);
     });
 
+    it('labels every edge with a Novak linking phrase', async () => {
+      const result = await service.generate(chunks, SEGMENT_MAP);
+      for (const edge of result.edges!) {
+        expect(edge.label).toMatch(/^(leads to|supports)$/);
+      }
+    });
+
     it('fails cleanly (no throw) when the segment map is empty', async () => {
       const result = await service.generate(chunks, []);
       expect(result.status).toBe(TaskStatus.FAILED);
@@ -160,6 +167,31 @@ describe('ConceptMapService', () => {
       expect(result.errors.some(e => e.includes('invalid chunkIndex'))).toBe(
         true,
       );
+    });
+
+    it('keeps short linking phrases and drops unusable ones', () => {
+      const raw = JSON.stringify({
+        concepts: [
+          { id: 'c1', label: 'A', chunkIndex: 0 },
+          { id: 'c2', label: 'B', chunkIndex: 2 },
+          { id: 'c3', label: 'C', chunkIndex: 4 },
+        ],
+        prerequisites: [
+          { from: 'c1', to: 'c2', label: '  leads to  ' },
+          { from: 'c2', to: 'c3', label: 'x'.repeat(31) }, // too long
+          { from: 'c1', to: 'c3', label: 42 }, // not a string
+        ],
+      });
+      const result = service.parseAndValidateLlmOutput(
+        raw,
+        chunks,
+        SEGMENT_MAP,
+        20,
+      );
+      expect(result.errors).toEqual([]);
+      expect(result.edges[0].label).toBe('leads to');
+      expect(result.edges[1].label).toBeUndefined();
+      expect(result.edges[2].label).toBeUndefined();
     });
   });
 });

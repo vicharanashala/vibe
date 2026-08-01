@@ -1132,6 +1132,15 @@ class ConceptMapEdgeResponse {
   @IsNotEmpty()
   @IsString()
   to: string;
+
+  @JSONSchema({
+    description:
+      "Novak-style linking phrase, read as '<from> <label> <to>' (e.g. 'leads to'). Absent on maps generated before this field existed and on edges bridged by node deletion.",
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  label?: string;
 }
 
 @JSONSchema({ title: 'ConceptMapResponse' })
@@ -1208,11 +1217,11 @@ class ConceptMapProgressResponse {
 
   @JSONSchema({
     description:
-      "Bayesian Knowledge Tracing estimate of the student's mastery per node (0-1), traced over the ordered per-question answer history of the node's segment quiz. Nodes without attempts are absent.",
+      "The requesting student's best raw quiz score per node, as a percentage (0-100). Nodes without a scored attempt are absent.",
     type: 'object',
-    additionalProperties: { type: 'number', minimum: 0, maximum: 1 },
+    additionalProperties: { type: 'number', minimum: 0, maximum: 100 },
   })
-  mastery: Record<string, number>;
+  scores: Record<string, number>;
 }
 
 export {

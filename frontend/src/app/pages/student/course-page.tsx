@@ -328,18 +328,18 @@ export default function CoursePage() {
     staleTime: 60 * 1000,
     retry: false,
   });
-  // BKT mastery probabilities per node (0-1), keyed by jobId like the outcomes.
-  const conceptMapMastery = useMemo(() => {
-    const byJob: Record<string, Record<string, number>> = {};
-    for (const entry of conceptMapProgress ?? []) {
-      if (entry.mastery) byJob[entry.jobId] = entry.mastery;
-    }
-    return byJob;
-  }, [conceptMapProgress]);
   const conceptMapOutcomes = useMemo(() => {
     const byJob: Record<string, Record<string, 'mastered' | 'weak'>> = {};
     for (const entry of conceptMapProgress ?? []) {
       byJob[entry.jobId] = entry.outcomes;
+    }
+    return byJob;
+  }, [conceptMapProgress]);
+  // Best raw quiz score per node (0-100), keyed by jobId like the outcomes.
+  const conceptMapScores = useMemo(() => {
+    const byJob: Record<string, Record<string, number>> = {};
+    for (const entry of conceptMapProgress ?? []) {
+      if (entry.scores) byJob[entry.jobId] = entry.scores;
     }
     return byJob;
   }, [conceptMapProgress]);
@@ -2083,7 +2083,7 @@ return false;
             onClick={() => setConceptMapOpen(false)}
           >
             <div
-              className="flex flex-col bg-card shadow-2xl rounded-2xl w-full max-w-6xl max-h-full overflow-hidden text-card-foreground"
+              className="flex flex-col bg-card shadow-2xl rounded-2xl w-full max-w-[1600px] max-h-[92vh] overflow-hidden text-card-foreground"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40">
@@ -2104,7 +2104,7 @@ return false;
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="space-y-3 px-4 py-3 overflow-y-auto">
+              <div className="flex-1 min-h-0 space-y-3 px-4 py-3 overflow-y-auto">
                 {sectionConceptMaps!.map((map, idx) => {
                   const mapModuleId = map.moduleId ?? selectedModuleId;
                   const mapSectionId = map.sectionId ?? selectedSectionId;
@@ -2112,10 +2112,10 @@ return false;
                     n => n.videoItemId && n.videoItemId === selectedItemId
                   )?.id;
                   const outcomes = map.jobId ? conceptMapOutcomes[map.jobId] : undefined;
-                  const mastery = map.jobId ? conceptMapMastery[map.jobId] : undefined;
+                  const scores = map.jobId ? conceptMapScores[map.jobId] : undefined;
                   // Remediation path: weak concepts + their unmastered
                   // prerequisites, in prerequisite order (see study-plan.ts).
-                  const studySteps = buildStudyPlan(map.nodes, map.edges, mastery, outcomes);
+                  const studySteps = buildStudyPlan(map.nodes, map.edges, outcomes, scores);
                   const navigateToNode = (node: (typeof map.nodes)[number]) => {
                     if (!node.videoItemId || !mapModuleId || !mapSectionId) return;
                     setPendingSeek(
@@ -2130,13 +2130,13 @@ return false;
                     <div key={map.jobId ?? idx} className="border border-border/40 rounded-xl overflow-hidden">
                       <Suspense
                         fallback={
-                          <div className="flex justify-center items-center h-[min(72vh,640px)] text-muted-foreground text-sm">
+                          <div className="flex justify-center items-center h-[min(64vh,640px)] text-muted-foreground text-sm">
                             Loading concept map…
                           </div>
                         }
                       >
                         <ConceptMapPanel
-                          className="w-full h-[min(72vh,640px)]"
+                          className="w-full h-[min(64vh,640px)]"
                           nodes={map.nodes}
                           edges={map.edges}
                           highlightNodeId={highlightNodeId}
@@ -2150,7 +2150,7 @@ return false;
                             if (outcome) return outcome;
                             return 'available';
                           }}
-                          nodeMastery={(node) => mastery?.[node.id]}
+                          nodeScore={(node) => scores?.[node.id]}
                           onNodeClick={navigateToNode}
                         />
                       </Suspense>

@@ -562,52 +562,51 @@ class SubmissionRepository {
   }
 
   /**
-   * One user's chronologically ordered answer sequence per quiz, for a batch
-   * of quizzes (read-only; feeds Bayesian Knowledge Tracing in the concept-map
-   * mastery overlay). Each graded question answer is one observation
-   * (true = CORRECT; PARTIAL counts as incorrect). Submissions without
-   * per-question feedback contribute a single pass/fail observation instead.
-   * Quizzes without submissions are absent from the result.
+   * One user's best raw quiz score per quiz, for a batch of quizzes
+   * (read-only join used by the concept-map mastery overlay): the highest
+   * totalScore/totalMaxScore ratio across submissions, as a percentage
+   * (0-100, rounded). Submissions without a scored gradingResult are
+   * ignored. Quizzes without any scored submission are absent.
    */
-  async getAnswerSequencesByQuizIds(
+  async getScorePercentByQuizIds(
     userId: string,
     quizIds: string[],
     session?: ClientSession,
-  ): Promise<Record<string, boolean[]>> {
+  ): Promise<Record<string, number>> {
     await this.init();
     if (!quizIds.length) return {};
     const rows = await this.submissionResultCollection
-      .find(
-        {
-          userId: new ObjectId(userId),
-          quizId: {$in: quizIds.map(id => new ObjectId(id))},
-        },
-        {
-          projection: {
-            quizId: 1,
-            submittedAt: 1,
-            'gradingResult.gradingStatus': 1,
-            'gradingResult.overallFeedback.status': 1,
+      .aggregate(
+        [
+          {
+            $match: {
+              userId: new ObjectId(userId),
+              quizId: {$in: quizIds.map(id => new ObjectId(id))},
+              'gradingResult.totalMaxScore': {$gt: 0},
+            },
           },
-          sort: {submittedAt: 1},
-          session,
-        },
+          {
+            $group: {
+              _id: '$quizId',
+              bestRatio: {
+                $max: {
+                  $divide: [
+                    '$gradingResult.totalScore',
+                    '$gradingResult.totalMaxScore',
+                  ],
+                },
+              },
+            },
+          },
+        ],
+        {session},
       )
       .toArray();
-    const sequences: Record<string, boolean[]> = {};
+    const scores: Record<string, number> = {};
     for (const row of rows) {
-      const quizId = row.quizId.toString();
-      sequences[quizId] ??= [];
-      const feedback = row.gradingResult?.overallFeedback;
-      if (Array.isArray(feedback) && feedback.length) {
-        for (const answer of feedback) {
-          sequences[quizId].push(answer.status === 'CORRECT');
-        }
-      } else if (row.gradingResult?.gradingStatus) {
-        sequences[quizId].push(row.gradingResult.gradingStatus === 'PASSED');
-      }
+      scores[row._id.toString()] = Math.round(row.bestRatio * 100);
     }
-    return sequences;
+    return scores;
   }
 
 }

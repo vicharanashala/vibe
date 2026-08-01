@@ -144,6 +144,12 @@ export interface ConceptMapEdgeData {
 	/** Prerequisite: `from` must be understood before `to`. */
 	from: string;
 	to: string;
+	/**
+	 * Novak-style linking phrase, read as "<from> <label> <to>"
+	 * (e.g. "leads to", "is used in"). Optional: maps generated before this
+	 * field existed, and edges bridged by node deletion, have none.
+	 */
+	label?: string;
 }
 
 export interface conceptMapData {

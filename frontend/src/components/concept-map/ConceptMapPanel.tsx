@@ -1,9 +1,10 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Background,
   Controls,
   MiniMap,
   ReactFlow,
+  type EdgeTypes,
   type Node,
   type NodeMouseHandler,
   type NodeTypes,
@@ -12,24 +13,19 @@ import '@xyflow/react/dist/style.css';
 import { useTheme } from 'next-themes';
 import { CheckCircle2, AlertTriangle, Lock, MapPin } from 'lucide-react';
 import { ConceptNode, type ConceptNodeData } from './ConceptNode';
+import { RadialCurveEdge } from './RadialCurveEdge';
 import { layoutConceptMap } from './layout';
+import { categoryColor } from './palette';
 import type { ConceptMapPanelProps } from './types';
 
 const nodeTypes: NodeTypes = { concept: ConceptNode };
+const edgeTypes: EdgeTypes = { radialCurve: RadialCurveEdge };
 
 const LEGEND_ITEMS = [
   { icon: <MapPin className="h-3.5 w-3.5 text-primary" />, label: 'Current' },
   { icon: <Lock className="h-3.5 w-3.5 text-muted-foreground" />, label: 'Upcoming' },
   { icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />, label: 'Mastered' },
   { icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />, label: 'Revisit' },
-  {
-    icon: (
-      <span className="rounded-full bg-emerald-500/20 px-1.5 text-[10px] font-bold leading-tight text-emerald-600">
-        %
-      </span>
-    ),
-    label: 'Estimated mastery',
-  },
 ];
 
 /** MiniMap node colour follows the node's visual state. */
@@ -54,7 +50,7 @@ export default function ConceptMapPanel({
   edges,
   highlightNodeId,
   nodeState,
-  nodeMastery,
+  nodeScore,
   onNodeClick,
   onNodeDelete,
   readOnly = false,
@@ -62,11 +58,25 @@ export default function ConceptMapPanel({
   className,
 }: ConceptMapPanelProps) {
   const { resolvedTheme } = useTheme();
+  // Focus mode: hovering a node spotlights it, its neighbours, and the
+  // linking phrases between them; everything else fades back.
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+
+  const isDark = resolvedTheme === 'dark';
 
   const { nodes: rfNodes, edges: rfEdges } = useMemo(() => {
     const laidOut = layoutConceptMap(nodes, edges);
+    const nodeIndex = new Map(nodes.map((n, i) => [n.id, i]));
+    const inFocus = new Set<string>();
+    if (focusedId) {
+      inFocus.add(focusedId);
+      for (const e of edges) {
+        if (e.from === focusedId) inFocus.add(e.to);
+        if (e.to === focusedId) inFocus.add(e.from);
+      }
+    }
     const decorated = laidOut.nodes.map(rfNode => {
-      const index = nodes.findIndex(n => n.id === rfNode.id);
+      const index = nodeIndex.get(rfNode.id) ?? 0;
       const concept = nodes[index]!;
       const state = nodeState?.(concept) ?? 'available';
       return {
@@ -74,16 +84,44 @@ export default function ConceptMapPanel({
         data: {
           concept,
           state,
-          mastery: nodeMastery?.(concept),
+          score: nodeScore?.(concept),
           order: index + 1,
+          categoryColor: categoryColor(index, isDark),
           highlighted: rfNode.id === highlightNodeId,
+          dimmed: focusedId !== null && !inFocus.has(rfNode.id),
           readOnly,
           onDelete: onNodeDelete ? () => onNodeDelete(concept) : undefined,
         } satisfies ConceptNodeData,
       };
     });
-    return { nodes: decorated, edges: laidOut.edges };
-  }, [nodes, edges, highlightNodeId, nodeState, nodeMastery, readOnly, onNodeDelete]);
+    const decoratedEdges = laidOut.edges.map(rfEdge => {
+      // Bold, colored edges (matching the target concept's own color) so the
+      // map reads as a set of connected ideas, not gray wiring.
+      const color = categoryColor(nodeIndex.get(rfEdge.target) ?? 0, isDark);
+      const colored = {
+        ...rfEdge,
+        style: { ...rfEdge.style, stroke: color },
+        markerEnd: typeof rfEdge.markerEnd === 'object' ? { ...rfEdge.markerEnd, color } : rfEdge.markerEnd,
+        labelStyle: { ...rfEdge.labelStyle, fill: color },
+      };
+      if (!focusedId) return colored;
+      const incident =
+        rfEdge.source === focusedId || rfEdge.target === focusedId;
+      return incident
+        ? {
+            ...colored,
+            animated: true,
+            style: { ...colored.style, strokeWidth: 3 },
+          }
+        : {
+            ...colored,
+            style: { ...colored.style, opacity: 0.12 },
+            labelStyle: { ...colored.labelStyle, opacity: 0.12 },
+            labelBgStyle: { opacity: 0.12 },
+          };
+    });
+    return { nodes: decorated, edges: decoratedEdges };
+  }, [nodes, edges, highlightNodeId, nodeState, nodeScore, readOnly, onNodeDelete, focusedId, isDark]);
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, rfNode: Node) => {
@@ -112,12 +150,15 @@ export default function ConceptMapPanel({
           nodes={rfNodes}
           edges={rfEdges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           colorMode={resolvedTheme === 'dark' ? 'dark' : 'light'}
           onNodeClick={handleNodeClick}
+          onNodeMouseEnter={(_e, n) => setFocusedId(n.id)}
+          onNodeMouseLeave={() => setFocusedId(null)}
           fitView
-          fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
+          fitViewOptions={{ padding: 0.12, maxZoom: 2.2 }}
           minZoom={0.3}
-          maxZoom={1.5}
+          maxZoom={2.2}
           nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable={false}

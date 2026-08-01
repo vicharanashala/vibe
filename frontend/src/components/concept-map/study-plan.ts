@@ -3,31 +3,26 @@ import type { ConceptMapEdge, ConceptMapNode } from './types';
 /**
  * Remediation path ("study plan") over the concept DAG.
  *
- * Weak concepts (failed quiz / low BKT mastery) rarely stand alone — they sit
- * on top of prerequisites the student may also be shaky on. The plan is the
+ * Weak concepts (failed quiz) rarely stand alone — they sit on top of
+ * prerequisites the student may also be shaky on. The plan is the
  * prerequisite closure of every weak concept, minus what the student has
- * already shown strength in, ordered by the map's own prerequisite ordering
+ * already passed, ordered by the map's own prerequisite ordering
  * (topological sort). Pure function — trivially testable, no I/O.
  */
 
 export interface StudyStep {
   node: ConceptMapNode;
-  /** BKT mastery probability at plan time, when the concept was attempted. */
-  mastery?: number;
+  /** Best raw quiz score at plan time (0-100), when the concept was attempted. */
+  score?: number;
   /** Why the step is in the plan. */
   reason: 'weak' | 'prerequisite';
 }
 
-/** Below this BKT probability an attempted concept counts as weak. */
-export const WEAK_THRESHOLD = 0.5;
-/** At or above this BKT probability a concept counts as strong (skipped). */
-export const STRONG_THRESHOLD = 0.8;
-
 export function buildStudyPlan(
   nodes: ConceptMapNode[],
   edges: ConceptMapEdge[],
-  mastery: Record<string, number> | undefined,
   outcomes: Record<string, 'mastered' | 'weak'> | undefined,
+  scores?: Record<string, number>,
 ): StudyStep[] {
   const byId = new Map(nodes.map(n => [n.id, n]));
   const parents = new Map<string, string[]>();
@@ -36,17 +31,8 @@ export function buildStudyPlan(
     (parents.get(e.to) ?? parents.set(e.to, []).get(e.to)!).push(e.from);
   }
 
-  const masteryOf = (id: string) => mastery?.[id];
-  const isWeak = (id: string) => {
-    const p = masteryOf(id);
-    if (p !== undefined) return p < WEAK_THRESHOLD;
-    return outcomes?.[id] === 'weak';
-  };
-  const isStrong = (id: string) => {
-    const p = masteryOf(id);
-    if (p !== undefined) return p >= STRONG_THRESHOLD;
-    return outcomes?.[id] === 'mastered';
-  };
+  const isWeak = (id: string) => outcomes?.[id] === 'weak';
+  const isStrong = (id: string) => outcomes?.[id] === 'mastered';
 
   const weakIds = nodes.filter(n => isWeak(n.id)).map(n => n.id);
   if (!weakIds.length) return [];
@@ -97,7 +83,7 @@ export function buildStudyPlan(
 
   return sorted.map(id => ({
     node: byId.get(id)!,
-    mastery: masteryOf(id),
+    score: scores?.[id],
     reason: isWeak(id) ? 'weak' : 'prerequisite',
   }));
 }

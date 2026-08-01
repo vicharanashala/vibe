@@ -27,6 +27,8 @@ export class ConceptMapEdge {
 	/** Prerequisite: `from` must be understood before `to`. */
 	from: string;
 	to: string;
+	/** Novak-style linking phrase, read as "<from> <label> <to>". */
+	label?: string;
 }
 
 export class ConceptMap {

@@ -2171,6 +2171,8 @@ export interface components {
             from: string;
             /** @description Dependent concept id */
             to: string;
+            /** @description Novak-style linking phrase, read as '<from> <label> <to>' (e.g. 'leads to'). Absent on maps generated before this field existed and on edges bridged by node deletion. */
+            label?: string;
         };
         ConceptMapResponse: {
             /** @description GenAI job (original lecture) this map was generated from */
@@ -2197,8 +2199,8 @@ export interface components {
             outcomes: {
                 [key: string]: "mastered" | "weak";
             };
-            /** @description Bayesian Knowledge Tracing estimate of the student's mastery per node (0-1), traced over the ordered per-question answer history of the node's segment quiz. Nodes without attempts are absent. */
-            mastery: {
+            /** @description The requesting student's best raw quiz score per node, as a percentage (0-100). Nodes without a scored attempt are absent. */
+            scores: {
                 [key: string]: number;
             };
         };

@@ -143,13 +143,15 @@ Extract the key teachable concepts and the prerequisite relations between them.
 
 Rules:
 - At most ${maxConcepts} concepts. Fewer, well-chosen concepts beat many shallow ones.
+- "label" is a SHORT concept name (at most 4 words, Novak style: a noun phrase like "Training data", not a sentence).
 - Every concept must reference the transcript chunk index where it is first properly explained ("chunkIndex", from the numbered transcript below).
 - Prerequisite edges mean: "from" must be understood before "to". The graph must be acyclic.
 - Do not force a linear chain; only add an edge when one concept genuinely builds on another.
+- Each prerequisite carries a linking phrase "label" (1-3 words) so the pair reads as a sentence: "<from> <label> <to>" (e.g. "leads to", "is used in", "enables", "feeds into").
 - "description" is one plain sentence a student can read on hover.
 ${promptHint ? `- Additional guidance: ${promptHint}` : ''}
 Return ONLY this JSON object, no other text:
-{"concepts":[{"id":"c1","label":"...","description":"...","chunkIndex":0}],"prerequisites":[{"from":"c1","to":"c2"}]}
+{"concepts":[{"id":"c1","label":"...","description":"...","chunkIndex":0}],"prerequisites":[{"from":"c1","to":"c2","label":"leads to"}]}
 
 TRANSCRIPT:
 ${numberedTranscript}`;
@@ -212,7 +214,11 @@ ${numberedTranscript}`;
     }
     const edges: ConceptMapEdgeData[] = rawEdges
       .filter((e: any) => typeof e?.from === 'string' && typeof e?.to === 'string')
-      .map((e: any) => ({ from: e.from, to: e.to }));
+      .map((e: any) => ({
+        from: e.from,
+        to: e.to,
+        label: this.sanitizeLinkingPhrase(e.label),
+      }));
 
     errors.push(...this.validateGraph(nodes, edges, segmentMap, maxConcepts));
     return { nodes, edges, errors };
@@ -356,12 +362,19 @@ ${numberedTranscript}`;
       };
     });
 
+    // The first concept is the lecture's foundational idea, so every other
+    // concept connects directly back to it (a hub/star), instead of a
+    // sequential chain — the frontend renders this as a root with spokes,
+    // matching how a real concept map reads, without needing an LLM to
+    // find real relationships. Order within the lecture is still shown via
+    // each node's position number, so nothing is lost by dropping the chain.
     const edges: ConceptMapEdgeData[] = [];
-    for (let i = 0; i < nodes.length - 1; i++) {
-      edges.push({ from: nodes[i].id, to: nodes[i + 1].id });
-      if (i % 3 === 0 && i + 2 < nodes.length) {
-        edges.push({ from: nodes[i].id, to: nodes[i + 2].id });
-      }
+    for (let i = 1; i < nodes.length; i++) {
+      edges.push({
+        from: nodes[0].id,
+        to: nodes[i].id,
+        label: i === 1 ? 'leads to' : 'supports',
+      });
     }
 
     const errors = this.validateGraph(nodes, edges, segmentMap);
@@ -371,9 +384,43 @@ ${numberedTranscript}`;
     return { status: TaskStatus.COMPLETED, nodes, edges, fallback: true };
   }
 
+  /**
+   * Linking phrases render on the arrows, so keep them short and one-line;
+   * anything unusable becomes undefined (edge renders as a plain arrow).
+   */
+  private sanitizeLinkingPhrase(raw: unknown): string | undefined {
+    if (typeof raw !== 'string') return undefined;
+    const phrase = raw.replace(/\s+/g, ' ').trim();
+    if (!phrase) return undefined;
+    return phrase.length > 30 ? undefined : phrase;
+  }
+
+  /**
+   * A label cut at a fixed word count often ends mid-phrase ("...arrows
+   * tip" instead of "...arrows tip to tail"). Prefer cutting at the first
+   * sentence/clause boundary instead, so the label is a complete phrase;
+   * fall back to a word count only when no nearby boundary exists.
+   */
   private labelFromText(text: string): string {
-    const words = text.replace(/\s+/g, ' ').trim().split(' ').slice(0, 5);
-    const label = words.join(' ').replace(/[.,;:!?]+$/, '');
+    const clean = text.replace(/\s+/g, ' ').trim();
+    const words = clean.split(' ');
+    const boundary = clean.search(/[.,;:!?]/);
+    let candidate =
+      boundary > 0 && clean.slice(0, boundary).split(' ').length <= 8
+        ? clean.slice(0, boundary).split(' ')
+        : words.slice(0, 6);
+    if (candidate.length < 3) candidate = words.slice(0, 6);
+    const DANGLING = new Set([
+      'to', 'of', 'for', 'the', 'a', 'an', 'and', 'or', 'in', 'on',
+      'with', 'by', 'as', 'that', 'which', 'is', 'are',
+    ]);
+    if (candidate.length < words.length) {
+      const last = candidate[candidate.length - 1]
+        .replace(/[.,;:!?]+$/, '')
+        .toLowerCase();
+      if (DANGLING.has(last)) candidate = [...candidate, words[candidate.length]];
+    }
+    const label = candidate.join(' ').replace(/[.,;:!?]+$/, '');
     return label || 'Concept';
   }
 

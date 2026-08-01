@@ -26,7 +26,6 @@ import { GENAI_TYPES } from '../types.js';
 import { QUIZZES_TYPES } from '#root/modules/quizzes/types.js';
 import { SubmissionRepository } from '#root/modules/quizzes/repositories/providers/mongodb/SubmissionRepository.js';
 import { GenAIService } from '../services/GenAIService.js';
-import { bktMastery } from '../services/bkt.js';
 import { ConceptMapRepository } from '../repositories/providers/mongodb/ConceptMapRepository.js';
 import { TaskStatus, TaskType } from '../classes/transformers/GenAI.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
@@ -83,7 +82,7 @@ export class ConceptMapController {
   @OpenAPI({
     summary: "Get the requesting student's mastery outcomes for a section's concept maps",
     description:
-      "Read-only join of the section's published concept maps against the student's own quiz submissions: per node, 'mastered' when the segment quiz was passed, 'weak' when attempted but not passed. Nodes without attempts (or without a quiz) are omitted.",
+      "Read-only join of the section's published concept maps against the student's own quiz submissions: per node, 'mastered' when the segment quiz was passed, 'weak' when attempted but not passed, plus the best raw score percentage achieved. Nodes without attempts (or without a quiz) are omitted.",
   })
   @Get('/section/:versionId/:sectionId/progress')
   @Authorized()
@@ -119,12 +118,12 @@ export class ConceptMapController {
         ),
       ),
     ];
-    const [quizOutcomes, answerSequences] = await Promise.all([
+    const [quizOutcomes, quizScores] = await Promise.all([
       this.submissionRepository.getOutcomesByQuizIds(
         user._id.toString(),
         quizIds,
       ),
-      this.submissionRepository.getAnswerSequencesByQuizIds(
+      this.submissionRepository.getScorePercentByQuizIds(
         user._id.toString(),
         quizIds,
       ),
@@ -132,22 +131,17 @@ export class ConceptMapController {
 
     return maps.map(map => {
       const outcomes: Record<string, 'mastered' | 'weak'> = {};
-      const mastery: Record<string, number> = {};
+      const scores: Record<string, number> = {};
       for (const node of map.nodes) {
         const outcome = node.quizItemId
           ? quizOutcomes[node.quizItemId]
           : undefined;
         if (outcome === 'PASSED') outcomes[node.id] = 'mastered';
         else if (outcome === 'ATTEMPTED') outcomes[node.id] = 'weak';
-        // BKT mastery probability over the student's ordered answer history.
-        const sequence = node.quizItemId
-          ? answerSequences[node.quizItemId]
-          : undefined;
-        if (sequence?.length) {
-          mastery[node.id] = Math.round(bktMastery(sequence) * 100) / 100;
-        }
+        const score = node.quizItemId ? quizScores[node.quizItemId] : undefined;
+        if (score !== undefined) scores[node.id] = score;
       }
-      return { jobId: map.jobId, outcomes, mastery };
+      return { jobId: map.jobId, outcomes, scores };
     });
   }
 

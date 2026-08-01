@@ -11,7 +11,7 @@ interface StudyPlanProps {
 
 /**
  * Student remediation path: an ordered "revisit these, in this order" list
- * derived from the concept DAG + BKT mastery (see study-plan.ts). Light
+ * derived from the concept DAG + quiz outcomes (see study-plan.ts). Light
  * component — safe to import eagerly, unlike the React Flow panel.
  */
 export function StudyPlan({ steps, onStepClick, className }: StudyPlanProps) {
@@ -37,9 +37,9 @@ export function StudyPlan({ steps, onStepClick, className }: StudyPlanProps) {
                 {i + 1}
               </span>
               <span className="min-w-0 flex-1 truncate">{step.node.label}</span>
-              {step.mastery !== undefined && (
+              {step.score !== undefined && (
                 <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
-                  {Math.round(step.mastery * 100)}%
+                  {step.score}%
                 </span>
               )}
               <span
