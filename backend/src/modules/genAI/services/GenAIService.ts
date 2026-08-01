@@ -2029,7 +2029,11 @@ export class GenAIService extends BaseService {
           offsetSeconds: Math.round(offset * 1000) / 1000,
         };
       }),
-      edges: (latestMap.edges ?? []).map(e => ({ from: e.from, to: e.to })),
+      edges: (latestMap.edges ?? []).map(e => ({
+        from: e.from,
+        to: e.to,
+        label: e.label,
+      })),
       fallback: latestMap.fallback,
       modelUsed: latestMap.modelUsed,
       createdAt: new Date(),
