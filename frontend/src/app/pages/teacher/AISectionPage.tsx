@@ -3993,12 +3993,12 @@ For ANY question where options are "True" and "False":
                             onClick={async () => {
                               if (!aiJobId) return;
                               try {
-                                // Use the simplified parameters as shown in the image
-                                const params = {
-                                  videoItemBaseName: "video_item",
-                                  quizItemBaseName: "quiz_item",
-                                  questionsPerQuiz: 1
-                                };
+                                // Publish with server defaults. Passing questionsPerQuiz
+                                // fans the upload out into extra per-item transactions,
+                                // which the outer job transaction loses to a Mongo
+                                // WriteConflict — aborting the publish after inner
+                                // transactions have already committed orphan items.
+                                const params = {};
 
                                 setTaskRuns(prev => ({
                                   ...prev,
