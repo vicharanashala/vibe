@@ -1170,7 +1170,8 @@ export type PeerReviewAssignmentStatus =
   | 'SUBMITTED'
   | 'OVERDUE'
   | 'REASSIGNED'
-  | 'LINK_REVOKED';
+  | 'LINK_REVOKED'
+  | 'EXCLUDED';
 
 export type PeerReviewAntiCollusionMode =
   | 'circular-shift-collision-check'
@@ -1249,6 +1250,10 @@ export interface IPeerReviewSubmission {
   finalScoreLockedAt?: Date;
   teacherOverridden: boolean;
   teacherOverrideReason?: string;
+  excludedFromPeerReview?: boolean;
+  teacherExcludeReason?: string;
+  teacherExcludedAt?: Date;
+  teacherExcludedBy?: ID;
   createdAt: Date;
   updatedAt: Date;
 }

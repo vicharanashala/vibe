@@ -130,9 +130,14 @@ export class PeerReviewTeacherController {
           reassignmentCount: a.reassignmentCount,
         });
       }
-      const actualReviewsTotal = assignments.length > 0
-        ? assignments.length
+
+      const activeAssignments = (assignments as any[]).filter((a: any) => a.status !== 'EXCLUDED' && a.status !== 'CANCELLED');
+      const submittedAssignments = (assignments as any[]).filter((a: any) => a.status === 'SUBMITTED');
+
+      const actualReviewsTotal = activeAssignments.length > 0
+        ? activeAssignments.length
         : (s.reviewsTotal || (assessment as any).config?.reviewsPerSubmission || 3);
+      const actualReviewsCompleted = submittedAssignments.length;
 
       let finalScore = s.teacherOverridden && typeof s.teacherOverrideScore === 'number'
         ? s.teacherOverrideScore
@@ -140,7 +145,7 @@ export class PeerReviewTeacherController {
 
       if (
         finalScore === null &&
-        ((s.reviewsCompleted ?? 0) > 0 || (assessment as any).closedAt)
+        (actualReviewsCompleted > 0 || (assessment as any).closedAt)
       ) {
         try {
           const res = await this.scoringService.scoreSubmission(
@@ -166,12 +171,15 @@ export class PeerReviewTeacherController {
         isLate: s.isLate,
         notes: s.notes,
         links: s.links ?? [],
-        reviewsCompleted: s.reviewsCompleted ?? 0,
+        reviewsCompleted: actualReviewsCompleted,
         reviewsTotal: actualReviewsTotal,
         finalScore,
         teacherOverridden: !!s.teacherOverridden,
         teacherOverrideScore: s.teacherOverrideScore ?? null,
         teacherOverrideReason: s.teacherOverrideReason ?? null,
+        excludedFromPeerReview: !!s.excludedFromPeerReview || !!s.reviewerExcluded,
+        reviewerExcluded: !!s.reviewerExcluded || !!s.excludedFromPeerReview,
+        teacherExcludeReason: s.teacherExcludeReason ?? null,
         pendingTeacherIntervention: !!s.pendingTeacherIntervention,
         assignmentsToReviewers: reviewerDetails,
       });
@@ -326,6 +334,12 @@ export class PeerReviewTeacherController {
     const out: any[] = [];
     for (const { r, studentId } of reviewsWithDetails) {
       const reviewerId = (r.reviewerId as any)?.toString();
+      const assignmentId = (r.assignmentId as any)?.toString();
+      const assignment = assignmentId ? await this.assignmentRepo.findById(assignmentId) : null;
+      const isExcludedAssignment = assignment?.status === 'EXCLUDED';
+      if (isExcludedAssignment) {
+        continue;
+      }
       const isOverridden = !!r.teacherOverridden;
       const effectiveScores =
         isOverridden && r.teacherOverrideScores && r.teacherOverrideScores.length > 0
@@ -352,6 +366,7 @@ export class PeerReviewTeacherController {
         originalTotalScore: r.totalScore ?? 0,
         submittedAt: r.submittedAt,
         isLate: r.isLate,
+        isExcludedAssignment,
         teacherOverridden: isOverridden,
         teacherOverrideReason: r.teacherOverrideReason ?? null,
       });
@@ -462,6 +477,143 @@ export class PeerReviewTeacherController {
       reviewId: id,
       newFinalScore: recompute?.totalScore ?? null,
       teacherOverridden: true,
+    };
+  }
+
+  @Post('/peer-review-assessments/submissions/:submissionId/exclude-student')
+  @HttpCode(200)
+  @Authorized(['INSTRUCTOR', 'MANAGER'])
+  async excludeStudentFromPeerReview(
+    @Req() req: any,
+    @CurrentUser({ required: true }) user: IUser,
+    @Param('submissionId') submissionId: string,
+    @Body()
+    body: {
+      reason?: string;
+      reset?: boolean;
+    },
+  ): Promise<any> {
+    const submission = await this.submissionRepo.findById(submissionId);
+    if (!submission || (submission as any).isDeleted) {
+      throw new NotFoundError('Submission not found.');
+    }
+
+    const assessmentId = (submission as any).assessmentId?.toString();
+    const studentId = (submission as any).studentId?.toString();
+
+    if (body.reset) {
+      await this.submissionRepo.clearExclusion(submissionId);
+      const recompute = await this.scoringService.recomputeSubmission(submissionId);
+      return {
+        success: true,
+        reset: true,
+        submissionId,
+        excludedFromPeerReview: false,
+        finalScore: recompute?.totalScore ?? null,
+      };
+    }
+
+    if (!body.reason || body.reason.length < 20) {
+      throw new BadRequestError(
+        'A reason of at least 20 characters is required for excluding a student from peer review.',
+      );
+    }
+
+    // 1. Mark submission as excluded
+    await this.submissionRepo.excludeFromPeerReview(
+      submissionId,
+      body.reason,
+      user._id!.toString(),
+    );
+
+    // 2. Mark assignments where this student was reviewer as EXCLUDED
+    const reviewerAssignments = await this.assignmentRepo.excludeAssignmentsByReviewer(
+      assessmentId,
+      studentId,
+    );
+
+    // 3. For target submissions losing a reviewer, attempt replacement reassignment if candidate active reviewers exist
+    const assessment = await this.assessmentRepo.findById(assessmentId);
+    const allSubmissionsInAssessment = await this.submissionRepo.findByAssessment(assessmentId);
+    const maxReviewsPerReviewer = (assessment as any)?.config?.reviewsPerReviewer || 3;
+
+    for (const asn of reviewerAssignments as any[]) {
+      const targetSubId = (asn.submissionId as any)?.toString();
+      if (!targetSubId || targetSubId === submissionId) continue;
+
+      const targetSub = await this.submissionRepo.findById(targetSubId);
+      if (!targetSub) continue;
+      const targetStudentId = (targetSub.studentId as any)?.toString();
+
+      // Find existing assignments for targetSub
+      const existingAsns = await this.assignmentRepo.findBySubmission(targetSubId);
+      const assignedReviewerIds = new Set(existingAsns.map((a: any) => (a.reviewerId as any)?.toString()));
+
+      // Look for an eligible replacement candidate in the cohort
+      let replacementReviewerId: string | null = null;
+      for (const candSub of allSubmissionsInAssessment as any[]) {
+        const candStudentId = (candSub.studentId as any)?.toString();
+        if (!candStudentId) continue;
+        if (candStudentId === studentId) continue; // Exclude disqualified student
+        if (candStudentId === targetStudentId) continue; // Exclude submission author
+        if (assignedReviewerIds.has(candStudentId)) continue; // Already assigned
+
+        // Check candidate active review load
+        const candAsns = await this.assignmentRepo.findByReviewer(assessmentId, candStudentId);
+        const activeCandAsns = candAsns.filter((a: any) => a.status !== 'EXCLUDED' && a.status !== 'CANCELLED');
+        if (activeCandAsns.length < maxReviewsPerReviewer) {
+          replacementReviewerId = candStudentId;
+          break;
+        }
+      }
+
+      if (replacementReviewerId) {
+        await this.assignmentRepo.create({
+          assessmentId: new ObjectId(assessmentId),
+          submissionId: new ObjectId(targetSubId),
+          reviewerId: new ObjectId(replacementReviewerId),
+          status: 'PENDING',
+          assignedAt: new Date(),
+          reassignmentCount: ((asn as any).reassignmentCount || 0) + 1,
+        } as any);
+      }
+
+      // Recompute target submission score from remaining valid submitted reviews
+      await this.scoringService.recomputeSubmission(targetSubId);
+    }
+
+    // 4. Recompute student's own submission score (evaluating reviews received normally)
+    const recompute = await this.scoringService.recomputeSubmission(submissionId);
+
+    // 5. Audit trail
+    setAuditTrail(req, {
+      category: AuditCategory.PEER_REVIEW,
+      action: AuditAction.PEER_REVIEW_TEACHER_OVERRIDE,
+      actor: {
+        id: new ObjectId(user._id!.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        peerReviewAssessmentId: assessmentId as any,
+      },
+      changes: {
+        after: {
+          action: 'STUDENT_EXCLUDED_FROM_PEER_REVIEW',
+          studentId,
+          submissionId,
+          reason: body.reason,
+        },
+      },
+    });
+
+    return {
+      ok: true,
+      submissionId,
+      studentId,
+      excludedFromPeerReview: true,
+      reason: body.reason,
     };
   }
 

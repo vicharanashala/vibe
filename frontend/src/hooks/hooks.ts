@@ -1772,6 +1772,31 @@ export function useTeacherOverrideSubmissionFinalScore(): {
   };
 }
 
+// POST /peer-review-assessments/submissions/{submissionId}/exclude-student
+export function useExcludeStudentFromPeerReview(): {
+  mutate: (variables: {
+    params: { path: { submissionId: string } },
+    body: { reason?: string, reset?: boolean },
+  }) => void,
+  mutateAsync: (variables: {
+    params: { path: { submissionId: string } },
+    body: { reason?: string, reset?: boolean },
+  }) => Promise<any>,
+  isPending: boolean,
+  error: string | null,
+} {
+  const result = (api as any).useMutation(
+    'post',
+    '/peer-review-assessments/submissions/{submissionId}/exclude-student',
+  );
+  return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    isPending: result.isPending ?? false,
+    error: result.error ? (result.error.message || 'Exclusion failed') : null,
+  };
+}
+
 // GET /students/me/peer-reviews-given
 export function useMyReviewsGiven(): {
   data: any[],

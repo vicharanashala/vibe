@@ -40,6 +40,8 @@ export class PeerReviewScoringService extends BaseService {
     private readonly submissionRepo: PeerReviewSubmissionRepository,
     @inject(PEERREVIEW_TYPES.PeerReviewReviewRepo)
     private readonly reviewRepo: PeerReviewReviewRepository,
+    @inject(PEERREVIEW_TYPES.PeerReviewAssignmentRepo)
+    private readonly assignmentRepo: PeerReviewAssignmentRepository,
     @inject(PEERREVIEW_TYPES.PeerReviewNotificationService)
     private readonly notifier: PeerReviewNotificationService,
     @inject(GLOBAL_TYPES.Database)
@@ -68,7 +70,18 @@ export class PeerReviewScoringService extends BaseService {
       (submission as any).assessmentId?.toString(),
     );
     if (!assessment) return undefined;
-    const reviews = await this.reviewRepo.findBySubmission(submissionId);
+    const assignments = await this.assignmentRepo.findBySubmission(submissionId);
+    const validSubmittedAssignmentIds = new Set(
+      assignments
+        .filter((a: any) => a.status === 'SUBMITTED')
+        .map((a: any) => (a._id as any).toString()),
+    );
+    const allReviews = await this.reviewRepo.findBySubmission(submissionId);
+    const reviews = assignments.length > 0
+      ? allReviews.filter((r: any) =>
+          validSubmittedAssignmentIds.has((r.assignmentId as any)?.toString()),
+        )
+      : allReviews;
     return this.computeAndPersist(
       submissionId,
       assessment,

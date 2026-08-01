@@ -373,4 +373,53 @@ export class PeerReviewSubmissionRepository {
       { session },
     );
   }
+
+  async excludeFromPeerReview(
+    id: string,
+    reason: string,
+    teacherId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    const filter = ObjectId.isValid(id)
+      ? { _id: new ObjectId(id) as any }
+      : { _id: id as any };
+    await this.collection.updateOne(
+      filter,
+      {
+        $set: {
+          excludedFromPeerReview: true,
+          reviewerExcluded: true,
+          teacherExcludeReason: reason,
+          teacherExcludedAt: new Date(),
+          teacherExcludedBy: teacherId as any,
+          updatedAt: new Date(),
+        },
+      },
+      { session },
+    );
+  }
+
+  async clearExclusion(
+    id: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    const filter = ObjectId.isValid(id)
+      ? { _id: new ObjectId(id) as any }
+      : { _id: id as any };
+    await this.collection.updateOne(
+      filter,
+      {
+        $set: {
+          excludedFromPeerReview: false,
+          teacherExcludeReason: null,
+          teacherExcludedAt: null,
+          teacherExcludedBy: null,
+          updatedAt: new Date(),
+        },
+      },
+      { session },
+    );
+  }
 }

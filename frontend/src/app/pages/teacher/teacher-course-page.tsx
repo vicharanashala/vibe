@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics, useClosePeerReviewAssessment, useDeletePeerReviewAssessment, usePeerReviewAssessmentByItemId, useUpdatePeerReviewAssessment, useTeacherSubmissionsForAssessment, useTeacherReviewsForAssessment, useTeacherOverrideReview, useTeacherOverrideSubmissionFinalScore } from '@/hooks/hooks';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics, useClosePeerReviewAssessment, useDeletePeerReviewAssessment, usePeerReviewAssessmentByItemId, useUpdatePeerReviewAssessment, useTeacherSubmissionsForAssessment, useTeacherReviewsForAssessment, useTeacherOverrideSubmissionFinalScore, useExcludeStudentFromPeerReview } from '@/hooks/hooks';
 import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, LockOpen, Lock, ExternalLink } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -46,6 +46,8 @@ import {
   BarChart2,
   CheckCircle2,
   Filter,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 import { useNavigate } from "@tanstack/react-router";
@@ -1844,7 +1846,7 @@ function TeacherCourseContent() {
   }, [modules])
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+    <ResizablePanelGroup direction="horizontal" className="h-screen w-full overflow-hidden">
       {/* Show loading overlay when processing CSV */}
       {isProcessingCSV && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
@@ -2077,11 +2079,11 @@ function TeacherCourseContent() {
         defaultSize={20}
         minSize={20}
         maxSize={50}
-      // className={`${isMobileSidebarOpen ? 'fixed inset-y-0 left-0 z-50 w-[280px]' : 'hidden md:block'}`}
+        className="h-full max-h-screen overflow-hidden flex flex-col"
       >
         {/* sidebar content */}
-        <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50">
-          <Sidebar variant="sidebar" collapsible="none" className="h-screen w-full">
+        <div className="h-full overflow-hidden border-r border-border/40 bg-sidebar/50 flex flex-col">
+          <Sidebar variant="sidebar" collapsible="none" className="h-full w-full flex flex-col">
             <SidebarHeader>
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3 px-3 py-2">
@@ -2825,9 +2827,9 @@ function TeacherCourseContent() {
       {/* {isDesktopSidebarVisible && <ResizableHandle className="hidden md:flex" />} */}
 
 
-      <ResizablePanel defaultSize={80} className="min-w-0">
+      <ResizablePanel defaultSize={80} className="min-w-0 h-full overflow-hidden">
         {/* Course Editor Area */}
-        <SidebarInset className="max-w-full overflow-hidden flex flex-col">
+        <SidebarInset className="max-w-full h-full overflow-y-auto flex flex-col">
           <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear sticky top-0 z-50 bg-background">
             <div className="flex w-full items-center justify-between px-4">
               <div className="flex items-center gap-2">
@@ -3962,7 +3964,7 @@ export default function TeacherCoursePage() {
   }, []);
 
   return (
-    <SidebarProvider defaultOpen={initialScreenSize ?? true}>
+    <SidebarProvider defaultOpen={initialScreenSize ?? true} className="h-screen max-h-screen overflow-hidden w-full flex">
       <TeacherCourseContent />
     </SidebarProvider>
   );
@@ -4886,56 +4888,9 @@ function PeerReviewSubmissionsSection({
   const queryClient = useQueryClient();
   const { data, isLoading, error, refetch } = useTeacherSubmissionsForAssessment(assessmentId);
   const reviewsQueryResult = useTeacherReviewsForAssessment(assessmentId);
-  const overrideMutation = useTeacherOverrideReview();
   const [expandedSubmissionId, setExpandedSubmissionId] = useState<string | null>(null);
-
-  // Override Form state
-  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
-  const [overrideScores, setOverrideScores] = useState<Record<string, number>>({});
-  const [overrideComment, setOverrideComment] = useState('');
-  const [overrideReason, setOverrideReason] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'flagged'>('all');
-
-  const handleStartOverride = (review: any) => {
-    setEditingReviewId(review.reviewId);
-    setOverrideComment(review.overallComment || '');
-    setOverrideReason('');
-    const scoresMap: Record<string, number> = {};
-    for (const s of review.scores || []) {
-      scoresMap[s.criterionId] = s.score;
-    }
-    setOverrideScores(scoresMap);
-  };
-
-  const handleSaveOverride = async (reviewId: string) => {
-    if (overrideReason.trim().length < 20) {
-      toast.error('Override reason must be at least 20 characters.');
-      return;
-    }
-    try {
-      const scoresPayload = Object.entries(overrideScores).map(([cid, val]) => ({
-        criterionId: cid,
-        score: val,
-      }));
-
-      await overrideMutation.mutateAsync({
-        params: { path: { id: reviewId } },
-        body: {
-          scores: scoresPayload,
-          overallComment: overrideComment.trim(),
-          reason: overrideReason.trim(),
-        },
-      });
-
-      toast.success('Score overridden successfully');
-      setEditingReviewId(null);
-      queryClient.invalidateQueries();
-      refetch();
-      reviewsQueryResult.refetch();
-    } catch (e: any) {
-      toast.error('Override failed: ' + (e?.message || 'unknown error'));
-    }
-  };
+  const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
 
   const overrideSubmissionMutation = useTeacherOverrideSubmissionFinalScore();
   const [editingSubmissionFinalScoreId, setEditingSubmissionFinalScoreId] = useState<string | null>(null);
@@ -5002,8 +4957,71 @@ function PeerReviewSubmissionsSection({
     }
   };
 
+  const excludeStudentMutation = useExcludeStudentFromPeerReview();
+  const [excludingSubmissionId, setExcludingSubmissionId] = useState<string | null>(null);
+  const [excludeReason, setExcludeReason] = useState<string>('');
+
+  const handleStartExclusion = (submissionId: string) => {
+    setExcludingSubmissionId(submissionId);
+    setExcludeReason('');
+  };
+
+  const handleConfirmExclusion = async (submissionId: string) => {
+    if (excludeReason.trim().length < 20) {
+      toast.error('Exclusion reason must be at least 20 characters.');
+      return;
+    }
+    try {
+      await excludeStudentMutation.mutateAsync({
+        params: { path: { submissionId } },
+        body: {
+          reason: excludeReason.trim(),
+        },
+      });
+      toast.success('Student removed from peer-based evaluation');
+      setExcludingSubmissionId(null);
+      setExcludeReason('');
+      queryClient.invalidateQueries();
+      refetch();
+      reviewsQueryResult.refetch();
+    } catch (e: any) {
+      toast.error('Exclusion failed: ' + (e?.message || 'unknown error'));
+    }
+  };
+
+  const handleResetExclusion = async (submissionId: string) => {
+    try {
+      await excludeStudentMutation.mutateAsync({
+        params: { path: { submissionId } },
+        body: {
+          reset: true,
+        },
+      });
+      toast.success('Student reinstated for peer evaluation');
+      queryClient.invalidateQueries();
+      refetch();
+      reviewsQueryResult.refetch();
+    } catch (e: any) {
+      toast.error('Reset failed: ' + (e?.message || 'unknown error'));
+    }
+  };
+
   const submissions = useMemo(() => data?.submissions ?? [], [data]);
-  const reviews = useMemo(() => reviewsQueryResult.data?.reviews ?? [], [reviewsQueryResult.data]);
+  const rawReviews = useMemo(() => reviewsQueryResult.data?.reviews ?? [], [reviewsQueryResult.data]);
+
+  const excludedReviewerIds = useMemo(() => {
+    const set = new Set<string>();
+    submissions.forEach((s: any) => {
+      if (s.reviewerExcluded || s.excludedFromPeerReview) {
+        set.add(s.studentId);
+      }
+    });
+    return set;
+  }, [submissions]);
+
+  const reviews = useMemo(() => {
+    return rawReviews.filter((r: any) => !r.isExcludedAssignment && !excludedReviewerIds.has(r.reviewerId));
+  }, [rawReviews, excludedReviewerIds]);
 
   // Summary stats
   const scoredSubmissions = useMemo(() => submissions.filter((s: any) => typeof s.finalScore === 'number'), [submissions]);
@@ -5141,121 +5159,139 @@ function PeerReviewSubmissionsSection({
 
   return (
     <div className="space-y-6">
-      {/* Interactive Analytics & Malpractice Dashboard */}
+      {/* Interactive Analytics & Malpractice Dashboard (Collapsible) */}
       {submissions.length > 0 && (
-        <Card className="border bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <PieChartIcon className="h-5 w-5 text-primary" />
-                Assessment Analytics & Collusion Insights
-              </span>
+        <Card className="border bg-card shadow-sm">
+          <CardHeader className="py-3 px-4 flex flex-row items-center justify-between cursor-pointer select-none" onClick={() => setShowAnalytics(prev => !prev)}>
+            <div className="flex items-center gap-2">
+              <PieChartIcon className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">Assessment Analytics & Insights</span>
               {flaggedCount > 0 && (
-                <Badge variant="destructive" className="flex items-center gap-1">
-                  <ShieldAlert className="h-3.5 w-3.5" />
+                <Badge variant="destructive" className="ml-1 text-[10px] py-0 bg-amber-600">
                   {flaggedCount} Malpractice Flag{flaggedCount > 1 ? 's' : ''}
                 </Badge>
               )}
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Real-time summary of student performance, score distribution, rubric criterion averages, and collusion/anomaly tracking.
-            </CardDescription>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs flex items-center gap-1 font-medium"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAnalytics(prev => !prev);
+              }}
+            >
+              {showAnalytics ? (
+                <>
+                  <span>Hide Insights</span>
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </>
+              ) : (
+                <>
+                  <span>Show More Insights</span>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </>
+              )}
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Stat Cards Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="border rounded-lg p-3 bg-muted/20 space-y-1">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Class Average</span>
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+
+          {showAnalytics && (
+            <CardContent className="space-y-6 pt-2 border-t">
+              {/* Stat Cards Row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="border rounded-lg p-3 bg-muted/20 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Class Average</span>
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <div className="text-xl font-bold font-mono text-primary">
+                    {classAvg} <span className="text-xs font-normal text-muted-foreground">/ {totalMaxScore} pts</span>
+                  </div>
                 </div>
-                <div className="text-xl font-bold font-mono text-primary">
-                  {classAvg} <span className="text-xs font-normal text-muted-foreground">/ {totalMaxScore} pts</span>
+
+                <div className="border rounded-lg p-3 bg-muted/20 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Review Completion</span>
+                    <CheckCircle2 className="h-4 w-4 text-blue-500" />
+                  </div>
+                  <div className="text-xl font-bold font-mono">
+                    {completionRate}%
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-3 bg-muted/20 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Submissions</span>
+                    <Users className="h-4 w-4 text-purple-500" />
+                  </div>
+                  <div className="text-xl font-bold font-mono">
+                    {submissions.length}
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-3 bg-muted/20 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Malpractice Alerts</span>
+                    <ShieldAlert className={`h-4 w-4 ${flaggedCount > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
+                  </div>
+                  <div className="text-xl font-bold font-mono">
+                    {flaggedCount}
+                  </div>
                 </div>
               </div>
 
-              <div className="border rounded-lg p-3 bg-muted/20 space-y-1">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Review Completion</span>
-                  <CheckCircle2 className="h-4 w-4 text-blue-500" />
+              {/* Interactive Charts Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                {/* Score Distribution Pie Chart */}
+                <div className="border rounded-lg p-4 bg-muted/10 space-y-2">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <PieChartIcon className="h-4 w-4 text-primary" />
+                    Score Distribution
+                  </h5>
+                  <div className="h-48 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={scoreBrackets}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={45}
+                          outerRadius={70}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {scoreBrackets.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip formatter={(val: any) => [`${val} student(s)`, 'Count']} />
+                        <Legend wrapperStyle={{ fontSize: '11px' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-                <div className="text-xl font-bold font-mono">
-                  {completionRate}%
-                </div>
-              </div>
 
-              <div className="border rounded-lg p-3 bg-muted/20 space-y-1">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Submissions</span>
-                  <Users className="h-4 w-4 text-purple-500" />
-                </div>
-                <div className="text-xl font-bold font-mono">
-                  {submissions.length}
-                </div>
-              </div>
-
-              <div className="border rounded-lg p-3 bg-muted/20 space-y-1">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Malpractice Alerts</span>
-                  <ShieldAlert className={`h-4 w-4 ${flaggedCount > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
-                </div>
-                <div className="text-xl font-bold font-mono">
-                  {flaggedCount}
-                </div>
-              </div>
-            </div>
-
-            {/* Interactive Charts Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-              {/* Score Distribution Pie Chart */}
-              <div className="border rounded-lg p-4 bg-muted/10 space-y-2">
-                <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <PieChartIcon className="h-4 w-4 text-primary" />
-                  Score Distribution
-                </h5>
-                <div className="h-48 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={scoreBrackets}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={45}
-                        outerRadius={70}
-                        paddingAngle={3}
-                        dataKey="value"
-                      >
-                        {scoreBrackets.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip formatter={(val: any) => [`${val} student(s)`, 'Count']} />
-                      <Legend wrapperStyle={{ fontSize: '11px' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                {/* Rubric Criterion Breakdown Bar Chart */}
+                <div className="border rounded-lg p-4 bg-muted/10 space-y-2">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <BarChart2 className="h-4 w-4 text-primary" />
+                    Criterion Performance Averages
+                  </h5>
+                  <div className="h-48 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={criterionAverages} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                        <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-15} textAnchor="end" />
+                        <YAxis tick={{ fontSize: 10 }} />
+                        <RechartsTooltip formatter={(val: any) => [`${val} pts avg`, 'Average']} />
+                        <Bar dataKey="average" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
-
-              {/* Rubric Criterion Breakdown Bar Chart */}
-              <div className="border rounded-lg p-4 bg-muted/10 space-y-2">
-                <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <BarChart2 className="h-4 w-4 text-primary" />
-                  Criterion Performance Averages
-                </h5>
-                <div className="h-48 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={criterionAverages} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                      <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-15} textAnchor="end" />
-                      <YAxis tick={{ fontSize: 10 }} />
-                      <RechartsTooltip formatter={(val: any) => [`${val} pts avg`, 'Average']} />
-                      <Bar dataKey="average" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          </CardContent>
+            </CardContent>
+          )}
         </Card>
       )}
 
@@ -5307,13 +5343,32 @@ function PeerReviewSubmissionsSection({
                 <div key={sub.submissionId} className="p-4 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <h4 className="font-semibold text-sm">{sub.studentName}</h4>
+                      <h4 className="font-semibold text-sm flex items-center gap-2">
+                        {sub.studentName}
+                        {(sub.reviewerExcluded || sub.excludedFromPeerReview) && (
+                          <Badge variant="destructive" className="py-0 text-[10px] bg-amber-600 dark:bg-amber-700">
+                            Reviewer Disqualified
+                          </Badge>
+                        )}
+                      </h4>
                       <p className="text-xs text-muted-foreground">{sub.studentEmail}</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Submitted: {new Date(sub.submittedAt).toLocaleString()}
                         {sub.isLate && <Badge variant="destructive" className="ml-2 py-0">Late</Badge>}
                       </p>
-                      {subFlags && subFlags.length > 0 && (
+                      {(sub.reviewerExcluded || sub.excludedFromPeerReview) && sub.teacherExcludeReason && (
+                        <div className="mt-2 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5 text-xs text-amber-600 dark:text-amber-400 space-y-1">
+                          <p className="font-semibold flex items-center gap-1.5">
+                            <ShieldAlert className="h-4 w-4 text-amber-500" />
+                            Disqualified from Reviewing Peers (Teacher Action):
+                          </p>
+                          <p className="text-[11px] pl-5">{sub.teacherExcludeReason}</p>
+                          <p className="text-[10px] text-muted-foreground pl-5 italic">
+                            Note: This student's own submission is evaluated normally by peers and receives a grade. Their reviews given to others have been excluded.
+                          </p>
+                        </div>
+                      )}
+                      {subFlags && subFlags.length > 0 && !(sub.reviewerExcluded || sub.excludedFromPeerReview) && (
                         <div className="mt-2 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5 text-xs text-amber-600 dark:text-amber-400 space-y-1">
                           <p className="font-semibold flex items-center gap-1.5">
                             <ShieldAlert className="h-4 w-4 text-amber-500" />
@@ -5345,25 +5400,48 @@ function PeerReviewSubmissionsSection({
                           <span>{sub.finalScore !== null ? `${sub.finalScore} pts` : 'Pending'}</span>
                           {teacherManualReviewEnabled !== false && (
                             <div className="flex items-center gap-1">
-                              {sub.teacherOverridden && (
+                              {(sub.reviewerExcluded || sub.excludedFromPeerReview) ? (
                                 <Button
                                   size="sm"
-                                  variant="ghost"
-                                  className="h-6 px-1.5 text-[10px] text-destructive hover:bg-destructive/10"
-                                  title="Reset to calculated score"
-                                  onClick={() => handleResetOverrideFinalScore(sub.submissionId)}
+                                  variant="outline"
+                                  className="h-6 px-2 text-[10px] border-emerald-500 text-emerald-600 hover:bg-emerald-50 text-xs"
+                                  title="Reinstate student's reviewer role"
+                                  onClick={() => handleResetExclusion(sub.submissionId)}
                                 >
-                                  Reset
+                                  Reinstate Reviewer
                                 </Button>
+                              ) : (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-[10px] border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                                    title="Disqualify student from reviewing peers due to collusion/cheating"
+                                    onClick={() => handleStartExclusion(sub.submissionId)}
+                                  >
+                                    Disqualify Reviewer
+                                  </Button>
+                                  {sub.teacherOverridden && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 px-1.5 text-[10px] text-destructive hover:bg-destructive/10"
+                                      title="Reset to calculated score"
+                                      onClick={() => handleResetOverrideFinalScore(sub.submissionId)}
+                                    >
+                                      Reset
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-[10px]"
+                                    onClick={() => handleStartOverrideFinalScore(sub)}
+                                  >
+                                    {sub.teacherOverridden ? 'Edit Override' : 'Override Score'}
+                                  </Button>
+                                </>
                               )}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-6 px-2 text-[10px]"
-                                onClick={() => handleStartOverrideFinalScore(sub)}
-                              >
-                                {sub.teacherOverridden ? 'Edit Override' : 'Override Score'}
-                              </Button>
                             </div>
                           )}
                         </div>
@@ -5474,6 +5552,61 @@ function PeerReviewSubmissionsSection({
                     </div>
                   )}
 
+                  {/* Reviewer Disqualification Confirmation Form */}
+                  {excludingSubmissionId === sub.submissionId && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 space-y-3 mt-2">
+                      <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
+                        <p className="font-semibold text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                          <ShieldAlert className="h-3.5 w-3.5" />
+                          Disqualify {sub.studentName} as Reviewer
+                        </p>
+                        <span className="text-[10px] text-muted-foreground">Teacher Action</span>
+                      </div>
+
+                      <p className="text-[11px] text-muted-foreground">
+                        Disqualifying this student as a reviewer will exclude their submitted reviews from affecting peer grades and cancel their pending reviews. This student's own submission will still be evaluated normally by peers and receive a grade.
+                      </p>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs flex items-center justify-between">
+                          <span className="font-semibold text-amber-600 dark:text-amber-400">Reason for Disqualifying Reviewer (required, min 20 chars)</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {excludeReason.length} chars
+                          </span>
+                        </Label>
+                        <Textarea
+                          className="text-xs min-h-[60px]"
+                          placeholder="e.g. Disqualifying reviewer due to reciprocal collusion and inflated scores given to peers..."
+                          value={excludeReason}
+                          onChange={e => setExcludeReason(e.target.value)}
+                        />
+                        {excludeReason.length > 0 && excludeReason.length < 20 && (
+                          <p className="text-[10px] text-destructive">Must be at least 20 characters.</p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-[11px]"
+                          onClick={() => setExcludingSubmissionId(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 text-[11px] bg-amber-600 hover:bg-amber-700 text-white border-none"
+                          disabled={excludeReason.length < 20 || excludeStudentMutation.isPending}
+                          onClick={() => handleConfirmExclusion(sub.submissionId)}
+                        >
+                          {excludeStudentMutation.isPending ? 'Disqualifying Reviewer…' : 'Confirm & Disqualify Reviewer'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {isExpanded && (
                     <div className="pl-4 border-l-2 border-primary/20 space-y-4 pt-2">
                       {/* Submission links/notes */}
@@ -5508,7 +5641,6 @@ function PeerReviewSubmissionsSection({
                         ) : (
                           <div className="space-y-3">
                             {subReviews.map((rev: any) => {
-                              const isEditing = editingReviewId === rev.reviewId;
                               return (
                                 <div key={rev.reviewId} className="border rounded p-3 bg-muted/10 space-y-2 text-xs">
                                   <div className="flex items-center justify-between border-b pb-1.5">
@@ -5517,9 +5649,14 @@ function PeerReviewSubmissionsSection({
                                       <span className="text-muted-foreground ml-2">({rev.reviewerEmail})</span>
                                     </div>
                                     <div className="flex items-center gap-2">
+                                      {rev.isExcludedAssignment && (
+                                        <Badge variant="destructive" className="py-0 text-[10px] bg-red-600 dark:bg-red-700">
+                                          Reviewer Disqualified (Score Excluded)
+                                        </Badge>
+                                      )}
                                       {rev.teacherOverridden && <Badge variant="destructive" className="py-0">Overridden</Badge>}
                                       {rev.isLate && <Badge variant="secondary" className="py-0">Late</Badge>}
-                                      <span className="font-mono font-bold text-sm bg-muted px-2 py-0.5 rounded">
+                                      <span className={`font-mono font-bold text-sm bg-muted px-2 py-0.5 rounded ${rev.isExcludedAssignment ? 'line-through opacity-50' : ''}`}>
                                         {rev.totalScore} pts
                                       </span>
                                     </div>
@@ -5545,116 +5682,10 @@ function PeerReviewSubmissionsSection({
                                     <div className="bg-background/50 border rounded p-2 italic">
                                       <span className="font-semibold not-italic">Reviewer Comment: </span>
                                       "{rev.overallComment}"
-                                    </div>
-                                  )}
-
-                                  {rev.teacherOverridden && rev.teacherOverrideReason && (
-                                    <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded p-2 text-amber-900 dark:text-amber-200">
-                                      <span className="font-semibold">Teacher Override Reason: </span>
-                                      {rev.teacherOverrideReason}
-                                    </div>
-                                  )}
-
-                                  {/* Override Controls */}
-                                  {teacherManualReviewEnabled !== false && (
-                                    <div className="pt-2 border-t flex flex-col gap-2">
-                                      {!isEditing ? (
-                                        <div className="flex justify-end gap-2">
-                                          {rev.teacherOverridden && (
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              className="h-7 text-[11px] text-destructive hover:bg-destructive/10 border-destructive/30"
-                                              onClick={() => handleResetOverride(rev.reviewId)}
-                                            >
-                                              Reset to Original
-                                            </Button>
-                                          )}
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-7 text-[11px]"
-                                            onClick={() => handleStartOverride(rev)}
-                                          >
-                                            {rev.teacherOverridden ? 'Edit Override' : 'Override Scores'}
-                                          </Button>
-                                        </div>
-                                      ) : (
-                                        <div className="space-y-3 bg-background border rounded p-3">
-                                          <p className="font-semibold text-xs text-primary">Override Scores for {rev.reviewerName}'s Review</p>
-                                          
-                                          <div className="space-y-2">
-                                            {rubric.map((r: any) => {
-                                              const currentVal = overrideScores[r.criterionId] ?? 0;
-                                              return (
-                                                <div key={r.criterionId} className="flex items-center justify-between gap-4">
-                                                  <Label className="text-xs flex-1">{r.label} (Max {r.maxPoints})</Label>
-                                                  <Input
-                                                    type="number"
-                                                    min={0}
-                                                    max={r.maxPoints}
-                                                    className="w-20 h-8 text-xs font-mono"
-                                                    value={currentVal}
-                                                    onChange={e => {
-                                                      const num = Math.max(0, Math.min(r.maxPoints, Number(e.target.value) || 0));
-                                                      setOverrideScores(prev => ({
-                                                        ...prev,
-                                                        [r.criterionId]: num,
-                                                      }));
-                                                    }}
-                                                  />
-                                                </div>
-                                              );
-                                            })}
-                                          </div>
-
-                                          <div className="space-y-1">
-                                            <Label className="text-xs">Overall Comment</Label>
-                                            <Textarea
-                                              rows={2}
-                                              className="text-xs"
-                                              placeholder="Instructor override comments..."
-                                              value={overrideComment}
-                                              onChange={e => setOverrideComment(e.target.value)}
-                                            />
-                                          </div>
-
-                                          <div className="space-y-1">
-                                            <Label className="text-xs flex items-center justify-between">
-                                              <span>Reason for Override (required, min 20 chars)</span>
-                                              <span className="text-[10px] text-muted-foreground font-mono">
-                                                {overrideReason.length} chars
-                                              </span>
-                                            </Label>
-                                            <Input
-                                              className="text-xs"
-                                              placeholder="e.g. Overriding score due to inaccurate rubrics assessment..."
-                                              value={overrideReason}
-                                              onChange={e => setOverrideReason(e.target.value)}
-                                            />
-                                            {overrideReason.length > 0 && overrideReason.length < 20 && (
-                                              <p className="text-[10px] text-destructive">Must be at least 20 characters.</p>
-                                            )}
-                                          </div>
-
-                                          <div className="flex justify-end gap-2 pt-1">
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="h-7 text-[11px]"
-                                              onClick={() => setEditingReviewId(null)}
-                                            >
-                                              Cancel
-                                            </Button>
-                                            <Button
-                                              size="sm"
-                                              className="h-7 text-[11px]"
-                                              disabled={overrideReason.length < 20 || overrideMutation.isPending}
-                                              onClick={() => handleSaveOverride(rev.reviewId)}
-                                            >
-                                              {overrideMutation.isPending ? 'Saving Override…' : 'Save Override'}
-                                            </Button>
-                                          </div>
+                                      {rev.teacherOverridden && rev.teacherOverrideReason && (
+                                        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded p-2 text-amber-900 dark:text-amber-200 mt-2">
+                                          <span className="font-semibold">Teacher Override Reason: </span>
+                                          {rev.teacherOverrideReason}
                                         </div>
                                       )}
                                     </div>

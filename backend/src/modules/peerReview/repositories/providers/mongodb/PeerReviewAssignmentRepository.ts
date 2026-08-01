@@ -259,4 +259,52 @@ export class PeerReviewAssignmentRepository {
     const docs = await this.collection.find(filter).toArray();
     return docs as IPeerReviewAssignment[];
   }
+
+  async excludeAssignmentsByReviewer(
+    assessmentId: string,
+    reviewerId: string,
+    session?: ClientSession,
+  ): Promise<IPeerReviewAssignment[]> {
+    await this.init();
+    const filter: any = {};
+    if (ObjectId.isValid(assessmentId)) {
+      filter.assessmentId = new ObjectId(assessmentId);
+    } else {
+      filter.assessmentId = assessmentId;
+    }
+    if (ObjectId.isValid(reviewerId)) {
+      filter.reviewerId = new ObjectId(reviewerId);
+    } else {
+      filter.reviewerId = reviewerId;
+    }
+
+    const affected = await this.collection.find(filter).toArray();
+    await this.collection.updateMany(
+      filter,
+      { $set: { status: 'EXCLUDED' as const, updatedAt: new Date() } },
+      { session },
+    );
+    return affected as IPeerReviewAssignment[];
+  }
+
+  async excludeAssignmentsBySubmission(
+    submissionId: string,
+    session?: ClientSession,
+  ): Promise<IPeerReviewAssignment[]> {
+    await this.init();
+    const filter: any = {};
+    if (ObjectId.isValid(submissionId)) {
+      filter.submissionId = new ObjectId(submissionId);
+    } else {
+      filter.submissionId = submissionId;
+    }
+
+    const affected = await this.collection.find(filter).toArray();
+    await this.collection.updateMany(
+      filter,
+      { $set: { status: 'EXCLUDED' as const, updatedAt: new Date() } },
+      { session },
+    );
+    return affected as IPeerReviewAssignment[];
+  }
 }
