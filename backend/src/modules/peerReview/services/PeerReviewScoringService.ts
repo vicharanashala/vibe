@@ -104,6 +104,19 @@ export class PeerReviewScoringService extends BaseService {
     pendingForTeacher: boolean;
     teacherOverridden: boolean;
   }> {
+    if (submission.teacherOverridden && typeof submission.teacherOverrideScore === 'number') {
+      await this.submissionRepo.setFinalScore(
+        submissionId,
+        submission.teacherOverrideScore,
+        [],
+      );
+      return {
+        totalScore: submission.teacherOverrideScore,
+        pendingForTeacher: false,
+        teacherOverridden: true,
+      };
+    }
+
     const result = computeFinalScore({
       rubric: (assessment as any).rubric ?? [],
       reviews: reviews.map((r: any) => ({

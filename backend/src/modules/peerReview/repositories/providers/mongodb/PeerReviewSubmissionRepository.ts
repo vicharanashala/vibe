@@ -293,6 +293,60 @@ export class PeerReviewSubmissionRepository {
     );
   }
 
+  async applyTeacherOverride(
+    id: string,
+    override: {
+      finalScore: number;
+      reason: string;
+      overriddenBy?: string;
+    },
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    const filter = ObjectId.isValid(id)
+      ? { _id: new ObjectId(id) as any }
+      : { _id: id as any };
+    await this.collection.updateOne(
+      filter,
+      {
+        $set: {
+          finalScore: override.finalScore,
+          teacherOverridden: true,
+          teacherOverrideScore: override.finalScore,
+          teacherOverrideReason: override.reason,
+          teacherOverriddenBy: override.overriddenBy,
+          teacherOverriddenAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+      { session },
+    );
+  }
+
+  async clearTeacherOverride(
+    id: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    const filter = ObjectId.isValid(id)
+      ? { _id: new ObjectId(id) as any }
+      : { _id: id as any };
+    await this.collection.updateOne(
+      filter,
+      {
+        $set: {
+          teacherOverridden: false,
+          teacherOverrideScore: null,
+          teacherOverrideReason: null,
+          teacherOverriddenBy: null,
+          teacherOverriddenAt: null,
+          updatedAt: new Date(),
+        },
+      },
+      { session },
+    );
+  }
+
   async setTeacherOverride(
     id: string,
     reason: string,

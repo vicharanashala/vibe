@@ -1747,6 +1747,31 @@ export function useTeacherOverrideReview(): {
   };
 }
 
+// PATCH /peer-review-assessments/submissions/{submissionId}/teacher-override
+export function useTeacherOverrideSubmissionFinalScore(): {
+  mutate: (variables: {
+    params: { path: { submissionId: string } },
+    body: { finalScore?: number, reason?: string, reset?: boolean },
+  }) => void,
+  mutateAsync: (variables: {
+    params: { path: { submissionId: string } },
+    body: { finalScore?: number, reason?: string, reset?: boolean },
+  }) => Promise<any>,
+  isPending: boolean,
+  error: string | null,
+} {
+  const result = (api as any).useMutation(
+    'patch',
+    '/peer-review-assessments/submissions/{submissionId}/teacher-override',
+  );
+  return {
+    mutate: result.mutate,
+    mutateAsync: result.mutateAsync,
+    isPending: result.isPending ?? false,
+    error: result.error ? (result.error.message || 'Override failed') : null,
+  };
+}
+
 // GET /students/me/peer-reviews-given
 export function useMyReviewsGiven(): {
   data: any[],

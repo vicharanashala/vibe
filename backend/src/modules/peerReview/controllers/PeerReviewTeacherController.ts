@@ -134,7 +134,10 @@ export class PeerReviewTeacherController {
         ? assignments.length
         : (s.reviewsTotal || (assessment as any).config?.reviewsPerSubmission || 3);
 
-      let finalScore = s.finalScore ?? null;
+      let finalScore = s.teacherOverridden && typeof s.teacherOverrideScore === 'number'
+        ? s.teacherOverrideScore
+        : (s.finalScore ?? null);
+
       if (
         finalScore === null &&
         ((s.reviewsCompleted ?? 0) > 0 || (assessment as any).closedAt)
@@ -166,11 +169,103 @@ export class PeerReviewTeacherController {
         reviewsCompleted: s.reviewsCompleted ?? 0,
         reviewsTotal: actualReviewsTotal,
         finalScore,
+        teacherOverridden: !!s.teacherOverridden,
+        teacherOverrideScore: s.teacherOverrideScore ?? null,
+        teacherOverrideReason: s.teacherOverrideReason ?? null,
         pendingTeacherIntervention: !!s.pendingTeacherIntervention,
         assignmentsToReviewers: reviewerDetails,
       });
     }
     return { submissions: out };
+  }
+
+  @Patch('/peer-review-assessments/submissions/:submissionId/teacher-override')
+  @HttpCode(200)
+  @Authorized(['INSTRUCTOR', 'MANAGER'])
+  async teacherOverrideSubmissionFinalScore(
+    @Req() req: any,
+    @CurrentUser({ required: true }) user: IUser,
+    @Param('submissionId') submissionId: string,
+    @Body()
+    body: {
+      finalScore?: number;
+      reason?: string;
+      reset?: boolean;
+    },
+  ): Promise<any> {
+    const submission = await this.submissionRepo.findById(submissionId);
+    if (!submission || (submission as any).isDeleted) {
+      throw new NotFoundError('Submission not found.');
+    }
+
+    if (body.reset) {
+      await this.submissionRepo.clearTeacherOverride(submissionId);
+      const recompute = await this.scoringService.recomputeSubmission(submissionId);
+      return { success: true, reset: true, finalScore: recompute?.totalScore ?? null };
+    }
+
+    if (!body.reason || body.reason.length < 20) {
+      throw new BadRequestError(
+        'A reason of at least 20 characters is required for teacher overrides.',
+      );
+    }
+    if (typeof body.finalScore !== 'number' || Number.isNaN(body.finalScore)) {
+      throw new BadRequestError('A valid numeric finalScore is required.');
+    }
+
+    await this.submissionRepo.applyTeacherOverride(submissionId, {
+      finalScore: body.finalScore,
+      reason: body.reason,
+      overriddenBy: user._id!.toString(),
+    });
+
+    const assessment = await this.assessmentRepo.findById(
+      (submission as any).assessmentId?.toString(),
+    );
+
+    if (assessment) {
+      const rubric = (assessment as any).rubric ?? [];
+      const totalMax = rubric.reduce(
+        (acc: number, c: any) => acc + (c.maxPoints ?? 0),
+        0,
+      );
+      await this.notifier.notifyTeacherOverride({
+        userId: (submission as any).studentId?.toString() ?? '',
+        assessmentTitle: (assessment as any).title ?? 'Assessment',
+        newFinalScore: body.finalScore,
+        totalMax,
+        assessmentId: (assessment as any)._id?.toString(),
+        courseId: (assessment as any).courseId?.toString(),
+        reason: body.reason,
+      });
+    }
+
+    setAuditTrail(req, {
+      category: AuditCategory.PEER_REVIEW,
+      action: AuditAction.PEER_REVIEW_TEACHER_OVERRIDE,
+      actor: {
+        id: new ObjectId(user._id!.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        peerReviewAssessmentId: (assessment as any)?._id?.toString() as any,
+      },
+      changes: {
+        after: {
+          reason: body.reason,
+          newFinalScore: body.finalScore,
+        },
+      },
+    });
+
+    return {
+      ok: true,
+      submissionId,
+      finalScore: body.finalScore,
+      teacherOverridden: true,
+    };
   }
 
   @Get('/peer-review-assessments/:id/reviews')

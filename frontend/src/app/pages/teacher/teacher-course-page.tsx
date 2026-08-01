@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics, useClosePeerReviewAssessment, useDeletePeerReviewAssessment, usePeerReviewAssessmentByItemId, useUpdatePeerReviewAssessment, useTeacherSubmissionsForAssessment, useTeacherReviewsForAssessment, useTeacherOverrideReview } from '@/hooks/hooks';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics, useClosePeerReviewAssessment, useDeletePeerReviewAssessment, usePeerReviewAssessmentByItemId, useUpdatePeerReviewAssessment, useTeacherSubmissionsForAssessment, useTeacherReviewsForAssessment, useTeacherOverrideReview, useTeacherOverrideSubmissionFinalScore } from '@/hooks/hooks';
 import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, LockOpen, Lock, ExternalLink } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -4942,17 +4942,51 @@ function PeerReviewSubmissionsSection({
     }
   };
 
-  const handleResetOverride = async (reviewId: string) => {
+  const overrideSubmissionMutation = useTeacherOverrideSubmissionFinalScore();
+  const [editingSubmissionFinalScoreId, setEditingSubmissionFinalScoreId] = useState<string | null>(null);
+  const [overrideFinalScoreVal, setOverrideFinalScoreVal] = useState<number>(0);
+  const [overrideFinalScoreReason, setOverrideFinalScoreReason] = useState<string>('');
+
+  const handleStartOverrideFinalScore = (sub: any) => {
+    setEditingSubmissionFinalScoreId(sub.submissionId);
+    setOverrideFinalScoreVal(sub.finalScore ?? 0);
+    setOverrideFinalScoreReason('');
+  };
+
+  const handleSaveOverrideFinalScore = async (submissionId: string) => {
+    if (overrideFinalScoreReason.trim().length < 20) {
+      toast.error('Override reason must be at least 20 characters.');
+      return;
+    }
     try {
-      await overrideMutation.mutateAsync({
-        params: { path: { id: reviewId } },
+      await overrideSubmissionMutation.mutateAsync({
+        params: { path: { submissionId } },
         body: {
-          reset: true,
-          reason: 'Resetting override to original score',
+          finalScore: overrideFinalScoreVal,
+          reason: overrideFinalScoreReason.trim(),
         },
       });
-      toast.success('Reset to original scores');
-      setEditingReviewId(null);
+
+      toast.success('Submission final score overridden successfully');
+      setEditingSubmissionFinalScoreId(null);
+      queryClient.invalidateQueries();
+      refetch();
+      reviewsQueryResult.refetch();
+    } catch (e: any) {
+      toast.error('Override failed: ' + (e?.message || 'unknown error'));
+    }
+  };
+
+  const handleResetOverrideFinalScore = async (submissionId: string) => {
+    try {
+      await overrideSubmissionMutation.mutateAsync({
+        params: { path: { submissionId } },
+        body: {
+          reset: true,
+        },
+      });
+      toast.success('Reset final score to original calculated grade');
+      setEditingSubmissionFinalScoreId(null);
       queryClient.invalidateQueries();
       refetch();
       reviewsQueryResult.refetch();
@@ -5294,9 +5328,37 @@ function PeerReviewSubmissionsSection({
                         </div>
                       </div>
                       <div className="text-right border-l pl-3">
-                        <div className="text-xs text-muted-foreground">Final Score</div>
-                        <div className="text-sm font-bold text-primary font-mono">
-                          {sub.finalScore !== null ? `${sub.finalScore} pts` : 'Pending'}
+                        <div className="text-xs text-muted-foreground flex items-center justify-end gap-1">
+                          <span>Final Score</span>
+                          {sub.teacherOverridden && (
+                            <Badge variant="destructive" className="py-0 text-[10px]">Overridden</Badge>
+                          )}
+                        </div>
+                        <div className="text-sm font-bold text-primary font-mono flex items-center justify-end gap-2 mt-0.5">
+                          <span>{sub.finalScore !== null ? `${sub.finalScore} pts` : 'Pending'}</span>
+                          {teacherManualReviewEnabled !== false && (
+                            <div className="flex items-center gap-1">
+                              {sub.teacherOverridden && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-1.5 text-[10px] text-destructive hover:bg-destructive/10"
+                                  title="Reset to calculated score"
+                                  onClick={() => handleResetOverrideFinalScore(sub.submissionId)}
+                                >
+                                  Reset
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 px-2 text-[10px]"
+                                onClick={() => handleStartOverrideFinalScore(sub)}
+                              >
+                                {sub.teacherOverridden ? 'Edit Override' : 'Override Score'}
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <Button
@@ -5308,6 +5370,79 @@ function PeerReviewSubmissionsSection({
                       </Button>
                     </div>
                   </div>
+
+                  {/* Submission Overall Final Score Override Form */}
+                  {editingSubmissionFinalScoreId === sub.submissionId && (
+                    <div className="bg-muted/20 border border-primary/30 rounded-lg p-3 space-y-3 mt-2">
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold text-xs text-primary flex items-center gap-1.5">
+                          <Pencil className="h-3.5 w-3.5" />
+                          Override Overall Final Score for {sub.studentName}
+                        </p>
+                        <span className="text-[10px] text-muted-foreground">Max Rubric Score: {totalMaxScore} pts</span>
+                      </div>
+
+                      {sub.teacherOverrideReason && (
+                        <div className="text-[11px] text-muted-foreground bg-background/60 p-2 rounded border">
+                          <span className="font-semibold">Current Reason: </span>{sub.teacherOverrideReason}
+                        </div>
+                      )}
+
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold">New Overall Final Score (0 - {totalMaxScore})</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={totalMaxScore}
+                            className="w-32 h-8 text-xs font-mono font-bold text-primary"
+                            value={overrideFinalScoreVal}
+                            onChange={e => {
+                              const num = Math.max(0, Math.min(totalMaxScore, Number(e.target.value) || 0));
+                              setOverrideFinalScoreVal(num);
+                            }}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs flex items-center justify-between">
+                            <span className="font-semibold">Reason for Teacher Override (required, min 20 chars)</span>
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              {overrideFinalScoreReason.length} chars
+                            </span>
+                          </Label>
+                          <Input
+                            className="text-xs"
+                            placeholder="e.g. Overriding overall score to 85 pts after manual instructor evaluation..."
+                            value={overrideFinalScoreReason}
+                            onChange={e => setOverrideFinalScoreReason(e.target.value)}
+                          />
+                          {overrideFinalScoreReason.length > 0 && overrideFinalScoreReason.length < 20 && (
+                            <p className="text-[10px] text-destructive">Must be at least 20 characters.</p>
+                          )}
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-[11px]"
+                            onClick={() => setEditingSubmissionFinalScoreId(null)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-7 text-[11px]"
+                            disabled={overrideFinalScoreReason.length < 20 || overrideSubmissionMutation.isPending}
+                            onClick={() => handleSaveOverrideFinalScore(sub.submissionId)}
+                          >
+                            {overrideSubmissionMutation.isPending ? 'Saving Override…' : 'Save Final Score Override'}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {isExpanded && (
                     <div className="pl-4 border-l-2 border-primary/20 space-y-4 pt-2">
