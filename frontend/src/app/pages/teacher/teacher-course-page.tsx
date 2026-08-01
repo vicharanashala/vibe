@@ -4898,81 +4898,14 @@ function PeerReviewSubmissionsSection({
   const [overrideScores, setOverrideScores] = useState<Record<string, number>>({});
   const [overrideComment, setOverrideComment] = useState('');
   const [overrideReason, setOverrideReason] = useState('');
-
-  if (isLoading || reviewsQueryResult.isLoading) {
-    return <div className="text-sm text-muted-foreground p-4">Loading submissions & reviews…</div>;
-  }
-
-  if (error || reviewsQueryResult.error) {
-    return <div className="text-sm text-destructive p-4">Failed to load submissions: {error || reviewsQueryResult.error}</div>;
-  }
-
-  const submissions = data?.submissions ?? [];
-  const reviews = reviewsQueryResult.data?.reviews ?? [];
-
-  const handleStartOverride = (review: any) => {
-    setEditingReviewId(review.reviewId);
-    setOverrideComment(review.overallComment || '');
-    setOverrideReason('');
-    const scoresMap: Record<string, number> = {};
-    for (const s of review.scores || []) {
-      scoresMap[s.criterionId] = s.score;
-    }
-    setOverrideScores(scoresMap);
-  };
-
-  const handleSaveOverride = async (reviewId: string) => {
-    if (overrideReason.trim().length < 20) {
-      toast.error('Override reason must be at least 20 characters.');
-      return;
-    }
-    try {
-      const scoresPayload = Object.entries(overrideScores).map(([cid, val]) => ({
-        criterionId: cid,
-        score: val,
-      }));
-
-      await overrideMutation.mutateAsync({
-        params: { path: { id: reviewId } },
-        body: {
-          scores: scoresPayload,
-          overallComment: overrideComment.trim(),
-          reason: overrideReason.trim(),
-        },
-      });
-
-      toast.success('Score overridden successfully');
-      setEditingReviewId(null);
-      refetch();
-      reviewsQueryResult.refetch();
-    } catch (e: any) {
-      toast.error('Override failed: ' + (e?.message || 'unknown error'));
-    }
-  };
-
-  const handleResetOverride = async (reviewId: string) => {
-    try {
-      await overrideMutation.mutateAsync({
-        params: { path: { id: reviewId } },
-        body: {
-          reset: true,
-          reason: 'Resetting override to original score',
-        },
-      });
-      toast.success('Reset to original scores');
-      setEditingReviewId(null);
-      refetch();
-      reviewsQueryResult.refetch();
-    } catch (e: any) {
-      toast.error('Reset failed: ' + (e?.message || 'unknown error'));
-    }
-  };
-
   const [filterMode, setFilterMode] = useState<'all' | 'flagged'>('all');
+
+  const submissions = useMemo(() => data?.submissions ?? [], [data]);
+  const reviews = useMemo(() => reviewsQueryResult.data?.reviews ?? [], [reviewsQueryResult.data]);
 
   // Summary stats
   const scoredSubmissions = useMemo(() => submissions.filter((s: any) => typeof s.finalScore === 'number'), [submissions]);
-  const totalMaxScore = useMemo(() => rubric.reduce((acc, c) => acc + (c.maxPoints ?? 0), 0) || 100, [rubric]);
+  const totalMaxScore = useMemo(() => (rubric || []).reduce((acc, c) => acc + (c.maxPoints ?? 0), 0) || 100, [rubric]);
   const classAvg = useMemo(() => {
     if (scoredSubmissions.length === 0) return 'N/A';
     const sum = scoredSubmissions.reduce((acc: number, s: any) => acc + (s.finalScore ?? 0), 0);
@@ -5000,18 +4933,18 @@ function PeerReviewSubmissionsSection({
       else needsWork++;
     });
 
-    const data = [
+    const chartData = [
       { name: 'Excellent (90-100%)', value: excellent, color: '#10b981' },
       { name: 'Good (75-89%)', value: good, color: '#3b82f6' },
       { name: 'Average (50-74%)', value: average, color: '#f59e0b' },
       { name: 'Needs Work (<50%)', value: needsWork, color: '#ef4444' },
     ];
-    return data.some(d => d.value > 0) ? data : [{ name: 'No Data Yet', value: 1, color: '#6b7280' }];
+    return chartData.some(d => d.value > 0) ? chartData : [{ name: 'No Data Yet', value: 1, color: '#6b7280' }];
   }, [scoredSubmissions, totalMaxScore]);
 
   // Rubric criterion performance bar chart
   const criterionAverages = useMemo(() => {
-    return rubric.map(r => {
+    return (rubric || []).map(r => {
       const scoresList: number[] = [];
       reviews.forEach((rev: any) => {
         const item = (rev.scores || []).find((s: any) => s.criterionId === r.criterionId);
@@ -5095,6 +5028,14 @@ function PeerReviewSubmissionsSection({
     }
     return submissions;
   }, [submissions, filterMode, malpracticeFlagsMap]);
+
+  if (isLoading || reviewsQueryResult.isLoading) {
+    return <div className="text-sm text-muted-foreground p-4">Loading submissions & reviews…</div>;
+  }
+
+  if (error || reviewsQueryResult.error) {
+    return <div className="text-sm text-destructive p-4">Failed to load submissions: {error || reviewsQueryResult.error}</div>;
+  }
 
   return (
     <div className="space-y-6">
