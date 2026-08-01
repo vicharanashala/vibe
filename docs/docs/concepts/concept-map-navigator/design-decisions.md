@@ -149,6 +149,53 @@ study. Any informal peer runs are a labeled bonus pilot, never the headline.
 not give) at the cost of not claiming human-learning outcomes. Research integrity is preserved;
 the harness doubles as a regression suite for the feature.
 
+## ADR-009 — Reversal: Novak linking phrases, added after all (post-v1 add-on)
+
+**Context.** ADR-002 rejected free-form Novak linking phrases for v1 to keep the LLM output
+contract small and validatable. After core delivery, a comparison against Stanford CTL's own
+concept-mapping handout (linking phrases on every edge, e.g. "acceleration *is inversely
+proportional to* mass") showed that a bare prerequisite arrow reads as "comes before" but not
+*why* — the map's pedagogical value (Novak's actual method) was left on the table.
+
+**Decision.** Add an optional `label` (1–3 words) to each prerequisite edge, generated in the
+*same* LLM call as node labels (no extra cost) and rendered as "`<from> <label> <to>`"; sanitized
+(trimmed, dropped if empty or >30 chars) and validated identically on both the LLM and fallback
+paths. Deterministic-fallback edges get fixed labels ('leads to' / 'supports'). Maps generated
+before this field existed simply have no label (renders as a plain arrow) — no backfill, no schema
+migration, consistent with ADR-006/007's additive-only guarantee.
+
+**Consequences.** Zero additional LLM calls; the validation surface grows by one optional string
+field per edge. Paired with a hover **focus mode** (dim everything but the hovered node's
+neighbors and incident edges) so a crowded map stays readable while a student traces one
+relationship at a time. When the whole map has one root with every other concept pointing directly
+at it — the shape the deterministic fallback now always produces, and one real LLM maps sometimes
+converge on — the panel renders it as a **radial hub-and-spoke** layout (own polar-coordinate
+positions + quadratic-bezier edges) instead of dagre's top-down rows, closer to a hand-drawn mind
+map than an org chart. A **guided study plan** (prerequisite closure of the student's weak
+concepts, topologically ordered) was added alongside the map as a concrete "what do I review, in
+what order" answer, reusing the same DAG.
+
+## ADR-010 — Mastery display: BKT tried, then simplified to raw quiz score
+
+**Context.** A first pass (promoted into scope after a professor asked for more algorithmic depth,
+see implementation plan week 3 item 18) computed per-node mastery with Bayesian Knowledge Tracing
+(Corbett & Anderson) over each student's ordered per-question answer history — a real probabilistic
+model, but its output (a mastery *probability*, driven by four hidden parameters: guess, slip,
+initial-knowledge, and per-attempt learning rate) is opaque to explain live and hard to sanity-check
+against what a viewer can see on screen.
+
+**Decision.** Replace the BKT estimate with the student's best raw quiz score percentage
+(0–100%) for the node's segment quiz — the same number the student already sees on their quiz
+result. The `outcomes` field (`mastered`/`weak`, driving node color) is unchanged; only the
+secondary numeric badge and the study plan's weak/strong classification (now the same quiz outcome
+used everywhere else, not a probability threshold) changed. The BKT service and its tests are
+removed rather than kept dead.
+
+**Consequences.** A simpler, fully explainable metric at the cost of the probabilistic modeling
+depth BKT offered. If richer per-concept modeling is wanted again later, BKT (or an Elo-style
+rating, see future work) is a self-contained, independently re-addable slice — nothing else in the
+map depends on which mastery metric feeds the badge.
+
 ---
 
 ## Open items (tracked, not blocking)
@@ -162,4 +209,36 @@ the harness doubles as a regression suite for the feature.
 
 Promoted into scope by the 4-week extension (see implementation plan, week 3): quiz-linked
 **mastery overlay**, **within-item offset seek**, **teacher node deletion** at approval, and
-**retroactive generation** for already-published courses.
+**retroactive generation** for already-published courses. Promoted after core delivery (ADR-009):
+**Novak linking phrases**, **focus mode**, **radial hub layout**, and a **guided study plan**.
+
+## Future work (surveyed, deliberately out of scope for this PR)
+
+Considered and parked after a survey done in response to reviewer feedback that the feature needed
+more research-backed, algorithm-heavy substance (the result was ADR-009/010 above plus the items
+below, kept out to avoid widening this PR further):
+
+- **Class-level progress heatmap.** A teacher-facing view aggregating every enrolled student's node
+  outcomes into one per-concept bottleneck signal ("40% of the class is weak on Chain Rule"). Was
+  built and browser-verified once, then removed before commit — it's only reachable right after
+  publish (no jobs-list page exists yet to route back to it), and a live demo has nowhere natural to
+  show it. Revive alongside Elo below, once a general jobs/courses list view exists to host it.
+- **Elo-style difficulty rating.** Concepts and students both get a rating that updates after each
+  quiz attempt (classic Elo/Glicko update), giving a difficulty ranking across concepts for free and
+  a second, independent mastery signal. Only pays off once there's a class-level view to show
+  concept difficulty across students — parked with the heatmap.
+- **Ontology / course-level concept graph.** Merge concept maps across lectures and courses into one
+  deduplicated graph (the cross-lecture merge ADR-001 explicitly deferred), enabling "what do I need
+  from other courses" queries. Real value, but concept deduplication + cross-lecture prerequisite
+  inference is its own project, not an incremental add.
+- **Personalized PageRank for root-cause weak concepts.** Instead of just flagging weak nodes, run
+  PPR seeded from a student's weak concepts over the prerequisite DAG to rank *which upstream
+  concept* most explains the weakness — turning "you're weak here" into "start your review here."
+  Cheapest of the surveyed items to bolt on later (pure graph computation, no new data).
+- **Forgetting-curve / contagion-style forecasting.** Model mastery decay over time (FSRS-style) and
+  simulate how a weak concept's effect propagates to dependents, to predict which concepts will
+  become weak next rather than only reporting what already is. Highest-effort, most speculative of
+  the surveyed items.
+
+None of these are started; they are recorded here so the next iteration doesn't need to
+re-research the space.
