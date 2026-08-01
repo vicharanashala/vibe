@@ -39,6 +39,13 @@ import {
   ArrowDown,
   Pencil,
   MessageSquareQuote,
+  ShieldAlert,
+  AlertTriangle,
+  TrendingUp,
+  PieChart as PieChartIcon,
+  BarChart2,
+  CheckCircle2,
+  Filter,
 } from "lucide-react";
 
 import { useNavigate } from "@tanstack/react-router";
@@ -87,7 +94,7 @@ import AdvancedAiWorkflow from "./AdvancedAiWorkflow";
 import { useQueryClient } from "@tanstack/react-query"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis, Pie, PieChart, Cell, Tooltip as RechartsTooltip, Legend } from "recharts";
 import { Pagination } from "@/components/ui/Pagination";
 import CourseBackButton from "./CourseBackButton";
 
@@ -4961,19 +4968,297 @@ function PeerReviewSubmissionsSection({
     }
   };
 
+  const [filterMode, setFilterMode] = useState<'all' | 'flagged'>('all');
+
+  // Summary stats
+  const scoredSubmissions = useMemo(() => submissions.filter((s: any) => typeof s.finalScore === 'number'), [submissions]);
+  const totalMaxScore = useMemo(() => rubric.reduce((acc, c) => acc + (c.maxPoints ?? 0), 0) || 100, [rubric]);
+  const classAvg = useMemo(() => {
+    if (scoredSubmissions.length === 0) return 'N/A';
+    const sum = scoredSubmissions.reduce((acc: number, s: any) => acc + (s.finalScore ?? 0), 0);
+    return (sum / scoredSubmissions.length).toFixed(1);
+  }, [scoredSubmissions]);
+
+  const totalReviewsCompleted = useMemo(() => submissions.reduce((acc: number, s: any) => acc + (s.reviewsCompleted ?? 0), 0), [submissions]);
+  const totalReviewsExpected = useMemo(() => submissions.reduce((acc: number, s: any) => acc + (s.reviewsTotal ?? 0), 0), [submissions]);
+  const completionRate = useMemo(() => {
+    return totalReviewsExpected > 0 ? Math.round((totalReviewsCompleted / totalReviewsExpected) * 100) : 0;
+  }, [totalReviewsCompleted, totalReviewsExpected]);
+
+  // Score distribution pie chart
+  const scoreBrackets = useMemo(() => {
+    let excellent = 0; // 90-100%
+    let good = 0;      // 75-89%
+    let average = 0;   // 50-74%
+    let needsWork = 0; // <50%
+
+    scoredSubmissions.forEach((s: any) => {
+      const pct = (s.finalScore / totalMaxScore) * 100;
+      if (pct >= 90) excellent++;
+      else if (pct >= 75) good++;
+      else if (pct >= 50) average++;
+      else needsWork++;
+    });
+
+    const data = [
+      { name: 'Excellent (90-100%)', value: excellent, color: '#10b981' },
+      { name: 'Good (75-89%)', value: good, color: '#3b82f6' },
+      { name: 'Average (50-74%)', value: average, color: '#f59e0b' },
+      { name: 'Needs Work (<50%)', value: needsWork, color: '#ef4444' },
+    ];
+    return data.some(d => d.value > 0) ? data : [{ name: 'No Data Yet', value: 1, color: '#6b7280' }];
+  }, [scoredSubmissions, totalMaxScore]);
+
+  // Rubric criterion performance bar chart
+  const criterionAverages = useMemo(() => {
+    return rubric.map(r => {
+      const scoresList: number[] = [];
+      reviews.forEach((rev: any) => {
+        const item = (rev.scores || []).find((s: any) => s.criterionId === r.criterionId);
+        if (item && typeof item.score === 'number') {
+          scoresList.push(item.score);
+        }
+      });
+      const avg = scoresList.length > 0 ? Number((scoresList.reduce((a, b) => a + b, 0) / scoresList.length).toFixed(1)) : 0;
+      return {
+        name: r.label || r.criterionId,
+        average: avg,
+        maxPoints: r.maxPoints,
+      };
+    });
+  }, [rubric, reviews]);
+
+  // Reciprocal collusion & anomaly detector
+  const malpracticeFlagsMap = useMemo(() => {
+    const flagsMap = new Map<string, string[]>();
+    const reviewsBySubmission = new Map<string, any[]>();
+    reviews.forEach((r: any) => {
+      const list = reviewsBySubmission.get(r.submissionId) || [];
+      list.push(r);
+      reviewsBySubmission.set(r.submissionId, list);
+    });
+
+    submissions.forEach((subA: any) => {
+      const flags: string[] = [];
+      const subAReviews = reviewsBySubmission.get(subA.submissionId) || [];
+      const studentAId = subA.studentId;
+
+      // 1. Extreme score discrepancy between assigned reviewers
+      if (subAReviews.length >= 2) {
+        const totalScores = subAReviews.map((r: any) => Number(r.totalScore) || 0);
+        const maxScore = Math.max(...totalScores);
+        const minScore = Math.min(...totalScores);
+        const diff = maxScore - minScore;
+        if (diff >= totalMaxScore * 0.25) {
+          flags.push(`High Reviewer Score Discrepancy (${diff} pts difference between reviewers)`);
+        }
+      }
+
+      // 2. Reciprocal high scoring collusion check
+      subAReviews.forEach((revB: any) => {
+        const reviewerBId = revB.reviewerId;
+        const revBScorePct = (Number(revB.totalScore) / totalMaxScore) * 100;
+
+        if (reviewerBId && studentAId && reviewerBId !== studentAId && revBScorePct >= 85) {
+          const subB = submissions.find((s: any) => s.studentId === reviewerBId);
+          if (subB) {
+            const subBReviews = reviewsBySubmission.get(subB.submissionId) || [];
+            const revAOnB = subBReviews.find((r: any) => r.reviewerId === studentAId);
+            if (revAOnB) {
+              const revAScorePct = (Number(revAOnB.totalScore) / totalMaxScore) * 100;
+              if (revAScorePct >= 85) {
+                flags.push(`Reciprocal High-Scoring Collusion Detected (reviewed ${revB.reviewerName} with ${revAOnB.totalScore} pts & received ${revB.totalScore} pts back)`);
+              }
+            }
+          }
+        }
+      });
+
+      // 3. Teacher Intervention Flag
+      if (subA.pendingTeacherIntervention) {
+        flags.push(`Manual Teacher Intervention Requested`);
+      }
+
+      if (flags.length > 0) {
+        flagsMap.set(subA.submissionId, flags);
+      }
+    });
+
+    return flagsMap;
+  }, [submissions, reviews, totalMaxScore]);
+
+  const flaggedCount = malpracticeFlagsMap.size;
+
+  const displayedSubmissions = useMemo(() => {
+    if (filterMode === 'flagged') {
+      return submissions.filter((s: any) => malpracticeFlagsMap.has(s.submissionId));
+    }
+    return submissions;
+  }, [submissions, filterMode, malpracticeFlagsMap]);
+
   return (
-    <Card className="border bg-card">
-      <CardHeader>
-        <CardTitle className="text-base font-semibold">Student Submissions & Scores</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {submissions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No student submissions yet.</p>
-        ) : (
-          <div className="divide-y divide-border border rounded-lg bg-background">
-            {submissions.map((sub: any) => {
-              const isExpanded = expandedSubmissionId === sub.submissionId;
-              const subReviews = reviews.filter((r: any) => r.submissionId === sub.submissionId);
+    <div className="space-y-6">
+      {/* Interactive Analytics & Malpractice Dashboard */}
+      {submissions.length > 0 && (
+        <Card className="border bg-card">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <PieChartIcon className="h-5 w-5 text-primary" />
+                Assessment Analytics & Collusion Insights
+              </span>
+              {flaggedCount > 0 && (
+                <Badge variant="destructive" className="flex items-center gap-1">
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                  {flaggedCount} Malpractice Flag{flaggedCount > 1 ? 's' : ''}
+                </Badge>
+              )}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Real-time summary of student performance, score distribution, rubric criterion averages, and collusion/anomaly tracking.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Stat Cards Row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="border rounded-lg p-3 bg-muted/20 space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Class Average</span>
+                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div className="text-xl font-bold font-mono text-primary">
+                  {classAvg} <span className="text-xs font-normal text-muted-foreground">/ {totalMaxScore} pts</span>
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-3 bg-muted/20 space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Review Completion</span>
+                  <CheckCircle2 className="h-4 w-4 text-blue-500" />
+                </div>
+                <div className="text-xl font-bold font-mono">
+                  {completionRate}%
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-3 bg-muted/20 space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Submissions</span>
+                  <Users className="h-4 w-4 text-purple-500" />
+                </div>
+                <div className="text-xl font-bold font-mono">
+                  {submissions.length}
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-3 bg-muted/20 space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Malpractice Alerts</span>
+                  <ShieldAlert className={`h-4 w-4 ${flaggedCount > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
+                </div>
+                <div className="text-xl font-bold font-mono">
+                  {flaggedCount}
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Charts Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              {/* Score Distribution Pie Chart */}
+              <div className="border rounded-lg p-4 bg-muted/10 space-y-2">
+                <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <PieChartIcon className="h-4 w-4 text-primary" />
+                  Score Distribution
+                </h5>
+                <div className="h-48 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={scoreBrackets}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={70}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {scoreBrackets.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip formatter={(val: any) => [`${val} student(s)`, 'Count']} />
+                      <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Rubric Criterion Breakdown Bar Chart */}
+              <div className="border rounded-lg p-4 bg-muted/10 space-y-2">
+                <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <BarChart2 className="h-4 w-4 text-primary" />
+                  Criterion Performance Averages
+                </h5>
+                <div className="h-48 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={criterionAverages} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-15} textAnchor="end" />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <RechartsTooltip formatter={(val: any) => [`${val} pts avg`, 'Average']} />
+                      <Bar dataKey="average" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="border bg-card">
+        <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-base font-semibold">Student Submissions & Scores</CardTitle>
+            <CardDescription className="text-xs">Manage submissions, view detailed review feedback, or handle score overrides.</CardDescription>
+          </div>
+          {/* Submissions Filter Toggle */}
+          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-lg border">
+            <Button
+              size="sm"
+              variant={filterMode === 'all' ? 'secondary' : 'ghost'}
+              className="h-7 text-xs"
+              onClick={() => setFilterMode('all')}
+            >
+              <Filter className="h-3 w-3 mr-1" />
+              All ({submissions.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={filterMode === 'flagged' ? 'destructive' : 'ghost'}
+              className="h-7 text-xs"
+              onClick={() => setFilterMode('flagged')}
+            >
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              Flagged / Malpractice ({flaggedCount})
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {submissions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No student submissions yet.</p>
+          ) : displayedSubmissions.length === 0 ? (
+            <div className="border rounded-lg p-6 text-center text-sm text-muted-foreground space-y-1">
+              <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto" />
+              <p className="font-semibold text-foreground">No Malpractice Flags Found</p>
+              <p className="text-xs">No reciprocal high-scoring collusion or extreme review score discrepancies were detected for this assessment.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border border rounded-lg bg-background">
+              {displayedSubmissions.map((sub: any) => {
+                const isExpanded = expandedSubmissionId === sub.submissionId;
+                const subReviews = reviews.filter((r: any) => r.submissionId === sub.submissionId);
+                const subFlags = malpracticeFlagsMap.get(sub.submissionId);
 
               return (
                 <div key={sub.submissionId} className="p-4 space-y-3">
@@ -4985,6 +5270,19 @@ function PeerReviewSubmissionsSection({
                         Submitted: {new Date(sub.submittedAt).toLocaleString()}
                         {sub.isLate && <Badge variant="destructive" className="ml-2 py-0">Late</Badge>}
                       </p>
+                      {subFlags && subFlags.length > 0 && (
+                        <div className="mt-2 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5 text-xs text-amber-600 dark:text-amber-400 space-y-1">
+                          <p className="font-semibold flex items-center gap-1.5">
+                            <ShieldAlert className="h-4 w-4 text-amber-500" />
+                            Malpractice / Audit Flag Detected:
+                          </p>
+                          <ul className="list-disc list-inside space-y-0.5 text-[11px] pl-1">
+                            {subFlags.map((flag: string, idx: number) => (
+                              <li key={idx}>{flag}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
@@ -5209,6 +5507,7 @@ function PeerReviewSubmissionsSection({
         )}
       </CardContent>
     </Card>
+  </div>
   );
 }
 
