@@ -70,6 +70,7 @@ export interface ItemContainerProps {
   setIsQuizSkipped: React.Dispatch<React.SetStateAction<boolean>>;
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
+  isLensEnabled?: boolean;
   courseId: string;
   versionId: string;
   completedItemIdsRef: React.RefObject<Set<string>>;

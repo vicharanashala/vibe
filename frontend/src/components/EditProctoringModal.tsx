@@ -99,6 +99,7 @@ export function ProctoringModal({
   const [isAdditionalSettingsExpanded, setIsAdditionalSettingsExpanded] = useState(false);
   const [enableRandomize, setEnableRandomize] = useState<boolean>(false);
   const [crowdsourcedQuestionSubmissionEnabled, setCrowdsourcedQuestionSubmissionEnabled] = useState(false);
+  const [isLensEnabled, setIsLensEnabled] = useState(true);
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(courseVersionId || "")
 
   // Follow-up invite: when a student completes this course, auto-create an
@@ -162,6 +163,7 @@ export function ProctoringModal({
           setCrowdsourcedQuestionSubmissionEnabled(
             result.settings?.crowdsourcedQuestionSubmissionEnabled ?? false,
           )
+          setIsLensEnabled(result.settings?.isLensEnabled ?? true)
           const followUp = result.settings?.followUpInvite;
           setFollowUpEnabled(followUp?.enabled ?? false)
           // ObjectIds arrive from the API as buffer objects, so normalize them
@@ -205,7 +207,20 @@ export function ProctoringModal({
     }
 
     try {
-      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled, baseHp, enableRandomize, crowdsourcedQuestionSubmissionEnabled)
+      const result = await editSettings(
+        courseId,
+        courseVersionId,
+        detectors,
+        isNew,
+        linearProgressionEnabled,
+        seekForwardEnabled,
+        isPublic,
+        hpSystemEnabled,
+        baseHp,
+        enableRandomize,
+        crowdsourcedQuestionSubmissionEnabled,
+        isLensEnabled,
+      )
 
       // Persist the follow-up invite configuration (separate endpoint).
       await updateFollowUpInvite(courseId, courseVersionId, {
@@ -362,6 +377,14 @@ export function ProctoringModal({
                       <p className="text-xs text-muted-foreground">Allow students to seek forward in all videos</p>
                     </div>
                     <Switch checked={seekForwardEnabled} onCheckedChange={()=>setSeekForwardEnabled(prev=>!prev)} />
+                  </div>
+
+                  <div className="flex items-center justify-between space-x-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">ViBe Lens AI Solver</Label>
+                      <p className="text-xs text-muted-foreground">Enable student video crop & AI code explanations for this course</p>
+                    </div>
+                    <Switch checked={isLensEnabled} onCheckedChange={() => setIsLensEnabled(prev => !prev)} />
                   </div>
 
                   {!(courseVersion?.cohortDetails?.length > 0) && (

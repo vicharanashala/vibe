@@ -391,7 +391,7 @@ class ItemBase {
 
     if (existingItems) {
       const sortedItems = existingItems.sort((a, b) =>
-        a.order.localeCompare(b.order),
+        String(a.order).localeCompare(String(b.order)),
       );
       this.order = calculateNewOrder(
         sortedItems,

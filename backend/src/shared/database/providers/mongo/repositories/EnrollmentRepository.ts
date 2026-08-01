@@ -1033,6 +1033,7 @@ export class EnrollmentRepository {
                         ? {
                           $or: [
                             { versionStatus: 'active' },
+                            { versionStatus: 'published' },
                             { versionStatus: { $exists: false } }, // active courses versions and versions don't have versionStatus fields
                           ],
                         }
@@ -2220,6 +2221,7 @@ export class EnrollmentRepository {
               ? {
                 $or: [
                   { 'version.versionStatus': 'active' },
+                  { 'version.versionStatus': 'published' },
                   { 'version.versionStatus': { $exists: false } },
                 ],
               }
@@ -2291,6 +2293,7 @@ export class EnrollmentRepository {
         $match: {
           $or: [
             { 'version.versionStatus': 'active' },
+            { 'version.versionStatus': 'published' },
             { 'version.versionStatus': { $exists: false } },
           ],
         },

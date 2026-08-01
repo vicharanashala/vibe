@@ -2,12 +2,12 @@ import {injectable, inject} from 'inversify';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {
   AuditingDto,
-  CourseSetting,
   DetectorOptionsDto,
   DetectorSettingsDto,
   ProctoringSettingsDto,
   SettingsDto,
 } from '#root/modules/setting/classes/index.js';
+import {CourseSetting} from '../classes/transformers/CourseSetting.js';
 import {
   BadRequestError,
   ForbiddenError,
@@ -166,6 +166,7 @@ class CourseSettingService extends BaseService {
     randomizeItems: boolean,
     userId: string,
     crowdsourcedQuestionSubmissionEnabled: boolean = false,
+    isLensEnabled?: boolean,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
       const versionStatus =
@@ -195,6 +196,7 @@ class CourseSettingService extends BaseService {
         settings.randomizeItems = randomizeItems;
         settings.crowdsourcedQuestionSubmissionEnabled =
           crowdsourcedQuestionSubmissionEnabled;
+        settings.isLensEnabled = isLensEnabled;
 
         settings.audit = [
           {
@@ -212,6 +214,7 @@ class CourseSettingService extends BaseService {
                 baseHp,
                 randomizeItems,
                 crowdsourcedQuestionSubmissionEnabled,
+                isLensEnabled,
               },
             },
           },
@@ -248,6 +251,7 @@ class CourseSettingService extends BaseService {
         randomizeItems: courseSettings.settings?.randomizeItems,
         crowdsourcedQuestionSubmissionEnabled:
           courseSettings.settings?.crowdsourcedQuestionSubmissionEnabled,
+        isLensEnabled: courseSettings.settings?.isLensEnabled,
       };
 
       const afterState = {
@@ -259,6 +263,7 @@ class CourseSettingService extends BaseService {
         baseHp,
         randomizeItems,
         crowdsourcedQuestionSubmissionEnabled,
+        isLensEnabled,
       };
 
       const audit: AuditingDto = {
@@ -284,6 +289,7 @@ class CourseSettingService extends BaseService {
         audit,
         session,
         crowdsourcedQuestionSubmissionEnabled,
+        isLensEnabled,
       );
 
       if (!result) {

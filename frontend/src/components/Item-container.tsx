@@ -16,7 +16,7 @@ export interface ISubmitFeedbackBody {
   // isSkipped?: boolean;
   cohortId?: string;
 }
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, isNavigatingToPrev, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, pauseSignal, awayPaused, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId, versionId, completedItemIdsRef, cohortId, cohortName, previousItem, pendingStudentQuestionContext, clearPendingStudentQuestionContext, focusMode }, ref) => {
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, isNavigatingToPrev, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, pauseSignal, awayPaused, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, isLensEnabled, courseId, versionId, completedItemIdsRef, cohortId, cohortName, previousItem, pendingStudentQuestionContext, clearPendingStudentQuestionContext, focusMode }, ref) => {
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
 
@@ -49,12 +49,13 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
       case 'video':
         return <Video
           key={item._id.toString()}
-          URL={item.details?.URL ? item.details.URL : ''}
-          startTime={item.details?.startTime ? item.details.startTime : ''}
-          endTime={item.details?.endTime ? item.details.endTime : ''}
-          points={item.details?.points ? item.details.points : ''}
+          URL={item.details?.URL || item.URL || item.url || ''}
+          startTime={item.details?.startTime || item.startTime || '0'}
+          endTime={item.details?.endTime || item.endTime || ''}
+          points={item.details?.points || item.points || ''}
           doGesture={doGesture}
           onNext={onNext}
+          isLensEnabled={(isLensEnabled !== false) && (item.details?.isLensEnabled !== false)}
           keyboardLockEnabled={keyboardLockEnabled}
           focusMode={focusMode}
           isProgressUpdating={isProgressUpdating}
@@ -81,7 +82,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           questionBankRefs={item.details?.questionBankRefs || []}
           passThreshold={item.details?.passThreshold || 0}
           maxAttempts={item.details?.maxAttempts || 1}
-          quizType={item.details?.quizType || ''}
+          quizType={item.details?.quizType || 'DEADLINE'}
           releaseTime={item.details?.releaseTime}
           questionVisibility={item.details?.questionVisibility || 0}
           deadline={item.details?.deadline}

@@ -60,8 +60,8 @@ const BLOCKING_ANOMALIES = ["noFace", "faceCountDetection", "multipleFaces", "fa
 // Helper function to sort items by order property
 const sortItemsByOrder = (items: any[]) => {
   return [...items].sort((a, b) => {
-    const orderA = a.order || '';
-    const orderB = b.order || '';
+    const orderA = a.order !== undefined && a.order !== null ? String(a.order) : '';
+    const orderB = b.order !== undefined && b.order !== null ? String(b.order) : '';
     return orderA.localeCompare(orderB);
   });
 };
@@ -76,7 +76,7 @@ export default function CoursePage() {
   }, []);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   // Dialog state for proctoring declaration
-  const [showProctorDialog, setShowProctorDialog] = useState(true);
+  const [showProctorDialog, setShowProctorDialog] = useState(false);
   const { user } = useAuthStore();
   const router = useRouter();
   const currentCourse = useCourseStore((state) => state.currentCourse);
@@ -102,7 +102,7 @@ export default function CoursePage() {
   const { mutateAsync: submitFlagAsyncMutate, isPending } = useSubmitFlag();
   const { mutateAsync: skipItemAsync, isPending: isSkipping } = useSkipOptionalItem();
   const { mutateAsync: recalculateStudentProgressAsync } = useRecalculateStudentProgress();
-  const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
+  const [allProctorsDisabled, setAllProctorsDisabled] = useState(true);
   const streamRef = useRef<MediaStream | null>(null);
 
   // Emotion tracking state
@@ -214,7 +214,7 @@ export default function CoursePage() {
   const [quizPassed, setQuizPassed] = useState(2);
   const [anomalies, setAnomalies] = useState<string[]>([]);
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
-  const [readyToDetect, setReadyToDetect] = useState(false);
+  const [readyToDetect, setReadyToDetect] = useState(true);
 
   // --- Focused learn-page UI state ---
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -484,23 +484,32 @@ export default function CoursePage() {
   useEffect(() => {
   }, [itemData]);
 
-  // Log proctoring settings when loaded (only logs once when data is available)
+  // Log proctoring settings when loaded (and refetch on window focus for instant sync)
   useEffect(() => {
-    async function fetch() {
-      const data = await getSettings(COURSE_ID, VERSION_ID);
-      setProctoringData(data);
-      const allProctorsDisabled =
-        data.settings.proctors.detectors.every(
-          (detector: any) => detector.settings.enabled === false
-        );
-      if (allProctorsDisabled) {
-        setShowProctorDialog(false);
-        setAllProctorsDisabled(true);
-        setReadyToDetect(true);
+    async function fetchSettings() {
+      try {
+        const data = await getSettings(COURSE_ID, VERSION_ID);
+        if (data) {
+          setProctoringData(data);
+          setShowProctorDialog(false);
+          setAllProctorsDisabled(true);
+          setReadyToDetect(true);
+        }
+      } catch (err) {
+        console.error("Failed to fetch settings:", err);
       }
     }
-    fetch();
-  }, []);
+
+    fetchSettings();
+
+    const handleFocus = () => {
+      fetchSettings();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [COURSE_ID, VERSION_ID]);
 
   // Update section items when data is loaded
   useEffect(() => {
@@ -1850,41 +1859,7 @@ return false;
         </DialogContent>
       </Dialog>
 
-      {/* Hidden proctoring engine — kept mounted (clipped to 1px) so the webcam
-          keeps decoding and anomaly detection keeps running off-screen. */}
-      {!showProctorDialog && (
-        <div
-          aria-hidden
-          className="bottom-0 left-0 z-0 fixed opacity-0 w-px h-px overflow-hidden pointer-events-none"
-        >
-          <FloatingVideo
-            isVisible={!allProctorsDisabled}
-            onClose={() => { }}
-            onAnomalyDetected={() => { }}
-            setDoGesture={setDoGesture}
-            settings={proctoringData || {
-              _id: "",
-              studentId: "",
-              versionId: "",
-              courseId: "",
-              settings: {
-                proctors: {
-                  detectors: []
-                },
-                linearProgressionEnabled: true
-              }
-            }}
-            anomalies={anomalies}
-            readyToDetect={readyToDetect}
-            setReadyToDetect={setReadyToDetect}
-            setAnomalies={setAnomalies}
-            rewindVid={rewindVid}
-            setRewindVid={setRewindVid}
-            pauseVid={pauseVid}
-            setPauseVid={setPauseVid}
-          />
-        </div>
-      )}
+
 
       {/* Focused cinematic stage */}
       <main
@@ -1936,6 +1911,7 @@ return false;
                   keyboardLockEnabled={!isFlagModalOpen && !drawerOpen && !aiSheet}
                   linearProgressionEnabled={proctoringData?.settings.linearProgressionEnabled || true}
                   seekForwardEnabled={proctoringData?.settings.seekForwardEnabled || false}
+                  isLensEnabled={proctoringData?.settings?.isLensEnabled ?? true}
                   setIsQuizSkipped={setIsQuizSkipped}
                   courseId={COURSE_ID}
                   versionId={VERSION_ID}

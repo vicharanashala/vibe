@@ -231,6 +231,15 @@ export class SettingsDto {
   })
   crowdsourcedQuestionSubmissionEnabled?: boolean;
 
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the ViBe Lens AI Solver is enabled for the entire course',
+    examples: [true, false],
+    default: true,
+  })
+  isLensEnabled?: boolean;
+
   // jsonSchema?:any
   // uiSchema?:any
   @IsOptional()
@@ -477,6 +486,15 @@ export class AddCourseProctoringBody {
     default: false,
   })
   crowdsourcedQuestionSubmissionEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the ViBe Lens AI Solver is enabled for the entire course',
+    examples: [true, false],
+    default: true,
+  })
+  isLensEnabled?: boolean;
 }
 
 // This class represents the validation schema of Parameters for removing proctoring from a course.

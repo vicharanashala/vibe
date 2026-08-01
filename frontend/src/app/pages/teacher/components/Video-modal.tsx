@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Video } from "@/types/video.types";
 import Loader from "@/components/Loader";
 import ConfirmationModal from "./confirmation-modal";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 function getYouTubeId(url: string): string | null {
     const match = url.match(/(?:v=|youtu\.be\/?)([\w-]{11})/);
@@ -106,6 +108,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
     ]);
     const [videoId, setVideoId] = useState<string | null>(getYouTubeId(item?.details?.URL + "?rel=0" || ""));
     const [points, setPoints] = useState<number>(item?.details?.points ?? 0);
+    const [isLensEnabled, setIsLensEnabled] = useState(item?.details?.isLensEnabled !== false);
     const [timeInputs, setTimeInputs] = useState({
         start: formatTime(item?.details?.startTime ? parseTimeToSeconds(String(item.details?.startTime)) : 0),
         end: formatTime(item?.details?.endTime ? parseTimeToSeconds(String(item.details?.endTime)) : 0),
@@ -122,14 +125,16 @@ const VideoModal: React.FC<VideoModalProps> = ({
     }, []);
 
     useEffect(() => {
-        setPlayerReady(false);
-        setDuration(0);
-        setCurrentTime(0);
         const id = getYouTubeId(url);
         setVideoId(id);
+        setCurrentTime(0);
         if (!id) {
-            setRange([0, 0]);
-            setTimeInputs({ start: "0:00", end: "0:00" });
+            setPlayerReady(true);
+            const endSec = parseTimeToSeconds(timeInputs.end);
+            setDuration(endSec || 150);
+        } else {
+            setPlayerReady(false);
+            setDuration(0);
         }
     }, [url]);
 
@@ -142,20 +147,29 @@ const VideoModal: React.FC<VideoModalProps> = ({
         const startTime = item?.details?.startTime || "0:00";
         const endTime = item?.details?.endTime || "0:00";
 
+        const startSec = parseTimeToSeconds(startTime);
+        const endSec = parseTimeToSeconds(endTime);
+
         setRange([
-            parseTimeToSeconds(startTime),
-            parseTimeToSeconds(endTime),
+            startSec,
+            endSec || 150,
         ]);
 
         setTimeInputs({
-            start: formatTime(parseTimeToSeconds(startTime)),
-            end: formatTime(parseTimeToSeconds(endTime)),
+            start: formatTime(startSec),
+            end: formatTime(endSec || 150),
         });
 
-        setVideoId(getYouTubeId((item?.details.URL ?? "") + "?rel=0"));
-        setPlayerReady(false);
-        setDuration(0);
+        const isYt = !!getYouTubeId(item?.details?.URL || "");
+        setVideoId(getYouTubeId((item?.details?.URL ?? "") + "?rel=0"));
         setCurrentTime(0);
+        if (!isYt) {
+            setPlayerReady(true);
+            setDuration(endSec || 150);
+        } else {
+            setPlayerReady(false);
+            setDuration(0);
+        }
     }, [item]);
 
 
@@ -372,7 +386,8 @@ const VideoModal: React.FC<VideoModalProps> = ({
         url: item?.details?.URL || "",
         startTime: item?.details?.startTime || "0:00",
         endTime: item?.details?.endTime || "0:00",
-        points: item?.details?.points ?? 0
+        points: item?.details?.points ?? 0,
+        isLensEnabled: item?.details?.isLensEnabled !== false
     });
 
     // Update original values when item changes
@@ -383,8 +398,10 @@ const VideoModal: React.FC<VideoModalProps> = ({
             url: item?.details?.URL || "",
             startTime: item?.details?.startTime || "0:00",
             endTime: item?.details?.endTime || "0:00",
-            points: item?.details?.points ?? 0
+            points: item?.details?.points ?? 0,
+            isLensEnabled: item?.details?.isLensEnabled !== false
         });
+        setIsLensEnabled(item?.details?.isLensEnabled !== false);
     }, [item]);
 
     // Only constrain playback to [start, end]
@@ -429,6 +446,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
         setDescription(originalValues.description);
         setUrl(originalValues.url);
         setPoints(originalValues.points);
+        setIsLensEnabled(originalValues.isLensEnabled);
         setTimeInputs({
             start: originalValues.startTime,
             end: originalValues.endTime
@@ -483,6 +501,7 @@ const VideoModal: React.FC<VideoModalProps> = ({
                 startTime: formatTime(startSeconds),
                 endTime: formatTime(endSeconds),
                 points,
+                isLensEnabled: isLensEnabled,
             },
         };
 
@@ -589,17 +608,39 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             >
                                 {/* Video Container */}
                                 <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000" }}>
-                                    <div
-                                        ref={iframeRef}
-                                        style={{
-                                            width: "100%",
-                                            height: "100%",
-                                            background: "#000",
-                                            borderRadius: "12px 12px 0 0",
-                                            overflow: "hidden",
-                                            position: "relative",
-                                        }}
-                                    />
+                                    {videoId ? (
+                                        <div
+                                            ref={iframeRef}
+                                            style={{
+                                                width: "100%",
+                                                height: "100%",
+                                                background: "#000",
+                                                borderRadius: "12px 12px 0 0",
+                                                overflow: "hidden",
+                                                position: "relative",
+                                            }}
+                                        />
+                                    ) : (
+                                        <video
+                                            src={url}
+                                            controls
+                                            style={{
+                                                width: "100%",
+                                                height: "100%",
+                                                background: "#000",
+                                                borderRadius: "12px 12px 0 0",
+                                                objectFit: "contain",
+                                            }}
+                                            onLoadedMetadata={(e) => {
+                                                const target = e.target as HTMLVideoElement;
+                                                setDuration(target.duration);
+                                            }}
+                                            onTimeUpdate={(e) => {
+                                                const target = e.target as HTMLVideoElement;
+                                                setCurrentTime(target.currentTime);
+                                            }}
+                                        />
+                                    )}
                                     {/* Overlay */}
                                     {showOverlay && (
                                         <div
@@ -737,6 +778,22 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                 disabled={action === "view"}
                                 style={{ width: 120 }}
                                 className="bg-background border-border"
+                            />
+                        </div>
+                        <div className="mt-4 p-4 bg-card border border-border rounded-lg flex items-center justify-between">
+                            <div>
+                                <Label htmlFor="enable-lens" className="font-semibold text-sm text-gray-700">
+                                    Enable ViBe Lens AI Solver
+                                </Label>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Allow students to take screenshots, sketch, and crop frame elements for real-time AI solutions.
+                                </p>
+                            </div>
+                            <Switch
+                                id="enable-lens"
+                                checked={isLensEnabled}
+                                onCheckedChange={setIsLensEnabled}
+                                disabled={action === "view"}
                             />
                         </div>
                         {(action === "add" || action === "edit") && (

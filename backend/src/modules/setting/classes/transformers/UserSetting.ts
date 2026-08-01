@@ -9,7 +9,7 @@ import {ProctoringComponent} from '#shared/database/index.js';
 
 import {IDetectorSettings, IUserSetting} from '#shared/interfaces/models.js';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {CreateUserSettingBody} from '../index.js';
+import {CreateUserSettingBody} from '../validators/CourseSettingValidators.js';
 import {ObjectId} from 'mongodb';
 import { IsNotEmpty, IsOptional } from 'class-validator';
 

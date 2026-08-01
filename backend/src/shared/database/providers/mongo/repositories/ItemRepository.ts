@@ -424,6 +424,9 @@ export class ItemRepository implements IItemRepository {
             default:
               throw new InternalServerError(`Unknown item type: ${found.type}`);
           }
+          if (item) {
+            (item as any).type = found.type;
+          }
           return item;
         }
       }
@@ -440,31 +443,49 @@ export class ItemRepository implements IItemRepository {
 
     const objectId = new ObjectId(itemId);
 
-    let item: Item =
-      (await this.videoCollection.findOne({
+    let type: string | null = null;
+    let item: any = await this.videoCollection.findOne({
+      _id: objectId,
+      isDeleted: { $ne: true },
+    }, { session });
+    if (item) type = 'VIDEO';
+
+    if (!item) {
+      item = await this.quizCollection.findOne({
         _id: objectId,
         isDeleted: { $ne: true },
-      })) ||
-      (await this.quizCollection.findOne({
+      }, { session });
+      if (item) type = 'QUIZ';
+    }
+
+    if (!item) {
+      item = await this.blogCollection.findOne({
         _id: objectId,
         isDeleted: { $ne: true },
-      })) ||
-      (await this.blogCollection.findOne({
+      }, { session });
+      if (item) type = 'BLOG';
+    }
+
+    if (!item) {
+      item = await this.projectCollection.findOne({
         _id: objectId,
         isDeleted: { $ne: true },
-      })) ||
-      (await this.projectCollection.findOne({
+      }, { session });
+      if (item) type = 'PROJECT';
+    }
+
+    if (!item) {
+      item = await this.feedbackFormCollection.findOne({
         _id: objectId,
-        isDeleted: { $ne: true },
-      })) ||
-      (await this.feedbackFormCollection.findOne({
-        _id: objectId,
-      }));
+      }, { session });
+      if (item) type = 'FEEDBACK';
+    }
 
     if (!item) {
       throw new NotFoundError(`Item ${itemId} not found`);
     }
 
+    item.type = type;
     return item;
   }
 
@@ -680,14 +701,14 @@ export class ItemRepository implements IItemRepository {
 
     const firstModule = version.modules
       .slice()
-      .sort((a, b) => a.order.localeCompare(b.order))[0];
+      .sort((a, b) => String(a.order).localeCompare(String(b.order)))[0];
     if (!firstModule || !firstModule.sections || !firstModule.sections.length) {
       return null;
     }
 
     const firstSection = firstModule.sections
       .slice()
-      .sort((a, b) => a.order.localeCompare(b.order))[0];
+      .sort((a, b) => String(a.order).localeCompare(String(b.order)))[0];
 
     if (!firstSection || !firstSection.itemsGroupId) {
       return null;
@@ -702,7 +723,7 @@ export class ItemRepository implements IItemRepository {
 
     const firstItem = itemsGroup.items
       .slice()
-      .sort((a, b) => a.order.localeCompare(b.order))[0];
+      .sort((a, b) => String(a.order).localeCompare(String(b.order)))[0];
 
     return {
       moduleId: new ObjectId(firstModule.moduleId),

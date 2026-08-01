@@ -8,9 +8,13 @@ import { UserSettingController } from './controllers/UserSettingController.js';
 import { TimeSlotController } from './controllers/TimeSlotController.js';
 import { SlotBookingController } from './controllers/SlotBookingController.js';
 
-export const settingContainerModules: ContainerModule[] = [
+export const getSettingContainerModules = (): ContainerModule[] => [
   settingContainerModule,
   sharedContainerModule,
+  authContainerModule
+];
+export const settingContainerModules: ContainerModule[] = [
+  settingContainerModule,
   authContainerModule
 ];
 
@@ -23,7 +27,7 @@ export const settingModuleControllers: Function[] = [
 
 export async function setupSettingContainer(): Promise<void> {
   const container = new Container();
-  await container.load(...settingContainerModules);
+  await container.load(...getSettingContainerModules());
   const inversifyAdapter = new InversifyAdapter(container);
   useContainer(inversifyAdapter);
 }
