@@ -6,7 +6,7 @@ import { HAND_FONT } from './palette';
 export const NODE_WIDTH = 270;
 export const NODE_HEIGHT = 116;
 
-const RADIAL_GAP = 40;
+const RADIAL_GAP = 80;
 
 /**
  * Radial (mind-map) layout: the root sits at the centre, every spoke sits on
@@ -27,10 +27,17 @@ function layoutRadial(
   if (n === 0) return positions;
   const angleStep = (2 * Math.PI) / n;
   // Radius large enough that adjacent boxes (kept axis-aligned, not rotated
-  // to face the centre) never overlap regardless of where they land.
+  // to face the centre) never overlap regardless of where they land. Two
+  // constraints, both must hold for every spoke angle:
+  //  - adjacent spokes on the ring stay apart (chord length >= box width);
+  //  - every spoke stays clear of the hub itself. A spoke landing due
+  //    east/west only has NODE_HEIGHT of vertical mismatch to rely on, so
+  //    the hub-clearance bound must cover the box's full diagonal, not just
+  //    its height, or east/west spokes (common whenever the spoke count is
+  //    a multiple of 4) sit almost flush against the hub.
   const radius = Math.max(
     (NODE_WIDTH + RADIAL_GAP) / (2 * Math.sin(angleStep / 2)),
-    NODE_HEIGHT * 2 + RADIAL_GAP,
+    Math.sqrt(NODE_WIDTH ** 2 + NODE_HEIGHT ** 2) + RADIAL_GAP,
   );
   spokes.forEach((s, i) => {
     const angle = -Math.PI / 2 + i * angleStep; // start at 12 o'clock, go clockwise
