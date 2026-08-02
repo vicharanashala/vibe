@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
-import { User, Shield, GraduationCap, ArrowRight, Award } from 'lucide-react';
+import { User, Shield, GraduationCap, ArrowRight, Award, RefreshCw } from 'lucide-react';
 
 interface StudentLoginPageProps {
-  onLogin: (username: string, details: { department: string; track: string; avatar: string }, passcode: string) => void;
+  onLogin: (
+    username: string, 
+    details: { department: string; track: string; avatar: string }, 
+    passcode: string,
+    forceReset?: boolean
+  ) => { success: boolean; error?: string } | void;
 }
 
 const DEPARTMENTS = [
@@ -33,8 +38,7 @@ export const StudentLoginPage: React.FC<StudentLoginPageProps> = ({ onLogin }) =
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0]);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const processSubmit = (isReset = false) => {
     setError('');
 
     const cleanName = name.trim();
@@ -53,7 +57,15 @@ export const StudentLoginPage: React.FC<StudentLoginPageProps> = ({ onLogin }) =
       return;
     }
 
-    onLogin(cleanName, { department, track, avatar: selectedAvatar }, passcode);
+    const res = onLogin(cleanName, { department, track, avatar: selectedAvatar }, passcode, isReset);
+    if (res && !res.success) {
+      setError(res.error || 'Login failed.');
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    processSubmit(false);
   };
 
   return (
@@ -189,9 +201,21 @@ export const StudentLoginPage: React.FC<StudentLoginPageProps> = ({ onLogin }) =
 
           {/* Error Message */}
           {error && (
-            <p className="text-xs text-rose-400 font-mono bg-rose-950/20 border border-rose-500/30 rounded-xl p-3">
-              ⚠️ {error}
-            </p>
+            <div className="space-y-2">
+              <p className="text-xs text-rose-400 font-mono bg-rose-950/30 border border-rose-500/30 rounded-xl p-3">
+                ⚠️ {error}
+              </p>
+              {error.includes('passcode') && (
+                <button
+                  type="button"
+                  onClick={() => processSubmit(true)}
+                  className="w-full flex items-center justify-center gap-2 bg-rose-900/40 hover:bg-rose-800/50 border border-rose-500/40 text-rose-200 text-xs font-mono py-2 rounded-xl transition-all"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Reset Profile & Create New Passcode
+                </button>
+              )}
+            </div>
           )}
 
           {/* Submit Button */}

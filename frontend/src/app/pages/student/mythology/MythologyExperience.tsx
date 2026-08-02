@@ -341,16 +341,27 @@ export default function MythologyExperience() {
 
   const [state, setState] = useState<UserStreakState>(DEFAULT_STATE);
 
-  const handleLogin = (username: string, details: { department: string; track: string; avatar: string }, passcode: string) => {
+  const handleLogin = (
+    username: string, 
+    details: { department: string; track: string; avatar: string }, 
+    passcode: string,
+    forceReset: boolean = false
+  ): { success: boolean; error?: string } => {
     try {
       const key = deriveKey(passcode);
       const hash = hashPasscode(passcode);
 
-      const allProfiles = JSON.parse(localStorage.getItem('vibe_profiles') || '{}');
+      let allProfiles: Record<string, any> = {};
+      try {
+        allProfiles = JSON.parse(localStorage.getItem('vibe_profiles') || '{}');
+      } catch {
+        allProfiles = {};
+      }
+
       let userEntry = allProfiles[username];
       let userState;
 
-      if (!userEntry) {
+      if (!userEntry || forceReset) {
         userState = {
           ...DEFAULT_STATE,
           department: details.department,
@@ -362,8 +373,6 @@ export default function MythologyExperience() {
           encryptedState: encryptData(userState, key)
         };
       } else {
-        // If it's a legacy unencrypted profile, userEntry will just be the state object (no passcodeHash)
-        // We will force overwrite it if there's no passcodeHash.
         if (!userEntry.passcodeHash) {
           userState = {
             ...DEFAULT_STATE,
@@ -378,13 +387,23 @@ export default function MythologyExperience() {
           };
         } else {
           if (userEntry.passcodeHash !== hash) {
-            triggerNotification("Incorrect secure passcode!", "error");
-            return;
+            return { 
+              success: false, 
+              error: "Incorrect passcode for existing profile." 
+            };
           }
-          userState = decryptData(userEntry.encryptedState, key);
+          try {
+            userState = decryptData(userEntry.encryptedState, key);
+          } catch {
+            userState = null;
+          }
           if (!userState) {
-            triggerNotification("Data corruption or decryption failed.", "error");
-            return;
+            userState = {
+              ...DEFAULT_STATE,
+              department: details.department,
+              track: details.track,
+              avatar: details.avatar,
+            };
           }
           userState = {
             ...userState,
@@ -423,9 +442,11 @@ export default function MythologyExperience() {
           status: userState.currentStreak > 0 ? "active" : "dormant"
         })
       }).catch(err => console.warn("Failed to update global leaderboard", err));
-    } catch (e) {
-      console.error(e);
-      triggerNotification("Encryption error during login.", "error");
+
+      return { success: true };
+    } catch (e: any) {
+      console.error("Login error:", e);
+      return { success: false, error: e.message || "Failed to initialize secure session." };
     }
   };
 
