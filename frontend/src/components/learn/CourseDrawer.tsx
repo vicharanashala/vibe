@@ -9,6 +9,7 @@ import {
   Lock,
   Home,
   Headphones,
+  Bot,
   ExternalLink,
 } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -395,6 +396,17 @@ export function CourseDrawer({
               <Home className="h-3.5 w-3.5" />
             </span>
             Dashboard
+          </Link>
+          {/* Temporary link to the AI Viva preview page */}
+          <Link
+            to="/student/course-viva"
+            onClick={() => onOpenChange(false)}
+            className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-foreground/80 ${rowBase} hover:bg-foreground/[0.06] hover:text-foreground`}
+          >
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-foreground/[0.06]">
+              <Bot className="h-3.5 w-3.5" />
+            </span>
+            AI Viva (Preview)
           </Link>
           {supportHref && (
             <a

@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react";
+import TestFullscreen from "./TestFullscreen";
+import { DEMO_COURSE_ID, DEMO_COURSE_VERSION_ID } from "./demoCourseData";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,6 +54,7 @@ import { ProctorAlertOverlay } from "@/components/learn/ProctorAlertOverlay";
 import { NoiseIndicator } from "@/components/learn/NoiseIndicator";
 import { AwayOverlay } from "@/components/learn/AwayOverlay";
 import { CourseDrawer } from "@/components/learn/CourseDrawer";
+import AIVivaChat, { type VivaGrade, type VivaProjectContext } from "@/components/learn/AIVivaChat";
 
 // Proctoring anomalies that should block the video and surface the buttonless
 // alert (with webcam) — covers "no person" (noFace) and "more than one person".
@@ -84,9 +87,10 @@ export default function CoursePage() {
   const VERSION_ID = currentCourse?.versionId || "";
   const COHORT_ID = currentCourse?.cohortId || "";
   const COHORT_NAME = currentCourse?.cohortName || "";
+  const isDemoCourse = currentCourse?.courseId === DEMO_COURSE_ID || currentCourse?.versionId === DEMO_COURSE_VERSION_ID;
   // Ethics consent gate: must be signed once per course before entering content
   const { signed: ethicsConsentSigned, isLoading: ethicsConsentLoading } =
-    useGetEthicsConsent(COURSE_ID, VERSION_ID);
+    useGetEthicsConsent(isDemoCourse ? "" : COURSE_ID, isDemoCourse ? "" : VERSION_ID);
   const [ethicsConsentSignedLocal, setEthicsConsentSignedLocal] = useState(false);
   const consentSatisfied = ethicsConsentSigned || ethicsConsentSignedLocal;
   const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
@@ -95,6 +99,11 @@ export default function CoursePage() {
   const [isFlagSubmitted, setIsFlagSubmitted] = useState(false);
   const [isSkippingItem, setIsSkippingItem] = useState(false);
   const [courseJustCompleted, setCourseJustCompleted] = useState(false);
+  // Viva state — activated after course completion
+  const [courseVivaStatus, setCourseVivaStatus] = useState<'idle' | 'readyForViva' | 'vivaComplete'>('idle');
+  const [vivaGrade, setVivaGrade] = useState<VivaGrade | null>(null);
+  const [vivaProjects, setVivaProjects] = useState<VivaProjectContext[]>([]);
+  const [vivaItemIds, setVivaItemIds] = useState<string[]>([]);
   // Follow-up invite unlocked by completing this course (shown as a claim card).
   const [followUpInvite, setFollowUpInvite] = useState<any | null>(null);
   const { getInvites: getPendingInvites } = useInvites();
@@ -114,6 +123,8 @@ export default function CoursePage() {
 
   // Check for microphone and camera access, otherwise redirect to dashboard
   useEffect(() => {
+    if (isDemoCourse) return;
+
     async function checkMediaPermissions() {
       try {
         // Try to get both camera and microphone access
@@ -293,15 +304,15 @@ export default function CoursePage() {
 
   // Fetch course version data
   const { data: courseVersionData, isLoading: versionLoading, error: versionError, refetch: refetchVersion } =
-    useCourseVersionById(VERSION_ID, undefined, COHORT_ID);
+    useCourseVersionById(VERSION_ID, !isDemoCourse && Boolean(VERSION_ID), COHORT_ID);
 
   const shouldRandomize = courseVersionData?.shouldRandomize || false;
 
     // Fetch user progress
   const { data: progressData, isLoading: progressLoading, error: progressError } =
-    useUserProgress(COURSE_ID, VERSION_ID, COHORT_ID);
+    useUserProgress(isDemoCourse ? "" : COURSE_ID, isDemoCourse ? "" : VERSION_ID, COHORT_ID);
   const { data: moduleProgressData, isLoading: moduleProgressLoading } =
-    useModuleProgress(COURSE_ID, VERSION_ID, COHORT_ID);
+    useModuleProgress(isDemoCourse ? "" : COURSE_ID, isDemoCourse ? "" : VERSION_ID, COHORT_ID);
 
 
   // Fetch proctoring settings for the course (fetched once when component loads)
@@ -1313,6 +1324,27 @@ export default function CoursePage() {
             };
             frame();
 
+            // Collect all item IDs and project submissions for the viva
+            const allSectionItemIds: string[] = [];
+            const collectedProjects: VivaProjectContext[] = [];
+            allSections.forEach((section: any) => {
+              const items = sectionItems[section.sectionId] || [];
+              items.forEach((item: any) => {
+                allSectionItemIds.push(item._id);
+                if (item.type?.toUpperCase() === 'PROJECT') {
+                  collectedProjects.push({
+                    projectId: item._id,
+                    projectName: item.name || 'Project',
+                    projectDescription: item.description || '',
+                    submittedUrl: item.submissionURL || item.submittedUrl || undefined,
+                    submittedComment: item.comment || item.submittedComment || undefined,
+                  });
+                }
+              });
+            });
+            setVivaItemIds(allSectionItemIds);
+            setVivaProjects(collectedProjects);
+
             // Check for an exclusive follow-up invite unlocked by completing
             // this course. If one exists, show a claim card instead of the
             // usual auto-redirect so the student can act on it.
@@ -1327,10 +1359,11 @@ export default function CoursePage() {
               if (unlocked) {
                 setFollowUpInvite(unlocked);
               } else {
-                setTimeout(() => router.navigate({ to: "/student" }), 3500);
+                // Trigger viva after confetti settles
+                setTimeout(() => setCourseVivaStatus('readyForViva'), 3500);
               }
             } catch {
-              setTimeout(() => router.navigate({ to: "/student" }), 3500);
+              setTimeout(() => setCourseVivaStatus('readyForViva'), 3500);
             }
           }
 
@@ -1654,19 +1687,23 @@ const handleGoToNextItem = async () => {
 
   useEffect(() => {
   if (!courseJustCompleted) return;
-  // Don't auto-redirect when there's a follow-up invite to claim.
+  // Don't auto-redirect when there's a follow-up invite or viva is active.
   if (followUpInvite) return;
-
+  if (courseVivaStatus !== 'idle') return;
+  // Only redirect if viva was never triggered (e.g. API key missing)
   const timer = setTimeout(() => {
     router.navigate({ to: "/student" });
   }, 3500);
-
   return () => clearTimeout(timer);
-}, [courseJustCompleted, followUpInvite, router]);
+}, [courseJustCompleted, followUpInvite, courseVivaStatus, router]);
 
   useEffect(() => {
     refetchVersion();
   }, [courseVersionData]);
+
+  if (isDemoCourse) {
+    return <TestFullscreen />;
+  }
 
   if (versionLoading || progressLoading || proctoringLoading || ethicsConsentLoading) {
     return (
@@ -1883,6 +1920,68 @@ return false;
             pauseVid={pauseVid}
             setPauseVid={setPauseVid}
           />
+        </div>
+      )}
+
+      {/* AI Viva Assessment — full-screen overlay after course completion */}
+      {(courseVivaStatus === 'readyForViva' || courseVivaStatus === 'vivaComplete') && (
+        <div className="fixed inset-0 z-[200] flex flex-col bg-background">
+          {/* Viva header */}
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-muted/40 shrink-0">
+            <div className="flex-1">
+              <p className="font-bold text-lg">🎓 AI Viva Assessment</p>
+              <p className="text-sm text-muted-foreground">{(courseVersionData as any)?.name} — Course Complete</p>
+            </div>
+            {courseVivaStatus === 'vivaComplete' && vivaGrade && (
+              <Button onClick={() => router.navigate({ to: '/student' })} size="sm">
+                Go to Dashboard
+              </Button>
+            )}
+          </div>
+
+          {courseVivaStatus === 'readyForViva' && (
+            <div className="flex-1 min-h-0 p-6 max-w-3xl mx-auto w-full">
+              <AIVivaChat
+                courseItemIds={vivaItemIds}
+                courseName={(courseVersionData as any)?.name || ''}
+                projects={vivaProjects}
+                onComplete={(grade) => {
+                  setVivaGrade(grade);
+                  if (grade !== 'Fail') setCourseVivaStatus('vivaComplete');
+                }}
+              />
+            </div>
+          )}
+
+          {courseVivaStatus === 'vivaComplete' && vivaGrade && (() => {
+            const cfg: Record<string, { emoji: string; color: string; bg: string; border: string }> = {
+              Excellent:   { emoji: '🏆', color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200 dark:border-emerald-800' },
+              'Very Good': { emoji: '⭐', color: 'text-blue-600',    bg: 'bg-blue-50 dark:bg-blue-950/20',    border: 'border-blue-200 dark:border-blue-800' },
+              Good:        { emoji: '✅', color: 'text-indigo-600',  bg: 'bg-indigo-50 dark:bg-indigo-950/20', border: 'border-indigo-200 dark:border-indigo-800' },
+              Average:     { emoji: '📊', color: 'text-amber-600',   bg: 'bg-amber-50 dark:bg-amber-950/20',   border: 'border-amber-200 dark:border-amber-800' },
+              Fail:        { emoji: '❌', color: 'text-red-600',     bg: 'bg-red-50 dark:bg-red-950/20',       border: 'border-red-200 dark:border-red-800' },
+            }[vivaGrade];
+            return (
+              <div className="flex-1 flex items-center justify-center p-6">
+                <div className="max-w-lg w-full text-center space-y-6">
+                  <div className="text-7xl">{cfg.emoji}</div>
+                  <h2 className="text-3xl font-bold">Viva Complete!</h2>
+                  <div className={`rounded-2xl border p-6 ${cfg.bg} ${cfg.border}`}>
+                    <p className="text-sm text-muted-foreground mb-1">Your Final Grade</p>
+                    <p className={`text-4xl font-extrabold ${cfg.color}`}>{vivaGrade}</p>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-3 pt-2">
+                    <Button onClick={() => { setCourseVivaStatus('readyForViva'); setVivaGrade(null); }} variant="outline">
+                      Retake Viva
+                    </Button>
+                    <Button onClick={() => router.navigate({ to: '/student' })}>
+                      Dashboard
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

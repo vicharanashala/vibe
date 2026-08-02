@@ -20,6 +20,24 @@ import { LeftHeroSection } from "@/components/Auth/LeftHeroSection";
 type AuthPageProps = {
   role?: "teacher" | "student";
 }
+
+const DEMO_ACCOUNTS = {
+  student: {
+    email: "demo.student@vibe.local",
+    password: "DemoStudent123!",
+    name: "Demo Student",
+    firstName: "Demo",
+    lastName: "Student",
+  },
+  teacher: {
+    email: "demo.teacher@vibe.local",
+    password: "DemoTeacher123!",
+    name: "Demo Teacher",
+    firstName: "Demo",
+    lastName: "Teacher",
+  },
+} as const;
+
 export default function AuthPage({ role }: AuthPageProps) {
   const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
@@ -88,6 +106,32 @@ export default function AuthPage({ role }: AuthPageProps) {
 
   // Removed the unused clearUser variable
   const setUser = useAuthStore((state) => state.setUser);
+
+  const handleDemoPreviewLogin = () => {
+    const demoAccount = DEMO_ACCOUNTS[activeRole];
+    const demoUser = {
+      uid: `${activeRole}-demo-preview`,
+      email: demoAccount.email,
+      name: demoAccount.name,
+      firstName: demoAccount.firstName,
+      lastName: demoAccount.lastName,
+      role: activeRole,
+      avatar: "",
+      gender: "",
+      country: "",
+      state: "",
+      city: "",
+    };
+
+    setEmail(demoAccount.email);
+    setPassword(demoAccount.password);
+    useAuthStore.getState().setToken("demo-preview-token");
+    setUser(demoUser);
+    localStorage.setItem("user-email", demoAccount.email);
+    localStorage.setItem("user-firstName", demoAccount.firstName);
+    localStorage.setItem("user-lastName", demoAccount.lastName);
+    navigate({ to: `/${activeRole}` });
+  };
 
   // Password validation
   const passwordsMatch = !confirmPassword || password === confirmPassword;
@@ -1465,6 +1509,13 @@ export default function AuthPage({ role }: AuthPageProps) {
                         </div> :
                         <></>}
 
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                        <p className="font-semibold">Preview access</p>
+                        <p className="mt-1">Use the demo account below to browse the app instantly.</p>
+                        <p className="mt-2 font-mono text-xs">Email: {DEMO_ACCOUNTS[activeRole].email}</p>
+                        <p className="font-mono text-xs">Password: {DEMO_ACCOUNTS[activeRole].password}</p>
+                      </div>
+
                       {/* Login Button */}
                       <Button
                         className="w-full h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
@@ -1472,6 +1523,15 @@ export default function AuthPage({ role }: AuthPageProps) {
                         disabled={loading || (!recaptchaToken && isRecaptchaEnabled)}
                       >
                         {loading ? "Signing in..." : `Sign in as ${activeRole == "student" ? 'learner' : activeRole}`}
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        className="w-full h-11 font-medium border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
+                        onClick={handleDemoPreviewLogin}
+                        disabled={loading}
+                      >
+                        Use demo preview
                       </Button>
 
                       {/* Divider */}

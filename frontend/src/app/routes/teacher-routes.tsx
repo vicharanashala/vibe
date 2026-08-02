@@ -27,6 +27,7 @@ import HpSystemDashboard from "../pages/teacher/hp-system/CohortDetails";
 import StudentLedgerPage from "../pages/teacher/hp-system/student-ledger";
 import StudentSubmissionsPage from "../pages/teacher/hp-system/student-submissions";
 import SubmissionDetailsPage from "../pages/teacher/hp-system/submission-details";
+import AssessmentStudioPage from "../pages/teacher/AssessmentStudioPage";
 const teacherRoutes: RouteObject = {
   path: "/teacher",
   element: <TeacherLayout />,
@@ -112,6 +113,9 @@ const teacherRoutes: RouteObject = {
     }, {
       path: "audit",
       element: <AuditPage />
+    }, {
+      path: "quiz-builder",
+      element: <AssessmentStudioPage />
     }, {
       path: "hp-system",
       element: <HpSystemVersions />

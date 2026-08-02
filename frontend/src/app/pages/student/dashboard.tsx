@@ -23,6 +23,7 @@ import { NewAnnouncementsPopup } from "@/components/announcements/NewAnnouncemen
 import { LayoutGrid, List, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { createDemoEnrollment } from "./demoCourseData";
 
 /**
  * Cards / List view switcher. Extracted so the three course tabs share one
@@ -167,7 +168,10 @@ function DashboardContent() {
   // Cast to CourseCardProps['enrollment'][] to satisfy type checker if needed,
   // but simpler to let TS infer from usage if types match.
   // Explicitly casting here to be safe given previous type errors.
-  const enrollments = (enrollmentsData?.enrollments || []) as unknown as CourseCardProps['enrollment'][];
+  const enrollments = [
+    createDemoEnrollment(),
+    ...((enrollmentsData?.enrollments || []) as unknown as CourseCardProps['enrollment'][]),
+  ];
 
   const {
     data: publicCoursesData,
@@ -181,11 +185,11 @@ function DashboardContent() {
 
    // Calculate distinct lists for tabs
   const activeEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => (enrollment.percentCompleted ?? 0) !== 100);
+    return enrollments.filter((enrollment) => (enrollment.percentCompleted ?? 0) !== 100);
   }, [enrollments]);
 
   const completedEnrollments = useMemo(() => {
-    return enrollments.filter(enrollment => (enrollment.percentCompleted ?? 0) === 100);
+    return enrollments.filter((enrollment) => (enrollment.percentCompleted ?? 0) === 100);
   }, [enrollments]);
 
   // Tab State

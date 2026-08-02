@@ -374,17 +374,11 @@ export default function AuthPage() {
 
   useEffect(() => {
     const host = window.location.hostname;
-
-    const studentSites = [
-      'vibe.devabhasha.live',
-      'vibe.gurusetu.org',
-    ];
-
+    const studentSites = ['vibe.devabhasha.live', 'vibe.gurusetu.org'];
     if (studentSites.includes(host)) {
       navigate({ to: '/student/login' });
-    } else {
-      navigate({ to: '/auth' });
     }
+    // Do NOT redirect to /auth when already on /auth — that causes an infinite loop
   }, []);
 
 

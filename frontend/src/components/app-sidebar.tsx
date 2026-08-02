@@ -14,6 +14,7 @@ import {
   Settings2,
   Shield,
   SquareTerminal,
+  ClipboardList,
 } from "lucide-react"
 
 import { NavMain } from "./nav-main"
@@ -61,6 +62,11 @@ export function AppSidebar() {
         title: "Announcements",
         url: "/teacher/announcements",
         icon: Megaphone,
+      },
+      {
+        title: "Quiz Builder",
+        url: "/teacher/quiz-builder",
+        icon: ClipboardList,
       },
       {
         title: "HP System",
