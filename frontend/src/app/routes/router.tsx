@@ -33,6 +33,7 @@ import { useCourseStore } from '@/store/course-store'
 // import CourseEnrollments from '../pages/teacher/course-enrollments'
 import CourseEnrollmentsContainer from '../pages/teacher/course-enrollments'
 import CourseEmotionAnalyticsPage from '../pages/teacher/course-emotion-analytics'
+import CourseVideosPage from '../pages/teacher/course-videos'
 import InvitePage from '../pages/teacher/invite'
 import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
@@ -331,6 +332,13 @@ const teacherCourseEnrollmentsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/enrollments',
   component: CourseEnrollmentsContainer,
+});
+
+// The course's video library: upload lectures once, reuse across many lessons.
+const teacherCourseVideosRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/videos',
+  component: CourseVideosPage,
 });
 
 const teacherCourseEmotionAnalyticsRoute = new Route({
@@ -683,6 +691,7 @@ const routeTree = rootRoute.addChildren([
     teacherViewCourseRoute, teacherCourseFlagsRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
+    teacherCourseVideosRoute,
     teacherCourseEmotionAnalyticsRoute,
     teacherAudioManagerRoute,
     teacherAddCourseRoute,

@@ -326,8 +326,38 @@ export interface IProjectDetails {
   // Add fields as needed for project items, or leave empty if none
 }
 
+/**
+ * Where a video item's media comes from.
+ *
+ * `YOUTUBE` is the original and only historical source, played through the
+ * YouTube IFrame API. `GCS` is a video uploaded to ViBe and transcoded to HLS.
+ */
+export type VideoSource = 'YOUTUBE' | 'GCS';
+
+/**
+ * Resolve a video item's source, treating an absent value as YOUTUBE.
+ *
+ * Every video item written before uploads existed has no `source` field, so the
+ * absent case *must* mean YouTube — that is what lets the feature ship without
+ * migrating existing course content. Read the source through this helper rather
+ * than testing the field, so the default lives in one place.
+ */
+export function resolveVideoSource(details?: {
+  source?: VideoSource;
+}): VideoSource {
+  return details?.source ?? 'YOUTUBE';
+}
+
 export interface IVideoDetails {
-  URL: string;
+  /**
+   * Public video URL. Required for YOUTUBE, absent for GCS — an uploaded video
+   * has no durable public URL, only time-boxed signed grants.
+   */
+  URL?: string;
+  /** Absent means YOUTUBE; see resolveVideoSource. */
+  source?: VideoSource;
+  /** The uploaded video this item plays. Set only when source is GCS. */
+  assetId?: ID;
   startTime: string;
   endTime: string;
   points: number;

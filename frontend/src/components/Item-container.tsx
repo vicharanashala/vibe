@@ -47,9 +47,17 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
     const itemType = item.type.toLowerCase();
     switch (itemType) {
       case 'video':
+        /**
+         * One player component for both sources. Video picks an HLS or YouTube
+         * backend from `source` internally, so proctoring, seek gating,
+         * watch-time and the overlays are shared rather than duplicated —
+         * uploaded lessons get the same enforcement as YouTube ones.
+         */
         return <Video
           key={item._id.toString()}
           URL={item.details?.URL ? item.details.URL : ''}
+          source={item.details?.source}
+          assetId={item.details?.assetId}
           startTime={item.details?.startTime ? item.details.startTime : ''}
           endTime={item.details?.endTime ? item.details.endTime : ''}
           points={item.details?.points ? item.details.points : ''}

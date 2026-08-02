@@ -1,6 +1,13 @@
+import type { VideoSource } from './media.types';
+
 // Props for the video player component
 export interface VideoProps {
+  /** YouTube link. Empty when the lesson is an uploaded video. */
   URL: string;
+  /** Absent means YOUTUBE — see resolveVideoSource in media.types. */
+  source?: VideoSource;
+  /** The uploaded video to stream. Required when source is GCS. */
+  assetId?: string;
   startTime?: string;
   endTime?: string;
   points?: string;
@@ -37,7 +44,14 @@ export interface VideoProps {
 
 
 
-// Minimal YouTube Player instance interface
+/**
+ * The player surface video.tsx drives.
+ *
+ * Named for YouTube historically, but it is now the contract both players
+ * satisfy — see components/video-players/hlsPlayerInstance.ts. Keeping the method
+ * names identical is what lets one implementation of proctoring, seek gating and
+ * watch-time serve uploaded video as well as YouTube.
+ */
 export interface YTPlayerInstance {
   playVideo: () => void;
   pauseVideo: () => void;
@@ -49,6 +63,17 @@ export interface YTPlayerInstance {
   setVolume: (volume: number) => void;
   setPlaybackRate: (rate: number) => void;
   getAvailablePlaybackRates?: () => number[];
+  /**
+   * Selectable renditions, in each player's own vocabulary — YouTube reports
+   * 'hd720' etc., HLS reports '720p'. Controls render whatever they are given and
+   * pass the choice straight back, so neither side needs to know the other's names.
+   */
+  getAvailableQualityLevels?: () => string[];
+  setPlaybackQuality?: (quality: string) => void;
+  getPlaybackQuality?: () => string;
+  loadModule?: (module: string) => void;
+  setOption?: (module: string, option: string, value: unknown) => void;
+  destroy?: () => void;
   anomalies?: string[];
 }
 
@@ -134,7 +159,12 @@ export interface Video {
   description: string;
   type: string;
   details: {
-    URL: string;
+    /** Required for a YouTube video; absent for an uploaded one. */
+    URL?: string;
+    /** Absent means YOUTUBE — see resolveVideoSource in media.types. */
+    source?: VideoSource;
+    /** The uploaded video this item plays. Set only when source is GCS. */
+    assetId?: string;
     startTime: string;
     endTime: string;
     points: number;

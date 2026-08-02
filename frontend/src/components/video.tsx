@@ -10,6 +10,9 @@ import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack,
 import { useCourseStore } from '../store/course-store';
 import { usePlayerStore } from '../store/player-store'; // Import the new store
 import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
+import { PLAYER_STATE, createHlsPlayerInstance } from './video-players/hlsPlayerInstance';
+import { resolveVideoSource } from '@/types/media.types';
+import { getVideoPlaybackUrl } from '@/lib/api/media';
 
 import { toast } from 'sonner';
 import { Badge } from './ui/badge';
@@ -55,7 +58,13 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, pauseSignal, awayPaused = false }: VideoProps) {
+export default function Video({ URL, source, assetId, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, pauseSignal, awayPaused = false }: VideoProps) {
+  /**
+   * An uploaded lesson streams HLS instead of embedding YouTube. Everything else
+   * in this component — proctoring, seek gating, watch-time, overlays, keyboard
+   * locks — is identical for both, because both players expose the same interface.
+   */
+  const isUploadedVideo = resolveVideoSource({ source }) === 'GCS' && Boolean(assetId);
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -70,6 +79,13 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   const { playbackRate, setPlaybackRate, volume, setVolume, subtitlesEnabled, setSubtitlesEnabled } = usePlayerStore();
   const [maxTime, setMaxTime] = useState(0);
   const [videoEnded, setVideoEnded] = useState(false);
+  /**
+   * Selectable renditions reported by whichever player is active. Read once the
+   * player is ready rather than on every render, since for HLS the ladder is only
+   * known after the manifest parses.
+   */
+  const [qualityLevels, setQualityLevels] = useState<string[]>([]);
+  const [selectedQuality, setSelectedQuality] = useState('auto');
   // Rotating quote shown during the "preparing environment" delay.
   const [quoteIndex, setQuoteIndex] = useState(0);
   useEffect(() => {
@@ -438,7 +454,19 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
           // transient/slow failure on a genuinely-watched video can still complete.
           if (stopFailCountRef.current >= 3) {
             progressStoppedRef.current = true;
-            toast.warning(err.response?.data?.message || 'You must watch at least 30 seconds of this video to proceed.');
+            /**
+             * The server's message is preferred, and read from several shapes
+             * because different clients here wrap errors differently — the
+             * previous single lookup missed most of them and fell through to the
+             * watch-time text, so an unrelated 500 was reported to the learner as
+             * "watch 30 seconds", sending everyone looking in the wrong place.
+             */
+            const serverMessage =
+              err?.response?.data?.message ?? err?.data?.message ?? err?.message;
+            toast.warning(
+              serverMessage ||
+              'We could not record your progress for this video. Please try again.',
+            );
             setIsStopFailed(true);
           }
           resolve(false);
@@ -712,6 +740,93 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
   useEffect(() => {
     if (!readyToDetect) return;
 
+    /**
+     * Player-ready work that is identical for both players. YouTube's own
+     * handler adds iframe styling and captions on top; neither applies to HLS.
+     */
+    function handlePlayerReady(target: YTPlayerInstance) {
+      const dur = target.getDuration();
+      setPlayerReady(true);
+      setDuration(dur);
+      // Whatever renditions this player offers. Empty for YouTube until it has
+      // buffered, which is fine — the control hides itself when there is nothing
+      // to choose between.
+      try {
+        setQualityLevels(target.getAvailableQualityLevels?.() ?? []);
+        setSelectedQuality(target.getPlaybackQuality?.() ?? 'auto');
+      } catch {
+        setQualityLevels([]);
+      }
+      target.setVolume(volume);
+      setMaxTime(startTimeSeconds);
+      target.seekTo(startTimeSeconds, true);
+      onDurationChange?.(dur);
+      target.pauseVideo();
+    }
+
+    /**
+     * Progress lifecycle, shared by both players. Both emit the same numeric
+     * state values (see PLAYER_STATE), so this needs no knowledge of which
+     * player produced the event.
+     */
+    async function handlePlayerStateChange(event: {
+      data: number;
+      target: YTPlayerInstance;
+    }) {
+      if (event.data === PLAYER_STATE.PLAYING) {
+        setPlaying(true);
+        if (!progressStartedRef.current) {
+          handleSendStartItem();
+          setVideoEnded(false);
+          progressStartedRef.current = true;
+        }
+        setTimeout(() => {
+          forceHighestQuality(event.target);
+        }, 500);
+      } else if (event.data === PLAYER_STATE.ENDED) {
+        setPlaying(false);
+        setVideoEnded(true);
+        if (!progressStoppedRef.current && currentCourse) {
+          const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+          if (!watchItemId && isAlreadyWatched) {
+            if (currentCourse.courseId === "6981df886e100cfe04f9c4ad") {
+              console.log("Stop API failed for this course")
+            } else {
+              onNext?.();
+            }
+          }
+          else if (watchItemId) {
+            const success = await handleStopItem(watchItemId, 0); // No debounce on natural end
+            if (success) {
+              onNext?.();
+            }
+          }
+        }
+      } else {
+        setPlaying(false);
+      }
+    }
+
+    /**
+     * Uploaded video is driven by an HLS-backed player exposing the same
+     * interface, so everything below this branch — proctoring, seek gating,
+     * watch-time, overlays — is shared rather than duplicated.
+     */
+    function createUploadedPlayer() {
+      if (!iframeRef.current || !assetId) return;
+
+      playerRef.current = createHlsPlayerInstance({
+        container: iframeRef.current,
+        resolveUrl: async () => (await getVideoPlaybackUrl(assetId)).url,
+        startSeconds: startTimeSeconds,
+        volume,
+        events: {
+          onReady: event => handlePlayerReady(event.target),
+          onStateChange: event => void handlePlayerStateChange(event),
+        },
+      });
+    }
+
     function createPlayer() {
       if (!iframeRef.current || !videoId) return;
 
@@ -759,11 +874,6 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 iframeEl.style.display = 'block';
               }
             } catch { /* getIframe unavailable — non-fatal */ }
-            const dur = event.target.getDuration();
-            setPlayerReady(true);
-            setDuration(dur);
-            // setVolume(event.target.getVolume());
-            event.target.setVolume(volume);
             // Re-apply the persisted subtitle preference on a fresh player.
             if (subtitlesEnabled) {
               try {
@@ -777,55 +887,29 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                 setTimeout(() => { try { p.setOption?.('captions', 'fontSize', -1); } catch { /* noop */ } }, 800);
               } catch { /* captions module unavailable — non-fatal */ }
             }
-            setMaxTime(startTimeSeconds);
-            event.target.seekTo(startTimeSeconds, true);
-            onDurationChange?.(dur);
-            event.target.pauseVideo();
-            // setPlaying(false);
-            // console.log('YouTube player ready - video paused by default');
-
-            // Don't auto-pause here - let the autoplay logic handle it
+            // Shared with the uploaded-video player: duration, volume, seek to
+            // the segment start, then pause and wait for the camera.
+            handlePlayerReady(event.target);
             console.log('✅ YouTube player ready - waiting for camera to be ready');
 
           },
           onStateChange: async (event: { data: number; target: YTPlayerInstance }) => {
-            if (window.YT && event.data === window.YT.PlayerState.PLAYING) {
-              setPlaying(true);
-              if (!progressStartedRef.current) {
-                handleSendStartItem();
-                setVideoEnded(false);
-                progressStartedRef.current = true;
-              }
-              setTimeout(() => {
-                forceHighestQuality(event.target);
-              }, 500);
-            } else if (window.YT && event.data === window.YT.PlayerState.ENDED) {
-              setPlaying(false);
-              setVideoEnded(true);
-              if (!progressStoppedRef.current && currentCourse) {
-                const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
-                if (!watchItemId && isAlreadyWatched) {
-                  if (currentCourse.courseId === "6981df886e100cfe04f9c4ad") {
-                    console.log("Stop API failed for this course")
-                  }else{
-                    console.log("Fahhhhaaaaa.....")
-                    onNext?.();
-                  }
-                }
-                else if (watchItemId) {
-                  const success = await handleStopItem(watchItemId, 0); // No debounce on natural end
-                  if (success) {
-                    console.log("Damnnnn.......")
-                    onNext?.();
-                  }
-                }
-              }
-            } else {
-              setPlaying(false);
-            }
+            await handlePlayerStateChange(event);
           },
         },
       });
+    }
+    // An uploaded lesson needs no YouTube IFrame API at all, so it must not wait
+    // on that script loading — which is also why player state is compared against
+    // PLAYER_STATE rather than window.YT.PlayerState.
+    if (isUploadedVideo) {
+      createUploadedPlayer();
+      return () => {
+        if (playerRef.current) {
+          playerRef.current.destroy?.();
+          playerRef.current = null;
+        }
+      };
     }
     if (window.YT && window.YT.Player) {
       createPlayer();
@@ -1986,6 +2070,36 @@ export default function Video({ URL, startTime, nextItemId, endTime, points, ano
                     {playbackRate.toFixed(2)}x
                   </span>
                 </Card>
+
+                {/*
+                  * Quality selector. Rendered only when the active player reports
+                  * renditions, so it appears for uploaded video (HLS ladder) and
+                  * stays hidden where there is nothing to choose between.
+                  */}
+                {qualityLevels.length > 1 && (
+                  <Card className="flex flex-row items-center gap-1.5 px-2 py-0.5 bg-accent/15 flex-shrink-0">
+                    <span className="hidden md:block text-xs font-semibold text-foreground">
+                      Quality
+                    </span>
+                    <select
+                      value={selectedQuality}
+                      onChange={e => {
+                        const next = e.target.value;
+                        setSelectedQuality(next);
+                        playerRef.current?.setPlaybackQuality?.(next);
+                      }}
+                      aria-label="Video quality"
+                      className="bg-transparent text-xs font-semibold text-primary
+                        outline-none cursor-pointer"
+                    >
+                      {qualityLevels.map(level => (
+                        <option key={level} value={level}>
+                          {level === 'auto' ? 'Auto' : level}
+                        </option>
+                      ))}
+                    </select>
+                  </Card>
+                )}
 
                 {/* Volume Control */}
                 <Card className="flex flex-row items-center gap-1.5 px-2 py-0.5 bg-accent/15 flex-shrink-0">

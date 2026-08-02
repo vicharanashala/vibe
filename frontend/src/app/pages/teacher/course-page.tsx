@@ -31,6 +31,7 @@ import {
   Copy,
   Download,
   UserCheck,
+  Video,
   Headphones,
   ExternalLink,
   Megaphone,
@@ -1528,6 +1529,20 @@ function VersionCard({
     storePageAndNavigate("/teacher/courses/view")
   }
 
+  // The course's uploaded-video library, where lectures are uploaded once and
+  // then referenced by any number of lessons.
+  const viewCourseVideos = () => {
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: selectedVersionId ? selectedVersionId : null,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
+    storePageAndNavigate("/teacher/courses/videos")
+  }
+
   const handleGenerateLink = async () => {
     try {
       const result = await generateLinkMutation.mutateAsync({
@@ -2063,6 +2078,15 @@ function VersionCard({
                 <Button variant="outline" size="sm" onClick={goToRegistrations} className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs">
                   <UserCheck className="h-3 w-3 mr-1" />
                   Registrations
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={viewCourseVideos}
+                  className="h-8 bg-background border-border hover:bg-accent hover:text-accent-foreground transition-all duration-300 text-xs"
+                >
+                  <Video className="h-3 w-3 mr-1" />
+                  Course Videos
                 </Button>
                 <Button
                   variant="outline"

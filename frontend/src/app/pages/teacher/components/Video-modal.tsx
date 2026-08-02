@@ -4,6 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Video } from "@/types/video.types";
 import Loader from "@/components/Loader";
 import ConfirmationModal from "./confirmation-modal";
+import VideoAssetPicker from "./VideoAssetPicker";
+import HlsVideoPlayer from "@/components/HlsVideoPlayer";
+import { resolveVideoSource, type VideoSource } from "@/types/media.types";
 
 function getYouTubeId(url: string): string | null {
     const match = url.match(/(?:v=|youtu\.be\/?)([\w-]{11})/);
@@ -21,6 +24,13 @@ interface VideoModalProps {
     action: "add" | "edit" | "view";
     selectedItemName: string;
     isLoading: boolean;
+    /**
+     * Course scope for uploads. Optional so existing call sites keep working —
+     * without them the Upload option is offered but disabled, rather than
+     * letting a teacher start an upload that has nowhere to go.
+     */
+    courseId?: string | null;
+    courseVersionId?: string | null;
 }
 
 function formatTime(seconds: number): string {
@@ -85,11 +95,27 @@ const VideoModal: React.FC<VideoModalProps> = ({
     onEdit,
     item,
     action,
+    courseId,
+    courseVersionId,
 }) => {
     // State for fields
     const [name, setName] = useState(item?.name || "");
     const [description, setDescription] = useState(item?.description || "");
     const [url, setUrl] = useState(item?.details?.URL || "");
+    /**
+     * Where this item's video comes from. Existing items have no `source`, so
+     * resolveVideoSource reads them as YOUTUBE and the link flow below is
+     * unchanged for them.
+     */
+    const [source, setSource] = useState<VideoSource>(
+        resolveVideoSource(item?.details),
+    );
+    const [assetId, setAssetId] = useState<string | undefined>(
+        item?.details?.assetId,
+    );
+    const canUpload = Boolean(courseId && courseVersionId);
+    /** This item plays an uploaded video rather than a YouTube link. */
+    const isUpload = source === "GCS";
     const [duration, setDuration] = useState(0);
     const [playerReady, setPlayerReady] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -137,6 +163,12 @@ const VideoModal: React.FC<VideoModalProps> = ({
         setName(item?.name || "");
         setDescription(item?.description || "");
         setUrl(item?.details?.URL || "");
+        // `item` arrives asynchronously, so the initial useState values were
+        // computed while it was still undefined — i.e. as a YouTube video. These
+        // two must be re-synced here alongside the rest, or opening a saved
+        // upload shows an empty "Paste YouTube video URL" field.
+        setSource(resolveVideoSource(item?.details));
+        setAssetId(item?.details?.assetId);
         setPoints(item?.details?.points ?? 0);
 
         const startTime = item?.details?.startTime || "0:00";
@@ -405,6 +437,22 @@ const VideoModal: React.FC<VideoModalProps> = ({
     const hasErrors = () => {
         return errors.startTime !== "" || errors.endTime !== "";
     };
+
+    /**
+     * Default an uploaded video's segment to its full length.
+     *
+     * The YouTube flow gets its range from the IFrame player as it loads. The
+     * upload flow has no such player, so start and end would both stay at 0:00 —
+     * which handleSave rejects as an invalid range, silently refusing to save.
+     * A whole uploaded video is the sensible default; the teacher can still trim
+     * it afterwards.
+     */
+    useEffect(() => {
+        if (source !== "GCS" || duration <= 0) return;
+        if (parseTimeToSeconds(timeInputs.end) > 0) return; // already set
+        setRange([0, duration]);
+        setTimeInputs({start: formatTime(0), end: formatTime(duration)});
+    }, [source, duration, timeInputs.end]);
     const [errorList, setErrorList] = useState({ name: "", description: "", url: "" })
     const errorMessages = {
         name: "Video name is required",
@@ -448,7 +496,15 @@ const VideoModal: React.FC<VideoModalProps> = ({
         const newErrors = {
             name: name ? "" : errorMessages.name,
             description: description ? "" : errorMessages.description,
-            url: url ? "" : errorMessages.url,
+            // An uploaded video has no URL to validate — it needs an asset instead.
+            url:
+                source === "GCS"
+                    ? assetId
+                        ? ""
+                        : "Upload a video before saving"
+                    : url
+                        ? ""
+                        : errorMessages.url,
         };
 
         setErrorList(newErrors);
@@ -479,7 +535,13 @@ const VideoModal: React.FC<VideoModalProps> = ({
             description,
             type: "VIDEO",
             details: {
-                URL: url,
+                // The two sources are mutually exclusive: the backend validator
+                // rejects a URL alongside an assetId, so send only the relevant
+                // one. `source` is omitted for YouTube so items written here look
+                // exactly like every item written before uploads existed.
+                ...(source === "GCS"
+                    ? { source: "GCS" as VideoSource, assetId }
+                    : { URL: url }),
                 startTime: formatTime(startSeconds),
                 endTime: formatTime(endSeconds),
                 points,
@@ -516,9 +578,19 @@ const VideoModal: React.FC<VideoModalProps> = ({
             {isLoading ? <Loader /> :
                 <div
                     ref={modalRef}
-                    className="bg-card text-foreground rounded-lg p-6 
-                    overflow-y-auto
-                    min-w-4xl shadow-lg"
+                    /**
+                     * Height is capped to the viewport so the modal scrolls inside
+                     * itself. Without a cap it grew taller than the screen, and
+                     * because the overlay centres it with flex, the overflow was
+                     * clipped off the top where it cannot be scrolled to — the
+                     * video name field became unreachable.
+                     *
+                     * Width is a max rather than a min for the same reason: min-w
+                     * forced the modal wider than a narrow window.
+                     */
+                    className="bg-card text-foreground rounded-lg p-6
+                    overflow-y-auto max-h-[90vh]
+                    w-full max-w-4xl mx-4 shadow-lg"
                 >
 
 
@@ -551,15 +623,87 @@ const VideoModal: React.FC<VideoModalProps> = ({
                         {errorList.name && (
                             <p className="text-xs text-red-500 mt-1">{errorList.name}</p>
                         )}
-                        <Input
-                            placeholder="Paste YouTube video URL *"
-                            value={url}
-                            onChange={e => setUrl(e.target.value)}
-                            disabled={action === "view"}
-                            className="bg-background border-border"
-                        />
-                        {errorList.url && (
-                            <p className="text-xs text-red-500 mt-1">{errorList.url}</p>
+                        {/*
+                          * Source picker. Hidden in view mode and for existing
+                          * items — switching an item's source after learners have
+                          * progress against it would orphan their watch history,
+                          * so it is a create-time choice only.
+                          */}
+                        {action === "add" && (
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={source === "YOUTUBE" ? "default" : "outline"}
+                                    onClick={() => setSource("YOUTUBE")}
+                                >
+                                    YouTube link
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={source === "GCS" ? "default" : "outline"}
+                                    disabled={!canUpload}
+                                    title={
+                                        canUpload
+                                            ? undefined
+                                            : 'Open this from a course to choose a video'
+                                    }
+                                    onClick={() => setSource("GCS")}
+                                >
+                                    Course video
+                                </Button>
+                            </div>
+                        )}
+
+                        {source === "GCS" ? (
+                            <>
+                                {courseId && courseVersionId ? (
+                                    <>
+                                        <VideoAssetPicker
+                                            courseId={courseId}
+                                            courseVersionId={courseVersionId}
+                                            assetId={assetId}
+                                            disabled={action === "view"}
+                                            onSelect={asset => {
+                                                setAssetId(asset.assetId);
+                                                // A known duration lets the range
+                                                // default to the whole video before
+                                                // the preview has even loaded.
+                                                if (asset.durationSeconds) {
+                                                    setDuration(asset.durationSeconds);
+                                                }
+                                            }}
+                                        />
+                                        {/*
+                                          * The preview itself renders below, in the same
+                                          * container as the timestamp controls, so an
+                                          * uploaded video is edited exactly like a YouTube
+                                          * one.
+                                          */}
+                                    </>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        Open this from a course to choose a video.
+                                    </p>
+                                )}
+                                {errorList.url && (
+                                    <p className="text-xs text-red-500 mt-1">{errorList.url}</p>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <Input
+                                    placeholder="Paste YouTube video URL *"
+                                    value={url}
+                                    onChange={e => setUrl(e.target.value)}
+                                    disabled={action === "view"}
+                                    className="bg-background border-border"
+                                />
+                                {errorList.url && (
+                                    <p className="text-xs text-red-500 mt-1">{errorList.url}</p>
+                                )}
+                            </>
                         )}
                         <textarea
                             placeholder="Description *"
@@ -573,7 +717,13 @@ const VideoModal: React.FC<VideoModalProps> = ({
                         {errorList.description && (
                             <p className="text-xs text-red-500 mt-1">{errorList.description}</p>
                         )}
-                        {videoId && (
+                        {/*
+                          * Gated on "a video is loaded", not on a YouTube id — the
+                          * timestamp controls live inside this block, and keying it to
+                          * videoId meant an uploaded video had no way to set start and
+                          * end at all.
+                          */}
+                        {(videoId || (isUpload && assetId)) && (
                             <div
                                 style={{
                                     width: "100%",
@@ -589,17 +739,41 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             >
                                 {/* Video Container */}
                                 <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000" }}>
-                                    <div
-                                        ref={iframeRef}
-                                        style={{
-                                            width: "100%",
-                                            height: "100%",
-                                            background: "#000",
-                                            borderRadius: "12px 12px 0 0",
-                                            overflow: "hidden",
-                                            position: "relative",
-                                        }}
-                                    />
+                                    {isUpload && assetId ? (
+                                        <HlsVideoPlayer
+                                            key={assetId}
+                                            /**
+                                             * Shares the YouTube player's ref. HlsPlayerHandle
+                                             * exposes the same seekTo/getCurrentTime/play/pause
+                                             * surface, so the timestamp inputs, the Go to
+                                             * Start/End buttons and the segment-bound
+                                             * enforcement all work unchanged.
+                                             */
+                                            ref={playerRef}
+                                            assetId={assetId}
+                                            startTime={timeInputs.start}
+                                            endTime={timeInputs.end}
+                                            className="h-full w-full"
+                                            onReady={seconds => {
+                                                setDuration(seconds);
+                                                // Unlocks the timestamp controls, which are
+                                                // gated on a ready player.
+                                                setPlayerReady(true);
+                                            }}
+                                        />
+                                    ) : (
+                                        <div
+                                            ref={iframeRef}
+                                            style={{
+                                                width: "100%",
+                                                height: "100%",
+                                                background: "#000",
+                                                borderRadius: "12px 12px 0 0",
+                                                overflow: "hidden",
+                                                position: "relative",
+                                            }}
+                                        />
+                                    )}
                                     {/* Overlay */}
                                     {showOverlay && (
                                         <div
@@ -768,12 +942,15 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                         }
                                         return endSeconds <= startSeconds;
                                     };
-                                    const isDisabled = 
-                                    (action !== "add" && !playerReady) || 
-                                    !url || 
-                                    !name || 
-                                    !description || 
-                                    hasErrors() || 
+                                    // An uploaded video has no URL and no YouTube
+                                    // player, so those two gates only apply to the
+                                    // link flow. It needs a ready asset instead.
+                                    const isDisabled =
+                                    (action !== "add" && !playerReady && !isUpload) ||
+                                    (isUpload ? !assetId : !url) ||
+                                    !name ||
+                                    !description ||
+                                    hasErrors() ||
                                     hasTimeRangeError();
 
                                     return (

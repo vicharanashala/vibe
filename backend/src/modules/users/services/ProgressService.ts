@@ -824,11 +824,21 @@ class ProgressService extends BaseService {
     if (itemsGroup && itemsGroup.items) {
       itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
     }
-    const sortedItems = itemsGroup.items.sort((a, b) =>
+    /**
+     * A section can legitimately end up with nothing visible — every item hidden
+     * or soft-deleted — and the filter above then leaves an empty array. Indexing
+     * it threw "Cannot read properties of undefined (reading '_id')", which
+     * surfaced as a 500 on stopItem and left the learner unable to complete the
+     * item at all. Treated as "last in this section" so sequencing moves on to the
+     * next section, matching how getFirstItemInSequence already guards this.
+     */
+    const sortedItems = (itemsGroup?.items ?? []).sort((a, b) =>
       a.order.localeCompare(b.order),
     );
-    const lastItem = sortedItems[sortedItems.length - 1]._id;
-    if (lastItem?.toString() === itemId) {
+    const lastItem = sortedItems.length
+      ? sortedItems[sortedItems.length - 1]._id
+      : undefined;
+    if (!sortedItems.length || lastItem?.toString() === itemId) {
       isLastItem = true;
     }
 
@@ -946,11 +956,13 @@ class ProgressService extends BaseService {
     if (itemsGroup && itemsGroup.items) {
       itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
     }
-    const sortedItems = itemsGroup.items.sort((a, b) =>
+    // Same empty-section guard as getNextItemInSequence: nothing visible means
+    // treat the item as first here, so we look to the previous section.
+    const sortedItems = (itemsGroup?.items ?? []).sort((a, b) =>
       a.order.localeCompare(b.order),
     );
-    const firstItem = sortedItems[0]._id;
-    if (firstItem?.toString() === itemId) {
+    const firstItem = sortedItems.length ? sortedItems[0]._id : undefined;
+    if (!sortedItems.length || firstItem?.toString() === itemId) {
       isFirstItem = true;
     }
 
