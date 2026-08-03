@@ -19,7 +19,10 @@ ViBe is an innovative educational platform that enhances learning through contin
   - **Smart Proctoring:** AI-powered monitoring ensures that assessments are conducted honestly, providing a supportive framework that maintains academic integrity.
   - **Engagement Verification:** The system checks that students are actively engaged, reinforcing a positive learning atmosphere.
 
-## Inspiration
+- **Mythology-Themed Student Experience:**  
+  Narrative-driven gamification inspired by Vikram and Betaal. Features an interactive quest astrolabe, Betaal AI chatbot (powered by Cohere AI), technical riddles, karmic duels, encrypted local storage, and real-time leaderboards. See [docs/MYTHOLOGY_STUDENT_EXPERIENCE.md](docs/MYTHOLOGY_STUDENT_EXPERIENCE.md) for details.
+
+- **Inspiration:**  
 
 ViBe draws inspiration from the classical Indian tale of Vikram and Betaal. In the story, Betaal challenges King Vikramaditya with riddles, and any incorrect answer prompts a review of the challenge. Similarly, ViBe reinforces learning by requiring students to revisit content if their responses do not meet the mark, ensuring a deep and lasting understanding of the material.
 
