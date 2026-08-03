@@ -1,7 +1,9 @@
 export const MYTHOLOGY_TYPES = {
   MythologyService: Symbol.for('MythologyService'),
   MythologyController: Symbol.for('MythologyController'),
+  MythologyRepository: Symbol.for('MythologyRepository'),
 };
+
 
 export interface LeaderboardEntry {
   id: string;

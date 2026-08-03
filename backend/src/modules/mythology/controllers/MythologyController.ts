@@ -78,8 +78,9 @@ export class MythologyController {
   })
   @Get('/leaderboard')
   async getLeaderboard() {
+    const leaderboard = await this.mythologyService.getLeaderboard();
     return {
-      leaderboard: this.mythologyService.getLeaderboard(),
+      leaderboard,
       timestamp: new Date().toISOString(),
     };
   }
@@ -89,7 +90,7 @@ export class MythologyController {
   })
   @Post('/sync-score')
   async syncScore(@Body() body: SyncScoreBody) {
-    const updatedLeaderboard = this.mythologyService.updateLeaderboard({
+    const updatedLeaderboard = await this.mythologyService.updateLeaderboard({
       name: body.name,
       avatar: body.avatar || '🎓',
       streak: body.streak,

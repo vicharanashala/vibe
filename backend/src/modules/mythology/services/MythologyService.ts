@@ -1,30 +1,14 @@
-import { injectable } from 'inversify';
+import { inject, injectable } from 'inversify';
 import { LeaderboardEntry } from '../types.js';
+import { MythologyRepository } from '../repositories/providers/mongodb/MythologyRepository.js';
+import { MYTHOLOGY_TYPES } from '../types.js';
 
 @injectable()
 export class MythologyService {
-  private inMemoryLeaderboard: LeaderboardEntry[] = [
-    {
-      id: 'demo-1',
-      name: 'Vikramaditya',
-      avatar: '👑',
-      streak: 15,
-      karma: 450,
-      department: 'Computer Science',
-      track: 'vibe-typescript',
-      lastActive: new Date().toISOString().split('T')[0],
-    },
-    {
-      id: 'demo-2',
-      name: 'Anaya Sharma',
-      avatar: '🛡️',
-      streak: 9,
-      karma: 280,
-      department: 'Electrical Engineering',
-      track: 'vibe-react',
-      lastActive: new Date().toISOString().split('T')[0],
-    },
-  ];
+  constructor(
+    @inject(MYTHOLOGY_TYPES.MythologyRepository)
+    private readonly repo: MythologyRepository,
+  ) {}
 
   /**
    * Helper to invoke Cohere AI for prompt completions
@@ -56,7 +40,7 @@ export class MythologyService {
       throw new Error(`Cohere API returned status ${response.status}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { text?: string };
     return data.text || '';
   }
 
@@ -108,49 +92,35 @@ Output MUST be valid JSON (do NOT wrap in markdown \`\`\` blocks). Schema:
   }
 
   /**
-   * Updates or inserts a student entry into the live leaderboard
+   * Updates or inserts a student entry into MongoDB leaderboard.
    */
-  public updateLeaderboard(entry: Omit<LeaderboardEntry, 'id' | 'lastActive'>): LeaderboardEntry[] {
+  public async updateLeaderboard(
+    entry: Omit<LeaderboardEntry, 'id' | 'lastActive'>,
+  ): Promise<LeaderboardEntry[]> {
     const today = new Date().toISOString().split('T')[0];
-    const existingIndex = this.inMemoryLeaderboard.findIndex(item => item.name.toLowerCase() === entry.name.toLowerCase());
 
-    if (existingIndex >= 0) {
-      this.inMemoryLeaderboard[existingIndex] = {
-        ...this.inMemoryLeaderboard[existingIndex],
-        avatar: entry.avatar || this.inMemoryLeaderboard[existingIndex].avatar,
-        streak: Math.max(entry.streak, this.inMemoryLeaderboard[existingIndex].streak),
-        karma: Math.max(entry.karma, this.inMemoryLeaderboard[existingIndex].karma),
-        department: entry.department || this.inMemoryLeaderboard[existingIndex].department,
-        track: entry.track || this.inMemoryLeaderboard[existingIndex].track,
-        lastActive: today,
-      };
-    } else {
-      this.inMemoryLeaderboard.push({
-        id: `m-usr-${Date.now()}`,
-        name: entry.name,
-        avatar: entry.avatar || '🎓',
-        streak: entry.streak,
-        karma: entry.karma,
-        department: entry.department || 'General Engineering',
-        track: entry.track || 'vibe-github-tutorial',
-        lastActive: today,
-      });
-    }
+    await this.repo.upsertEntry({
+      name: entry.name,
+      avatar: entry.avatar || '🎓',
+      streak: entry.streak,
+      karma: entry.karma,
+      department: entry.department || 'General Engineering',
+      track: entry.track || 'vibe-github-tutorial',
+      lastActive: today,
+    });
 
-    // Sort by streak descending, then karma descending
-    this.inMemoryLeaderboard.sort((a, b) => b.streak - a.streak || b.karma - a.karma);
-    return this.inMemoryLeaderboard;
+    return this.repo.getTopEntries(50);
   }
 
   /**
-   * Returns current global leaderboard
+   * Returns current global leaderboard from MongoDB
    */
-  public getLeaderboard(): LeaderboardEntry[] {
-    return this.inMemoryLeaderboard;
+  public async getLeaderboard(): Promise<LeaderboardEntry[]> {
+    return this.repo.getTopEntries(50);
   }
 
   /**
-   * Processes PouchDB / IndexedDB offline sync
+   * Processes PouchDB / IndexedDB offline sync and credits earned karma
    */
   public syncOfflineMetrics(currentStreak: number, pouchDocs: any[] = [], indexedMetrics: any[] = []): any {
     const uniqueDates = new Set<string>();
