@@ -197,15 +197,15 @@ describe('Security Fixes Integration Tests', () => {
   describe('1. Leaderboard No-Auth Endpoint Security', () => {
     const path = `/users/progress/courses/${courseId}/versions/${versionId}/leaderboard/no-auth`;
 
-    it('should return 401 Unauthorized when no token is provided', async () => {
-      await request(app).get(path).expect(401);
+    it('should return 200 Success when no token is provided (public endpoint)', async () => {
+      await request(app).get(path).expect(200);
     });
 
-    it('should return 403 Forbidden for STUDENT users', async () => {
+    it('should return 200 Success for STUDENT users', async () => {
       await request(app)
         .get(path)
         .set('Authorization', 'Bearer student-token')
-        .expect(403);
+        .expect(200);
     });
 
     it('should return 200 Success for INSTRUCTOR users', async () => {

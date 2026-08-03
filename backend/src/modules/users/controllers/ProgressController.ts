@@ -1007,12 +1007,11 @@ It returns an empty body with a 200 status code.
   }
 
   /////////////////////////////// TEMP ENDPOINT WITHOUT AUTH //////////////////////////////////
-  @Authorized()
   @Get('/progress/courses/:courseId/versions/:versionId/leaderboard/no-auth')
   @OpenAPI({
     summary: 'Get course leaderboard without authorization',
     description:
-      'Returns ranked list of students based on completion percentage and time',
+      'Returns ranked list of students based on completion percentage and time. This is a public endpoint that does not require authentication.',
   })
   @ResponseSchema(GetLeaderboardResponse, {
     description: 'Leaderboard retrieved successfully',
@@ -1024,14 +1023,8 @@ It returns an empty body with a 200 status code.
   })
   async getNoAuthLeaderboard(
     @Params() params: GetUserProgressParams,
-    @Ability(getProgressAbility) { ability },
   ): Promise<GetLeaderboardResponse> {
     const { courseId, versionId } = params;
-
-    const progressResource = subject('Progress', { courseId, versionId });
-    if (!ability.can(ProgressActions.View, progressResource)) {
-      throw new ForbiddenError('You do not have permission to view this leaderboard');
-    }
 
     return await this.progressService.getLeaderboardNoAuth(
       courseId,
