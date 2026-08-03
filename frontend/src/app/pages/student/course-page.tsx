@@ -52,6 +52,8 @@ import { ProctorAlertOverlay } from "@/components/learn/ProctorAlertOverlay";
 import { NoiseIndicator } from "@/components/learn/NoiseIndicator";
 import { AwayOverlay } from "@/components/learn/AwayOverlay";
 import { CourseDrawer } from "@/components/learn/CourseDrawer";
+import { FloatingCodeLabButton } from "@/components/learn/FloatingCodeLabButton";
+import { CodeLab } from "@/components/learn/CodeLab";
 
 // Proctoring anomalies that should block the video and surface the buttonless
 // alert (with webcam) — covers "no person" (noFace) and "more than one person".
@@ -225,6 +227,8 @@ export default function CoursePage() {
   const [pauseSignal, setPauseSignal] = useState(0);
   // Cursor stepped off the page → pause; auto-resumes on return (handled in the player).
   const [awayPaused, setAwayPaused] = useState(false);
+  // CodeLab open state — pauses the lecture exactly like every other floating overlay.
+  const [codelabOpen, setCodelabOpen] = useState(false);
   // Pause the lesson video imperatively (without the anomaly overlay) whenever a
   // floating control is used.
   const pauseVideoForControl = useCallback(() => setPauseSignal((n) => n + 1), []);
@@ -675,6 +679,8 @@ export default function CoursePage() {
         }
 
         setCurrentItem(item);
+        // Switching lecture items closes CodeLab and returns to plain fullscreen (product.md §6.20).
+        setCodelabOpen(false);
         // Clear loading state when new item is successfully loaded
         setIsNavigatingToNext(false);
       }
@@ -1760,6 +1766,59 @@ const handleGoToNextItem = async () => {
 return false;
   };
 
+  // UserId for the platform-wide CodeLab workspace (product.md §6.20).
+  const codelabUserId = user?.uid || localStorage.getItem('userId') || 'guest';
+
+  // The ItemContainer for the current item — extracted so it can be placed either
+  // in the normal fullscreen stage or inside CodeLab’s right panel without
+  // double-mounting (which would create a second YouTube player instance).
+  const currentItemContainerEl =
+    currentItem && currentItem.type !== "PROJECT" ? (
+      <div className={currentItem.type === "VIDEO" ? "contents" : "absolute inset-0 z-30 overflow-y-auto"}>
+        <div
+          className={
+            currentItem.type === "VIDEO"
+              ? "contents"
+              : "mx-auto min-h-full w-full max-w-5xl bg-card text-card-foreground sm:my-6 sm:min-h-[calc(100%-3rem)] sm:rounded-2xl sm:shadow-2xl"
+          }
+        >
+          <ItemContainer
+            ref={itemContainerRef}
+            item={currentItem}
+            focusMode={currentItem.type === "VIDEO"}
+            doGesture={doGesture}
+            onNext={handleNext}
+            onPrevVideo={handlePrevVideo}
+            isProgressUpdating={isNavigatingToNext || itemLoading}
+            isNavigatingToPrev={isNavigatingToPrev}
+            attemptId={attemptId || undefined}
+            setAttemptId={setAttemptId}
+            rewindVid={rewindVid}
+            readyToDetect={readyToDetect}
+            pauseVid={pauseVid || showProctorDialog || alertVisible}
+            pauseSignal={pauseSignal}
+            awayPaused={awayPaused || drawerOpen || needsFullscreen || codelabOpen}
+            displayNextLesson={false}
+            setQuizPassed={setQuizPassed}
+            anomalies={anomalies}
+            keyboardLockEnabled={!isFlagModalOpen && !drawerOpen && !aiSheet && !codelabOpen}
+            linearProgressionEnabled={proctoringData?.settings.linearProgressionEnabled || true}
+            seekForwardEnabled={proctoringData?.settings.seekForwardEnabled || false}
+            setIsQuizSkipped={setIsQuizSkipped}
+            courseId={COURSE_ID}
+            versionId={VERSION_ID}
+            sectionId={sectionId}
+            completedItemIdsRef={completedItemIdsRef}
+            nextItem={findNextItem()}
+            cohortId={COHORT_ID}
+            cohortName={COHORT_NAME}
+            pendingStudentQuestionContext={pendingStudentQuestionContext}
+            clearPendingStudentQuestionContext={() => setPendingStudentQuestionContext(null)}
+          />
+        </div>
+      </div>
+    ) : null;
+
   return (
     <>
       {/* Ethical consent gate — must be signed once per course before any content */}
@@ -1906,49 +1965,9 @@ return false;
               </div>
             </div>
           ) : (
-            <div className={currentItem.type === "VIDEO" ? "contents" : "absolute inset-0 z-30 overflow-y-auto"}>
-              <div
-                className={
-                  currentItem.type === "VIDEO"
-                    ? "contents"
-                    : "mx-auto min-h-full w-full max-w-5xl bg-card text-card-foreground sm:my-6 sm:min-h-[calc(100%-3rem)] sm:rounded-2xl sm:shadow-2xl"
-                }
-              >
-                <ItemContainer
-                  ref={itemContainerRef}
-                  item={currentItem}
-                  focusMode={currentItem.type === "VIDEO"}
-                  doGesture={doGesture}
-                  onNext={handleNext}
-                  onPrevVideo={handlePrevVideo}
-                  isProgressUpdating={isNavigatingToNext || itemLoading}
-                  isNavigatingToPrev={isNavigatingToPrev}
-                  attemptId={attemptId || undefined}
-                  setAttemptId={setAttemptId}
-                  rewindVid={rewindVid}
-                  readyToDetect={readyToDetect}
-                  pauseVid={pauseVid || showProctorDialog || alertVisible}
-                  pauseSignal={pauseSignal}
-                  awayPaused={awayPaused || drawerOpen || needsFullscreen}
-                  displayNextLesson={false}
-                  setQuizPassed={setQuizPassed}
-                  anomalies={anomalies}
-                  keyboardLockEnabled={!isFlagModalOpen && !drawerOpen && !aiSheet}
-                  linearProgressionEnabled={proctoringData?.settings.linearProgressionEnabled || true}
-                  seekForwardEnabled={proctoringData?.settings.seekForwardEnabled || false}
-                  setIsQuizSkipped={setIsQuizSkipped}
-                  courseId={COURSE_ID}
-                  versionId={VERSION_ID}
-                  sectionId={sectionId}
-                  completedItemIdsRef={completedItemIdsRef}
-                  nextItem={findNextItem()}
-                  cohortId={COHORT_ID}
-                  cohortName={COHORT_NAME}
-                  pendingStudentQuestionContext={pendingStudentQuestionContext}
-                  clearPendingStudentQuestionContext={() => setPendingStudentQuestionContext(null)}
-                />
-              </div>
-            </div>
+            // When CodeLab is open the video renders inside CodeLab’s right panel;
+            // here we only render non-VIDEO items (and non-PROJECT, which renders above).
+            codelabOpen && currentItem.type === "VIDEO" ? null : currentItemContainerEl
           )
         ) : (
           <div className="z-30 absolute inset-0 place-items-center grid px-6 text-center">
@@ -1997,6 +2016,14 @@ return false;
             onToggle={() => { pauseVideoForControl(); setCamPinned((p) => !p); }}
             onHoverChange={setCamHover}
             anomaly={pauseVid || rewindVid}
+          />
+        )}
+
+        {/* CodeLab toggle — only available during video items (product.md §6.20) */}
+        {currentItem?.type === "VIDEO" && (
+          <FloatingCodeLabButton
+            open={codelabOpen}
+            onToggle={() => { pauseVideoForControl(); setCodelabOpen((prev) => !prev); }}
           />
         )}
 
@@ -2106,6 +2133,19 @@ return false;
           )}
         </div>
       </main>
+
+      {/* CodeLab split-screen overlay (product.md §6.20).
+           Fixed inset-0 z-40 so it covers the cinematic stage.
+           The video renders inside CodeLab’s right panel (currentItemContainerEl),
+           ensuring only one YouTube player instance exists at a time.
+           Closing restores plain fullscreen and auto-resumes via awayPaused. */}
+      {codelabOpen && currentItem?.type === "VIDEO" && (
+        <CodeLab
+          userId={codelabUserId}
+          videoSlot={currentItemContainerEl}
+          onClose={() => setCodelabOpen(false)}
+        />
+      )}
 
       {/* Course progress / navigation drawer (opened by the back button) */}
       <CourseDrawer

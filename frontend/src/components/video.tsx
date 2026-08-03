@@ -58,6 +58,9 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
+// Preserve the learner's position when CodeLab intentionally remounts the player.
+const savedPlaybackTimes = new Map<string, number>();
+
 export default function Video({ URL, source, assetId, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, pauseSignal, awayPaused = false }: VideoProps) {
   /**
    * An uploaded lesson streams HLS instead of embedding YouTube. Everything else
@@ -304,7 +307,8 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
   useEffect(() => {
     setGracePeriodCompleted(false);
     hasAutoPlayedRef.current = false; // Reset autoplay flag for new video
-    maxTimeRef.current = startTimeSeconds; // Reset maxTime ref
+    const saved = videoId ? savedPlaybackTimes.get(videoId) : undefined;
+    maxTimeRef.current = saved !== undefined && saved > startTimeSeconds ? saved : startTimeSeconds;
     stopFailCountRef.current = 0; // Reset stop-failure retry counter
 
     // Update watchTimeTrack with course info when video changes
@@ -758,8 +762,12 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
         setQualityLevels([]);
       }
       target.setVolume(volume);
-      setMaxTime(startTimeSeconds);
-      target.seekTo(startTimeSeconds, true);
+      const savedTime = videoId ? savedPlaybackTimes.get(videoId) : undefined;
+      const initialTime = savedTime !== undefined && savedTime > startTimeSeconds
+        ? savedTime
+        : startTimeSeconds;
+      setMaxTime(initialTime);
+      target.seekTo(initialTime, true);
       onDurationChange?.(dur);
       target.pauseVideo();
     }
@@ -1013,6 +1021,7 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
         if (player && player.getCurrentTime) {
           const time = player.getCurrentTime();
           setCurrentTime(time);
+          if (videoId && time > 0) savedPlaybackTimes.set(videoId, time);
           setDuration(player.getDuration());
           // setVolume(player.getVolume());
 
