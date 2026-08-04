@@ -28,6 +28,10 @@ import { BadRequestErrorResponse } from '#shared/middleware/errorHandler.js';
 import { CourseVersion } from '#courses/classes/transformers/CourseVersion.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import {
+  CohortScopeService,
+  filterCohortDetails,
+} from '#root/shared/functions/cohortScope.js';
+import {
   CreateCourseVersionResponse,
   CourseVersionNotFoundErrorResponse,
   CreateCourseVersionParams,
@@ -81,6 +85,8 @@ export class CourseVersionController {
     private readonly courseVersionService: CourseVersionService,
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(CohortScopeService)
+    private readonly cohortScopeService: CohortScopeService,
   ) { }
 
   @OpenAPI({
@@ -185,7 +191,7 @@ Accessible to:
   })
   async read(
     @Params() params: ReadCourseVersionParams,
-    @Ability(getCourseVersionAbility) { ability, user },
+    @Ability(getCourseVersionAbility) { ability, user, authenticatedUser },
     @QueryParam('cohortId') cohortId?: string,
   ): Promise<CourseVersion & {hpSystem: boolean}> {
     const { versionId } = params;
@@ -205,6 +211,27 @@ Accessible to:
         user._id,
         cohortId,
       );
+
+    // Cohorts the caller cannot act on must not reach the client: this
+    // response is what populates every cohort dropdown, the invite dialog
+    // included.
+    //
+    // Deliberately resolved without the request's `cohortId`. Here that value
+    // is a hint for finding the caller's enrollment, not a data filter — the
+    // version content is the same for every cohort — and the store-persisted
+    // value clients send goes stale (a moved student, an old browser). Passing
+    // it would turn a stale hint into a 403 on the course page, which is the
+    // #1081 lockout by another route.
+    const scope = this.cohortScopeService.resolve(
+      authenticatedUser,
+      retrievedCourseVersion.courseId.toString(),
+      versionId,
+    );
+    (retrievedCourseVersion as any).cohortDetails = filterCohortDetails(
+      (retrievedCourseVersion as any).cohortDetails,
+      scope,
+    );
+
     return retrievedCourseVersion;
   }
 
