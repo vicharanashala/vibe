@@ -1046,10 +1046,16 @@ export function useUpdateCohort(): {
 }
 
 
+export interface DeleteCohortResponse {
+  message: string
+  requiresConfirmation?: boolean
+  pendingInviteCount?: number
+}
+
 export function useDeleteCohort(): {
-  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } } }) => Promise<CohortsResponse>,
-  data: CohortsResponse | undefined,
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string }, query?: { confirmCancelInvites?: boolean } } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string }, query?: { confirmCancelInvites?: boolean } } }) => Promise<DeleteCohortResponse>,
+  data: DeleteCohortResponse | undefined,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
