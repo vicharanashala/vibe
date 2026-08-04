@@ -31,7 +31,7 @@ const admin: AuthenticatedUser = {
 const enrolledAs = (role: any): AuthenticatedUser => ({
   userId: `u-${role}`,
   globalRole: 'user',
-  enrollments: [{courseId: COURSE, versionId: VERSION, role}],
+  enrollments: [{courseId: COURSE, versionId: VERSION, role, cohortIds: null}],
 });
 
 const instructor = enrolledAs('INSTRUCTOR');

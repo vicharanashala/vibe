@@ -18,6 +18,7 @@ import EjectionPoliciesPage from '../pages/teacher/ejection-policies'
 import StudentLayout from '@/layouts/student-layout'
 import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
+import LearningAnalytics from "@/app/pages/student/analytics/LearningAnalytics";
 import StudentProfile from "@/app/pages/student/profile";
 import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
 import StudentMySubmissions from "../pages/student/StudentMySubmissions";
@@ -44,6 +45,7 @@ import AnomaliesList from '../pages/teacher/AnomaliesList'
 // import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import StudentQuestionReview from '../pages/teacher/StudentQuestionReview'
+import ReflectionReview from '../pages/teacher/ReflectionReview'
 import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
 // import LoginPage from '../pages/LoginPage'
@@ -374,6 +376,12 @@ const teacherStudentQuestionsRoute = new Route({
   component: StudentQuestionReview,
 })
 
+const teacherReflectionsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/reflections',
+  component: ReflectionReview,
+})
+
 
 
 // Teacher Course Flags route
@@ -499,6 +507,13 @@ const studentCoursesRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/courses',
   component: StudentCourses,
+});
+
+// Student learning analytics route
+const studentAnalyticsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/analytics',
+  component: LearningAnalytics,
 });
 
 // Student notifications route
@@ -704,6 +719,7 @@ const routeTree = rootRoute.addChildren([
     // teacherCourseInstructorsRoute,
     teacherCourseRegistrationRequests,
     teacherStudentQuestionsRoute,
+    teacherReflectionsRoute,
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
     teacherAuditRoute,
@@ -721,6 +737,7 @@ const routeTree = rootRoute.addChildren([
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
+    studentAnalyticsRoute,
     studentProfileRoute,
     studentCourseInviteRegistration,
     studentIssuesRoute,

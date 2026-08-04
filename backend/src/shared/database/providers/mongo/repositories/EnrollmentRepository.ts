@@ -211,6 +211,37 @@ export class EnrollmentRepository {
     );
   }
 
+  /**
+   * Replace the cohorts a staff enrollment is confined to. Wholesale
+   * replacement rather than add/remove so the caller's view of the assignment
+   * is what gets stored — two admins editing concurrently cannot merge into a
+   * set neither of them chose.
+   */
+  async updateAssignedCohorts(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortIds: ObjectId[],
+    session?: ClientSession,
+  ): Promise<IEnrollment | null> {
+    await this.init();
+
+    const result = await this.enrollmentCollection.findOneAndUpdate(
+      {
+        userId: { $in: [userId, new ObjectId(userId)] },
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: {
+          $in: [courseVersionId, new ObjectId(courseVersionId)],
+        },
+        isDeleted: { $ne: true },
+      },
+      { $set: { assignedCohortIds: cohortIds } },
+      { session, returnDocument: 'after' },
+    );
+
+    return result as IEnrollment | null;
+  }
+
   async findActiveEnrollment(
     userId: string | ObjectId,
     courseId: string,
@@ -1561,8 +1592,7 @@ export class EnrollmentRepository {
     sortOrder: 'asc' | 'desc',
     filter: string,
     statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
-    cohort?: string,
-    cohorts?: ID[],
+    cohortScope?: ObjectId[] | null,
     session?: ClientSession,
   ) {
     await this.init();
@@ -1580,13 +1610,6 @@ export class EnrollmentRepository {
       courseId: { $in: [courseId, new ObjectId(courseId)] },
       courseVersionId: { $in: [courseVersionId, new ObjectId(courseVersionId)] },
     };
-
-    if (cohort && ObjectId.isValid(cohort)) {
-      baseMatch.cohortId = new ObjectId(cohort);
-    }
-    // else if (cohorts && cohorts.length > 0 && filter === 'STUDENT') {
-    //   // baseMatch.cohortId = { $in: cohorts };
-    // }
 
     let matchStage: any = { ...baseMatch };
 
@@ -1613,6 +1636,22 @@ export class EnrollmentRepository {
       } else if (filter === 'OTHER') {
         matchStage.role = { $ne: 'STUDENT' };
       }
+    }
+
+    // Confine the listing to the caller's cohorts. Only student rows carry a
+    // `cohortId` — staff are scoped by `assignedCohortIds` instead — so an
+    // unqualified filter would empty the instructor tab. Added under `$and`
+    // because the INACTIVE tab already owns `$or`.
+    if (cohortScope) {
+      matchStage.$and = [
+        ...(matchStage.$and ?? []),
+        {
+          $or: [
+            { cohortId: { $in: cohortScope } },
+            { role: { $ne: 'STUDENT' } },
+          ],
+        },
+      ];
     }
 
     // Initial pipeline for filtering and basic user data (required for sorting/searching)
@@ -1732,6 +1771,14 @@ export class EnrollmentRepository {
         },
         cohortName: {
           $cond: [{ $ifNull: ['$cohort.name', false] }, '$cohort.name', null],
+        },
+        // Staff scope. Empty means unscoped — course-wide — not "none".
+        assignedCohortIds: {
+          $map: {
+            input: { $ifNull: ['$assignedCohortIds', []] },
+            as: 'assignedCohortId',
+            in: { $toString: '$$assignedCohortId' },
+          },
         },
       },
     });
@@ -6217,5 +6264,180 @@ export class EnrollmentRepository {
       .toArray();
 
     return { total, candidates: candidates as any };
+  }
+
+  /**
+   * Returns the paginated progress roster for one course version: every active
+   * STUDENT enrollment with its completion percentage, whether or not the
+   * learner has finished. Unlike {@link getCourseCompletions} this does not
+   * filter on `completed: true`, so partially-through learners are included.
+   *
+   * `cohortId` is honoured when supplied — on a multi-cohort version, omitting
+   * it returns every cohort's rows and a learner enrolled in two cohorts
+   * appears once per cohort, so callers that care about a single cohort must
+   * pass it. Backs the server-to-server integration endpoint.
+   */
+  async getCourseProgressRoster(
+    courseId: string,
+    courseVersionId: string,
+    cohortId: string | undefined,
+    skip: number,
+    limit: number,
+  ): Promise<{
+    total: number;
+    learners: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      courseVersionId: string;
+      cohortId: string | null;
+      percentCompleted: number;
+      completedItems: number;
+      totalItems: number;
+      completed: boolean;
+      completedAt?: Date;
+      enrolledAt?: Date;
+    }>;
+  }> {
+    await this.init();
+
+    const courseIdObj = ObjectId.isValid(courseId)
+      ? new ObjectId(courseId)
+      : null;
+    const versionIdObj = ObjectId.isValid(courseVersionId)
+      ? new ObjectId(courseVersionId)
+      : null;
+    const cohortIdObj =
+      cohortId && ObjectId.isValid(cohortId) ? new ObjectId(cohortId) : null;
+
+    // Malformed ids can never match; return the empty page rather than letting
+    // an unguarded `new ObjectId()` throw a BSONError 500.
+    if (!courseIdObj || !versionIdObj) {
+      return { total: 0, learners: [] };
+    }
+
+    const matchStage: Record<string, unknown> = {
+      role: { $regex: /^student$/i },
+      status: { $regex: /^active$/i },
+      isDeleted: { $ne: true },
+      courseId: { $in: [courseId, courseIdObj] },
+      courseVersionId: { $in: [courseVersionId, versionIdObj] },
+      ...(cohortIdObj ? { cohortId: cohortIdObj } : {}),
+    };
+
+    const [countResult] = await this.enrollmentCollection
+      .aggregate([{ $match: matchStage }, { $count: 'total' }])
+      .toArray();
+    const total: number = countResult?.total ?? 0;
+
+    const learners = await this.enrollmentCollection
+      .aggregate([
+        { $match: matchStage },
+        // Stable ordering for pagination: furthest along first, then a
+        // tiebreaker so a learner never repeats or vanishes across pages.
+        { $sort: { percentCompleted: -1, userId: 1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: 'users',
+            let: { uid: { $toObjectId: '$userId' } },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', '$$uid'] } } },
+              { $project: { firstName: 1, lastName: 1, email: 1 } },
+            ],
+            as: 'user',
+          },
+        },
+        { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: 'newCourseVersion',
+            let: { vid: { $toObjectId: '$courseVersionId' } },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', '$$vid'] } } },
+              { $project: { totalItems: 1 } },
+            ],
+            as: 'version',
+          },
+        },
+        { $unwind: { path: '$version', preserveNullAndEmptyArrays: true } },
+        // `completed` / `completedAt` live on the progress doc, not the
+        // enrollment, and are cohort-scoped the same way.
+        {
+          $lookup: {
+            from: 'progress',
+            let: {
+              uid: '$userId',
+              cid: '$courseId',
+              cvid: '$courseVersionId',
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: [{ $toString: '$userId' }, { $toString: '$$uid' }] },
+                      {
+                        $eq: [{ $toString: '$courseId' }, { $toString: '$$cid' }],
+                      },
+                      {
+                        $eq: [
+                          { $toString: '$courseVersionId' },
+                          { $toString: '$$cvid' },
+                        ],
+                      },
+                      ...(cohortIdObj
+                        ? [{ $eq: ['$cohortId', cohortIdObj] }]
+                        : []),
+                    ],
+                  },
+                  isDeleted: { $ne: true },
+                },
+              },
+              { $project: { _id: 0, completed: 1, completedAt: 1 } },
+            ],
+            as: 'progress',
+          },
+        },
+        { $unwind: { path: '$progress', preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 0,
+            userId: { $toString: '$userId' },
+            email: '$user.email',
+            name: {
+              $trim: {
+                input: {
+                  $concat: [
+                    { $ifNull: ['$user.firstName', ''] },
+                    ' ',
+                    { $ifNull: ['$user.lastName', ''] },
+                  ],
+                },
+              },
+            },
+            courseVersionId: { $toString: '$courseVersionId' },
+            cohortId: {
+              $cond: [
+                { $ifNull: ['$cohortId', false] },
+                { $toString: '$cohortId' },
+                null,
+              ],
+            },
+            // An enrollment with no progress event yet has no percentCompleted
+            // field at all; coerce so callers always see a number.
+            percentCompleted: { $ifNull: ['$percentCompleted', 0] },
+            completedItems: { $ifNull: ['$completedItemsCount', 0] },
+            totalItems: { $ifNull: ['$version.totalItems', 0] },
+            completed: { $ifNull: ['$progress.completed', false] },
+            completedAt: '$progress.completedAt',
+            enrolledAt: '$enrollmentDate',
+          },
+        },
+      ])
+      .toArray();
+
+    return { total, learners: learners as any };
   }
 }

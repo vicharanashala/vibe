@@ -49,6 +49,9 @@ export interface Item {
     // For Project
     title?: string;
     description?: string;
+
+    // For Reflection
+    prompt?: string;
   };
   isAlreadyWatched?: boolean;
 }

@@ -13,6 +13,7 @@ import {SlotBookingRepository} from '#shared/database/providers/mongo/repositori
 import { FirebaseAuthService } from './modules/auth/services/FirebaseAuthService.js';
 import { ProgressService } from './modules/users/services/ProgressService.js';
 import { EnrollmentService } from './modules/users/services/EnrollmentService.js';
+import { CohortScopeService } from './shared/functions/cohortScope.js';
 
 
 
@@ -27,6 +28,7 @@ export const sharedContainerModule = new ContainerModule(options => {
   options.bind(FirebaseAuthService).toSelf().inSingletonScope();
   options.bind(ProgressService).toSelf().inSingletonScope();
   options.bind(EnrollmentService).toSelf().inSingletonScope();
+  options.bind(CohortScopeService).toSelf().inSingletonScope();
   // Database
   options.bind(GLOBAL_TYPES.Database).to(MongoDatabase).inSingletonScope();
 

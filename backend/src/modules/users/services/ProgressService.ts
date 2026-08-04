@@ -2712,6 +2712,9 @@ class ProgressService extends BaseService {
         followUp.courseId.toString(),
         followUp.courseVersionId.toString(),
         followUp.cohortId?.toString(),
+        // System-initiated: there is no sender to check for admin. Whether a
+        // cohort is set was decided when the follow-up was configured.
+        true,
       );
     } catch (error) {
       // Never let follow-up invite failures break course completion.
@@ -2846,6 +2849,8 @@ class ProgressService extends BaseService {
       targetCourseId,
       targetVersionId,
       targetCohortId,
+      // Backfill of an already-configured follow-up; same reasoning as above.
+      true,
     );
 
     return summary;
