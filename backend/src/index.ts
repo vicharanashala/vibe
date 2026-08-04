@@ -59,7 +59,7 @@ app.use(
   apiReference({
     content: openApiSpec,
     theme: 'elysiajs',
-  }),
+  }) as any,
 );
 
 // Health check endpoint for Cloud Run

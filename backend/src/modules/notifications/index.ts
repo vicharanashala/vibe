@@ -1,5 +1,4 @@
 import {Container, ContainerModule} from 'inversify';
-import {sharedContainerModule} from '#root/container.js';
 import {InversifyAdapter} from '#root/inversify-adapter.js';
 import {
   RoutingControllersOptions,
@@ -17,7 +16,6 @@ export const notificationsModuleControllers: Function[] = [
 
 export const notificationsContainerModules: ContainerModule[] = [
   notificationsContainerModule,
-  sharedContainerModule,
   usersContainerModule,
 ];
 

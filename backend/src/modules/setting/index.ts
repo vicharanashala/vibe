@@ -1,5 +1,5 @@
 import { Container, ContainerModule } from 'inversify';
-import { CourseSettingController } from './controllers/CourseSettingController.js';import { sharedContainerModule } from '#root/container.js';
+import { CourseSettingController } from './controllers/CourseSettingController.js';
 import { InversifyAdapter } from '#root/inversify-adapter.js';
 import { useContainer, RoutingControllersOptions } from 'routing-controllers';
 import { settingContainerModule } from './container.js';
@@ -10,7 +10,6 @@ import { SlotBookingController } from './controllers/SlotBookingController.js';
 
 export const settingContainerModules: ContainerModule[] = [
   settingContainerModule,
-  sharedContainerModule,
   authContainerModule
 ];
 
