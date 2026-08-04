@@ -47,6 +47,7 @@ import {
 } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import {ObjectId} from 'mongodb';
 import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
+import {CohortScopeService} from '#root/shared/functions/cohortScope.js';
 
 /**
  * Controller for managing student enrollments in courses.
@@ -62,6 +63,8 @@ export class InviteController {
   constructor(
     @inject(NOTIFICATIONS_TYPES.InviteService)
     private readonly inviteService: InviteService,
+    @inject(CohortScopeService)
+    private readonly cohortScopeService: CohortScopeService,
   ) {}
 
   @Authorized()
@@ -83,11 +86,19 @@ export class InviteController {
   async inviteUsers(
     @Body() body: InviteBody,
     @Params() params: CourseAndVersionId,
-    @Ability(getInviteAbility) {ability, user},
+    @Ability(getInviteAbility) {ability, user, authenticatedUser},
     @Req() req: Request,
   ) {
     const {courseId, versionId} = params;
     const {inviteData, cohortId} = body;
+
+    // A sender may only place learners into a cohort they hold themselves.
+    this.cohortScopeService.resolve(
+      authenticatedUser,
+      courseId,
+      versionId,
+      cohortId?.toString(),
+    );
 
     // Validate that the user can invite to each specific role
     // This ensures students can only invite students, TAs can invite students/TAs, etc.
@@ -110,6 +121,7 @@ export class InviteController {
       courseId,
       versionId,
       cohortId?.toString(),
+      authenticatedUser.globalRole === 'admin',
     );
 
     setAuditTrail(req, {
@@ -165,11 +177,21 @@ export class InviteController {
   async generateInviteLink(
     @Params() params: CourseAndVersionId,
     @Body() body: {role: EnrollmentRole; cohortId: string},
-    @Ability(getInviteAbility) {ability, user},
+    @Ability(getInviteAbility) {ability, user, authenticatedUser},
     @Req() req: Request,
   ) {
     const {courseId, versionId} = params;
     const {role, cohortId} = body;
+
+    // A shared link enrolls whoever opens it, so the target cohort has to be
+    // inside the generator's scope before the link exists.
+    this.cohortScopeService.resolve(
+      authenticatedUser,
+      courseId,
+      versionId,
+      cohortId?.toString(),
+    );
+
     const roleSpecificSubject = subject('Invite', {
       courseId,
       versionId,
@@ -187,6 +209,7 @@ export class InviteController {
       versionId,
       role,
       cohortId,
+      authenticatedUser.globalRole === 'admin',
     );
 
     setAuditTrail(req, {
