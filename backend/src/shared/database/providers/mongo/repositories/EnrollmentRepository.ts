@@ -4731,16 +4731,61 @@ export class EnrollmentRepository {
     cohortId: string,
     session?: ClientSession,
   ): Promise<boolean> {
+    await this.init();
+
     const enrollment = await this.enrollmentCollection.findOne(
       {
-        courseVersionId: new ObjectId(versionId),
-        cohortId: new ObjectId(cohortId),
+        courseVersionId: { $in: [versionId, new ObjectId(versionId)] },
+        cohortId: { $in: [cohortId, new ObjectId(cohortId)] },
         role: 'STUDENT',
+        status: 'ACTIVE',
+        isDeleted: { $ne: true },
+        isEjected: { $ne: true },
       },
       { session },
     );
-    // console.log("---enrollment------", enrollment);
     return !!enrollment;
+  }
+
+  /**
+   * Detach every reference to a cohort that is about to be hard-deleted.
+   *
+   * Cohorts are removed from the `cohorts` collection outright, so any document
+   * still carrying the id would point at a cohort that no longer exists. That
+   * matters for enrollments (an ejected student who is later reinstated would
+   * come back into a dead cohort) and for the cohort-scoped reads in
+   * ProgressRepository, which fall back to `cohortId: null` and would otherwise
+   * miss progress/watch-time documents still tagged with the old cohort.
+   *
+   * Cohort ids are globally unique, so matching on the id alone is enough — this
+   * is the inverse of {@link moveEnrollmentsToCohort}.
+   */
+  public async clearCohortReferences(
+    cohortId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+
+    const cohortObjectId = new ObjectId(cohortId);
+    const filter = { cohortId: { $in: [cohortId, cohortObjectId] } } as any;
+    const update = { $set: { cohortId: null } } as any;
+
+    await Promise.all(
+      [
+        this.enrollmentCollection,
+        this.progressCollection,
+        this.watchTimeCollection,
+        this.feedbackCollection,
+        this.projectSubmissionCollection,
+        this.reportCollection,
+        this.userActivityEventCollection,
+        this.submissionCollection,
+        this.userQuizMetricsCollection,
+        this.attemptCollection,
+      ].map(collection =>
+        (collection as any).updateMany(filter, update, { session }),
+      ),
+    );
   }
   async moveEnrollmentsToCohort(
     enrollmentIds: string[],

@@ -2548,6 +2548,13 @@ export class EnrollmentService extends BaseService {
     );
   }
 
+  async clearCohortReferences(
+    cohortId: string,
+    session: ClientSession,
+  ): Promise<void> {
+    return await this.enrollmentRepo.clearCohortReferences(cohortId, session);
+  }
+
   async moveNonCohortStudentsToCohortInEnrollment(
     enrollmentIds: string[],
     courseId: string,

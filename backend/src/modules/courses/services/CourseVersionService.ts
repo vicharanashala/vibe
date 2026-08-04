@@ -403,6 +403,10 @@ export class CourseVersionService extends BaseService {
           "Students are already enrolled in this cohort, can't delete",
         );
       }
+      // Detach lingering references (inactive/soft-deleted/ejected enrollments,
+      // and cohort-scoped progress/watch-time/etc.) before the cohort id is
+      // gone for good, so nothing points at a dead cohort afterward.
+      await this.enrollmentService.clearCohortReferences(cohortId, session);
       await this.courseRepo.deleteCohortById(cohortId, session);
       return await this.courseRepo.removeCohortFromVersion(
         versionId,
