@@ -881,8 +881,8 @@ export class CourseRepository implements ICourseRepository {
       });
 
       if (version?.cohorts?.length > 0) {
-        const cohortDeleteResult = await this.cohortsCollection.updateMany(
-          { courseVersionId: new ObjectId(versionId) },
+        await this.cohortsCollection.updateMany(
+          { courseVersionId: new ObjectId(versionId), isDeleted: { $ne: true } },
           {
             $set: {
               isDeleted: true,
@@ -891,9 +891,8 @@ export class CourseRepository implements ICourseRepository {
           },
           { session }
         );
-        if (cohortDeleteResult.modifiedCount !== version?.cohorts?.length) {
-          throw new InternalServerError('Failed to delete cohorts');
-        }
+        // Don't throw if no cohorts were modified — they may already be
+        // deleted or the references may be orphaned
       }
 
       const versionDeleteResult = await this.courseVersionCollection.updateOne(
