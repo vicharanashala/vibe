@@ -308,6 +308,20 @@ class CohortDeletedMessage{
     example: 'Cohort Deleted successfully',
   })
   message!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'True when the cohort has pending invites and was not deleted; retry the request with confirmCancelInvites=true to proceed.',
+  })
+  requiresConfirmation?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @JSONSchema({
+    description: 'Number of pending invites targeting this cohort.',
+  })
+  pendingInviteCount?: number;
 }
 
 class MoveStudentsToCohortBody{

@@ -887,6 +887,7 @@ Accessible to:
     @Params() params: ReadCourseVersionCohortsParams,
     @Ability(getCourseVersionAbility) {ability, user},
     @Req() req: Request,
+    @QueryParam('confirmCancelInvites') confirmCancelInvites: boolean = false,
   ): Promise<CohortDeletedMessage> {
     const { courseId, versionId, cohortId } = params;
 
@@ -916,7 +917,19 @@ Accessible to:
       throw new BadRequestError("The requested cohort does not exists in the course version");
     }
     
-    await this.courseVersionService.deleteCohortInCourseVersion(versionId, cohortId);
+    const result = await this.courseVersionService.deleteCohortInCourseVersion(
+      versionId,
+      cohortId,
+      confirmCancelInvites,
+    );
+
+    if (!result.deleted) {
+      return {
+        message: `This cohort has ${result.pendingInviteCount} pending invite(s). Confirm to delete the cohort and cancel these invites.`,
+        requiresConfirmation: true,
+        pendingInviteCount: result.pendingInviteCount,
+      };
+    }
 
     setAuditTrail(req, {
       category: AuditCategory.COHORT,

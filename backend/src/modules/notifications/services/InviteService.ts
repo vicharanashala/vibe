@@ -736,10 +736,17 @@ export class InviteService extends BaseService {
     }
   }
   async cancelPendingInvites(
-    filter: {courseId?: string; courseVersionId?: string},
+    filter: {courseId?: string; courseVersionId?: string; cohortId?: string},
     session?: ClientSession,
   ): Promise<void> {
     await this.inviteRepo.cancelPendingInvites(filter, session);
+  }
+
+  async countPendingInvitesForCohort(
+    cohortId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    return await this.inviteRepo.countPendingInvitesByCohort(cohortId, session);
   }
 
   async cancelInvite(inviteId: string): Promise<{message: string}> {
