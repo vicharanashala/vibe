@@ -33,24 +33,21 @@ jobs:
       - name: Install Playwright Browsers
         run: pnpm --dir e2e exec playwright install --with-deps chromium
 
-      - name: Validate Required Secrets
-        id: secrets-check
+      - name: Check if secrets are available
+        id: check-secrets
         run: |
-          missing=()
-          [[ -z "${{ secrets.STAGING_FRONTEND_URL }}" ]] && missing+=("STAGING_FRONTEND_URL")
-          [[ -z "${{ secrets.STUDENT_EMAIL }}" ]] && missing+=("STUDENT_EMAIL")
-          [[ -z "${{ secrets.STUDENT_PASSWORD }}" ]] && missing+=("STUDENT_PASSWORD")
-          [[ -z "${{ secrets.INSTRUCTOR_EMAIL }}" ]] && missing+=("INSTRUCTOR_EMAIL")
-          [[ -z "${{ secrets.INSTRUCTOR_PASSWORD }}" ]] && missing+=("INSTRUCTOR_PASSWORD")
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "::warning::Missing secrets: ${missing[*]}. Tests may fail if STAGING_FRONTEND_URL is missing."
+          if [[ -n "${{ secrets.STAGING_FRONTEND_URL }}" && -n "${{ secrets.STUDENT_EMAIL }}" && -n "${{ secrets.STUDENT_PASSWORD }}" ]]; then
+            echo "secrets_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "secrets_available=false" >> $GITHUB_OUTPUT
+            echo "::warning::Skipping E2E run — staging secrets not configured in this repository. Add STAGING_FRONTEND_URL, STUDENT_EMAIL, STUDENT_PASSWORD to repo secrets."
           fi
 
       - name: Run E2E Tests Against Staging
+        if: steps.check-secrets.outputs.secrets_available == 'true'
         run: pnpm --dir e2e test-e2e
-        continue-on-error: false
         env:
-          BASE_URL: ${{ secrets.STAGING_FRONTEND_URL || 'https://vibe-mythology-streak-badges.vercel.app' }}
+          BASE_URL: ${{ secrets.STAGING_FRONTEND_URL }}
           TEST_STUDENT_EMAIL: ${{ secrets.STUDENT_EMAIL }}
           TEST_STUDENT_PASSWORD: ${{ secrets.STUDENT_PASSWORD }}
           TEST_INSTRUCTOR_EMAIL: ${{ secrets.INSTRUCTOR_EMAIL }}
