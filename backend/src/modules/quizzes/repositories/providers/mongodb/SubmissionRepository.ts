@@ -515,18 +515,26 @@ class SubmissionRepository {
   }
 
   /**
-   * One user's outcome per quiz, for a batch of quizzes (read-only join used
-   * by the concept-map mastery overlay): 'PASSED' if any submission passed,
-   * 'ATTEMPTED' if the quiz has submissions but none passed. Quizzes without
-   * submissions are absent from the result.
+   * One user's outcome + best score per quiz, for a batch of quizzes
+   * (read-only join used by the concept-map mastery overlay), in a single
+   * aggregation pass. Outcome is 'PASSED' if any submission passed,
+   * 'ATTEMPTED' if the quiz has submissions but none passed; quizzes without
+   * submissions are absent. Score is the highest totalScore/totalMaxScore
+   * ratio across submissions, as a percentage (0-100, rounded); submissions
+   * without a scored gradingResult are ignored, and quizzes without any
+   * scored submission are absent from `scores` (but may still appear in
+   * `outcomes`).
    */
-  async getOutcomesByQuizIds(
+  async getOutcomesAndScoresByQuizIds(
     userId: string,
     quizIds: string[],
     session?: ClientSession,
-  ): Promise<Record<string, 'PASSED' | 'ATTEMPTED'>> {
+  ): Promise<{
+    outcomes: Record<string, 'PASSED' | 'ATTEMPTED'>;
+    scores: Record<string, number>;
+  }> {
     await this.init();
-    if (!quizIds.length) return {};
+    if (!quizIds.length) return {outcomes: {}, scores: {}};
     const rows = await this.submissionResultCollection
       .aggregate(
         [
@@ -548,51 +556,17 @@ class SubmissionRepository {
                   ],
                 },
               },
-            },
-          },
-        ],
-        {session},
-      )
-      .toArray();
-    const outcomes: Record<string, 'PASSED' | 'ATTEMPTED'> = {};
-    for (const row of rows) {
-      outcomes[row._id.toString()] = row.passed ? 'PASSED' : 'ATTEMPTED';
-    }
-    return outcomes;
-  }
-
-  /**
-   * One user's best raw quiz score per quiz, for a batch of quizzes
-   * (read-only join used by the concept-map mastery overlay): the highest
-   * totalScore/totalMaxScore ratio across submissions, as a percentage
-   * (0-100, rounded). Submissions without a scored gradingResult are
-   * ignored. Quizzes without any scored submission are absent.
-   */
-  async getScorePercentByQuizIds(
-    userId: string,
-    quizIds: string[],
-    session?: ClientSession,
-  ): Promise<Record<string, number>> {
-    await this.init();
-    if (!quizIds.length) return {};
-    const rows = await this.submissionResultCollection
-      .aggregate(
-        [
-          {
-            $match: {
-              userId: new ObjectId(userId),
-              quizId: {$in: quizIds.map(id => new ObjectId(id))},
-              'gradingResult.totalMaxScore': {$gt: 0},
-            },
-          },
-          {
-            $group: {
-              _id: '$quizId',
               bestRatio: {
                 $max: {
-                  $divide: [
-                    '$gradingResult.totalScore',
-                    '$gradingResult.totalMaxScore',
+                  $cond: [
+                    {$gt: ['$gradingResult.totalMaxScore', 0]},
+                    {
+                      $divide: [
+                        '$gradingResult.totalScore',
+                        '$gradingResult.totalMaxScore',
+                      ],
+                    },
+                    null,
                   ],
                 },
               },
@@ -602,11 +576,16 @@ class SubmissionRepository {
         {session},
       )
       .toArray();
+    const outcomes: Record<string, 'PASSED' | 'ATTEMPTED'> = {};
     const scores: Record<string, number> = {};
     for (const row of rows) {
-      scores[row._id.toString()] = Math.round(row.bestRatio * 100);
+      const id = row._id.toString();
+      outcomes[id] = row.passed ? 'PASSED' : 'ATTEMPTED';
+      if (row.bestRatio !== null && row.bestRatio !== undefined) {
+        scores[id] = Math.round(row.bestRatio * 100);
+      }
     }
-    return scores;
+    return {outcomes, scores};
   }
 
 }

@@ -163,25 +163,26 @@ export class ItemService extends BaseService {
       moduleId,
       sectionId,
     );
-    const result: Array<{ _id: string; type: ItemType; details?: any }> = [];
-    for (const ref of itemsGroup.items ?? []) {
-      if (!ref?._id) continue;
-      try {
-        const item = (await this.itemRepo.readItemById(
-          ref._id.toString(),
-        )) as any;
-        if (item) {
-          result.push({
-            _id: ref._id.toString(),
-            type: ref.type,
-            details: item.details,
-          });
-        }
-      } catch {
-        // deleted or inconsistent ref — skip, anchors degrade gracefully
-      }
-    }
-    return result;
+    const resolved = await Promise.all(
+      (itemsGroup.items ?? [])
+        .filter(ref => ref?._id)
+        .map(async ref => {
+          try {
+            const item = (await this.itemRepo.readItemById(
+              ref._id.toString(),
+            )) as any;
+            return item
+              ? { _id: ref._id.toString(), type: ref.type, details: item.details }
+              : null;
+          } catch {
+            // deleted or inconsistent ref — skip, anchors degrade gracefully
+            return null;
+          }
+        }),
+    );
+    return resolved.filter(
+      (r): r is { _id: string; type: ItemType; details: any } => r !== null,
+    );
   }
 
   private async _updateHierarchyAndVersion(

@@ -64,9 +64,16 @@ export default function ConceptMapPanel({
 
   const isDark = resolvedTheme === 'dark';
 
+  // Layout (dagre / radial-hub trig) only depends on the graph shape, not on
+  // hover state — memoized separately so mousing over a node (which only
+  // toggles dimming/animation) never re-runs the layout algorithm.
+  const laidOut = useMemo(() => layoutConceptMap(nodes, edges), [nodes, edges]);
+  const nodeIndex = useMemo(
+    () => new Map(nodes.map((n, i) => [n.id, i])),
+    [nodes],
+  );
+
   const { nodes: rfNodes, edges: rfEdges } = useMemo(() => {
-    const laidOut = layoutConceptMap(nodes, edges);
-    const nodeIndex = new Map(nodes.map((n, i) => [n.id, i]));
     const inFocus = new Set<string>();
     if (focusedId) {
       inFocus.add(focusedId);
@@ -121,7 +128,7 @@ export default function ConceptMapPanel({
           };
     });
     return { nodes: decorated, edges: decoratedEdges };
-  }, [nodes, edges, highlightNodeId, nodeState, nodeScore, readOnly, onNodeDelete, focusedId, isDark]);
+  }, [laidOut, nodes, edges, nodeIndex, highlightNodeId, nodeState, nodeScore, readOnly, onNodeDelete, focusedId, isDark]);
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, rfNode: Node) => {

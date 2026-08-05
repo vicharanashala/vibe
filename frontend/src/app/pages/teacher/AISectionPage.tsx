@@ -780,7 +780,7 @@ const ConceptMapApprovalSection = ({
 }: {
   aiJobId: string | null;
   aiJobStatus: JobStatus | null;
-  handleRefreshStatus: () => Promise<void>;
+  handleRefreshStatus: () => Promise<any>;
   onContinue: () => void;
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -821,10 +821,9 @@ const ConceptMapApprovalSection = ({
         }
         await aiSectionAPI.approveStartTask(aiJobId, { type: 'CONCEPT_MAP', parameters: {} });
       }
-      await handleRefreshStatus();
       // The backend stores a FAILED result instead of erroring the request,
-      // so read the fresh status before declaring success.
-      const fresh = await aiSectionAPI.getJobStatus(aiJobId);
+      // so check the freshly-refreshed status before declaring success.
+      const fresh = await handleRefreshStatus();
       if (fresh?.jobStatus?.conceptMap === 'FAILED') {
         toast.error('Concept map generation failed. You can retry.');
         return;
@@ -1719,6 +1718,26 @@ async function editSegmentMap(jobId: string, segmentMap: number[], index: number
   if (res.status === 403) throw new Error('Forbidden: ' + errMsg);
   if (res.status === 404) throw new Error('Job not found: ' + errMsg);
   throw new Error(errMsg);
+}
+
+// If any task in `status.jobStatus` is FAILED, attach that task's detailed
+// run history (so the UI can show why) — mutates and returns `status`.
+async function enrichFailedTaskStatus(status: any, aiJobId: string): Promise<any> {
+  const failedTask = Object.entries(status.jobStatus || {}).find(([_, s]) => s === 'FAILED')?.[0];
+  if (failedTask) {
+    try {
+      const taskType = failedTask === 'transcriptGeneration' ? 'TRANSCRIPT_GENERATION'
+        : failedTask === 'segmentation' ? 'SEGMENTATION'
+          : failedTask === 'conceptMap' ? 'CONCEPT_MAP'
+            : failedTask === 'questionGeneration' ? 'QUESTION_GENERATION'
+              : failedTask.toUpperCase();
+      const runs = await aiSectionAPI.getTaskStatus(aiJobId, taskType);
+      status[failedTask] = runs;
+    } catch (e) {
+      console.error(`Failed to fetch task details for ${failedTask}:`, e);
+    }
+  }
+  return status;
 }
 
 export default function AISectionPage() {
@@ -2706,23 +2725,10 @@ For ANY question where options are "True" and "False":
   const handleRefreshStatus = async () => {
     if (!aiJobId) return;
     try {
-      const status = await aiSectionAPI.getJobStatus(aiJobId) as any;
-
-      // Enrich status with detailed task runs if a task failed
-      const failedTask = Object.entries(status.jobStatus || {}).find(([_, s]) => s === 'FAILED')?.[0];
-      if (failedTask) {
-        try {
-          const taskType = failedTask === 'transcriptGeneration' ? 'TRANSCRIPT_GENERATION'
-            : failedTask === 'segmentation' ? 'SEGMENTATION'
-              : failedTask === 'conceptMap' ? 'CONCEPT_MAP'
-                : failedTask === 'questionGeneration' ? 'QUESTION_GENERATION'
-                  : failedTask.toUpperCase();
-          const runs = await aiSectionAPI.getTaskStatus(aiJobId, taskType);
-          status[failedTask] = runs;
-        } catch (e) {
-          console.error(`Failed to fetch task details for ${failedTask}:`, e);
-        }
-      }
+      const status = await enrichFailedTaskStatus(
+        await aiSectionAPI.getJobStatus(aiJobId) as any,
+        aiJobId,
+      );
 
       setAiJobStatus(status);
 
@@ -3015,7 +3021,7 @@ For ANY question where options are "True" and "False":
           setIsLoading(false);
           setProgress(100);
         }
-        return;
+        return status;
       }
       if (status?.status === 'COMPLETED' || status?.status === 'FAILED' || status?.status === 'STOPPED') {
         setProgress(100);
@@ -3034,6 +3040,7 @@ For ANY question where options are "True" and "False":
       prevJobStatusRef.current = status;
       if (!didMountRef.current) didMountRef.current = true;
 
+      return status;
     } catch (error) {
       setShouldPoll(false);
       setIsLoading(false);
@@ -3219,23 +3226,10 @@ For ANY question where options are "True" and "False":
     if (!aiJobId) return;
 
     try {
-      let status = await aiSectionAPI.getJobStatus(aiJobId) as any;
-
-      // Enrich status with detailed task runs if a task failed
-      const failedTask = Object.entries(status.jobStatus || {}).find(([_, s]) => s === 'FAILED')?.[0];
-      if (failedTask) {
-        try {
-          const taskType = failedTask === 'transcriptGeneration' ? 'TRANSCRIPT_GENERATION'
-            : failedTask === 'segmentation' ? 'SEGMENTATION'
-              : failedTask === 'conceptMap' ? 'CONCEPT_MAP'
-                : failedTask === 'questionGeneration' ? 'QUESTION_GENERATION'
-                  : failedTask.toUpperCase();
-          const runs = await aiSectionAPI.getTaskStatus(aiJobId, taskType);
-          status[failedTask] = runs;
-        } catch (e) {
-          console.error(`Failed to fetch task details for ${failedTask}:`, e);
-        }
-      }
+      let status = await enrichFailedTaskStatus(
+        await aiSectionAPI.getJobStatus(aiJobId) as any,
+        aiJobId,
+      );
       setAiJobDate(status?.createdAt);
 
       const startTask = async () => {

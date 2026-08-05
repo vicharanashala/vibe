@@ -15,8 +15,10 @@ function makeController(
     getBySection: vi.fn(async () => maps),
   };
   const submissionRepository = {
-    getOutcomesByQuizIds: vi.fn(async () => quizOutcomes),
-    getScorePercentByQuizIds: vi.fn(async () => quizScores),
+    getOutcomesAndScoresByQuizIds: vi.fn(async () => ({
+      outcomes: quizOutcomes,
+      scores: quizScores,
+    })),
   };
   const controller = new ConceptMapController(
     {} as any,
@@ -57,14 +59,9 @@ describe('ConceptMapController.getSectionProgress', () => {
       },
     ]);
     // one batched lookup with only the quiz-bearing nodes
-    expect(submissionRepository.getOutcomesByQuizIds).toHaveBeenCalledWith(
-      'u1',
-      ['q1', 'q2', 'q3'],
-    );
-    expect(submissionRepository.getScorePercentByQuizIds).toHaveBeenCalledWith(
-      'u1',
-      ['q1', 'q2', 'q3'],
-    );
+    expect(
+      submissionRepository.getOutcomesAndScoresByQuizIds,
+    ).toHaveBeenCalledWith('u1', ['q1', 'q2', 'q3']);
   });
 
   it('returns empty outcomes and scores for maps published before quizItemId existed', async () => {
@@ -76,10 +73,9 @@ describe('ConceptMapController.getSectionProgress', () => {
     const { controller, submissionRepository } = makeController([legacyMap], {});
     const result = await controller.getSectionProgress(params, allow);
     expect(result).toEqual([{ jobId: 'j0', outcomes: {}, scores: {} }]);
-    expect(submissionRepository.getOutcomesByQuizIds).toHaveBeenCalledWith(
-      'u1',
-      [],
-    );
+    expect(
+      submissionRepository.getOutcomesAndScoresByQuizIds,
+    ).toHaveBeenCalledWith('u1', []);
   });
 
   it('deduplicates quiz ids shared across nodes and maps', async () => {
@@ -93,10 +89,9 @@ describe('ConceptMapController.getSectionProgress', () => {
       { q1: 100 },
     );
     const result = await controller.getSectionProgress(params, allow);
-    expect(submissionRepository.getOutcomesByQuizIds).toHaveBeenCalledWith(
-      'u1',
-      ['q1'],
-    );
+    expect(
+      submissionRepository.getOutcomesAndScoresByQuizIds,
+    ).toHaveBeenCalledWith('u1', ['q1']);
     expect(result).toEqual([
       { jobId: 'j1', outcomes: { c1: 'mastered' }, scores: { c1: 100 } },
       { jobId: 'j2', outcomes: { c1: 'mastered' }, scores: { c1: 100 } },

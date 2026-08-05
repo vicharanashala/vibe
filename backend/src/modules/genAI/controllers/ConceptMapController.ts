@@ -49,6 +49,41 @@ export class ConceptMapController {
     private readonly submissionRepository: SubmissionRepository,
   ) {}
 
+  /** Job creator or course staff (`ConceptMap.Preview`) only; throws otherwise. */
+  private authorizeJobAccess(
+    job: Awaited<ReturnType<GenAIService['getJobStatus']>>,
+    ability: ReturnType<typeof getGenAIAbility>,
+    user: { _id: { toString(): string } },
+    deniedMessage: string,
+  ) {
+    const isCreator = job.userId?.toString() === user._id.toString();
+    const mapRes = subject('ConceptMap', {
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+    });
+    if (!isCreator && !ability.can(ConceptMapActions.Preview, mapRes)) {
+      throw new ForbiddenError(deniedMessage);
+    }
+  }
+
+  /** Shared shape for preview/edit/retroactive-generate responses. */
+  private toConceptMapResponse(
+    jobId: string,
+    job: Awaited<ReturnType<GenAIService['getJobStatus']>>,
+    result: { nodes?: unknown; edges?: unknown; fallback?: boolean },
+  ) {
+    return {
+      jobId,
+      courseId: job.uploadParameters.courseId,
+      versionId: job.uploadParameters.versionId,
+      moduleId: job.uploadParameters.moduleId,
+      sectionId: job.uploadParameters.sectionId,
+      nodes: result.nodes,
+      edges: result.edges ?? [],
+      fallback: result.fallback,
+    };
+  }
+
   @OpenAPI({
     summary: 'Get published concept maps for a section',
     description:
@@ -118,16 +153,11 @@ export class ConceptMapController {
         ),
       ),
     ];
-    const [quizOutcomes, quizScores] = await Promise.all([
-      this.submissionRepository.getOutcomesByQuizIds(
+    const {outcomes: quizOutcomes, scores: quizScores} =
+      await this.submissionRepository.getOutcomesAndScoresByQuizIds(
         user._id.toString(),
         quizIds,
-      ),
-      this.submissionRepository.getScorePercentByQuizIds(
-        user._id.toString(),
-        quizIds,
-      ),
-    ]);
+      );
 
     return maps.map(map => {
       const outcomes: Record<string, 'mastered' | 'weak'> = {};
@@ -166,17 +196,12 @@ export class ConceptMapController {
   ) {
     const { jobId } = params;
     const job = await this.genAIService.getJobStatus(jobId);
-
-    const isCreator = job.userId?.toString() === user._id.toString();
-    const mapRes = subject('ConceptMap', {
-      courseId: job.uploadParameters.courseId,
-      versionId: job.uploadParameters.versionId,
-    });
-    if (!isCreator && !ability.can(ConceptMapActions.Preview, mapRes)) {
-      throw new ForbiddenError(
-        'You do not have permission to preview this concept map',
-      );
-    }
+    this.authorizeJobAccess(
+      job,
+      ability,
+      user,
+      'You do not have permission to preview this concept map',
+    );
 
     const attempts = await this.genAIService.getTaskStatus(
       jobId,
@@ -192,16 +217,7 @@ export class ConceptMapController {
         `No generated concept map found for job ${jobId}`,
       );
     }
-    return {
-      jobId,
-      courseId: job.uploadParameters.courseId,
-      versionId: job.uploadParameters.versionId,
-      moduleId: job.uploadParameters.moduleId,
-      sectionId: job.uploadParameters.sectionId,
-      nodes: latest.nodes,
-      edges: latest.edges ?? [],
-      fallback: latest.fallback,
-    };
+    return this.toConceptMapResponse(jobId, job, latest);
   }
 
   @OpenAPI({
@@ -226,32 +242,18 @@ export class ConceptMapController {
   ) {
     const { jobId } = params;
     const job = await this.genAIService.getJobStatus(jobId);
-
-    const isCreator = job.userId?.toString() === user._id.toString();
-    const mapRes = subject('ConceptMap', {
-      courseId: job.uploadParameters.courseId,
-      versionId: job.uploadParameters.versionId,
-    });
-    if (!isCreator && !ability.can(ConceptMapActions.Preview, mapRes)) {
-      throw new ForbiddenError(
-        'You do not have permission to edit this concept map',
-      );
-    }
+    this.authorizeJobAccess(
+      job,
+      ability,
+      user,
+      'You do not have permission to edit this concept map',
+    );
 
     const edited = await this.genAIService.editConceptMapPreview(
       jobId,
       body.removeNodeId,
     );
-    return {
-      jobId,
-      courseId: job.uploadParameters.courseId,
-      versionId: job.uploadParameters.versionId,
-      moduleId: job.uploadParameters.moduleId,
-      sectionId: job.uploadParameters.sectionId,
-      nodes: edited.nodes,
-      edges: edited.edges ?? [],
-      fallback: edited.fallback,
-    };
+    return this.toConceptMapResponse(jobId, job, edited);
   }
 
   @OpenAPI({
@@ -275,17 +277,12 @@ export class ConceptMapController {
   ) {
     const { jobId } = params;
     const job = await this.genAIService.getJobStatus(jobId);
-
-    const isCreator = job.userId?.toString() === user._id.toString();
-    const mapRes = subject('ConceptMap', {
-      courseId: job.uploadParameters.courseId,
-      versionId: job.uploadParameters.versionId,
-    });
-    if (!isCreator && !ability.can(ConceptMapActions.Preview, mapRes)) {
-      throw new ForbiddenError(
-        'You do not have permission to generate a concept map for this job',
-      );
-    }
+    this.authorizeJobAccess(
+      job,
+      ability,
+      user,
+      'You do not have permission to generate a concept map for this job',
+    );
 
     const result = await this.genAIService.generateRetroactiveConceptMap(
       jobId,
@@ -296,15 +293,6 @@ export class ConceptMapController {
         result.error || 'Concept map generation failed',
       );
     }
-    return {
-      jobId,
-      courseId: job.uploadParameters.courseId,
-      versionId: job.uploadParameters.versionId,
-      moduleId: job.uploadParameters.moduleId,
-      sectionId: job.uploadParameters.sectionId,
-      nodes: result.nodes,
-      edges: result.edges ?? [],
-      fallback: result.fallback,
-    };
+    return this.toConceptMapResponse(jobId, job, result);
   }
 }

@@ -328,20 +328,15 @@ export default function CoursePage() {
     staleTime: 60 * 1000,
     retry: false,
   });
-  const conceptMapOutcomes = useMemo(() => {
-    const byJob: Record<string, Record<string, 'mastered' | 'weak'>> = {};
+  // Best raw quiz score per node (0-100) accompanies outcomes, keyed by jobId.
+  const { conceptMapOutcomes, conceptMapScores } = useMemo(() => {
+    const outcomesByJob: Record<string, Record<string, 'mastered' | 'weak'>> = {};
+    const scoresByJob: Record<string, Record<string, number>> = {};
     for (const entry of conceptMapProgress ?? []) {
-      byJob[entry.jobId] = entry.outcomes;
+      outcomesByJob[entry.jobId] = entry.outcomes;
+      if (entry.scores) scoresByJob[entry.jobId] = entry.scores;
     }
-    return byJob;
-  }, [conceptMapProgress]);
-  // Best raw quiz score per node (0-100), keyed by jobId like the outcomes.
-  const conceptMapScores = useMemo(() => {
-    const byJob: Record<string, Record<string, number>> = {};
-    for (const entry of conceptMapProgress ?? []) {
-      if (entry.scores) byJob[entry.jobId] = entry.scores;
-    }
-    return byJob;
+    return { conceptMapOutcomes: outcomesByJob, conceptMapScores: scoresByJob };
   }, [conceptMapProgress]);
   const [conceptMapOpen, setConceptMapOpen] = useState(false);
   // Concept-map navigation: when a node with a within-item offset is clicked,
@@ -2078,31 +2073,18 @@ return false;
           </div>
         )}
         {conceptMapOpen && (sectionConceptMaps?.length ?? 0) > 0 && (
-          <div
-            className="z-40 absolute inset-0 flex justify-center items-center bg-black/60 p-4 sm:p-8"
-            onClick={() => setConceptMapOpen(false)}
-          >
-            <div
-              className="flex flex-col bg-card shadow-2xl rounded-2xl w-full max-w-[1600px] max-h-[92vh] overflow-hidden text-card-foreground"
-              onClick={(e) => e.stopPropagation()}
-            >
+          <Dialog open={conceptMapOpen} onOpenChange={setConceptMapOpen}>
+            <DialogContent className="flex flex-col gap-0 bg-card p-0 rounded-2xl w-full max-w-[1600px] max-h-[92vh] overflow-hidden text-card-foreground">
               <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40">
                 <div className="place-items-center grid bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl w-9 h-9">
                   <Network className="w-[18px] h-[18px] text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <span className="block font-semibold text-sm">Concept Map</span>
+                  <DialogTitle className="block font-semibold text-sm">Concept Map</DialogTitle>
                   <span className="block text-muted-foreground text-xs truncate">
                     The ideas of this lecture and how they build on each other — click one to jump to that moment
                   </span>
                 </div>
-                <button
-                  onClick={() => setConceptMapOpen(false)}
-                  aria-label="Close concept map"
-                  className="place-items-center grid hover:bg-muted ml-auto rounded-lg w-8 h-8 text-muted-foreground hover:text-foreground transition"
-                >
-                  <X className="w-4 h-4" />
-                </button>
               </div>
               <div className="flex-1 min-h-0 space-y-3 px-4 py-3 overflow-y-auto">
                 {sectionConceptMaps!.map((map, idx) => {
@@ -2165,8 +2147,8 @@ return false;
                   );
                 })}
               </div>
-            </div>
-          </div>
+            </DialogContent>
+          </Dialog>
         )}
 
         {/* Contextual skip / go-to-next (middle-right) */}
