@@ -31,16 +31,30 @@ jobs:
         run: pnpm install
 
       - name: Install Playwright Browsers
-        run: pnpm --dir e2e exec playwright install --with-deps
+        run: pnpm --dir e2e exec playwright install --with-deps chromium
+
+      - name: Validate Required Secrets
+        id: secrets-check
+        run: |
+          missing=()
+          [[ -z "${{ secrets.STAGING_FRONTEND_URL }}" ]] && missing+=("STAGING_FRONTEND_URL")
+          [[ -z "${{ secrets.STUDENT_EMAIL }}" ]] && missing+=("STUDENT_EMAIL")
+          [[ -z "${{ secrets.STUDENT_PASSWORD }}" ]] && missing+=("STUDENT_PASSWORD")
+          [[ -z "${{ secrets.INSTRUCTOR_EMAIL }}" ]] && missing+=("INSTRUCTOR_EMAIL")
+          [[ -z "${{ secrets.INSTRUCTOR_PASSWORD }}" ]] && missing+=("INSTRUCTOR_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::warning::Missing secrets: ${missing[*]}. Tests may fail if STAGING_FRONTEND_URL is missing."
+          fi
 
       - name: Run E2E Tests Against Staging
         run: pnpm --dir e2e test-e2e
+        continue-on-error: false
         env:
-          BASE_URL: ${{ secrets.STAGING_FRONTEND_URL }}
-          INSTRUCTOR_EMAIL: ${{ secrets.INSTRUCTOR_EMAIL }}
-          INSTRUCTOR_PASSWORD: ${{ secrets.INSTRUCTOR_PASSWORD }}
-          STUDENT_EMAIL: ${{ secrets.STUDENT_EMAIL }}
-          STUDENT_PASSWORD: ${{ secrets.STUDENT_PASSWORD }}
+          BASE_URL: ${{ secrets.STAGING_FRONTEND_URL || 'https://vibe-mythology-streak-badges.vercel.app' }}
+          TEST_STUDENT_EMAIL: ${{ secrets.STUDENT_EMAIL }}
+          TEST_STUDENT_PASSWORD: ${{ secrets.STUDENT_PASSWORD }}
+          TEST_INSTRUCTOR_EMAIL: ${{ secrets.INSTRUCTOR_EMAIL }}
+          TEST_INSTRUCTOR_PASSWORD: ${{ secrets.INSTRUCTOR_PASSWORD }}
 
       - name: Upload Playwright Report
         if: always()
@@ -48,3 +62,5 @@ jobs:
         with:
           name: playwright-report
           path: e2e/playwright-report/
+          retention-days: 7
+          if-no-files-found: warn
