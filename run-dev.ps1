@@ -112,6 +112,8 @@ if ($Port9099) {
             exit 1
         } else {
             Write-Host "Firebase Auth Emulator is online." -ForegroundColor Green
+            Write-Host "Seeding demo accounts..." -ForegroundColor Cyan
+            node (Join-Path $ProjectRoot "lms_db\seed-demo-accounts.mjs")
         }
     }
 }

@@ -57,6 +57,7 @@ import SelectRolePage from '../pages/SelectRolePage'
 import AuditPage from '../pages/teacher/AuditPage'
 import ConfigureCohorts from '../pages/teacher/configure-cohorts'
 import CurateGalleryPage from '@/app/pages/teacher/CurateGalleryPage'
+import RubricBuilderPage from '@/app/pages/teacher/RubricBuilderPage'
 
 import HpSystemVersions from '../pages/teacher/hp-system/HpSystemPage'
 import HpSystemCohorts from '../pages/teacher/hp-system/CohortsList'
@@ -358,6 +359,12 @@ const teacherCurateGalleryRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/curate-gallery',
   component: CurateGalleryPage,
+});
+
+const teacherRubricBuilderRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/rubric-builder',
+  component: RubricBuilderPage,
 });
 
 // Teacher Course Regstration requests
@@ -707,6 +714,7 @@ const routeTree = rootRoute.addChildren([
     teacherAuditRoute,
     teacherConfigureCohortsRoute,
     teacherCurateGalleryRoute,
+    teacherRubricBuilderRoute,
       teacherEjectionPoliciesRoute, 
     teacherHpSystemVersionsRoute,
     teacherHpSystemCohortsRoute,

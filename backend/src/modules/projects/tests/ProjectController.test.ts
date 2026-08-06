@@ -147,8 +147,8 @@ describe('ProjectController Integration Tests', () => {
   beforeAll(async () => {
     container = new Container();
 
-    // Bind database config & connection
-    const testDbName = 'vibe_test';
+    // Bind database config & connection with unique database name for test isolation
+    const testDbName = `vibe_test_project_${new ObjectId().toString()}`;
     container.bind(GLOBAL_TYPES.uri).toConstantValue(dbConfig.url);
     container.bind(GLOBAL_TYPES.dbName).toConstantValue(testDbName);
     container.bind(GLOBAL_TYPES.Database).to(MongoDatabase).inSingletonScope();
@@ -216,10 +216,11 @@ describe('ProjectController Integration Tests', () => {
   });
 
   afterAll(async () => {
-    // Clean up collection and disconnect
+    // Clean up database and disconnect
     if (db.isConnected()) {
-      const col = await db.getCollection('project_submissions');
-      await col.deleteMany({});
+      if (db.database) {
+        await db.database.dropDatabase();
+      }
       await db.disconnect();
     }
     vi.restoreAllMocks();

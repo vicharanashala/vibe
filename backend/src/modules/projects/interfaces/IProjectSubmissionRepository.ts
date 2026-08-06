@@ -20,6 +20,21 @@ export interface IProjectSubmissionRepository {
     session?: ClientSession,
   ): Promise<IProjectSubmission | null>;
 
+  /**
+   * Bug-safe alternative to getByUser() for student-facing lookups.
+   * Filters by userId + projectId + courseId + courseVersionId (+ cohortId if present).
+   * getByUser() omits projectId and can collide when a student has submissions to
+   * multiple project items in the same course version — do NOT use that method here.
+   */
+  getSubmissionByUserAndProject(
+    userId: string,
+    projectId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IProjectSubmission | null>;
+
   getAllSubmissions(
     courseId: string,
     courseVersionId: string,

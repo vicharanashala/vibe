@@ -13,6 +13,12 @@ export enum ProjectActions {
   Manage = 'manage',
   FeatureSubmission = 'feature_submission',
   ViewGallery = 'view_gallery',
+  // ─── Rubric & Assessment ─────────────────────────────────────────────
+  CreateRubric = 'create_rubric',
+  ManageRubric = 'manage_rubric',
+  ViewRubric = 'view_rubric',
+  Assess = 'assess',
+  ViewAssessment = 'view_assessment',
 }
 
 export const ProjectSubject = 'Project';
@@ -42,6 +48,12 @@ export const setupProjectAbilities = (
       case 'STUDENT':
         can(ProjectActions.Submit, ProjectSubject, userBounded);
         can(ProjectActions.ViewGallery, ProjectSubject, courseVersionBounded);
+        // Students may only view their OWN assessment (userId-bounded).
+        // They can NEVER assess themselves — Assess is not granted here.
+        can(ProjectActions.ViewAssessment, ProjectSubject, userBounded);
+        // Students need ViewRubric to resolve criterion names in their assessment feedback.
+        // Read-only; they cannot create or manage rubrics (those actions remain instructor-only).
+        can(ProjectActions.ViewRubric, ProjectSubject, courseVersionBounded);
         break;
 
       case 'INSTRUCTOR':
@@ -50,6 +62,12 @@ export const setupProjectAbilities = (
         can(ProjectActions.View, ProjectSubject, userBounded);
         can(ProjectActions.ViewGallery, ProjectSubject, courseVersionBounded);
         can(ProjectActions.FeatureSubmission, ProjectSubject, courseVersionBounded);
+        // Rubric & Assessment abilities — all course/version scoped
+        can(ProjectActions.CreateRubric, ProjectSubject, courseVersionBounded);
+        can(ProjectActions.ManageRubric, ProjectSubject, courseVersionBounded);
+        can(ProjectActions.ViewRubric, ProjectSubject, courseVersionBounded);
+        can(ProjectActions.Assess, ProjectSubject, courseVersionBounded);
+        can(ProjectActions.ViewAssessment, ProjectSubject, courseVersionBounded);
         break;
 
       case 'MANAGER':

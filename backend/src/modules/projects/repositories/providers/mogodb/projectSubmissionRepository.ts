@@ -50,6 +50,43 @@ export class ProjectSubmissionRepository
       { session },
     );
   }
+
+  /**
+   * Bug-safe student submission lookup — includes projectId in the filter.
+   * getByUser() omits projectId; if a student submits to two different project items
+   * in the same course version the results collide. Do NOT replace this with getByUser().
+   */
+  async getSubmissionByUserAndProject(
+    userId: string,
+    projectId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IProjectSubmission | null> {
+    if (
+      !ObjectId.isValid(userId) ||
+      !ObjectId.isValid(projectId) ||
+      !ObjectId.isValid(courseId) ||
+      !ObjectId.isValid(courseVersionId)
+    ) {
+      return null;
+    }
+    await this.init();
+    return await this._projectSubmissionCollection.findOne(
+      {
+        userId: new ObjectId(userId),
+        projectId: new ObjectId(projectId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        ...(cohortId && ObjectId.isValid(cohortId)
+          ? { cohortId: new ObjectId(cohortId) }
+          : {}),
+      },
+      { session },
+    );
+  }
+
   async getAllSubmissions(
     courseId: string,
     courseVersionId: string,
@@ -111,6 +148,17 @@ export class ProjectSubmissionRepository
             },
           },
 
+          // Join each submission's assessment (if one exists) so the PDF export
+          // can include Score and Overall Feedback columns.
+          {
+            $lookup: {
+              from: 'project_assessments',
+              localField: '_id',
+              foreignField: 'submissionId',
+              as: 'assessmentInfo',
+            },
+          },
+
           {
             $group: {
               _id: {
@@ -130,6 +178,12 @@ export class ProjectSubmissionRepository
                   comment: '$comment',
                   cohortName: { $arrayElemAt: ['$cohort.name', 0] },
                   featured: { $ifNull: ['$featured', false] },
+                  // Assessment fields — undefined/null when no assessment exists
+                  assessmentTotalPoints: { $arrayElemAt: ['$assessmentInfo.totalPoints', 0] },
+                  assessmentMaxPoints: { $arrayElemAt: ['$assessmentInfo.maxPoints', 0] },
+                  assessmentPercentage: { $arrayElemAt: ['$assessmentInfo.percentage', 0] },
+                  assessmentOverallFeedback: { $arrayElemAt: ['$assessmentInfo.overallFeedback', 0] },
+                  assessmentCriteria: { $arrayElemAt: ['$assessmentInfo.criteria', 0] },
                 },
               },
             },

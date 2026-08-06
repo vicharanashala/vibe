@@ -148,4 +148,25 @@ export class ProjectService extends BaseService {
       cohortId,
     );
   }
+
+  /**
+   * Bug-safe student submission lookup.
+   * Uses getSubmissionByUserAndProject (projectId-scoped) instead of getByUser().
+   * Do NOT replace this with getByUser() — see bug note in the repo.
+   */
+  async getSubmissionByUserAndProject(
+    userId: string,
+    projectId: string,
+    courseId: string,
+    versionId: string,
+    cohortId?: string,
+  ) {
+    return this._projectSubmissionRepository.getSubmissionByUserAndProject(
+      userId,
+      projectId,
+      courseId,
+      versionId,
+      cohortId,
+    );
+  }
 }

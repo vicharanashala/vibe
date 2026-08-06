@@ -189,8 +189,9 @@ export class AuthController {
     }
 
     // Proceed with Firebase authentication
+    const apiKey = appConfig.firebase.apiKey || 'fakeApiKey';
     const data = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
       {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -201,10 +202,16 @@ export class AuthController {
         }),
       },
     );
-    const result = await data.json();
+    const result = (await data.json()) as any;
 
-    // ✅ fetch your app user from DB
-    // const user = await this.authService.getCurrentUserFromToken(result.idToken);
+    if (!data.ok || result.error) {
+      const errMsg = result.error?.message || 'Login failed';
+      if (errMsg === 'EMAIL_NOT_FOUND' || errMsg === 'INVALID_PASSWORD') {
+        throw new HttpError(400, 'Incorrect email or password. Please try again.');
+      }
+      throw new HttpError(data.status || 400, errMsg);
+    }
+
     return result;
   }
 }

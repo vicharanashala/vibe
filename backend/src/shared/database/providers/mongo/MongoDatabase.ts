@@ -1,7 +1,7 @@
 import { GLOBAL_TYPES } from '#root/types.js';
 import { IDatabase } from '#shared/database/interfaces/IDatabase.js';
 import { injectable, inject } from 'inversify';
-import { Db, MongoClient, Document, Collection } from 'mongodb';
+import { Db, MongoClient, Document, Collection, MongoClientOptions } from 'mongodb';
 
 /**
  * @class MongoDatabase
@@ -40,11 +40,20 @@ export class MongoDatabase implements IDatabase<Db> {
       return;
     }
 
-    this.client = new MongoClient(uri, {
+    const isDevOrTest = process.env.NODE_ENV !== 'production';
+    const allowInsecureTls =
+      isDevOrTest &&
+      (process.env.DB_SSL_INSECURE === 'true' ||
+        process.env.DB_TLS_INSECURE === 'true');
+
+    const caFile = process.env.DB_TLS_CA_FILE || process.env.MONGODB_CA_FILE;
+
+    const options: MongoClientOptions = {
       ssl: true,
       tls: true,
-      tlsAllowInvalidCertificates: false,
-      tlsAllowInvalidHostnames: false,
+      tlsAllowInvalidCertificates: allowInsecureTls,
+      tlsAllowInvalidHostnames: allowInsecureTls,
+      ...(caFile ? { tlsCAFile: caFile } : {}),
 
       retryWrites: true,
 
@@ -56,10 +65,9 @@ export class MongoDatabase implements IDatabase<Db> {
       // 🔹 TIMEOUTS
       connectTimeoutMS: 20000,
       socketTimeoutMS: 30000,
+    };
 
-
-    });
-
+    this.client = new MongoClient(uri, options);
   }
 
   private async ensureIndexes(): Promise<void> {

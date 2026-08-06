@@ -25,7 +25,12 @@ const styles = StyleSheet.create({
 interface ProjectSubmissionsPDFProps {
   course: { name: string };
   courseVersion: { name: string };
-  userInfo: ProjectSubmissionUserInfo[];
+  userInfo: (ProjectSubmissionUserInfo & {
+    assessmentTotalPoints?: number;
+    assessmentMaxPoints?: number;
+    assessmentPercentage?: number;
+    assessmentOverallFeedback?: string;
+  })[];
   projectName?: string;
 }
 // Format: submission-YYYY-MM-DD-HH-mm-ss.pdf
@@ -48,18 +53,33 @@ const ProjectSubmissionsPDF: React.FC<ProjectSubmissionsPDFProps> = ({ course, c
       {projectName && <Text style={styles.projectName}>Project: {projectName}</Text>}
       <View style={styles.table}>
         <View style={styles.tableRow}>
-          <View style={[styles.tableColHeader, { width: '18%' }]}><Text style={styles.tableCell}>Name</Text></View>
-          <View style={[styles.tableColHeader, { width: '18%' }]}><Text style={styles.tableCell}>Email</Text></View>
-          <View style={[styles.tableColHeader, { width: '32%' }]}><Text style={styles.tableCell}>Submission Link</Text></View>
-          <View style={[styles.tableColHeader, { width: '32%' }]}><Text style={styles.tableCell}>Comments</Text></View>
+          <View style={[styles.tableColHeader, { width: '14%' }]}><Text style={styles.tableCell}>Name</Text></View>
+          <View style={[styles.tableColHeader, { width: '14%' }]}><Text style={styles.tableCell}>Email</Text></View>
+          <View style={[styles.tableColHeader, { width: '22%' }]}><Text style={styles.tableCell}>Submission Link</Text></View>
+          <View style={[styles.tableColHeader, { width: '20%' }]}><Text style={styles.tableCell}>Comments</Text></View>
+          <View style={[styles.tableColHeader, { width: '10%' }]}><Text style={styles.tableCell}>Total Marks</Text></View>
+          <View style={[styles.tableColHeader, { width: '10%' }]}><Text style={styles.tableCell}>Percentage</Text></View>
+          <View style={[styles.tableColHeader, { width: '10%' }]}><Text style={styles.tableCell}>Overall Feedback</Text></View>
         </View>
         {userInfo?.map((u: ProjectSubmissionUserInfo, idx: number) => (
           <View style={styles.tableRow} key={idx}>
-            <View style={[styles.tableCol, { width: '18%' }]}><Text style={styles.tableCell}>{(u.firstName || "") + " " + (u.lastName || "") + ((u as any).cohortName ? ` (${(u as any).cohortName})` : "")}</Text></View>
-            <View style={[styles.tableCol, { width: '18%' }]}><Text style={styles.tableCell}>{u.email || ""}</Text></View>
-            {/* <View style={[styles.tableCol, { width: '32%' }]}><Text style={styles.tableCell}>{u.submissionURL}</Text></View> */}
-            <View style={[styles.tableCol, { width: '32%' }]}><Text style={styles.tableCell}><Link href={u.submissionURL}>{u.submissionURL}</Link></Text></View>
-            <View style={[styles.tableCol, { width: '32%' }]}><Text style={styles.tableCell}>{(u as any).comment || ""}</Text></View>
+            <View style={[styles.tableCol, { width: '14%' }]}><Text style={styles.tableCell}>{(u.firstName || "") + " " + (u.lastName || "") + ((u as any).cohortName ? ` (${(u as any).cohortName})` : "")}</Text></View>
+            <View style={[styles.tableCol, { width: '14%' }]}><Text style={styles.tableCell}>{u.email || ""}</Text></View>
+            <View style={[styles.tableCol, { width: '22%' }]}><Text style={styles.tableCell}><Link href={u.submissionURL}>{u.submissionURL}</Link></Text></View>
+            <View style={[styles.tableCol, { width: '20%' }]}><Text style={styles.tableCell}>{(u as any).comment || ""}</Text></View>
+            <View style={[styles.tableCol, { width: '10%' }]}><Text style={styles.tableCell}>
+              {(u as any).assessmentTotalPoints != null
+                ? `${(u as any).assessmentTotalPoints} / ${(u as any).assessmentMaxPoints}`
+                : 'Not assessed'}
+            </Text></View>
+            <View style={[styles.tableCol, { width: '10%' }]}><Text style={styles.tableCell}>
+              {(u as any).assessmentPercentage != null
+                ? `${(u as any).assessmentPercentage}%`
+                : 'Not assessed'}
+            </Text></View>
+            <View style={[styles.tableCol, { width: '10%' }]}><Text style={styles.tableCell}>
+              {(u as any).assessmentOverallFeedback || 'Not assessed'}
+            </Text></View>
           </View>
         ))}
       </View>

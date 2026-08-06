@@ -1025,7 +1025,7 @@ export class SettingRepository implements ISettingRepository {
     -------------------------
     */
 
-    pipeline.push({$skip: skip}, {$limit: limit});
+    pipeline.push({$sort: {_id: -1}}, {$skip: skip}, {$limit: limit});
 
     return await this.cohortsCollection
       .aggregate(pipeline, {session})

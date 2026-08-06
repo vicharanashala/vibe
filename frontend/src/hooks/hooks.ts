@@ -4125,6 +4125,399 @@ export function useSetFeaturedSubmission(): {
   };
 }
 
+// ─── Rubric & Assessment Hooks ────────────────────────────────────────────────
+// Follow the same manual-fetch pattern as useProjectGallery / useSetFeaturedSubmission.
+
+export interface RubricCriterion {
+  id: string;
+  name: string;
+  description?: string;
+  maxPoints: number;
+}
+
+export interface Rubric {
+  id: string;
+  courseId: string;
+  courseVersionId: string;
+  title: string;
+  description?: string;
+  criteria: RubricCriterion[];
+  assessmentCount?: number;
+}
+
+export interface AssessmentCriterionScore {
+  criterionId: string;
+  points: number;
+  feedback?: string;
+}
+
+export interface Assessment {
+  id: string;
+  submissionId: string;
+  rubricId: string;
+  assessedBy: string;
+  criteria: AssessmentCriterionScore[];
+  totalPoints: number;
+  maxPoints: number;
+  percentage: number;
+  overallFeedback?: string;
+  assessedAt: string;
+  updatedAt?: string;
+}
+
+export interface MySubmission {
+  submissionId: string;
+  submissionURL: string;
+  comment?: string;
+  assessment?: Assessment;
+}
+
+/** GET /project/rubric/:rubricId */
+export function useRubric(rubricId: string): {
+  data: Rubric | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = useQuery({
+    queryKey: ['rubric', rubricId],
+    queryFn: async () => {
+      const base = import.meta.env.VITE_BASE_URL;
+      const token = localStorage.getItem('firebase-auth-token');
+      const res = await fetch(`${base}/project/rubric/${rubricId}`, {
+        headers: {Authorization: `Bearer ${token}`},
+      });
+      if (!res.ok) throw new Error('Failed to fetch rubric');
+      return res.json() as Promise<Rubric>;
+    },
+    enabled: !!rubricId,
+    staleTime: 60_000,
+  });
+  return {
+    data: result.data ?? null,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error as Error).message : null,
+    refetch: result.refetch,
+  };
+}
+
+/** GET /project/rubric/course/:courseId/version/:versionId */
+export function useRubricsByCourseVersion(
+  courseId: string,
+  versionId: string,
+): {
+  data: Rubric[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = useQuery({
+    queryKey: ['rubrics', courseId, versionId],
+    queryFn: async () => {
+      const base = import.meta.env.VITE_BASE_URL;
+      const token = localStorage.getItem('firebase-auth-token');
+      const res = await fetch(
+        `${base}/project/rubric/course/${courseId}/version/${versionId}`,
+        {headers: {Authorization: `Bearer ${token}`}},
+      );
+      if (!res.ok) throw new Error('Failed to fetch rubrics');
+      return res.json() as Promise<Rubric[]>;
+    },
+    enabled: !!courseId && !!versionId,
+    staleTime: 60_000,
+  });
+  return {
+    data: result.data ?? [],
+    isLoading: result.isLoading,
+    error: result.error ? (result.error as Error).message : null,
+    refetch: result.refetch,
+  };
+}
+
+/** POST /project/rubric/course/:courseId/version/:versionId */
+export function useCreateRubric(): {
+  mutateAsync: (variables: {
+    courseId: string;
+    versionId: string;
+    title: string;
+    description?: string;
+    criteria: {name: string; description?: string; maxPoints: number}[];
+  }) => Promise<Rubric>;
+  isPending: boolean;
+  error: string | null;
+} {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async ({courseId, versionId, ...body}: {
+      courseId: string;
+      versionId: string;
+      title: string;
+      description?: string;
+      criteria: {name: string; description?: string; maxPoints: number}[];
+    }) => {
+      const base = import.meta.env.VITE_BASE_URL;
+      const token = localStorage.getItem('firebase-auth-token');
+      const res = await fetch(
+        `${base}/project/rubric/course/${courseId}/version/${versionId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to create rubric');
+      }
+      return res.json() as Promise<Rubric>;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({queryKey: ['rubrics', variables.courseId, variables.versionId]});
+      toast.success('Rubric created successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to create rubric');
+    },
+  });
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    error: mutation.error ? (mutation.error as Error).message : null,
+  };
+}
+
+/** PATCH /project/rubric/:rubricId */
+export function useUpdateRubric(): {
+  mutateAsync: (variables: {
+    rubricId: string;
+    courseId: string;
+    versionId: string;
+    title?: string;
+    description?: string;
+    criteria?: {id: string; name: string; description?: string; maxPoints: number}[];
+  }) => Promise<Rubric>;
+  isPending: boolean;
+  error: string | null;
+} {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async ({rubricId, courseId, versionId, ...body}: {
+      rubricId: string;
+      courseId: string;
+      versionId: string;
+      title?: string;
+      description?: string;
+      criteria?: {id: string; name: string; description?: string; maxPoints: number}[];
+    }) => {
+      const base = import.meta.env.VITE_BASE_URL;
+      const token = localStorage.getItem('firebase-auth-token');
+      const res = await fetch(`${base}/project/rubric/${rubricId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to update rubric');
+      }
+      return res.json() as Promise<Rubric>;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({queryKey: ['rubrics', variables.courseId, variables.versionId]});
+      queryClient.invalidateQueries({queryKey: ['rubric', variables.rubricId]});
+      toast.success('Rubric updated successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to update rubric');
+    },
+  });
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    error: mutation.error ? (mutation.error as Error).message : null,
+  };
+}
+
+/** DELETE /project/rubric/:rubricId */
+export function useDeleteRubric(): {
+  mutateAsync: (variables: {
+    rubricId: string;
+    courseId: string;
+    versionId: string;
+  }) => Promise<{message: string}>;
+  isPending: boolean;
+  error: string | null;
+} {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async ({rubricId}: {
+      rubricId: string;
+      courseId: string;
+      versionId: string;
+    }) => {
+      const base = import.meta.env.VITE_BASE_URL;
+      const token = localStorage.getItem('firebase-auth-token');
+      const res = await fetch(`${base}/project/rubric/${rubricId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to delete rubric');
+      }
+      return res.json() as Promise<{message: string}>;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({queryKey: ['rubrics', variables.courseId, variables.versionId]});
+      queryClient.invalidateQueries({queryKey: ['rubric', variables.rubricId]});
+      toast.success('Rubric deleted successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to delete rubric');
+    },
+  });
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    error: mutation.error ? (mutation.error as Error).message : null,
+  };
+}
+
+/** GET /project/assessment/submission/:submissionId */
+export function useSubmissionAssessment(submissionId: string): {
+  data: Assessment | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = useQuery({
+    queryKey: ['assessment', submissionId],
+    queryFn: async () => {
+      const base = import.meta.env.VITE_BASE_URL;
+      const token = localStorage.getItem('firebase-auth-token');
+      const res = await fetch(
+        `${base}/project/assessment/submission/${submissionId}`,
+        {headers: {Authorization: `Bearer ${token}`}},
+      );
+      if (!res.ok) throw new Error('Failed to fetch assessment');
+      return res.json() as Promise<Assessment | null>;
+    },
+    enabled: !!submissionId,
+    staleTime: 30_000,
+  });
+  return {
+    data: result.data ?? null,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error as Error).message : null,
+    refetch: result.refetch,
+  };
+}
+
+/** PUT /project/assessment/submission/:submissionId (upsert) */
+export function useSaveAssessment(): {
+  mutateAsync: (variables: {
+    submissionId: string;
+    rubricId: string;
+    criteria: {criterionId: string; points: number; feedback?: string}[];
+    overallFeedback?: string;
+  }) => Promise<Assessment>;
+  isPending: boolean;
+  error: string | null;
+} {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async ({submissionId, ...body}: {
+      submissionId: string;
+      rubricId: string;
+      criteria: {criterionId: string; points: number; feedback?: string}[];
+      overallFeedback?: string;
+    }) => {
+      const base = import.meta.env.VITE_BASE_URL;
+      const token = localStorage.getItem('firebase-auth-token');
+      const res = await fetch(
+        `${base}/project/assessment/submission/${submissionId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to save assessment');
+      }
+      return res.json() as Promise<Assessment>;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({queryKey: ['assessment', variables.submissionId]});
+      queryClient.invalidateQueries({queryKey: ['mySubmission']});
+      queryClient.invalidateQueries({queryKey: ['projectSubmissions']});
+      toast.success('Assessment saved successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to save assessment');
+    },
+  });
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    error: mutation.error ? (mutation.error as Error).message : null,
+  };
+}
+
+/**
+ * GET /project/submission/my — student's own submission + assessment.
+ * Uses getSubmissionByUserAndProject on the backend (projectId-scoped, bug-safe).
+ */
+export function useMySubmission(
+  projectId: string,
+  courseId: string,
+  versionId: string,
+  cohortId?: string,
+): {
+  data: MySubmission | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = useQuery({
+    queryKey: ['mySubmission', projectId, courseId, versionId, cohortId],
+    queryFn: async () => {
+      const base = import.meta.env.VITE_BASE_URL;
+      const token = localStorage.getItem('firebase-auth-token');
+      const url = new URL(`${base}/project/submission/my`);
+      url.searchParams.set('projectId', projectId);
+      url.searchParams.set('courseId', courseId);
+      url.searchParams.set('versionId', versionId);
+      if (cohortId) url.searchParams.set('cohortId', cohortId);
+      const res = await fetch(url.toString(), {
+        headers: {Authorization: `Bearer ${token}`},
+      });
+      if (!res.ok) throw new Error('Failed to fetch your submission');
+      return res.json() as Promise<MySubmission | null>;
+    },
+    enabled: !!projectId && !!courseId && !!versionId,
+    staleTime: 30_000,
+  });
+  return {
+    data: result.data ?? null,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error as Error).message : null,
+    refetch: result.refetch,
+  };
+}
+
 // POST (copy course version)
 export function useCopyCourseVersion(): {
   mutate: (variables: { params: { path: { courseId: string; courseVersionId: string } } }) => void,

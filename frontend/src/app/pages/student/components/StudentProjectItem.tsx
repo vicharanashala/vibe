@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
 import { Textarea } from '../../../../components/ui/textarea';
 import { CheckCircle, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSubmitProject, SubmitProjectBody, useStartItem, useStopItem, useProjectGallery, GallerySubmission } from '../../../../hooks/hooks';
+import { useSubmitProject, SubmitProjectBody, useStartItem, useStopItem, useProjectGallery, GallerySubmission, useMySubmission, useRubric, Assessment } from '../../../../hooks/hooks';
 import { useCourseStore } from '../../../../store/course-store';
 
 // This file is a student-side ProjectItem component for project submission
@@ -242,6 +242,25 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
     currentCourse?.cohortId ?? undefined,
   );
 
+  const { data: mySubmissionData, isLoading: mySubmissionLoading } = useMySubmission(
+    item._id,
+    currentCourse?.courseId ?? '',
+    currentCourse?.versionId ?? '',
+    currentCourse?.cohortId ?? undefined,
+  );
+
+  const myAssessment: Assessment | undefined = mySubmissionData?.assessment;
+
+  // Fetch the rubric so we can resolve criterionId → human-readable name.
+  // useRubric is disabled (no fetch) when rubricId is empty, and the result
+  // is already cached from staleTime=60s if the teacher viewed it earlier.
+  const { data: rubric } = useRubric(myAssessment?.rubricId ?? '');
+  const criterionNameMap = useMemo<Map<string, string>>(() => {
+    const map = new Map<string, string>();
+    rubric?.criteria.forEach(c => map.set(c.id, c.name));
+    return map;
+  }, [rubric]);
+
   if (isSubmitted) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -358,6 +377,53 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* My Assessment — read-only, only shown when an assessment exists */}
+          {!mySubmissionLoading && myAssessment && (
+            <div className="pt-4 border-t border-border">
+              <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+                <span>📋</span> My Assessment
+              </h3>
+              {/* Score summary */}
+              <div className="mb-3 flex items-center gap-4">
+                <div className="flex-1 bg-primary/5 border border-primary/10 rounded-lg px-4 py-2 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">Score</span>
+                  <span className="text-sm font-bold text-primary">
+                    {myAssessment.totalPoints} / {myAssessment.maxPoints}
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      ({myAssessment.percentage}%)
+                    </span>
+                  </span>
+                </div>
+              </div>
+              {/* Per-criterion breakdown */}
+              <div className="space-y-2">
+                {myAssessment.criteria.map((c) => (
+                  <div key={c.criterionId} className="rounded-lg border border-border bg-muted/20 p-3 space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-foreground">
+                        {criterionNameMap.get(c.criterionId) ?? c.criterionId}
+                      </span>
+                      <span className="font-semibold text-primary">{c.points} pts</span>
+                    </div>
+                    {c.feedback && (
+                      <p className="text-xs text-muted-foreground italic">{c.feedback}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {/* Overall feedback */}
+              {myAssessment.overallFeedback && (
+                <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">Overall Feedback</p>
+                  <p className="text-sm text-foreground">{myAssessment.overallFeedback}</p>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-2">
+                Assessed on {new Date(myAssessment.assessedAt).toLocaleDateString()}
+              </p>
             </div>
           )}
         </div>
