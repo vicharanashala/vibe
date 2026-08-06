@@ -543,14 +543,15 @@ export class ItemService extends BaseService {
     itemId: string,
     userId: string,
     courseId: string,
-    versionId: string
+    versionId: string,
+    cohortId?: string
   ): Promise<boolean> {
     const previousItem = await this.progressService.getPreviousItemInSequence(courseVersion, moduleId, sectionId, itemId);
-    // First item ? 
+    // First item ?
     if (!previousItem) {
       return true;
     }
-    const previousItemCompleted = await this.progressRepo.isItemCompleted(userId, courseId, versionId, previousItem.itemId);
+    const previousItemCompleted = await this.progressRepo.isItemCompleted(userId, courseId, versionId, previousItem.itemId, cohortId);
     return previousItemCompleted;
   }
 
@@ -693,6 +694,7 @@ export class ItemService extends BaseService {
       userId,
       courseId,
       versionId,
+      cohortId,
     );
 
     if (previousItemCompleted) {
