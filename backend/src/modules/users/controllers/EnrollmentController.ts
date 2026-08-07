@@ -876,7 +876,7 @@ export class EnrollmentController {
           enrollmentDate: enrollment.enrollmentDate,
           unenrolledAt: enrollment.unenrolledAt,
           user: {...enrollment.userInfo, _id: enrollment.userId},
-          progress: enrollment.percentCompleted,
+          progress: enrollment.percentCompleted ?? 0,
           completedItemsCount: enrollment.completedItemsCount || 0,
           assignedTimeSlots: enrollment.assignedTimeSlots || [],
           totalQuizScore: enrollment.totalQuizScore || 0,

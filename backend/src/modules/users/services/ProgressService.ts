@@ -1684,7 +1684,7 @@ class ProgressService extends BaseService {
 
       return {
         completed: progress.completed,
-        percentCompleted: Math.min(100, enrollment.percentCompleted),
+        percentCompleted: Math.min(100, enrollment.percentCompleted ?? 0),
         totalItems,
         completedItems: completedItemsSet.size,
       };
@@ -4094,8 +4094,8 @@ class ProgressService extends BaseService {
     >();
     for (const enrollment of enrollments) {
       enrollmentMap.set(enrollment.userId?.toString(), {
-        completionPercentage: enrollment.percentCompleted || 0,
-        enrollmentDate: enrollment.enrollmentDate || null,
+        completionPercentage: enrollment.percentCompleted ?? 0,
+        enrollmentDate: enrollment.enrollmentDate ?? null,
       });
     }
 
@@ -4161,7 +4161,7 @@ class ProgressService extends BaseService {
       const enrollment = enrollmentMap.get(id);
       const completionPercentage = Math.min(
         100,
-        enrollment?.completionPercentage || 0,
+        enrollment?.completionPercentage ?? 0,
       );
       // Use the finish timestamp regardless of the legacy `completed` flag.
       const completedAt = progress.completedAt ?? null;
@@ -4792,7 +4792,7 @@ class ProgressService extends BaseService {
     const enrollmentMap = new Map();
     for (const enrollment of enrollments) {
       enrollmentMap.set(enrollment.userId.toString(), {
-        completionPercentage: enrollment.percentCompleted || 0,
+        completionPercentage: enrollment.percentCompleted ?? 0,
         enrolledAt: enrollment.enrollmentDate,
       });
     }
@@ -4841,7 +4841,7 @@ class ProgressService extends BaseService {
         userName: user?.name || 'Unknown User',
         email: user?.email || 'No email',
 
-        completionPercentage: Math.min(100, enrollment?.completionPercentage) ?? 0,
+        completionPercentage: Math.min(100, enrollment?.completionPercentage ?? 0),
 
         completedAt:
           progress.completed && progress.completedAt
