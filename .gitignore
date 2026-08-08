@@ -96,3 +96,8 @@ backend/html/
 
 # Firebase hosting cache
 .firebase/
+
+# Local developer environment artifacts
+certs/
+data/
+logs/

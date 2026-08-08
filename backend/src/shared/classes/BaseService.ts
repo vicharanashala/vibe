@@ -31,6 +31,16 @@ export abstract class BaseService {
       } catch (error: any) {
         if (session.inTransaction()) await session.abortTransaction();
         await session.endSession();
+
+        const isTransactionNotSupported =
+          error?.message?.includes('Transaction numbers are only allowed') ||
+          error?.message?.includes('replica set member');
+
+        if (isTransactionNotSupported) {
+          console.warn('MongoDB transactions not supported by server. Falling back to non-transactional execution.');
+          return await operation(undefined as any);
+        }
+
         const isTransient =
           Array.isArray(error?.errorLabels) &&
           error.errorLabels.includes('TransientTransactionError');
@@ -44,3 +54,4 @@ export abstract class BaseService {
     throw new Error('Transaction failed after max retries');
   }
 }
+

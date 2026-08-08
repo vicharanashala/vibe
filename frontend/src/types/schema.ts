@@ -4,7 +4,31 @@
  */
 
 export interface paths {
-    "/auth/signup": {
+    "/api/notifications/invite/courses/{courseId}/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Invites for Course Version
+         * @description Retrieve all invites for a specific course version.
+         */
+        get: operations["InviteController.getInvitesForCourseVersion"];
+        put?: never;
+        /**
+         * Invite users to a course
+         * @description Invites users to a specific version of a course.
+         */
+        post: operations["InviteController.inviteUsers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/invite/courses/{courseId}/versions/{versionId}/bulk": {
         parameters: {
             query?: never;
             header?: never;
@@ -14,97 +38,41 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Register User
-         * @description Creates a new user account with the provided credentials.
+         * Generate bulk invite link
+         * @description Generates a link that allows multiple students to join a course version within 1 week.
          */
-        post: operations["AuthController.signup"];
+        post: operations["InviteController.generateInviteLink"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/auth/signup/verify": {
+    "/api/notifications/invite/{inviteId}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Process Invite
+         * @description Process an invite given an inviteId and send a response before redirecting the user.
+         */
+        get: operations["InviteController.processInvites"];
         put?: never;
         /**
-         * Verify User
-         * @description Creates a new user account using the token provided.
+         * Process Invite
+         * @description Process an invite given an inviteId and send a response before redirecting the user.
          */
-        post: operations["AuthController.verifySignUpProvider"];
+        post: operations["InviteController.processInvites"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/auth/change-password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Change Password
-         * @description Changes the authenticated user's password to the new password provided.
-         */
-        patch: operations["AuthController.changePassword"];
-        trace?: never;
-    };
-    "/auth/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Verify Token
-         * @description Verifies if the user's authentication token is valid and belongs to an admin user.
-         */
-        post: operations["AuthController.verifyToken"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/courses/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Course
-         * @description Creates a new course with the provided details.
-         */
-        post: operations["CourseController.create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/courses/{id}": {
+    "/api/notifications/invite/": {
         parameters: {
             query?: never;
             header?: never;
@@ -112,56 +80,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Course
-         * @description Retrieves the course details for the specified course ID.
+         * Get Pending invites for a User
+         * @description Retrieve all pending invites for a specific User.
          */
-        get: operations["CourseController.read"];
-        /**
-         * Update Course
-         * @description Updates the course details for the specified course ID.
-         */
-        put: operations["CourseController.update"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/courses/{id}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Course Version
-         * @description Creates a new version for a specific course.
-         */
-        post: operations["CourseVersionController.create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/courses/versions/{id}": {
-        parameters: {
-            query?: {
-                cohortId?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Course Version
-         * @description Retrieves a course version by its ID.
-         */
-        get: operations["CourseVersionController.read"];
+        get: operations["InviteController.getInvitesForUser"];
         put?: never;
         post?: never;
         delete?: never;
@@ -170,27 +92,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/courses/{courseId}/versions/{versionId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Course Version
-         * @description Deletes a course version by its ID.
-         */
-        delete: operations["CourseVersionController.delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/courses/versions/{versionId}/modules": {
+    "/api/notifications/invite/resend/{inviteId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -200,61 +102,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create Module
-         * @description Creates a new module in the specified course version with the provided details.
+         * Resend Invite
+         * @description Resend an invite email to the user.
          */
-        post: operations["ModuleController.create"];
+        post: operations["InviteController.resendInvite"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/courses/versions/{versionId}/modules/{moduleId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Update Module
-         * @description Updates an existing module's name or description within a course version.
-         */
-        put: operations["ModuleController.update"];
-        post?: never;
-        /**
-         * Delete Module
-         * @description Permanently removes a module from a course version.
-         */
-        delete: operations["ModuleController.delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/courses/versions/{versionId}/modules/{moduleId}/move": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Move Module
-         * @description Reorders a module within its course version by placing it before or after another module.
-         */
-        put: operations["ModuleController.move"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/courses/versions/{versionId}/modules/{moduleId}/sections": {
+    "/api/notifications/invite/cancel/{inviteId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -264,61 +122,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create Section
-         * @description Creates a new section in the specified module and automatically generates an associated items group.
+         * Cancel Invite
+         * @description Cancel an existing invite.
          */
-        post: operations["SectionController.create"];
+        post: operations["InviteController.cancelInvite"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Update Section
-         * @description Updates an existing section's name or description within a module.
-         */
-        put: operations["SectionController.update"];
-        post?: never;
-        /**
-         * Delete Section
-         * @description Permanently removes a section from a module.
-         */
-        delete: operations["SectionController.delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/move": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Move Section
-         * @description Reorders a section within its module by placing it before or after another section.
-         */
-        put: operations["SectionController.move"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items": {
+    "/api/notifications/user/": {
         parameters: {
             query?: never;
             header?: never;
@@ -326,39 +140,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get All Items
-         * @description Retrieves all items from the specified section of a module in a course version.
+         * Get notifications for current user
+         * @description Returns ejection, reinstatement, and policy notifications for the authenticated user.
          */
-        get: operations["ItemController.readAll"];
+        get: operations["NotificationController.getNotifications"];
         put?: never;
-        /**
-         * Create Item
-         * @description Creates a new item in the specified section with the provided details.
-         */
-        post: operations["ItemController.create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Item
-         * @description Retrieves a specific item from the specified section of a module in a course version.
-         */
-        get: operations["ItemController.readItem"];
-        /**
-         * Update Item
-         * @description Updates an existing item in the specified section with the provided details.
-         */
-        put: operations["ItemController.update"];
         post?: never;
         delete?: never;
         options?: never;
@@ -366,7 +152,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/courses/itemGroups/{itemsGroupId}/items/{itemId}": {
+    "/api/notifications/user/{notificationId}/read": {
         parameters: {
             query?: never;
             header?: never;
@@ -375,38 +161,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
-        /**
-         * Delete Item
-         * @description Deletes an item from a course section permanently.
-         */
-        delete: operations["ItemController.delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}/move": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Move Item
-         * @description Moves an item to a new position within its section by recalculating its order.
-         */
-        put: operations["ItemController.move"];
-        post?: never;
+        /** Mark a notification as read */
+        post: operations["NotificationController.markAsRead"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/users/{userId}/enrollments/courses/{courseId}/versions/{courseVersionId}": {
+    "/api/notifications/user/read-all": {
         parameters: {
             query?: never;
             header?: never;
@@ -415,9 +178,30 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Mark all notifications as read */
+        post: operations["NotificationController.markAllAsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{userId}/enrollments/courses/{courseId}/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
         /**
-         * Enroll User in Course
-         * @description Enrolls a user in a specific version of a course.
+         * Get enrollment details for a user in a course version
+         * @description Retrieves enrollment details, including role and status, for a user in a specific course version.
+         */
+        get: operations["EnrollmentController.getEnrollment"];
+        put?: never;
+        /**
+         * Enroll a user in a course version
+         * @description Enrolls a user in a specific course version with a given role.
          */
         post: operations["EnrollmentController.enrollUser"];
         delete?: never;
@@ -426,7 +210,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/users/{userId}/enrollments/courses/{courseId}/versions/{courseVersionId}/unenroll": {
+    "/api/users/{userId}/enrollments/courses/{courseId}/versions/{versionId}/unenroll": {
         parameters: {
             query?: never;
             header?: never;
@@ -436,8 +220,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Unenroll User from Course
-         * @description Unenrolls a user from a specific version of a course.
+         * Unenroll a user from a course version
+         * @description Removes a user's enrollment and progress from a specific course version.
          */
         post: operations["EnrollmentController.unenrollUser"];
         delete?: never;
@@ -446,7 +230,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/users/{userId}/enrollments": {
+    "/api/users/enrollments/courses/{courseId}/versions/{versionId}/bulk-unenroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk unenroll users from a course version
+         * @description Removes multiple users' enrollments and progress from a specific course version.
+         */
+        post: operations["EnrollmentController.bulkUnenrollUsers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{userId}/enrollments/courses/{courseId}/versions/{versionId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change enrollment status for a user
+         * @description Updates the status (ACTIVE/INACTIVE) of a specific enrollment.
+         */
+        patch: operations["EnrollmentController.changeStatus"];
+        trace?: never;
+    };
+    "/api/users/{userId}/enrollments/courses/{courseId}/versions/{versionId}/reset-face": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset face reference for a student
+         * @description Removes the faceEmbedding and profileImage from the user document, allowing the student to re-register their face.
+         */
+        post: operations["EnrollmentController.resetFaceReference"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/enrollments/courses/{courseId}/versions/{versionId}/bulk-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Bulk change enrollment status
+         * @description Updates the status (ACTIVE/INACTIVE) of multiple enrollments in a course version.
+         */
+        patch: operations["EnrollmentController.bulkChangeStatus"];
+        trace?: never;
+    };
+    "/api/users/enrollments": {
         parameters: {
             query?: never;
             header?: never;
@@ -454,8 +318,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get User Enrollments
-         * @description Retrieves a paginated list of courses and course versions a user is enrolled in.
+         * Get all enrollments for a user
+         * @description Retrieves a paginated list of all course enrollments for a user.
          */
         get: operations["EnrollmentController.getUserEnrollments"];
         put?: never;
@@ -466,7 +330,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/": {
+    "/api/users/enrollments/courses/{courseId}/versions/{versionId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -474,8 +338,865 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get User Progress
-         * @description Retrieves a user's progress for a specific course version.
+         * Get all enrollments for a course version
+         * @description Retrieves a paginated list of all users enrolled in a specific course version.
+         */
+        get: operations["EnrollmentController.getCourseVersionEnrollments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{userId}/enrollments/courses/{courseId}/versions/{versionId}/progress-detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get student progress detail for the View Progress modal
+         * @description Returns content summary (completion %, total items, quiz score, item type counts) for a specific enrolled student. Intended to be called only when the instructor opens the View Progress modal.
+         */
+        get: operations["EnrollmentController.getStudentProgressDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{userId}/enrollments/courses/{courseId}/versions/{versionId}/course-structure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get student course structure for the View Course Structure panel
+         * @description Returns the full course module/section structure and the current learning position for a specific enrolled student. Intended to be called lazily when the instructor clicks View Course Structure.
+         */
+        get: operations["EnrollmentController.getStudentCourseStructure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/enrollments/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Enrollment Progress
+         * @description Recomputes and updates progress for all enrollments across all courses or a specific course if courseId is provided.
+         */
+        patch: operations["EnrollmentController.updateAllEnrollmentsProgress"];
+        trace?: never;
+    };
+    "/api/users/enrollments/courses/{courseId}/versions/{versionId}/statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get enrollment statistics for a course version
+         * @description Provides total enrollments, completed enrollments count, average progress percentage, and average watch hours per user for a specific course version.
+         */
+        get: operations["EnrollmentController.getCourseVersionEnrollmentStatistics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/enrollments/courses/{courseId}/versions/{versionId}/export/quiz-scores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export quiz scores for all students in a course version
+         * @description Returns quiz scores for all students in the specified course version. Can be filtered by cohort using the cohortId query parameter.
+         */
+        get: operations["EnrollmentController.exportQuizScores"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/enrollments/courses/{courseId}/versions/{versionId}/export/gurusetu-feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Gurusetu feedback rows
+         * @description Returns one row per (enrolled student, video) for Gurusetu Pilot(FDP for Faculty), including watch time, watch percentage, and feedback when submitted. Optional cohort filter via cohortId query parameter.
+         */
+        get: operations["EnrollmentController.exportGuruSetuFeedback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/enrollments/update-completed-items-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update completed items count for all enrollments
+         * @description Endpoint to update completedItemsCount field for all enrollments
+         */
+        patch: operations["EnrollmentController.updateAllCompletedItemsCount"];
+        trace?: never;
+    };
+    "/api/users/enrollments/bulk-update-watchtime-progress-completeCounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Bulk updates watchtime, progress and completeCounts
+         * @description Endpoint to update watchtime, progress and completeCounts for all enrollments
+         */
+        patch: operations["EnrollmentController.bulk_update_watchtime_progress_completeCounts"];
+        trace?: never;
+    };
+    "/api/users/enrollments/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all detailed enrollments for a user
+         * @description Retrieves a paginated list of all course enrollments for a user.
+         */
+        get: operations["EnrollmentController.getUserEnrollmentsDetails"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{userId}/enrollments/courses/{courseId}/versions/{versionId}/modules/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get module-wise progress for a specific user in a course version
+         * @description Returns completion statistics for each module for a specific student
+         */
+        get: operations["EnrollmentController.getUserModuleProgress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/enrollments/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/policy-acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Acknowledge policy update */
+        post: operations["EnrollmentController.acknowledgePolicyUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/enrollments/courses/{courseId}/versions/{versionId}/ethics-consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the current user ethics consent status for a course version
+         * @description Returns whether the authenticated student has signed the ethics consent for the given course version.
+         */
+        get: operations["EnrollmentController.getEthicsConsent"];
+        put?: never;
+        /**
+         * Sign the ethics consent for a course version
+         * @description Records the authenticated student signed ethics consent (typed-name signature, timestamp, and optional additional-image consent) for the given course version.
+         */
+        post: operations["EnrollmentController.signEthicsConsent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setting/course-setting/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create */
+        post: operations["UserSettingController.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setting/course-setting/{courseId}/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get */
+        get: operations["CourseSettingController.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setting/course-setting/{courseId}/{versionId}/proctoring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update course settings */
+        put: operations["CourseSettingController.updateCourseSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setting/course-setting/{courseId}/{versionId}/follow-up-invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update follow up invite */
+        put: operations["CourseSettingController.updateFollowUpInvite"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setting/course-setting/{courseId}/{versionId}/follow-up-invite/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Backfill follow up invites */
+        post: operations["CourseSettingController.backfillFollowUpInvites"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setting/course-setting/{studentId}/{courseId}/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get */
+        get: operations["UserSettingController.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setting/course-setting/{studentId}/{courseId}/{versionId}/proctoring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update user settings */
+        put: operations["UserSettingController.updateUserSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/add": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add time slots to a course
+         * @description Adds new time slots to a course and assigns students to them. Updates both course settings and student enrollments.
+         */
+        post: operations["TimeSlotController.addTimeSlots"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove time slots from a course
+         * @description Removes specified time slots from a course settings.
+         */
+        post: operations["TimeSlotController.removeTimeSlots"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/toggle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Toggle time slots active status
+         * @description Enables or disables time slots for a course.
+         */
+        put: operations["TimeSlotController.toggleTimeSlots"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/course/{courseId}/version/{courseVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get time slots for a course
+         * @description Retrieves all time slots configured for a specific course version.
+         */
+        get: operations["TimeSlotController.getTimeSlots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update an existing time slot
+         * @description Updates an existing time slot and updates all student enrollments assigned to it.
+         */
+        put: operations["TimeSlotController.updateTimeSlot"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/check-access/{courseId}/{courseVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check time-slot access for the current student
+         * @description Returns whether the calling student can currently access the course under its time-slot rules. Used by the player to poll for a live cut-off when a booked window ends.
+         */
+        get: operations["TimeSlotController.checkTimeSlotAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the per-course hours budget
+         * @description Stores the students' committed-hours budget as the sum of the instructor's total estimated hours per category (all videos together, all quizzes together, all projects together, etc.). Captured when the feature is enabled.
+         */
+        put: operations["TimeSlotController.setHoursBudget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/fulfillment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the fulfillment & bonus rules
+         * @description Stores the Phase 3 fulfillment threshold (active share of a window, 0–100, default 90) and whether fulfilling a window grants a same-day bonus booking.
+         */
+        put: operations["TimeSlotController.setFulfillmentConfig"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/capacity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the booking capacity budget
+         * @description Derives each time slot's maxStudents from a single capacity knob — the total students the backend is provisioned to serve at once — so per-slot caps stay within the infra budget. perSlotCap = floor(targetConcurrentStudents × headroomFactor ÷ maxOverlappingWindows). A slot is never capped below its already-booked count.
+         */
+        put: operations["TimeSlotController.setCapacityConfig"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/extend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Grant a student extra committed hours
+         * @description Adds extra hours to a student's committed-hours budget (instructor action when a student has used up their hours).
+         */
+        put: operations["TimeSlotController.extendStudentHours"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/grant-bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Award a student extra bookings
+         * @description Adds extra bookings to a student's consumable pool so they can book beyond their daily allowance (instructor action). These grant bookings bypass the slot capacity cap and hours budget.
+         */
+        put: operations["TimeSlotController.grantExtraBookings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/student/choose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Student chooses a time slot
+         * @description Allows a student to choose a time slot for their course enrollment.
+         */
+        post: operations["TimeSlotController.chooseTimeSlot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/timeslots/teacher/remove-student": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Teacher removes a student from a time slot
+         * @description Allows a teacher to remove a specific student from a time slot.
+         */
+        post: operations["TimeSlotController.removeStudentFromTimeSlot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slot-bookings/book": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Book a time slot
+         * @description A student books a time slot for a study day (default today). Booking for day D opens at 9 AM IST on D-2, and each slot stays bookable until its own start time on D, subject to the slot capacity cap and their per-day allowance.
+         */
+        post: operations["SlotBookingController.bookSlot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slot-bookings/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a booking
+         * @description A student cancels one of their own bookings (used to re-book).
+         */
+        post: operations["SlotBookingController.cancelBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slot-bookings/my/course/{courseId}/version/{courseVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the student's bookings
+         * @description Returns the calling student's active bookings for a course, optionally filtered to one IST date (YYYY-MM-DD).
+         */
+        get: operations["SlotBookingController.myBookings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slot-bookings/my/extra-bookings/course/{courseId}/version/{courseVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The student's awarded extra-bookings pool
+         * @description Returns how many extra bookings the calling student may still make beyond their daily allowance (instructor-awarded, consumable). Used to keep the booking action enabled.
+         */
+        get: operations["SlotBookingController.myExtraBookings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slot-bookings/my/hours/course/{courseId}/version/{courseVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The student's committed-hours summary
+         * @description Returns the calling student's hours budget, hours reserved, and hours LOST to unused (unfulfilled) slots, so the UI can warn them about wasted budget.
+         */
+        get: operations["SlotBookingController.myHoursSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slot-bookings/availability/course/{courseId}/version/{courseVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Slot availability (for booking)
+         * @description Booked load and seats remaining per window for an IST day (default today), so an enrolled student can see capacity while picking a slot. Returns counts only — no learner identities.
+         */
+        get: operations["SlotBookingController.getAvailability"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slot-bookings/demand/course/{courseId}/version/{courseVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Slot demand schedule
+         * @description Booked load per window for an IST day (default today) — the demand schedule for capacity planning. Instructors/managers only.
+         */
+        get: operations["SlotBookingController.getDemand"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register a new user account
+         * @description Registers a new user using Firebase Authentication and stores additional user details in the application database. This is typically the first step for any new user to access the system.
+         */
+        post: operations["AuthController.signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/signup/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register a new user account
+         * @description Registers a new user using Firebase Authentication and stores additional user details in the application database. This is typically the first step for any new user to access the system.
+         */
+        post: operations["AuthController.googleSignup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/change-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change user password
+         * @description Allows an authenticated user to update their password. This action is performed via Firebase Authentication and requires the current credentials to be valid.
+         */
+        patch: operations["AuthController.changePassword"];
+        trace?: never;
+    };
+    "/api/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login */
+        post: operations["AuthController.login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get user progress in a course version
+         * @description Retrieves the progress of a user in a specific course version.
          */
         get: operations["ProgressController.getUserProgress"];
         put?: never;
@@ -486,7 +1207,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/start": {
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/current-path": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get current progress path for a user
+         * @description Retrieves the current learning position (module, section, item) for a specific user in a course version
+         */
+        get: operations["ProgressController.getCurrentProgressPath"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/percentage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get %age progress in a course version
+         * @description Retrieves the progress of a user in a specific course version.
+         */
+        get: operations["ProgressController.getUserProgressPercentage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/start": {
         parameters: {
             query?: never;
             header?: never;
@@ -496,8 +1257,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Start Course Item
-         * @description Starts tracking a user's progress on a specific course item.
+         * Start an item for user progress
+         * @description Marks the start of an item for a user in a course version.
          */
         post: operations["ProgressController.startItem"];
         delete?: never;
@@ -506,7 +1267,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/stop": {
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/stop": {
         parameters: {
             query?: never;
             header?: never;
@@ -516,8 +1277,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Stop Course Item
-         * @description Stops tracking a user's progress on a specific course item.
+         * Stop an item for user progress
+         * @description Marks the stop of an item for a user in a course version.<br/>
+         *         It returns an empty body with a 200 status code.
          */
         post: operations["ProgressController.stopItem"];
         delete?: never;
@@ -526,7 +1288,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/update": {
+    "/api/users/{userId}/progress/courses/{courseId}/versions/{versionId}/reset": {
         parameters: {
             query?: never;
             header?: never;
@@ -540,33 +1302,18 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Update Progress
-         * @description Updates a user's progress for a specific course item.
-         */
-        patch: operations["ProgressController.updateProgress"];
-        trace?: never;
-    };
-    "/users/{userId}/progress/courses/{courseId}/versions/{courseVersionId}/reset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Reset Course Progress
-         * @description Resets a user's progress for a course, module, section, or item.
+         * Reset user progress
+         * @description Resets the user's progress in a course version.
+         *     If only moduleId is provided, resets to the beginning of the module.
+         *     If moduleId and sectionId are provided, resets to the beginning of the section.
+         *     If moduleId, sectionId, and itemId are provided, resets to the beginning of the item.
+         *     If none are provided, resets to the beginning of the course.<br/>
+         *     It returns an empty body with a 200 status code.
          */
         patch: operations["ProgressController.resetProgress"];
         trace?: never;
     };
-    "/users/firebase/{firebaseUID}": {
+    "/api/users/{userId}/watchTime/course/{courseId}/version/{versionId}/item/{itemId}/type/{type}": {
         parameters: {
             query?: never;
             header?: never;
@@ -574,10 +1321,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get User by Firebase UID
-         * @description Retrieves a user ID using their Firebase UID.
+         * Get User Watch Time
+         * @description Gets the User Watch Time for the given Item Id
          */
-        get: operations["UserController.getUserByFirebaseUID"];
+        get: operations["ProgressController.getWatchTime"];
         put?: never;
         post?: never;
         delete?: never;
@@ -586,10 +1333,4684 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/watchtime/upsert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upsert Watch Time
+         * @description Creates a watch time record if not exists or updates the existing one
+         */
+        post: operations["ProgressController.upsertWatchTime"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/watchtime/total": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Total Watch Time of User
+         * @description Gets the Total Watch Time of the User
+         */
+        get: operations["ProgressController.getTotalWatchtimeOfUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/items/{itemId}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Skip an optional item
+         * @description this allows to change isOptional for items, does not return anything on success
+         */
+        post: operations["ProgressController.skipOptionalItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get course leaderboard
+         * @description Returns ranked list of students based on completion percentage and time
+         */
+        get: operations["ProgressController.getLeaderboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/progress/recalculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recalculate student progress
+         * @description Recalculates and updates the progress of a student for a given course and course version.
+         */
+        post: operations["ProgressController.recalculateStudentProgress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get module wise progress
+         * @description Returns total items and completed items for each module in a course version for the current user.
+         */
+        get: operations["ProgressController.getModuleWiseProgress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/progress/watch-time/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create bulk watch-time records
+         * @description Creates multiple watch-time entries in a single request for better performance
+         */
+        post: operations["ProgressController.createBulkWatchiTimeDocs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/leaderboard/no-auth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get course leaderboard without authorization
+         * @description Returns ranked list of students based on completion percentage and time
+         */
+        get: operations["ProgressController.getNoAuthLeaderboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/enrollment-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get user-level enrollment statistics
+         * @description Provides aggregated statistics across all courses for the current user.
+         */
+        get: operations["UserController.getUserEnrollmentStatistics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get user information by user ID
+         * @description Retrieves user information based on the provided user ID.
+         */
+        get: operations["UserController.getUserById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get current user profile
+         * @description Retrieves user information for the currently authenticated user.
+         */
+        get: operations["UserController.getCurrentUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/me/face-reference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the current user face reference
+         * @description Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if the course has face recognition enabled.
+         */
+        get: operations["UserController.getCurrentUserFaceReference"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set or replace the current user face reference
+         * @description Stores a profile image and 128-length face embedding on the current user. Used when a student adds their face after initial signup.
+         */
+        patch: operations["UserController.updateCurrentUserFaceReference"];
+        trace?: never;
+    };
+    "/api/users/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit user information
+         * @description Edit user information like first and last name.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        patch: operations["UserController.editUser"];
+        trace?: never;
+    };
+    "/api/users/make-admin/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make a user an admin
+         * @description Promotes a user to admin status based on the provided user ID.<br/>
+         *         Only an existing admin may call this endpoint.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["UserController.makeAdmin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/user-activity-events/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Store user activity event data
+         * @description Stores complete user activity event data including rewinds and fast forwards for a video.
+         */
+        post: operations["UserActivityEventController.CreateUserActivityEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/integrations/learners/completions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List learners and the courses they have completed
+         * @description Returns a paginated roster of every learner on the platform together with the courses each learner has completed (reached the finish line). Authenticate with the `X-API-Key` header. Use `page` and `limit` (max 200) to page through learners.
+         */
+        get: operations["IntegrationController.getLearnersCompletions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/pacing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get remaining-work pacing plan for a course version */
+        get: operations["PacingController.getPacingPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/pacing-target": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set or clear a target completion date for pacing */
+        patch: operations["PacingController.setPacingTarget"];
+        trace?: never;
+    };
+    "/api/anomalies/record/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record anomaly image
+         * @description Records an anomaly image stored in cloud storage.
+         */
+        post: operations["AnomalyController.recordImageAnomaly"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/anomalies/record/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record anomaly with audio
+         * @description Records an anomaly udio stored in cloud storage.
+         */
+        post: operations["AnomalyController.recordAudioAnomaly"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/anomalies/{anomalyId}/course/{courseId}/version/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a particular anomaly
+         * @description Retrieves a specific anomaly for a user
+         */
+        get: operations["AnomalyController.getAnomaly"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/anomalies/course/{courseId}/version/{versionId}/user/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get user anomalies with filtering and pagination
+         * @description Retrieves anomalies for a specific user with optional filtering by course, module, section, item, type, date range, and pagination support. Captures Accept header for potential content negotiation.
+         */
+        get: operations["AnomalyController.getUserAnomalies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/anomalies/course/{courseId}/version/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get course anomalies
+         * @description Retrieves all anomalies for a specific course with optional sorting and pagination
+         */
+        get: operations["AnomalyController.getCourseAnomalies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/anomalies/course/{courseId}/version/{versionId}/item/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Item anomalies
+         * @description Retrieves all anomalies for a specific item
+         */
+        get: operations["AnomalyController.getItemAnomalies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/anomalies/course/{courseId}/version/{versionId}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get anomaly statistics
+         * @description Retrieves statistics for a specific anomaly item
+         */
+        get: operations["AnomalyController.getAnomalyStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/anomalies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete anomaly
+         * @description Deletes an anomaly record and its encrypted image<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        delete: operations["AnomalyController.deleteAnomaly"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/announcements/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create an announcement
+         * @description Create a new announcement. Instructors and managers can create announcements for their courses or general ones.
+         */
+        post: operations["AnnouncementController.createAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/announcements/{announcementId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an announcement
+         * @description Soft-delete an announcement by ID.
+         */
+        delete: operations["AnnouncementController.deleteAnnouncement"];
+        options?: never;
+        head?: never;
+        /**
+         * Update an announcement
+         * @description Update an existing announcement by ID.
+         */
+        patch: operations["AnnouncementController.updateAnnouncement"];
+        trace?: never;
+    };
+    "/api/announcements/{announcementId}/toggle-hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Toggle hide/show announcement
+         * @description Toggle the visibility of an announcement.
+         */
+        patch: operations["AnnouncementController.toggleHideAnnouncement"];
+        trace?: never;
+    };
+    "/api/announcements/instructor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get announcements for instructor
+         * @description Retrieve announcements with filters. Includes hidden announcements.
+         */
+        get: operations["AnnouncementController.getAnnouncementsForInstructor"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/announcements/student": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get announcements for student
+         * @description Retrieve announcements visible to the current student based on their enrollments. Excludes hidden announcements.
+         */
+        get: operations["AnnouncementController.getAnnouncementsForStudent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/audit-trails/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all audit trails
+         * @description Retrieve a list of all audit trails in the system
+         */
+        get: operations["AuditTrailsController.getAllAuditTrails"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/audit-trails/course/{courseId}/version/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get audit trails by courseId and versionId
+         * @description Retrieve audit trails for a specific course and version
+         */
+        get: operations["AuditTrailsController.getAuditTrailsByCourseAndVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/active-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Active Users by Course
+         * @description Fetches the list of active users enrolled in a specific course by course ID.
+         */
+        get: operations["CourseController.getActiveUsersByCourse"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/public": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get public courses
+         * @description Fetches the list of public courses available for enrollment.
+         */
+        get: operations["CourseController.getPublicCourses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a new course
+         * @description Creates a new course in the system.<br/>.
+         */
+        post: operations["CourseController.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get course details
+         * @description Retrieves course information by ID.<br/>
+         *     Accessible to:
+         *     - Users who are part of the course (students, teaching assistants, instructors, or managers)
+         */
+        get: operations["CourseController.read"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a course
+         * @description Deletes a course by ID<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        delete: operations["CourseController.delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a course
+         * @description Updates course metadata such as title or description.<br/>
+         *     Accessible to:
+         *     - Instructor or manager for the course.
+         */
+        patch: operations["CourseController.update"];
+        trace?: never;
+    };
+    "/api/courses/version/total-item-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Course Version Total Item Count
+         * @description Updates the total item count for a specific course version by ID.<br/> It returns an empty body with a 200 status code.
+         */
+        patch: operations["CourseController.updateCourseVersionTotalItemCount"];
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a course version
+         * @description Creates a new version of a given course.<br/>
+         *     Accessible to:
+         *     - Instructor or manager of the course.
+         */
+        post: operations["CourseVersionController.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get course version details
+         * @description Retrieves information about a specific version of a course.<br/>
+         *     Accessible to:
+         *     - Users who are part of the course version (students, teaching assistants, instructors, or managers).
+         */
+        get: operations["CourseVersionController.read"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a course version
+         * @description Deletes a specific version of a course.<br/>
+         *     Accessible to:
+         *     - Manager of the course.
+         */
+        delete: operations["CourseVersionController.delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a course version
+         * @description Updates course version metadata such as version label or description.<br/>
+         *     Accessible to:
+         *     - Instructor or manager for the course.
+         */
+        patch: operations["CourseVersionController.update"];
+        trace?: never;
+    };
+    "/api/courses/{courseId}/version/{versionId}/copy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Copy a course version
+         * @description Creates a duplicate of a specific version of a course.<br/>
+         *     Accessible to:
+         *     - Manager of the course.
+         */
+        post: operations["CourseVersionController.copy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/watch-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get course version watch time
+         * @description Returns total watch time for a specific course version
+         */
+        get: operations["CourseVersionController.getCourseVersionWatchTime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a course status
+         * @description Updates course status to archive and unarchive.<br/>
+         *       Accessible to:
+         *       - Instructor or manager for the course.
+         */
+        patch: operations["CourseVersionController.updateStatus"];
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/cohorts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all cohorts for a course version
+         * @description Retrieves a paginated list of all cohorts in a specific course version.
+         */
+        get: operations["CourseVersionController.getCourseVersionCohorts"];
+        put?: never;
+        /**
+         * Add a cohort in a course version
+         * @description Add a new cohort in a specific course version.
+         */
+        post: operations["CourseVersionController.AddCohortInCourseVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/cohorts/{cohortId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a cohort in a course version
+         * @description Delete a cohort in a specific course version.
+         */
+        delete: operations["CourseVersionController.DeleteCohortInCourseVersion"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a cohort in a course version
+         * @description Update a cohort in a specific course version.
+         */
+        patch: operations["CourseVersionController.UpdateCohortInCourseVersion"];
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/move-to-cohort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move non cohort students to a cohort in a course version
+         * @description Move non cohort students to a specific cohort in a course version.
+         */
+        post: operations["CourseVersionController.MoveNonCohortStudentsToCohort"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all item references in a section
+         * @description Retrieves a list of item references from a specific section. Each reference includes only the item's `_id`, `type`, and `order`, without full item details.<br/>
+         *       Accessible to:
+         *       - All users who are part of the course.
+         */
+        get: operations["ItemController.readAll"];
+        put?: never;
+        /**
+         * Create an item
+         * @description Creates a new item within a section.
+         *       Accessible to:
+         *       - Instructors, managers or teaching assistants of the course.
+         */
+        post: operations["ItemController.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update an item
+         * @description Updates the configuration or content of a specific item within a section.<br/>
+         *       Accessible to:
+         *       - Instructors, managers, and teaching assistants of the course.
+         */
+        put: operations["ItemController.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/itemGroups/{itemsGroupId}/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an item
+         * @description Deletes a specific item from a section.<br/>
+         *       Accessible to:
+         *       - Instructors or managers of the course.
+         */
+        delete: operations["ItemController.delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reorder an item
+         * @description Changes the position of an item within a section of a course version.<br/>
+         *     Accessible to:
+         *     - Instructors, managers, and teaching assistants of the course.
+         */
+        put: operations["ItemController.move"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/item/{itemId}/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get video analytics
+         * @description Retrieves analytics for a video item.<br/>
+         *     Access control logic:
+         *     - Only instructors, managers, and teaching assistants can access analytics.
+         *     - Students are restricted from viewing analytics.
+         */
+        get: operations["ItemController.getVideoAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/item/{itemId}/analytics/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get video analytics per student
+         * @description Retrieves per-student analytics for a video item, with search, pagination, and filters.<br/>
+         *     Access control logic:
+         *     - Only instructors, managers, and teaching assistants can access analytics.
+         *     - Students are restricted from viewing analytics.
+         */
+        get: operations["ItemController.getVideoAnalyticsPerStudent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an item by ID
+         * @description Retrieves a specific item from a course version.<br/>
+         *     Access control logic:
+         *     - For students: The item is returned only if it matches the student's current item ID in their course progress.
+         *     - For instructors, managers, and teaching assistants: The item is accessible without this restriction.
+         */
+        get: operations["ItemController.getItem"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/item/{feedbackId}/feedback/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get feedback submissions
+         * @description Get the feedback submissions of a particular course item
+         */
+        get: operations["ItemController.getFeedackSubmissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/item/{feedbackId}/feedback/submissions/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export feedback submissions as CSV
+         * @description Export all feedback submissions for a particular course item.
+         */
+        get: operations["ItemController.exportFeedbackSubmissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/items/{itemId}/optional": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update item optional status
+         * @description Updates the optional status of a specific item.
+         *     Accessible to:
+         *     - Instructors, managers, and teaching assistants of the course.
+         */
+        put: operations["ItemController.updateOptionalStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/items/{itemId}/toggle-visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Toggle item visibility
+         * @description Toggles the visibility of a specific item within a course version.<br/>
+         *       Accessible to:
+         *       - Instructors, managers, and teaching assistants of the course.
+         */
+        put: operations["ItemController.toggleItemVisibility"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/module/{moduleId}/section/{sectionId}/items/csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Process CSV to item
+         * @description Processes a CSV file to create items in a course version.<br/>
+         *       Accessible to:
+         *       - Instructors, managers, and teaching assistants of the course.
+         */
+        post: operations["ItemController.processCSVtoItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a module
+         * @description Creates a new module within a specific course version.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        post: operations["ModuleController.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update a module
+         * @description Updates the content or metadata of a module in a given course version.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        put: operations["ModuleController.update"];
+        post?: never;
+        /**
+         * Delete a module
+         * @description Deletes a module from a specific course version.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        delete: operations["ModuleController.delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/toggle-visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Hide or Unhide a module
+         * @description Toggles the visibility of a module within a specific course version.<br/>
+         *     Accessible to:
+         *     - Instructors, students and all of the course.
+         */
+        put: operations["ModuleController.toggleVisibility"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reorder a module
+         * @description Changes the position of a module within the sequence of modules in the course version.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        put: operations["ModuleController.move"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/sections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a section
+         * @description Creates a new section within a module of a specific course version.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        post: operations["SectionController.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update a section
+         * @description Updates the title, description, or configuration of a section within a module of a specific course version.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        put: operations["SectionController.update"];
+        post?: never;
+        /**
+         * Delete a section
+         * @description Deletes a section from a module in a specific course version.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        delete: operations["SectionController.delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reorder a section
+         * @description Changes the position of a section within its module in a specific course version.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        put: operations["SectionController.move"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/toggle-visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Hides/Unhide a section
+         * @description Toggles the visibility of a section within a module of a specific course version.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        put: operations["SectionController.toggleVisibility"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/course/registration/version/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Data for course Details page
+         * @description Get all the Data to load in the course details page for student registration.
+         */
+        get: operations["CourseRegistrationController.courseDetails"];
+        put?: never;
+        /**
+         * Form Submission for User Course Registration
+         * @description Details submitted from users for the course registration.
+         */
+        post: operations["CourseRegistrationController.courseRegistration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/course/registration/requests/version/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all request details in instructor side
+         * @description Get all the Data to load in the course registration request page in instructor side
+         */
+        get: operations["CourseRegistrationController.getAllRegistrations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/course/registration/status/{registrationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Enrollment Progress
+         * @description Update the registration status of a student
+         */
+        patch: operations["CourseRegistrationController.updateStatus"];
+        trace?: never;
+    };
+    "/api/course/registration/status/update/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Enrollment Progress on Bulk
+         * @description Update the status of registration on Bulk Manner
+         */
+        patch: operations["CourseRegistrationController.updateStatusBulk"];
+        trace?: never;
+    };
+    "/api/course/registration/build-form/version/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Registration Settings
+         * @description Get the registration settings for a course version
+         */
+        get: operations["CourseRegistrationController.getSettings"];
+        /**
+         * Update settings
+         * @description Operations for managing course registration
+         */
+        put: operations["CourseRegistrationController.updateSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/course/registration/auto-approval/version/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Auto-Approval Settings
+         * @description Update auto-approval settings for course registrations
+         */
+        put: operations["CourseRegistrationController.updateAutoApprovalSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/course/registration/registration/version/{versionId}/toggle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Toggle Course Registration Active Status
+         * @description Enable or disable course registration without needing to send schema data
+         */
+        patch: operations["CourseRegistrationController.toggleRegistration"];
+        trace?: never;
+    };
+    "/api/course/registration/form/version/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Data for student registration form
+         * @description Get all the Data to load in the register form page for student registration.
+         */
+        get: operations["CourseRegistrationController.getRegistrationForm"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/course/registration/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get pending registrations
+         * @description Get all pending registrations for an instructor.
+         */
+        get: operations["CourseRegistrationController.getPendingRegistrations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/course/registration/pending/student": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get pending registrations for student dashboard
+         * @description Get all pending course registrations for a student to display waiting-for-approval status.
+         */
+        get: operations["CourseRegistrationController.getPendingRegistrationsForStudent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/course/registration/rejected/student": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get rejected registrations for student notifications
+         * @description Get all unread rejected course registrations for a student to display in notifications.
+         */
+        get: operations["CourseRegistrationController.getRejectedRegistrationsForStudent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/course/registration/notifications/unread": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get unread approved registrations for students
+         * @description Get all unread approved course registrations for a student to show notifications.
+         */
+        get: operations["CourseRegistrationController.getUnreadApprovedRegistrations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/course/registration/notifications/{registrationId}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Mark notification as read
+         * @description Mark a course registration notification as read for a student.
+         */
+        patch: operations["CourseRegistrationController.markNotificationAsRead"];
+        trace?: never;
+    };
+    "/api/quizzes/questions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a new question
+         * @description Creates a new quiz question and returns its ID.
+         */
+        post: operations["QuestionController.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/questions/{questionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get question by ID
+         * @description Retrieves a quiz question by its ID.
+         */
+        get: operations["QuestionController.getById"];
+        /**
+         * Update a question
+         * @description Updates an existing quiz question.
+         */
+        put: operations["QuestionController.update"];
+        post?: never;
+        /**
+         * Delete a question
+         * @description Deletes a quiz question by its ID.<br/>
+         *         It returns an empty body with a 204 status code.
+         */
+        delete: operations["QuestionController.delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/questions/{questionId}/flag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Flag a question
+         * @description Flags a quiz question for review with a reason.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["QuestionController.flagQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/questions/flags/{flagId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve a flagged question
+         * @description Resolves a flagged question by marking it as resolved or rejected.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["QuestionController.resolveFlag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/questions/generate-csv-res": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Questions using Claude AI
+         * @description Generates questions based on the provided topic or content.<br/>
+         *         It returns the generated questions array.
+         */
+        post: operations["QuestionController.generateAIQuestions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/bank": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all question banks for a quiz
+         * @description Retrieves all question banks associated with a quiz.
+         */
+        get: operations["QuizController.getAllQuestionBanks"];
+        put?: never;
+        /**
+         * Add a question bank to a quiz
+         * @description Associates a question bank with a quiz.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["QuizController.addQuestionBank"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit question bank configuration for a quiz
+         * @description Updates the configuration of a question bank within a quiz.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        patch: operations["QuizController.editQuestionBank"];
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/bank/{questionBankId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a question bank from a quiz
+         * @description Removes the association of a question bank from a quiz.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        delete: operations["QuizController.removeQuestionBank"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/user/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get user metrics for a quiz
+         * @description Retrieves quiz metrics for a specific user.
+         */
+        get: operations["QuizController.getUserMetrices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/attempts/{attemptId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get quiz attempt details
+         * @description Retrieves details of a specific quiz attempt.
+         */
+        get: operations["QuizController.getQuizAttempt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/submissions/{submissionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get quiz submission details
+         * @description Retrieves details of a specific quiz submission.
+         */
+        get: operations["QuizController.getQuizSubmission"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all submissions for a quiz
+         * @description Retrieves all submissions for a quiz.
+         */
+        get: operations["QuizController.getAllSubmissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get quiz details
+         * @description Retrieves details of a quiz.
+         */
+        get: operations["QuizController.getQuizDetails"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get quiz analytics
+         * @description Retrieves analytics data for a quiz.
+         */
+        get: operations["QuizController.getQuizAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get quiz performance statistics
+         * @description Retrieves performance statistics for each question in a quiz.
+         */
+        get: operations["QuizController.getQuizPerformance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get quiz results
+         * @description Retrieves results for all students who attempted the quiz.
+         */
+        get: operations["QuizController.getQuizResults"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/submission/{submissionId}/score/{score}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Override submission score
+         * @description Overrides the score for a specific quiz submission.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["QuizController.updateQuizSubmissionScore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/submission/{submissionId}/regrade": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regrade a quiz submission
+         * @description Regrades a quiz submission with new grading results.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["QuizController.regradeSubmission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/submission/{submissionId}/question/{questionId}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add feedback to a question in a submission
+         * @description Adds feedback to a specific question in a quiz submission.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["QuizController.addFeedbackToQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/{quizId}/user/{userId}/reset-attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset available attempts for a user on a quiz
+         * @description Resets the number of available attempts for a user on a specific quiz.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["QuizController.resetAvailableAttempts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/quiz/update-missing-submission-result-ids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update missing submission result IDs for a quiz
+         * @description Updates missing submission result IDs for a specific quiz.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        patch: operations["QuizController.updateMissingSubmissionResultIds"];
+        trace?: never;
+    };
+    "/api/quizzes/question-bank/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a new question bank
+         * @description Creates a new question bank for organizing quiz questions.
+         */
+        post: operations["QuestionBankController.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/question-bank/{questionBankId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get question bank by ID
+         * @description Retrieves a question bank and its details by its ID.
+         */
+        get: operations["QuestionBankController.getById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/question-bank/{questionBankId}/questions/{questionId}/add": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Add a question to a question bank
+         * @description Adds a question to the specified question bank.
+         */
+        patch: operations["QuestionBankController.addQuestion"];
+        trace?: never;
+    };
+    "/api/quizzes/question-bank/{questionBankId}/questions/{questionId}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Remove a question from a question bank
+         * @description Removes a question from the specified question bank.
+         */
+        patch: operations["QuestionBankController.removeQuestion"];
+        trace?: never;
+    };
+    "/api/quizzes/question-bank/{questionBankId}/questions/{questionId}/replace-duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Replace a question with its duplicate in a question bank
+         * @description Duplicates a question and replaces the original in the question bank.
+         */
+        patch: operations["QuestionBankController.replaceQuestion"];
+        trace?: never;
+    };
+    "/api/quizzes/{quizId}/attempt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a new quiz attempt
+         * @description Creates a new attempt for the specified quiz for the current user.
+         */
+        post: operations["AttemptController.attempt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/{quizId}/attempt/{attemptId}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save answers for an ongoing attempt
+         * @description Saves the current answers for a quiz attempt without submitting.<br/>
+         *           It returns an empty body with a 200 status code.
+         */
+        post: operations["AttemptController.save"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/{quizId}/attempt/{attemptId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit a quiz attempt
+         * @description Submits the answers for a quiz attempt and returns the result.
+         */
+        post: operations["AttemptController.submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/{itemId}/feedback/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit feedback for an item
+         * @description Submits the feedback form response for a given item and stores the results.
+         */
+        post: operations["AttemptController.submitFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/{quizId}/attempt/{attemptId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get details of a quiz attempt
+         * @description Retrieves the details of a specific quiz attempt for the current user.
+         */
+        get: operations["AttemptController.getAttempt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/{quizId}/attempts/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export quiz attempts as CSV
+         * @description Exports all attempts for a specific quiz.
+         */
+        get: operations["AttemptController.exportQuizAttempts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ejection-policies/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all ejection policies
+         * @description Retrieves ejection policies with optional filters. Admins see all policies. Managers/Instructors must specify courseId and courseVersionId.
+         */
+        get: operations["EjectionPolicyController.getPolicies"];
+        put?: never;
+        /**
+         * Create a new ejection policy
+         * @description Creates a new ejection policy with specified triggers and actions. Only admins can create platform-wide policies. Managers can create course-specific policies.
+         */
+        post: operations["EjectionPolicyController.createPolicy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ejection-policies/{policyId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a specific ejection policy
+         * @description Retrieves details of a specific ejection policy by ID.
+         */
+        get: operations["EjectionPolicyController.getPolicy"];
+        /**
+         * Update an ejection policy
+         * @description Updates an existing ejection policy. Only admins and managers can update policies.
+         */
+        put: operations["EjectionPolicyController.updatePolicy"];
+        post?: never;
+        /**
+         * Delete an ejection policy
+         * @description Soft deletes an ejection policy. Only admins and managers can delete policies.
+         */
+        delete: operations["EjectionPolicyController.deletePolicy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ejection-policies/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get active policies for a course version
+         * @description Retrieves all active ejection policies for a specific course version (includes platform-wide and course-specific policies).
+         */
+        get: operations["EjectionPolicyController.getActivePoliciesForCourse"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ejection-policies/{policyId}/toggle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Toggle policy active status
+         * @description Toggles the active/inactive status of an ejection policy.
+         */
+        post: operations["EjectionPolicyController.togglePolicyStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ejections/courses/{courseId}/versions/{courseVersionId}/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Manually eject a learner
+         * @description Ejects a learner from a course version. Soft-deletes progress and watchtime so data is recoverable on reinstatement. Requires a mandatory reason of at least 10 characters. Only admins and managers can perform this action.
+         */
+        post: operations["ManualEjectionController.ejectLearner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ejections/courses/{courseId}/versions/{courseVersionId}/cohorts/{cohortId}/students": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get students for ejection management
+         * @description Returns all students in a cohort with ejection status, history, and last active date. Admin only. Designed for the manual ejection UI and future auto-ejection engine.
+         */
+        get: operations["ManualEjectionController.getStudentsForEjection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ejections/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk eject learners
+         * @description Ejects multiple learners at once with a shared reason. Admin only.
+         */
+        post: operations["ManualEjectionController.bulkEjectLearners"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ejections/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get ejection history */
+        get: operations["ManualEjectionController.getEjectionHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ejections/history/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export ejection history */
+        get: operations["ManualEjectionController.exportEjectionHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reinstatements/courses/{courseId}/versions/{courseVersionId}/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reinstate an ejected learner
+         * @description Reinstates a learner who was previously ejected. Restores their enrollment to ACTIVE status. Progress and watchtime are untouched. Admin only.
+         */
+        post: operations["ReinstatementController.reinstateLearner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reinstatements/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk reinstate learners
+         * @description Reinstates multiple ejected learners at once. Admin only.
+         */
+        post: operations["ReinstatementController.bulkReinstateLearners"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ejection-engine/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manually trigger the auto-ejection engine. Admin only. */
+        post: operations["AutoEjectionController.triggerEjectionEngine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/appeals/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get appeals */
+        get: operations["AppealController.getAppeals"];
+        put?: never;
+        /** Create appeal */
+        post: operations["AppealController.createAppeal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/appeals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get appeal by id */
+        get: operations["AppealController.getAppealById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/appeals/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve */
+        post: operations["AppealController.approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/appeals/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject */
+        post: operations["AppealController.reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/emotions/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit emotion for a course item
+         * @description Records a learner's emotional response to a course item (video, article, quiz, etc.)
+         */
+        post: operations["EmotionController.submitEmotion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/emotions/stats/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get emotion statistics for an item
+         * @description Retrieves aggregated emotion data for a specific course item
+         */
+        get: operations["EmotionController.getItemEmotionStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/emotions/history/{courseId}/{courseVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get learner's emotion history
+         * @description Retrieves a learner's emotional responses for items in a specific course
+         */
+        get: operations["EmotionController.getEmotionHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/emotions/report/{courseId}/{courseVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get emotion report for a course
+         * @description Retrieves aggregated emotion analytics for all learners in a course
+         */
+        get: operations["EmotionController.getCourseEmotionReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/genai/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a new job
+         * @description Starts a new genAI process. Can be of type Video or Playlist.
+         */
+        post: operations["GenAIController.start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/genai/jobs/audio-provided": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a new job
+         * @description Starts a new genAI process. Audio file provided.
+         */
+        post: operations["GenAIController.startWithAudio"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/genai/jobs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get job status
+         * @description Retrieves the current status of a job by ID.
+         */
+        get: operations["GenAIController.getStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/genai/{id}/tasks/{type}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get task status
+         * @description Retrieves the status of a specific task in a job.
+         */
+        get: operations["GenAIController.getTaskStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/genai/{id}/tasks/approve/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve task to start
+         * @description Approve the task to start running, optionally with given parameters.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["GenAIController.approveStart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/genai/{id}/tasks/approve/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve task and continue
+         * @description Approve the task's output and continue to the next task.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["GenAIController.approveContinue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/genai/jobs/{id}/tasks/rerun": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rerun current task
+         * @description Reruns the current task in the job.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["GenAIController.rerunTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/genai/jobs/{id}/tasks/abort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abort current task
+         * @description Aborts the current task in the job.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["GenAIController.abortTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/genai/jobs/{id}/tasks/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop current task
+         * @description Stops the current task in the job (alias of abort).<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        post: operations["GenAIController.stopTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/genai/jobs/{id}/edit/segment-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit segment map
+         * @description Edits the segment map of a job.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        patch: operations["GenAIController.editSegmentMap"];
+        trace?: never;
+    };
+    "/api/genai/jobs/{id}/edit/question": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit question data
+         * @description Edits the question data of a job.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        patch: operations["GenAIController.editQuestionData"];
+        trace?: never;
+    };
+    "/api/genai/jobs/{id}/edit/transcript": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit transcript
+         * @description Edits the transcript of a job.<br/>
+         *         It returns an empty body with a 200 status code.
+         */
+        patch: operations["GenAIController.editTranscript"];
+        trace?: never;
+    };
+    "/api/genai/{id}/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get live status updates
+         * @description Establishes a Server-Sent Events (SSE) connection to receive live status updates for a job.<br/> It returns an empty body with a 200 status code.
+         */
+        get: operations["GenAIController.getLiveUpdates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/genAI/webhook/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Handle webhook
+         * @description Webhook endpoints for AI server communication,<br/> It returns an empty body with a 200 status code.
+         */
+        post: operations["WebhookController.handleWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/genAI/webhook/job/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get job status
+         * @description Webhook endpoints for AI server communication,<br/> It returns an empty body with a 200 status code.
+         */
+        get: operations["WebhookController.getJobStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activities/with-rule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a draft HP activity
+         * @description Operations for managing hp activities
+         */
+        post: operations["ActivityController.createActivityWithRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activities/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an activity by id
+         * @description Operations for managing hp activities
+         */
+        get: operations["ActivityController.getById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update an activity (DRAFT/PUBLISHED only)
+         * @description Operations for managing hp activities
+         */
+        patch: operations["ActivityController.update"];
+        trace?: never;
+    };
+    "/api/hp/activities/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish an activity
+         * @description Operations for managing hp activities
+         */
+        post: operations["ActivityController.publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activities/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive an activity
+         * @description Operations for managing hp activities
+         */
+        post: operations["ActivityController.archive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activities/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List activities with filters
+         * @description Operations for managing hp activities
+         */
+        get: operations["ActivityController.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activities/{id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete an activity (Only DRAFT allowed)
+         * @description Operations for managing hp activities
+         */
+        post: operations["ActivityController.delete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activity-submissions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List submissions (teacher/admin)
+         * @description Operations for managing HP activity submissions
+         */
+        get: operations["ActivitySubmissionsController.list"];
+        put?: never;
+        /**
+         * Submit an activity
+         * @description Operations for managing HP activity submissions
+         */
+        post: operations["ActivitySubmissionsController.submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activity-submissions/{submissionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edit an activity submission
+         * @description Operations for managing HP activity submissions
+         */
+        put: operations["ActivitySubmissionsController.updateSubmission"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activity-submissions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get submission by id
+         * @description Operations for managing HP activity submissions
+         */
+        get: operations["ActivitySubmissionsController.getById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activity-submissions/student/my-submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get currently logged in student's submissions
+         * @description Operations for managing HP activity submissions
+         */
+        get: operations["ActivitySubmissionsController.getMySubmissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activity-submissions/student/dashboard-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get student dashboard stats with timeline filter
+         * @description Operations for managing HP activity submissions
+         */
+        get: operations["ActivitySubmissionsController.getStudentDashboardStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activity-submissions/student/{studentId}/cohort/{cohortId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List student wise submissions
+         * @description Operations for managing HP activity submissions
+         */
+        get: operations["ActivitySubmissionsController.listStudentCohortWiseSubmssions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activity-submissions/stats/student/{studentId}/cohort/{cohortId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List student wise submissions stats
+         * @description Operations for managing HP activity submissions
+         */
+        get: operations["ActivitySubmissionsController.listStatsByStudentId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activity-submissions/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review submission (approve/reject/revert)
+         * @description Operations for managing HP activity submissions
+         */
+        post: operations["ActivitySubmissionsController.review"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activity-submissions/{id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review submission (approve/reject/revert)
+         * @description Operations for managing HP activity submissions
+         */
+        post: operations["ActivitySubmissionsController.addfeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activity-submissions/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a reverted submission
+         * @description Operations for managing HP activity submissions
+         */
+        post: operations["ActivitySubmissionsController.restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activity-submissions/stats/cohort/{cohortId}/activity/{activityId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * get submission stats of a activity for a cohort
+         * @description Operations for managing HP activity submissions
+         */
+        get: operations["ActivitySubmissionsController.getCohortActivityStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/activity-submissions/stats/cohort/{cohortId}/courseversion/{courseVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * get bulk stats of activity submissions for a cohort
+         * @description Operations for managing HP activity submissions
+         */
+        get: operations["ActivitySubmissionsController.getBulkCohortActivityStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/ledger/student/{studentId}/cohort/{cohortId}/course/{courseId}/courseVersion/{courseVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List ledger transactions by student
+         * @description Operations for managing hp ledger
+         */
+        get: operations["LedgerController.listByStudentId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/ledger/student/my-ledger/course/{courseId}/courseVersion/{courseVersionId}/cohort/{cohortId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List my ledger transactions
+         * @description Operations for managing hp ledger
+         */
+        get: operations["LedgerController.getMyLedger"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/rule-config/{ruleConfigId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get rule config by id
+         * @description Operations for managing HP rule configurations
+         */
+        get: operations["RuleConfigsController.getById"];
+        /**
+         * Update HP rule configuration
+         * @description Operations for managing HP rule configurations
+         */
+        put: operations["RuleConfigsController.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/rule-config/activity/{activityId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get rule config by activity id
+         * @description Operations for managing HP rule configurations
+         */
+        get: operations["RuleConfigsController.getByActivityId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/courses-cohorts/courses/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all enrolled course versions
+         * @description Operations for managing cohorts
+         */
+        get: operations["CohortsController.listCourseVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/courses-cohorts/course/{versionId}/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get course details
+         * @description Operations for managing cohorts
+         */
+        get: operations["CohortsController.getCourseDetails"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/courses-cohorts/cohorts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all enrolled cohorts
+         * @description Operations for managing cohorts
+         */
+        get: operations["CohortsController.listCohorts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/courses-cohorts/student-cohorts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List cohorts the student is enrolled in (hpSystem enabled)
+         * @description Operations for managing cohorts
+         */
+        get: operations["CohortsController.listStudentCohorts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/courses-cohorts/version/{versionId}/cohort/{cohortId}/students": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List cohort students with HP and completion percentage
+         * @description Operations for managing cohorts
+         */
+        get: operations["CohortsController.listCohortStudents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/courses-cohorts/version/{versionId}/cohort/{cohortName}/reset-hp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset HP for cohort students
+         * @description Operations for managing cohorts
+         */
+        post: operations["CohortsController.resetHp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hp/courses-cohorts/version/{versionId}/cohort/{cohortName}/student/{studentId}/reset-hp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset HP for a single student
+         * @description Operations for managing cohorts
+         */
+        post: operations["CohortsController.resetHpForStudent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit a project
+         * @description Allows a student to submit a project for a specific course version.
+         */
+        post: operations["ProjectController.submitProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project/course/{courseId}/version/{versionId}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get project submissions
+         * @description Returns all submissions for a given course and version, including user information.
+         */
+        get: operations["ProjectController.getSubmissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/student-questions/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List mine */
+        get: operations["StudentQuestionController.listMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/student-questions/courses/{courseId}/versions/{courseVersionId}/segments/{segmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List by segment */
+        get: operations["StudentQuestionController.listBySegment"];
+        put?: never;
+        /** Create */
+        post: operations["StudentQuestionController.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/student-questions/courses/{courseId}/versions/{courseVersionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List by course version */
+        get: operations["StudentQuestionController.listByCourseVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/student-questions/courses/{courseId}/versions/{courseVersionId}/segments/{segmentId}/questions/{questionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update question */
+        patch: operations["StudentQuestionController.updateQuestion"];
+        trace?: never;
+    };
+    "/api/student-questions/courses/{courseId}/versions/{courseVersionId}/segments/{segmentId}/questions/{questionId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update status */
+        patch: operations["StudentQuestionController.updateStatus"];
+        trace?: never;
+    };
+    "/api/reports/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a new report
+         * @description Creates a new report in the system.
+         */
+        post: operations["ReportController.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/{reportId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a report by ID
+         * @description Retrieves a single report by its ID
+         */
+        get: operations["ReportController.getReportById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update report status
+         * @description Updates the status of an existing report
+         */
+        patch: operations["ReportController.updateStatus"];
+        trace?: never;
+    };
+    "/api/reports/{courseId}/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get filtered reports
+         * @description Retrieves reports based on filtering criteria
+         */
+        get: operations["ReportController.getFilteredReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/student/issues/flag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all issue reports for current user
+         * @description Returns reports submitted by the logged-in user with filters, search, sorting, and pagination
+         */
+        get: operations["ReportController.getMyIssueReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/student/issues/interest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update report status
+         * @description Updates the status of an existing report
+         */
+        patch: operations["ReportController.updateResponseInterset"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        User: {
+            /**
+             * Firebase UID
+             * @description Firebase UID
+             */
+            firebaseUID: string;
+            /**
+             * Email
+             * @description Email
+             */
+            email: string;
+            /**
+             * First Name
+             * @description First Name
+             */
+            firstName: string;
+            /**
+             * Last Name
+             * @description Last Name
+             */
+            lastName: string;
+            /**
+             * Avatar
+             * @description Profile image URL or data URI
+             */
+            avatar?: string;
+            /**
+             * Gender
+             * @description Gender
+             */
+            gender?: string;
+            /**
+             * Country
+             * @description Country
+             */
+            country?: string;
+            /**
+             * State
+             * @description State
+             */
+            state?: string;
+            /**
+             * City
+             * @description City
+             */
+            city?: string;
+            /**
+             * Roles
+             * @description Roles
+             */
+            roles: string;
+        };
+        PaginationQuery: {
+            page?: number;
+            limit?: number;
+        };
+        PaginationWithSortQuery: {
+            sortField?: string;
+            /** @enum {string} */
+            sortOrder?: "asc" | "desc";
+            page?: number;
+            limit?: number;
+        };
+        EnrollmentFilterQuery: {
+            page?: number;
+            limit?: number;
+            search?: string;
+            /** @enum {string} */
+            role: "STUDENT" | "INSTRUCTOR" | "MANAGER" | "TA" | "STAFF";
+            courseVersionId?: string;
+            /** @enum {string} */
+            tab?: "active" | "archived";
+            cohortId?: string;
+        };
+        EnrollmentsQuery: {
+            page?: number;
+            limit?: number;
+            search?: string;
+            /** @enum {string} */
+            sortBy?: "name" | "enrollmentDate" | "progress" | "unenrolledAt";
+            /** @enum {string} */
+            sortOrder?: "asc" | "desc";
+            /** @enum {string} */
+            filter?: "STUDENT" | "OTHER";
+            /** @enum {string} */
+            statusTab?: "ACTIVE" | "INACTIVE";
+            cohort?: string;
+        };
+        BulkEnrollmentsQuery: {
+            courseId?: string;
+            versionId?: string;
+            userId?: string;
+        };
+        Course: {
+            /**
+             * Course Name
+             * @description Name of the course
+             * @example Introduction to Programming
+             */
+            name: string;
+        };
+        AnomalyDataResponse: {
+            /** @description URL of the file */
+            fileUrl: string;
+        };
+        AnomalyStats: {
+            /**
+             * Number of voice detection anomalies
+             * @description Number of voice detection anomalies
+             */
+            VOICE_DETECTION: number;
+            /**
+             * Number of no face anomalies
+             * @description Number of no face anomalies
+             */
+            NO_FACE: number;
+            /**
+             * Number of multiple faces anomalies
+             * @description Number of multiple faces anomalies
+             */
+            MULTIPLE_FACES: number;
+            /**
+             * Number of blur detection anomalies
+             * @description Number of blur detection anomalies
+             */
+            BLUR_DETECTION: number;
+            /**
+             * Number of focus anomalies
+             * @description Number of focus anomalies
+             */
+            FOCUS: number;
+            /**
+             * Number of hand gesture detection anomalies
+             * @description Number of hand gesture detection anomalies
+             */
+            HAND_GESTURE_DETECTION: number;
+            /**
+             * Number of face recognition anomalies
+             * @description Number of face recognition anomalies
+             */
+            FACE_RECOGNITION: number;
+        };
+        PaginatedResponse: {
+            /** @description Current page number */
+            currentPage: number;
+            /** @description Total number of documents */
+            totalDocuments: number;
+            /** @description Total number of pages */
+            totalPages: number;
+            limit: number;
+        };
+        ValidationErrorResponse: {
+            /** @description The object that was validated. */
+            readonly target: Record<string, never>;
+            /** @description The property that failed validation. */
+            readonly property: string;
+            /** @description Constraints that failed validation with error messages. */
+            readonly constraints: Record<string, never>;
+            /**
+             * Format: ValidationErrorResponse
+             * @description Contains all nested validation errors of the property.
+             */
+            readonly children: components["schemas"]["ValidationErrorResponse"][];
+            /** @description Contains all nested validation errors of the property. */
+            readonly contexts?: Record<string, never>;
+        };
+        DefaultErrorResponse: {
+            /** @description The error message. */
+            readonly message: string;
+        };
+        BadRequestErrorResponse: {
+            /** @description The error message. */
+            readonly message: string;
+            /** @description The error details. */
+            readonly errors: components["schemas"]["ValidationErrorResponse"];
+        };
+        InternalServerErrorResponse: {
+            /** @description Information of the error. */
+            readonly message: string;
+            /** @description Name of the error. */
+            readonly name: string;
+        };
+        ForbiddenErrorResponse: {
+            /** @description Information of the error. */
+            readonly message: string;
+            /**
+             * @description Name of the error.
+             * @example ForbiddenError
+             */
+            readonly name: string;
+        };
+        NewAnomalyData: {
+            /**
+             * @description The type of anomaly detected
+             * @example VOICE_DETECTION
+             * @enum {string}
+             */
+            type: "VOICE_DETECTION" | "NO_FACE" | "MULTIPLE_FACES" | "BLUR_DETECTION" | "FOCUS" | "HAND_GESTURE_DETECTION" | "FACE_RECOGNITION";
+            /** @description Course ID associated with the anomaly */
+            courseId: string;
+            /** @description Version ID associated with the anomaly */
+            versionId: string;
+            /** @description Item ID associated with the anomaly */
+            itemId: string;
+            /** @description Cohort ID associated with the anomaly (optional) */
+            cohortId?: string;
+        };
+        AnomalyData: {
+            /** @description Unique identifier for the anomaly */
+            readonly _id?: string;
+            /** @description User ID associated with the anomaly */
+            readonly userId: string;
+            /**
+             * @description Full name of the student who triggered the anomaly
+             * @example John Doe
+             */
+            readonly studentName?: string;
+            /**
+             * Format: email
+             * @description Email of the student who triggered the anomaly
+             * @example john.doe@example.com
+             */
+            readonly studentEmail?: string;
+            /** @description URL of the anomaly image stored in cloud storage */
+            readonly fileName?: string;
+            /**
+             * @description Type of the file associated with the anomaly
+             * @enum {string}
+             */
+            readonly fileType?: "IMAGE" | "VIDEO" | "AUDIO";
+            /**
+             * Format: date-time
+             * @description Timestamp when the anomaly was detected
+             */
+            readonly createdAt: string;
+            /** @description Cohort name associated with the anomaly (optional) */
+            readonly cohortName?: string;
+            /**
+             * @description The type of anomaly detected
+             * @example VOICE_DETECTION
+             * @enum {string}
+             */
+            type: "VOICE_DETECTION" | "NO_FACE" | "MULTIPLE_FACES" | "BLUR_DETECTION" | "FOCUS" | "HAND_GESTURE_DETECTION" | "FACE_RECOGNITION";
+            /** @description Course ID associated with the anomaly */
+            courseId: string;
+            /** @description Version ID associated with the anomaly */
+            versionId: string;
+            /** @description Item ID associated with the anomaly */
+            itemId: string;
+            /** @description Cohort ID associated with the anomaly (optional) */
+            cohortId?: string;
+        };
+        GetCourseAnomalyParams: {
+            /** @description Course ID to filter anomalies */
+            courseId: string;
+            /** @description Version ID to filter anomalies */
+            versionId: string;
+        };
+        GetUserAnomalyParams: {
+            /** @description User ID to filter anomalies */
+            userId: string;
+            /** @description Course ID to filter anomalies */
+            courseId: string;
+            /** @description Version ID to filter anomalies */
+            versionId: string;
+        };
+        GetItemAnomalyParams: {
+            /** @description Item ID to filter anomalies */
+            itemId: string;
+            /** @description Course ID to filter anomalies */
+            courseId: string;
+            /** @description Version ID to filter anomalies */
+            versionId: string;
+        };
+        AnomalyIdParams: {
+            /** @description Anomaly ID to identify the anomaly record */
+            id: string;
+        };
+        DeleteAnomalyBody: {
+            /** @description Course ID associated with the anomaly to be deleted */
+            courseId: string;
+            /** @description Version ID associated with the anomaly to be deleted */
+            versionId: string;
+        };
+        GetAnomalyParams: {
+            /** @description Anomaly ID to retrieve specific anomaly details */
+            anomalyId: string;
+            /** @description Course ID to filter anomalies */
+            courseId: string;
+            /** @description Version ID to filter anomalies */
+            versionId: string;
+        };
+        StatsQueryParams: {
+            /** @description Item ID to filter anomaly statistics */
+            itemId?: string;
+            /** @description User ID to filter anomaly statistics */
+            userId?: string;
+        };
+        CourseAnomaliesQuery: {
+            /**
+             * @description Search term to filter anomalies by student name or email
+             * @example john
+             */
+            search?: string;
+            /**
+             * @description Filter anomalies by type
+             * @example VOICE_DETECTION
+             * @enum {string}
+             */
+            type?: "VOICE_DETECTION" | "NO_FACE" | "MULTIPLE_FACES" | "BLUR_DETECTION" | "FOCUS" | "HAND_GESTURE_DETECTION" | "FACE_RECOGNITION";
+            /** @description Filter anomalies by cohort ID */
+            cohort?: string;
+            page?: number;
+            limit?: number;
+            sortField?: string;
+            /** @enum {string} */
+            sortOrder?: "asc" | "desc";
+        };
+        DetectorOptionsDto: {
+            enabled: boolean;
+        };
+        DetectorSettingsDto: {
+            /** @enum {string} */
+            detectorName: "cameraMic" | "blurDetection" | "faceCountDetection" | "handGestureDetection" | "voiceDetection" | "virtualBackgroundDetection" | "rightClickDisabled" | "faceRecognition";
+            settings: string;
+        };
+        ProctoringSettingsDto: {
+            detectors: components["schemas"]["DetectorSettingsDto"][];
+        };
+        RegistrationSchema: {
+            /** @description Json Schema for Registrstion form */
+            jsonSchema?: Record<string, never>;
+            /** @description Indicates whether the registration form is active */
+            isActive?: boolean;
+        };
+        TimeSlotSchema: {
+            /** @description Indicates whether time slots are active */
+            isActive: boolean;
+            /** @description Array of time slots */
+            slots: unknown[];
+        };
+        AuditingDto: {
+            changes: Record<string, never>;
+            timestamp?: string;
+        };
+        FollowUpInviteSchema: {
+            /** @description Whether completing this course auto-creates an invite to the follow-up course */
+            enabled: boolean;
+            /** @description Follow-up course ID */
+            courseId?: string;
+            /** @description Follow-up course version ID */
+            courseVersionId?: string;
+            /** @description Optional cohort within the follow-up course */
+            cohortId?: string;
+            /** @description Role to enroll the student as (defaults to STUDENT) */
+            role?: string;
+        };
+        SettingsDto: {
+            proctors: components["schemas"]["ProctoringSettingsDto"];
+            /**
+             * @description Indicates whether linear progression is enabled
+             * @example true
+             * @example false
+             */
+            linearProgressionEnabled: boolean;
+            /**
+             * @description Indicates whether seek forward is enabled for all videos
+             * @example true
+             * @example false
+             */
+            seekForwardEnabled: boolean;
+            /**
+             * @description Indicates whether HP System is enabled
+             * @default false
+             * @example true
+             * @example false
+             */
+            hpSystem: boolean;
+            /**
+             * @description Indicates the base health points
+             * @default 0
+             * @example 100
+             */
+            baseHp: number;
+            /**
+             * @description Indicates whether the course is publicly visible
+             * @default false
+             * @example true
+             * @example false
+             */
+            isPublic: boolean;
+            /**
+             * @description Indicates whether the course items can be randomized or not
+             * @default false
+             * @example true
+             * @example false
+             */
+            randomizeItems: boolean;
+            /**
+             * @description Enables student crowdsourced question submission after video completion
+             * @default false
+             * @example true
+             * @example false
+             */
+            crowdsourcedQuestionSubmissionEnabled: boolean;
+            /** @description Schema Information of the registration form */
+            registration?: components["schemas"]["RegistrationSchema"];
+            /** @description Time slot configuration */
+            timeslots?: components["schemas"]["TimeSlotSchema"];
+            /** @description Follow-up invite: course the student is invited to on completion */
+            followUpInvite?: components["schemas"]["FollowUpInviteSchema"];
+            /** @description Auditing information for settings modification */
+            audit?: Record<string, never>;
+        };
+        UpdateCourseSettingResponse: {
+            /** @description Indicates whether the update was successful */
+            readonly success: boolean;
+        };
+        SettingNotFoundErrorResponse: {
+            /**
+             * @description The error message
+             * @example No Setting found with the specified Course. Please verify the course and try again.
+             */
+            readonly message: string;
+        };
+        CreateCourseSettingBody: {
+            /**
+             * Course Version ID
+             * @description ID of the course version
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            courseVersionId: string;
+            /**
+             * Course Id
+             * @description Id of the course
+             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             */
+            courseId: string;
+            settings: components["schemas"]["SettingsDto"];
+        };
+        ReadCourseSettingParams: {
+            /**
+             * Course ID
+             * @description ID of the course
+             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             */
+            courseId: string;
+            /**
+             * Course Version ID
+             * @description ID of the course version
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            versionId: string;
+        };
+        AddCourseProctoringParams: {
+            /**
+             * Course ID
+             * @description ID of the course
+             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             */
+            courseId: string;
+            /**
+             * Course Version ID
+             * @description ID of the course version
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            versionId: string;
+        };
+        AddCourseProctoringBody: {
+            /**
+             * Proctoring Component
+             * @description Component to add to course proctoring
+             * @enum {string}
+             */
+            detectors: "cameraMic" | "blurDetection" | "faceCountDetection" | "handGestureDetection" | "voiceDetection" | "virtualBackgroundDetection" | "rightClickDisabled" | "faceRecognition";
+            /** @description Student should follow the cours linearly if this is enabled */
+            linearProgressionEnabled: boolean;
+            /** @description Allow students to seek forward in all videos if this is enabled */
+            seekForwardEnabled: boolean;
+            /**
+             * @description Indicates whether HP System is enabled
+             * @default false
+             * @example true
+             * @example false
+             */
+            hpSystem: boolean;
+            /**
+             * @description Indicates whether the course is publicly visible
+             * @default false
+             * @example true
+             * @example false
+             */
+            isPublic: boolean;
+            /**
+             * @description Indicated the base Hp
+             * @default 0
+             * @example 100
+             */
+            baseHp: number;
+            /**
+             * @description Indicates whether the course items can be randomized or not
+             * @default false
+             * @example true
+             * @example false
+             */
+            randomizeItems: boolean;
+            /**
+             * @description Enables student crowdsourced question submission after video completion
+             * @default false
+             * @example true
+             * @example false
+             */
+            crowdsourcedQuestionSubmissionEnabled: boolean;
+        };
+        RemoveCourseProctoringParams: {
+            /**
+             * Course ID
+             * @description ID of the course
+             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             */
+            courseId: string;
+            /**
+             * Course Version ID
+             * @description ID of the course version
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            courseVersionId: string;
+        };
+        RemoveCourseProctoringBody: {
+            /**
+             * Proctoring Component
+             * @description Component to remove from course proctoring
+             * @example cameraMic
+             * @enum {string}
+             */
+            detectorName: "cameraMic" | "blurDetection" | "faceCountDetection" | "handGestureDetection" | "voiceDetection" | "virtualBackgroundDetection" | "rightClickDisabled" | "faceRecognition";
+        };
+        UpdateFollowUpInviteBody: {
+            /** @description Whether completing this course should auto-create an invite to the follow-up course */
+            enabled: boolean;
+            /**
+             * Follow-up Course ID
+             * @description ID of the course to invite the student to on completion
+             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             */
+            courseId?: string;
+            /**
+             * Follow-up Course Version ID
+             * @description ID of the follow-up course version
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            courseVersionId?: string;
+            /**
+             * Follow-up Cohort ID
+             * @description Optional cohort within the follow-up course
+             * @example 60d5ec49b3f1c8e4a8f8b8c2
+             */
+            cohortId?: string;
+            /**
+             * @description Role to enroll the student as (defaults to STUDENT)
+             * @example STUDENT
+             */
+            role?: string;
+        };
+        CreateUserSettingBody: {
+            /**
+             * Student ID
+             * @description ID of the student
+             * @example 60d5ec49b3f1c8e4a8f8b8c5
+             */
+            studentId: string;
+            /**
+             * Course ID
+             * @description ID of the course
+             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             */
+            courseId: string;
+            /**
+             * Course Version ID
+             * @description ID of the course version
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            courseVersionId: string;
+            settings: components["schemas"]["SettingsDto"];
+        };
+        ReadUserSettingParams: {
+            /**
+             * Student ID
+             * @description ID of the student
+             * @example 60d5ec49b3f1c8e4a8f8b8c5
+             */
+            studentId: string;
+            /**
+             * Course ID
+             * @description ID of the course
+             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             */
+            courseId: string;
+            /**
+             * Course Version ID
+             * @description ID of the course version
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            versionId: string;
+        };
+        AddUserProctoringParams: {
+            /**
+             * Student ID
+             * @description ID of the student
+             * @example 60d5ec49b3f1c8e4a8f8b8c5
+             */
+            studentId: string;
+            /**
+             * Course ID
+             * @description ID of the course
+             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             */
+            courseId: string;
+            /**
+             * Course Version ID
+             * @description ID of the course version
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            versionId: string;
+        };
+        AddUserProctoringBody: {
+            /**
+             * Proctoring Component
+             * @description Component to add to user proctoring
+             * @example cameraMic
+             * @enum {string}
+             */
+            detectors: "cameraMic" | "blurDetection" | "faceCountDetection" | "handGestureDetection" | "voiceDetection" | "virtualBackgroundDetection" | "rightClickDisabled" | "faceRecognition";
+        };
+        RemoveUserProctoringParams: {
+            /**
+             * Student ID
+             * @description ID of the student
+             * @example 60d5ec49b3f1c8e4a8f8b8c5
+             */
+            studentId: string;
+            /**
+             * Course ID
+             * @description ID of the course
+             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             */
+            courseId: string;
+            /**
+             * Course Version ID
+             * @description ID of the course version
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            courseVersionId: string;
+        };
+        RemoveUserProctoringBody: {
+            /**
+             * Proctoring Component
+             * @description Component to remove from user proctoring
+             * @example cameraMic
+             * @enum {string}
+             */
+            detectorName: "cameraMic" | "blurDetection" | "faceCountDetection" | "handGestureDetection" | "voiceDetection" | "virtualBackgroundDetection" | "rightClickDisabled" | "faceRecognition";
+        };
+        UpdateSettingResponse: {
+            /** @description Indicates whether the update was successful */
+            readonly acknowledged: boolean;
+            /** @description Number of documents modified */
+            readonly modifiedCount: number;
+            /** @description Number of documents upserted */
+            readonly upsertedCount: number;
+            /** @description Number of documents matched */
+            readonly matchedCount: number;
+        };
+        CourseSetting: {
+            /**
+             * Course Settings ID
+             * @description Unique identifier for the course settings
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            _id?: string;
+            /**
+             * Course Version ID
+             * @description ID of the course version
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            courseVersionId: string;
+            /**
+             * Course ID
+             * @description ID of the course
+             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             */
+            courseId: string;
+            /**
+             * Settings
+             * @description Settings for the course
+             */
+            settings: {
+                proctors?: {
+                    detectors?: {
+                        /** @enum {string} */
+                        detectorName?: "cameraMic" | "blurDetection" | "faceCountDetection" | "handGestureDetection" | "voiceDetection" | "virtualBackgroundDetection" | "rightClickDisabled" | "faceRecognition";
+                        settings?: {
+                            enabled?: boolean;
+                        };
+                    }[];
+                };
+                linearProgressionEnabled?: boolean;
+                seekForwardEnabled?: boolean;
+                /** @description Registration configuration schemas */
+                registration?: {
+                    /**
+                     * @description JSON Schema for registration form
+                     * @example {
+                     *       "type": "object",
+                     *       "properties": {
+                     *         "name": {
+                     *           "type": "string",
+                     *           "title": "Full Name"
+                     *         },
+                     *         "email": {
+                     *           "type": "string",
+                     *           "format": "email",
+                     *           "title": "Email"
+                     *         }
+                     *       },
+                     *       "required": [
+                     *         "name",
+                     *         "email"
+                     *       ]
+                     *     }
+                     */
+                    jsonSchema?: Record<string, never>;
+                    /**
+                     * @description UI Schema for registration form layout
+                     * @example {
+                     *       "type": "VerticalLayout",
+                     *       "elements": [
+                     *         {
+                     *           "type": "Control",
+                     *           "scope": "#/properties/name"
+                     *         },
+                     *         {
+                     *           "type": "Control",
+                     *           "scope": "#/properties/email"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    uiSchema?: Record<string, never>;
+                };
+            };
+        };
+        UserSetting: {
+            /**
+             * User Settings ID
+             * @description Unique identifier for the user settings
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            _id?: string;
+            /**
+             * Student ID
+             * @description ID of the student
+             * @example 60d5ec49b3f1c8e4a8f8b8c5
+             */
+            studentId: string;
+            /**
+             * Course Version ID
+             * @description ID of the course version
+             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             */
+            courseVersionId: string;
+            /**
+             * Course ID
+             * @description Id of the course
+             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             */
+            courseId: string;
+            /**
+             * Settings
+             * @description Settings for the course
+             */
+            settings: {
+                proctors?: {
+                    detectors?: {
+                        /** @enum {string} */
+                        detectorName?: "cameraMic" | "blurDetection" | "faceCountDetection" | "handGestureDetection" | "voiceDetection" | "virtualBackgroundDetection" | "rightClickDisabled" | "faceRecognition";
+                        settings?: {
+                            enabled?: boolean;
+                        };
+                    }[];
+                };
+                linearProgressionEnabled?: boolean;
+                seekForwardEnabled?: boolean;
+            };
+        };
         SignUpBody: {
             /**
              * Email Address
@@ -600,7 +6021,6 @@ export interface components {
             email: string;
             /**
              * Password
-             * Format: password
              * @description Password for account authentication (minimum 8 characters). Must contain: <br />1. **Uppercase letters** (A–Z)  <br /> 2. **Lowercase letters** (a–z)  <br /> 3. **Numbers** (0–9)   <br />4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`)
              * @example SecureP@ssw0rd
              */
@@ -616,12 +6036,67 @@ export interface components {
              * @description User's last name (alphabetic characters only)
              * @example Smith
              */
-            lastName: string;
+            lastName?: string;
+            /**
+             * reCAPTCHA Token
+             * @description reCAPTCHA verification token obtained from the frontend widget
+             * @example 03AGdBq27...
+             */
+            recaptchaToken: string;
+            /**
+             * Profile Image
+             * @description Optional student profile image as a data URL or remote URL
+             * @example data:image/jpeg;base64,/9j/4AAQSk...
+             */
+            profileImage?: string;
+            /**
+             * Face Embedding
+             * @description Optional 128-length face embedding generated from the registration image
+             */
+            faceEmbedding?: number[];
+        };
+        GoogleSignUpBody: {
+            /**
+             * Email Address
+             * Format: email
+             * @description Email address of the user, used as login identifier
+             * @example user@example.com
+             */
+            email: string;
+            /**
+             * First Name
+             * @description User's first name (alphabetic characters only)
+             * @example John
+             */
+            firstName: string;
+            /**
+             * Last Name
+             * @description User's last name (alphabetic characters only)
+             * @example Smith
+             */
+            lastName?: string;
+            /**
+             * Role
+             * @description Selected role at signup time. Students must also provide profileImage and faceEmbedding for proctoring.
+             * @example student
+             */
+            role?: string;
+            /**
+             * Profile Image
+             * @description Student profile image as a data URL or remote URL. Required for student role.
+             * @example data:image/jpeg;base64,/9j/4AAQSk...
+             */
+            profileImage?: string;
+            /**
+             * Face Embedding
+             * @description 128-length face embedding generated from the registration image. Required for student role.
+             */
+            faceEmbedding?: number[];
         };
         VerifySignUpProviderBody: {
             /**
-             * Token
-             * @description Token used for signup verification
+             * Firebase Auth Token
+             * @description Firebase Auth Token
              * @example 43jdlsaksla;f328e9fjhsda
              */
             token: string;
@@ -629,14 +6104,12 @@ export interface components {
         ChangePasswordBody: {
             /**
              * New Password
-             * Format: password
              * @description New password that meets security requirements.  Must contain: <br />1. **Uppercase letters** (A–Z)  <br /> 2. **Lowercase letters** (a–z)  <br /> 3. **Numbers** (0–9)   <br />4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`)
              * @example SecureP@ssw0rd
              */
             newPassword: string;
             /**
              * Confirm New Password
-             * Format: password
              * @description Confirmation of the new password (must match exactly). Must contain: <br />1. **Uppercase letters** (A–Z)  <br /> 2. **Lowercase letters** (a–z)  <br /> 3. **Numbers** (0–9)   <br />4. **Special symbols** (`! @ # $ % ^ & * ( ) – _ = + [ ] { } | ; : , . ? /`)
              * @example SecureP@ssw0rd
              */
@@ -691,32 +6164,365 @@ export interface components {
              */
             readonly message: string;
         };
-        ValidationErrorResponse: {
-            /** @description The object that was validated. */
-            readonly target: Record<string, never>;
-            /** @description The property that failed validation. */
-            readonly property: string;
-            /** @description Constraints that failed validation with error messages. */
-            readonly constraints: Record<string, never>;
+        LoginBody: {
             /**
-             * Format: ValidationErrorResponse
-             * @description Contains all nested validation errors of the property.
+             * Email Address
+             * Format: email
+             * @description Email address of the user
              */
-            readonly children: Record<string, never>[];
-            /** @description Contains all nested validation errors of the property. */
-            readonly contexts?: Record<string, never>;
+            email: string;
+            /**
+             * Password
+             * @description Password for account authentication
+             * @example SecureP@ssw0rd
+             */
+            password: string;
+            /**
+             * reCAPTCHA Token
+             * @description reCAPTCHA verification token obtained from the frontend widget
+             * @example 03AGdBq27...
+             */
+            recaptchaToken: string;
         };
-        DefaultErrorResponse: {
-            /** @description The error message. */
-            readonly message: string;
+        LoginResponse: {
+            /**
+             * @description Local ID of the user
+             * @example cKy6H2O04PgTh8O3DpUXjgJYUr53
+             */
+            localId: string;
+            /**
+             * Format: email
+             * @description Email address of the user
+             * @example user@example.com
+             */
+            email: string;
+            /**
+             * @description Display name of the user
+             * @example John Doe
+             */
+            displayName: string;
+            /**
+             * @description ID token of the user
+             * @example cKy6H2O04PgTh8O3DpUXjgJYUr53
+             */
+            idToken: string;
+            /**
+             * @description Refresh token of the user
+             * @example cKy6H2O04PgTh8O3DpUXjgJYUr53
+             */
+            refreshToken: string;
         };
-        BadRequestErrorResponse: {
-            /** @description The error message. */
-            readonly message: string;
-            /** @description The error details. */
-            readonly errors: components["schemas"]["ValidationErrorResponse"];
+        HpActivityAttachment: {
+            /**
+             * Attachment Name
+             * @example Rubric
+             */
+            name: string;
+            /**
+             * Attachment URL
+             * @example https://example.com/doc.pdf
+             */
+            url: string;
+            /**
+             * Attachment Kind
+             * @example PDF
+             * @enum {string}
+             */
+            kind: "PDF" | "LINK" | "OTHER";
         };
-        CreateCourseBody: {
+        HpActivityStats: {
+            /**
+             * Total Students
+             * @example 50
+             */
+            totalStudents: number;
+            /**
+             * Submitted Count
+             * @example 40
+             */
+            submittedCount: number;
+            /**
+             * Completed Count
+             * @example 38
+             */
+            completedCount: number;
+            /**
+             * Overdue Count
+             * @example 5
+             */
+            overdueCount: number;
+        };
+        HpActivityRules: {
+            /**
+             * Is Mandatory
+             * @example true
+             */
+            isMandatory: boolean;
+            /**
+             * Deadline At
+             * Format: date-time
+             */
+            deadlineAt?: string;
+            /**
+             * Allow Late Submission
+             * @example false
+             */
+            allowLateSubmission: boolean;
+        };
+        HpActivityTransformer: {
+            /**
+             * Cohort
+             * @example JAN-2026
+             */
+            cohort: string;
+            /** Instructor Name */
+            instructorName?: string;
+            /**
+             * Status
+             * @example PUBLISHED
+             * @enum {string}
+             */
+            status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+            /**
+             * Title
+             * @example LinkedIn Post
+             */
+            title: string;
+            /**
+             * Description
+             * @example Create a post about Git
+             */
+            description: string;
+            /**
+             * Activity Type
+             * @example ASSIGNMENT
+             * @enum {string}
+             */
+            activityType: "ASSIGNMENT" | "MILESTONE" | "EXTERNAL_IMPORT" | "VIBE_MILESTONE" | "OTHER";
+            /**
+             * Allow Late Submission
+             * @example false
+             */
+            allowLateSubmission: boolean;
+            /**
+             * Is Submitted
+             * @example false
+             */
+            isSubmitted?: boolean;
+            /**
+             * Submission count
+             * @example 10
+             */
+            submissionCount?: number;
+            /**
+             * Required Percentage
+             * @example 75
+             */
+            required_percentage?: number;
+            /**
+             * Submission Mode
+             * @example IN_PLATFORM
+             * @enum {string}
+             */
+            submissionMode: "IN_PLATFORM" | "EXTERNAL_LINK";
+            /**
+             * External Link
+             * @example https://forms.google.com
+             */
+            externalLink: string;
+            /** Attachments */
+            attachments: components["schemas"]["HpActivityAttachment"][];
+            /**
+             * Is Mandatory
+             * @example true
+             */
+            isMandatory: boolean;
+            /** Stats */
+            stats: components["schemas"]["HpActivityStats"];
+            /** Rules */
+            rules: components["schemas"]["HpActivityRules"];
+        };
+        HpRewardRule: {
+            /**
+             * Reward Enabled
+             * @example true
+             */
+            enabled: boolean;
+            /**
+             * Reward Type
+             * @enum {string}
+             */
+            type: "ABSOLUTE" | "PERCENTAGE";
+            /**
+             * Reward Value
+             * @example 10
+             */
+            value: number;
+            /**
+             * Reward Apply When
+             * @example ON_SUBMISSION
+             * @enum {string}
+             */
+            applyWhen: "ON_SUBMISSION" | "ON_APPROVAL";
+            /**
+             * Late Behavior
+             * @example NO_REWARD
+             * @enum {string}
+             */
+            lateBehavior: "NO_REWARD" | "REWARD";
+        };
+        HpPenaltyRule: {
+            /**
+             * Penalty Enabled
+             * @example true
+             */
+            enabled: boolean;
+            /**
+             * Penalty Type
+             * @enum {string}
+             */
+            type: "ABSOLUTE" | "PERCENTAGE";
+            /**
+             * Penalty Value
+             * @example 10
+             */
+            value: number;
+            /**
+             * Penalty Apply When
+             * @example AFTER_DEADLINE
+             * @enum {string}
+             */
+            applyWhen: "AFTER_DEADLINE";
+            /**
+             * Grace Minutes
+             * @example 0
+             */
+            graceMinutes: number;
+            /**
+             * Run Once
+             * @example true
+             */
+            runOnce: boolean;
+        };
+        HpRuleLimits: {
+            /**
+             * Min HP
+             * @example 0
+             */
+            minHp?: number;
+            /**
+             * Max HP
+             * @example 100000
+             */
+            maxHp?: number;
+        };
+        HpRuleConfigTransformer: {
+            /**
+             * Cohort
+             * @example JAN-2026
+             */
+            cohort: string;
+            /**
+             * Rule Name
+             * @example Assignment Mandatory +10
+             */
+            name: string;
+            /**
+             * Is Mandatory
+             * @example true
+             */
+            isMandatory: boolean;
+            /**
+             * Deadline At
+             * Format: date-time
+             */
+            deadlineAt?: string;
+            /**
+             * Allow Late Submission
+             * @example false
+             */
+            allowLateSubmission: boolean;
+            /** Reward Rule */
+            reward: components["schemas"]["HpRewardRule"];
+            /** Penalty Rule */
+            penalty: components["schemas"]["HpPenaltyRule"];
+            /** Limits */
+            limits: components["schemas"]["HpRuleLimits"];
+            /**
+             * Version
+             * @example 1
+             */
+            version: number;
+            /**
+             * Status
+             * @example ACTIVE
+             * @enum {string}
+             */
+            status: "ACTIVE" | "ARCHIVED";
+            /**
+             * Submission Validation
+             * @example [
+             *       "TEXT",
+             *       "PDF"
+             *     ]
+             */
+            submissionValidation: ("TEXT" | "PDF" | "IMAGE" | "URL")[];
+        };
+        Invite: {
+            /**
+             * Recipient Email
+             * Format: email
+             * @description The email address of the person being invited.
+             * @example invitee@example.com
+             */
+            email?: string;
+            /**
+             * Course ID
+             * @description The unique identifier of the course the invite is for.
+             */
+            courseId: string;
+            /**
+             * Course Version ID
+             * @description The unique identifier of the specific course version for the invite.
+             */
+            courseVersionId: string;
+            isAlreadyEnrolled: boolean;
+            isNewUser: boolean;
+            /**
+             * Accepted At
+             * Format: date-time
+             * @description Timestamp when the user accepted the invite
+             * @example 2023-10-01T12:00:00Z
+             */
+            acceptedAt?: string;
+            /** @description Cohort of the invite */
+            cohortId?: unknown;
+        };
+        MessageResponse: {
+            /**
+             * Message
+             * @description The message to be displayed
+             * @example It return Dynamic html Template
+             */
+            message: string;
+        };
+        ResendInviteResponse: {
+            /**
+             * Message
+             * @description The message to be displayed
+             * @example Invite resent successfully
+             */
+            message: string;
+        };
+        CancelInviteResponse: {
+            /**
+             * Message
+             * @description The message to be displayed
+             * @example Invite has been cancelled successfully.
+             */
+            message: string;
+        };
+        EditCourseBody: {
             /**
              * Course Name
              * @description Name of the course
@@ -730,46 +6536,105 @@ export interface components {
              */
             description: string;
         };
-        UpdateCourseBody: {
+        CourseBody: {
             /**
+             * Course Name
              * @description Name of the course
              * @example Introduction to Programming
              */
-            name?: string;
+            name: string;
             /**
+             * Course Description
              * @description Description of the course
              * @example This course covers the basics of programming.
              */
-            description?: string;
+            description: string;
             /**
-             * @deprecated
-             * @description [READONLY] This is a virtual field used only for validation. Do not include this field in requests.
-             *     Either "name" or "description" must be provided.
+             * Course Version Name
+             * @description Name of the course Version
+             * @example Introduction to Programming V1.0
              */
-            readonly nameOrDescription?: string;
+            versionName: string;
+            /**
+             * Course Version Description
+             * @description Description of the course version
+             * @example This is an intial version.
+             */
+            versionDescription: string;
+            /**
+             * @description Array of cohort names in a version
+             * @example [
+             *       "cohort1",
+             *       "cohort2"
+             *     ]
+             */
+            cohorts?: string[];
+            /**
+             * @description Indicates whether HP System is enabled
+             * @default false
+             * @example true
+             * @example false
+             */
+            hpSystem: boolean;
+            /**
+             * @description Indicates base Hp for each cohort
+             * @default false
+             * @example 0
+             * @example 100
+             */
+            baseHp: number;
         };
-        ReadCourseParams: {
-            /**
-             * Format: Mongo Object ID
-             * @description Object ID of the course to read
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
-             */
-            id: string;
+        CourseIdParams: {
+            /** @description Object ID of the course */
+            courseId: string;
         };
-        UpdateCourseParams: {
+        CourseVersionQuery: {
+            courseId?: string;
+            courseVersionId?: string;
+        };
+        ActiveUserDto: {
+            firstName: string;
+            email: string;
+            lastActiveTime: string;
+        };
+        ActiveUsersResponseDto: {
+            activeUsers: components["schemas"]["ActiveUserDto"][];
+        };
+        CourseVersionQueryWithTime: {
+            startTimeStamp?: string;
+            endTimeStamp?: string;
+            courseId?: string;
+            courseVersionId?: string;
+        };
+        PublicCoursesQuery: {
             /**
-             * Format: Mongo Object ID
-             * @description Object ID of the course to update
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             * @description Page number for pagination
+             * @example 1
              */
-            id: string;
+            page?: number;
+            /**
+             * @description Number of items per page
+             * @example 10
+             */
+            limit?: number;
+            /**
+             * @description Search term for course name or description
+             * @example programming
+             */
+            search?: string;
+        };
+        CourseVersionParams: {
+            /**
+             * Course ID
+             * @description Object ID of the course
+             */
+            courseId: string;
+            /** @description Object ID of the course version */
+            courseVersionId: string;
+            versionId: string;
         };
         CourseDataResponse: {
-            /**
-             * Format: Mongo Object ID
-             * @description Unique identifier for the course
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
-             */
+            /** @description Unique identifier for the course */
             readonly _id: string;
             /**
              * @description Name of the course
@@ -819,17 +6684,7 @@ export interface components {
              */
             readonly message: string;
         };
-        CourseVersion: {
-            modules: Record<string, never>[];
-        };
         CreateCourseVersionBody: {
-            /**
-             * Course ID
-             * Format: Mongo Object ID
-             * @description ID of the course this version belongs to (auto-managed)
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
-             */
-            readonly courseId?: string | "" | unknown;
             /**
              * Version Label
              * @description The version label or identifier (e.g., v1.0, Fall 2025)
@@ -842,49 +6697,173 @@ export interface components {
              * @example First release of the course
              */
             description: string;
+            /**
+             * Support Link
+             * @description Support link for students (Discord, email, forum, etc.)
+             * @example https://discord.gg/abc123
+             */
+            supportLink?: string;
+            /**
+             * @description Array of cohort names in a version
+             * @example [
+             *       "cohort1",
+             *       "cohort2"
+             *     ]
+             */
+            cohorts?: string[];
         };
         CreateCourseVersionParams: {
             /**
              * Course ID
-             * Format: Mongo Object ID
              * @description ID of the course to attach the new version to
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
              */
-            id: string;
+            courseId: string;
         };
         ReadCourseVersionParams: {
             /**
              * Version ID
-             * Format: Mongo Object ID
              * @description ID of the course version to retrieve
-             * @example 60d5ec49b3f1c8e4a8f8b8d2
              */
-            id: string;
+            versionId: string;
         };
         DeleteCourseVersionParams: {
             /**
              * Version ID
-             * Format: Mongo Object ID
              * @description ID of the course version to delete
-             * @example 60d5ec49b3f1c8e4a8f8b8d2
              */
             versionId: string;
             /**
              * Course ID
-             * Format: Mongo Object ID
              * @description ID of the course to which the version belongs
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
              */
             courseId: string;
         };
-        CourseVersionDataResponse: {
-            readonly version: string;
+        ReadCourseVersionCohortsParams: {
             /**
-             * Format: Mongo Object ID
+             * Version ID
              * @description ID of the course version
-             * @example 60d5ec49b3f1c8e4a8f8b8d2
+             */
+            versionId: string;
+            /**
+             * Course ID
+             * @description ID of the course to which the version belongs
+             */
+            courseId: string;
+            cohortId?: string;
+        };
+        CohortsQuery: {
+            page?: number;
+            limit?: number;
+            search?: string;
+            /** @enum {string} */
+            sortBy?: "name" | "createdAt" | "updatedAt" | "baseHp" | "safeHp";
+            /** @enum {string} */
+            sortOrder?: "asc" | "desc";
+        };
+        CohortResponse: {
+            /**
+             * @description Unique identifier of the cohort
+             * @example 69ab1823a7aeadefb1476049
              */
             readonly id: string;
+            /**
+             * @description Name of the cohort
+             * @example Frontend Batch A
+             */
+            name: string;
+            /**
+             * @description Base Hp for the cohort
+             * @example 100
+             */
+            baseHp: number;
+            /**
+             * @description safe Hp for the cohort
+             * @example 100
+             */
+            safeHp: number;
+            /**
+             * @description Indicates if the cohort is public or private
+             * @example true
+             */
+            isPublic: boolean;
+            /**
+             * @description Indicates if the cohort is active for registrations
+             * @example true
+             */
+            isActive: boolean;
+        };
+        CohortsResponse: {
+            /**
+             * @description List of cohorts
+             * @example [
+             *       {
+             *         "id": "69ab1823a7aeadefb1476049",
+             *         "name": "one",
+             *         "createdAt": "2026-03-06T18:08:35.707Z",
+             *         "updatedAt": "2026-03-06T18:08:35.707Z"
+             *       },
+             *       {
+             *         "id": "69ab1844a7aeadefb147604c",
+             *         "name": "two",
+             *         "createdAt": "2026-03-06T18:09:08.594Z",
+             *         "updatedAt": "2026-03-06T18:09:08.594Z"
+             *       }
+             *     ]
+             */
+            readonly cohorts: Record<string, never>[];
+            version: string;
+        };
+        NewCohortBody: {
+            newCohortName?: string;
+            isPublic?: boolean;
+            isActive?: boolean;
+            baseHp?: number;
+            safeHp?: number;
+        };
+        CohortUpdatedMessage: {
+            /**
+             * @description Success message
+             * @example Cohort Updated successfully
+             */
+            message: string;
+        };
+        CohortCreatedMessage: {
+            /**
+             * @description Success message
+             * @example Cohort Created successfully
+             */
+            message: string;
+        };
+        CohortDeletedMessage: {
+            /**
+             * @description Success message
+             * @example Cohort Deleted successfully
+             */
+            message: string;
+        };
+        MoveStudentsToCohortBody: {
+            /**
+             * @description Array of enrollment IDs to move to the cohort
+             * @example [
+             *       "66c2b6c9b4e0a3e6c1a93f41",
+             *       "66c2b72ab4e0a3e6c1a93f8a"
+             *     ]
+             */
+            enrollmentIds: string[];
+            /**
+             * @description ID of the cohort to move students to
+             * @example 69ab1823a7aeadefb1476049
+             */
+            targetCohortId: string;
+        };
+        MoveStudentsToCohortResponse: {
+            /**
+             * @description Success message
+             * @example Students moved to cohort successfully
+             */
+            message: string;
+        };
+        CourseVersionDataResponse: {
             /**
              * @description Version name/label
              * @example v1.0
@@ -896,51 +6875,20 @@ export interface components {
              */
             readonly description: string;
             /**
-             * Format: Mongo Object ID
              * @description ID of the course this version belongs to
              * @example 60d5ec49b3f1c8e4a8f8b8c1
              */
             readonly courseId: string;
             /**
-             * Format: date-time
-             * @description Creation timestamp
-             * @example 2023-10-01T12:00:00Z
+             * @description Support link for students (Discord, email, forum, etc.)
+             * @example https://discord.gg/abc123
              */
-            readonly createdAt: string;
-
-            /**
-             * @description version status
-             * @example active
-             */
-            readonly versionStatus: 'active' | 'archived';
-
-            /**
-             * @description Hp system is enabled or not
-             * @example true
-             */
-            readonly hpSystem: boolean;
-
-            /**
-             * @description Can we randomize the items
-             * @example true
-             */
-            readonly shouldRandomize?: boolean;
-
-            /**
-             * Format: date-time
-             * @description Last update timestamp
-             * @example 2023-10-01T12:00:00Z
-             */
-            readonly updatedAt: string;
-
+            readonly supportLink?: string;
+            /** @description Array of cohort names in a course version */
+            cohorts?: unknown[];
+            /** @description Array of cohort details in a course version */
+            cohortDetails?: unknown[];
         };
-        UpdateCourseVersionStatusBody:{
-            /**
-             * @description version status
-             * @example open
-             */
-            versionStatus: 'active' | 'archived';
-        }
         CourseVersionNotFoundErrorResponse: {
             /**
              * @description HTTP status code
@@ -959,10 +6907,123 @@ export interface components {
             readonly error: string;
         };
         CreateCourseVersionResponse: {
-            /** @description The updated course object */
+            /**
+             * @description The updated course object
+             * @example {
+             *       "_id": "68ee228f54e2f6908d54de1r",
+             *       "courseId": "68d0f72fd802390872101b5",
+             *       "version": "Version title",
+             *       "description": "Version description",
+             *       "modules": [],
+             *       "totalItems": null,
+             *       "createdAt": "2025-10-14T10:14:39.363Z",
+             *       "updatedAt": "2025-10-14T10:14:39.363Z"
+             *     }
+             */
             readonly course: Record<string, never>;
-            /** @description The created version object */
-            readonly version: Record<string, never>;
+        };
+        UpdateCourseVersionParams: {
+            /**
+             * Course ID
+             * @description ID of the course to which the version belongs
+             */
+            courseId: string;
+            /**
+             * Version ID
+             * @description ID of the course version to update
+             */
+            versionId: string;
+        };
+        UpdateCourseVersionBody: {
+            /**
+             * Version Label
+             * @description The version label or identifier (e.g., v1.0, Fall 2025)
+             * @example v1.0
+             */
+            version: string;
+            /**
+             * Version Description
+             * @description A brief description of the course version
+             * @example First release of the course
+             */
+            description: string;
+            /**
+             * Support Link
+             * @description Support link for students (Discord, email, forum, etc.)
+             * @example https://discord.gg/abc123
+             */
+            supportLink?: string;
+            /**
+             * @description Array of cohort names in a version
+             * @example [
+             *       "cohort1",
+             *       "cohort2"
+             *     ]
+             */
+            cohorts?: string[];
+        };
+        CopyCourseVersionParams: {
+            /** @description The ID of the course */
+            courseId: string;
+            /** @description The ID of the version to copy */
+            versionId: string;
+        };
+        CopyCourseVersionResponse: {
+            /**
+             * @description Success message
+             * @example Course version copied successfully
+             */
+            message: string;
+        };
+        GetCourseVersionWatchTimeParams: {
+            /**
+             * @description Course ID
+             * @example 66c2b6c9b4e0a3e6c1a93f41
+             */
+            courseId: string;
+            /**
+             * @description Course Version ID
+             * @example 66c2b72ab4e0a3e6c1a93f8a
+             */
+            versionId: string;
+        };
+        CourseVersionWatchTimeResponse: {
+            /**
+             * @description Success message
+             * @example Watch time fetched successfully
+             */
+            message: string;
+            /**
+             * @description Total watch time in seconds
+             * @example 15432
+             */
+            totalSeconds: number;
+            /**
+             * @description Total watch time in hours
+             * @example 4.29
+             */
+            totalHours: number;
+            /**
+             * @description Total watch time in days
+             * @example 0.18
+             */
+            readableDuration: string;
+            /**
+             * @description Rounded total hours (2 decimal)
+             * @example 4.29
+             */
+            totalHoursRounded: number;
+        };
+        UpdateCourseVersionStatusParams: {
+            /**
+             * Version ID
+             * @description ID of the course version to update
+             */
+            versionId: string;
+        };
+        UpdateCourseVersionStatusBody: {
+            /** @enum {string} */
+            versionStatus: "active" | "archived";
         };
         CreateModuleBody: {
             /**
@@ -979,15 +7040,13 @@ export interface components {
             description: string;
             /**
              * After Module ID
-             * Format: Mongo Object ID
-             * @description Optional: Position the new module after this module ID
+             * @description Position the new module after this module ID
              * @example 60d5ec49b3f1c8e4a8f8b8c3
              */
             afterModuleId?: string;
             /**
              * Before Module ID
-             * Format: Mongo Object ID
-             * @description Optional: Position the new module before this module ID
+             * @description Position the new module before this module ID
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
             beforeModuleId?: string;
@@ -998,118 +7057,103 @@ export interface components {
              * @description Updated name of the module
              * @example Advanced Data Structures
              */
-            name?: string;
+            name: string;
             /**
              * Module Description
              * @description Updated description of the module content
              * @example This module covers advanced data structures including trees, graphs, and hash tables.
              */
-            description?: string;
-            /**
-             * @deprecated
-             * @description [READONLY] This is a virtual field used only for validation. Do not include this field in requests.
-             *     Either "name" or "description" must be provided.
-             */
-            readonly nameOrDescription?: string;
+            description: string;
         };
         MoveModuleBody: {
             /**
              * After Module ID
-             * Format: Mongo Object ID
              * @description Move the module after this module ID
              * @example 60d5ec49b3f1c8e4a8f8b8c3
              */
             afterModuleId?: string;
             /**
              * Before Module ID
-             * Format: Mongo Object ID
              * @description Move the module before this module ID
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
             beforeModuleId?: string;
-            /**
-             * @deprecated
-             * @description [READONLY] Validation helper. Either afterModuleId or beforeModuleId must be provided.
-             */
-            readonly onlyOneAllowed?: string;
-            /**
-             * @deprecated
-             * @description [READONLY] Validation helper. Both afterModuleId and beforeModuleId should not be provided together.
-             */
-            readonly bothNotAllowed?: string;
         };
         CreateModuleParams: {
             /**
              * Version ID
-             * Format: Mongo Object ID
              * @description ID of the course version to which the module will be added
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
              */
             versionId: string;
         };
-        UpdateModuleParams: {
+        VersionModuleParams: {
             /**
              * Version ID
-             * Format: Mongo Object ID
              * @description ID of the course version containing the module
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
              */
             versionId: string;
             /**
              * Module ID
-             * Format: Mongo Object ID
              * @description ID of the module to be updated
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
              */
             moduleId: string;
         };
-        MoveModuleParams: {
+        HideModuleParams: {
             /**
              * Version ID
-             * Format: Mongo Object ID
              * @description ID of the course version containing the module
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
              */
             versionId: string;
             /**
              * Module ID
-             * Format: Mongo Object ID
-             * @description ID of the module to move
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
+             * @description ID of the module to be updated
              */
             moduleId: string;
         };
-        DeleteModuleParams: {
+        HideModuleBody: {
             /**
-             * Version ID
-             * Format: Mongo Object ID
-             * @description ID of the course version containing the module
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
+             * Hide Module
+             * @description Flag to hide (true) or unhide (false) the module
+             * @example true
              */
-            versionId: string;
-            /**
-             * Module ID
-             * Format: Mongo Object ID
-             * @description ID of the module to delete
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
-             */
-            moduleId: string;
+            hide: boolean;
         };
         ModuleDataResponse: {
-            /** @description The updated course version data containing modules */
+            /**
+             * @description The updated course version data containing modules
+             * @example {
+             *       "version": {
+             *         "_id": "68ee228f76e2e45t4t5t4de1e",
+             *         "courseId": "68d0f72fioy45r01b5",
+             *         "version": "Version title",
+             *         "description": "version description ",
+             *         "modules": [
+             *           {
+             *             "moduleId": "68ee2409020303gncb24736e5e",
+             *             "name": "Untitled Module",
+             *             "description": "Module description",
+             *             "order": "0|hzzxcx:",
+             *             "sections": [],
+             *             "createdAt": "2025-10-14T10:20:57.770Z",
+             *             "updatedAt": "2025-10-14T10:20:57.770Z"
+             *           }
+             *         ],
+             *         "totalItems": null,
+             *         "createdAt": "2025-10-14T10:14:39.363Z",
+             *         "updatedAt": "2025-10-14T10:20:57.770Z"
+             *       }
+             *     }
+             */
             readonly version: Record<string, never>;
         };
         ModuleNotFoundErrorResponse: {
-            /**
-             * @description The error message
-             * @example No module found with the specified ID. Please verify the ID and try again.
-             */
+            /** @description The error message */
             readonly message: string;
         };
         ModuleDeletedResponse: {
             /**
              * @description Deletion confirmation message
-             * @example Module with the ID 60d5ec49b3f1c8e4a8f8b8e6 in Version 60d5ec49b3f1c8e4a8f8b8d5 has been deleted successfully.
+             * @example Module {moduleId} deleted in version {versionId}
              */
             readonly message: string;
         };
@@ -1128,14 +7172,12 @@ export interface components {
             description: string;
             /**
              * After Section ID
-             * Format: Mongo Object ID
              * @description Optional: Place the new section after this section ID
              * @example 60d5ec49b3f1c8e4a8f8b8c3
              */
             afterSectionId?: string;
             /**
              * Before Section ID
-             * Format: Mongo Object ID
              * @description Optional: Place the new section before this section ID
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
@@ -1147,110 +7189,84 @@ export interface components {
              * @description Updated name of the section
              * @example Advanced Algorithms
              */
-            name?: string;
+            name: string;
             /**
              * Section Description
              * @description Updated description of the section
              * @example This section covers advanced algorithmic concepts including dynamic programming and greedy algorithms.
              */
-            description?: string;
-            /**
-             * @deprecated
-             * @description [READONLY] This is a virtual field used only for validation. Do not include this field in requests.
-             *     Either "name" or "description" must be provided.
-             */
-            readonly nameOrDescription?: string;
+            description: string;
         };
         MoveSectionBody: {
             /**
              * After Section ID
-             * Format: Mongo Object ID
              * @description Move the section after this section ID
              * @example 60d5ec49b3f1c8e4a8f8b8c3
              */
             afterSectionId?: string;
             /**
              * Before Section ID
-             * Format: Mongo Object ID
              * @description Move the section before this section ID
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
             beforeSectionId?: string;
-            /**
-             * @deprecated
-             * @description [READONLY] Validation helper. Either afterSectionId or beforeSectionId must be provided.
-             */
-            readonly onlyOneAllowed?: string;
-            /**
-             * @deprecated
-             * @description [READONLY] Validation helper. Both afterSectionId and beforeSectionId should not be provided together.
-             */
-            readonly bothNotAllowed?: string;
         };
-        CreateSectionParams: {
+        VersionModuleSectionParams: {
             /**
              * Version ID
-             * Format: Mongo Object ID
-             * @description ID of the course version to which the module belongs
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
-             */
-            versionId: string;
-            /**
-             * Module ID
-             * Format: Mongo Object ID
-             * @description ID of the module where the new section will be added
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
-             */
-            moduleId: string;
-        };
-        MoveSectionParams: {
-            /**
-             * Version ID
-             * Format: Mongo Object ID
              * @description ID of the course version containing the module
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
              */
             versionId: string;
             /**
              * Module ID
-             * Format: Mongo Object ID
              * @description ID of the module containing the section
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
              */
             moduleId: string;
             /**
              * Section ID
-             * Format: Mongo Object ID
-             * @description ID of the section to be moved
-             * @example 60d5ec49b3f1c8e4a8f8b8f7
-             */
-            sectionId: string;
-        };
-        UpdateSectionParams: {
-            /**
-             * Version ID
-             * Format: Mongo Object ID
-             * @description ID of the course version containing the module
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
-             */
-            versionId: string;
-            /**
-             * Module ID
-             * Format: Mongo Object ID
-             * @description ID of the module containing the section
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
-             */
-            moduleId: string;
-            /**
-             * Section ID
-             * Format: Mongo Object ID
-             * @description ID of the section to be updated
-             * @example 60d5ec49b3f1c8e4a8f8b8f7
+             * @description ID of the section
              */
             sectionId: string;
         };
         SectionDataResponse: {
-            /** @description The updated course version data containing the section */
+            /**
+             * @description The updated course version data containing the section
+             * @example {
+             *       "versionId": "68ee228f76e2f6346d54de1a",
+             *       "moduleId": "68ee263f7f26e0acc3dff1b",
+             *       "sectionId": "68ee26447f26e0acc3dff1c",
+             *       "version": {
+             *         "_id": "68ee228f76e2f63vbo9bf54de1e",
+             *         "courseId": "68d0f72fb90d23755949e01b5",
+             *         "version": "version title",
+             *         "description": " version description",
+             *         "modules": [
+             *           {
+             *             "moduleId": "68ee263f7ff94rg0acc3dff108",
+             *             "name": "Untitled Module",
+             *             "description": "Module description",
+             *             "order": "0|hzzzzz:",
+             *             "sections": [
+             *               {
+             *                 "sectionId": "68ee26447f2bg02cc3dff109",
+             *                 "name": "New Section",
+             *                 "description": "Section description",
+             *                 "order": "0|hzzzzz:",
+             *                 "itemsGroupId": "68ee26447f23343acc3dff10a",
+             *                 "createdAt": "2025-10-14T10:30:28.496Z",
+             *                 "updatedAt": "2025-10-14T10:30:28.496Z"
+             *               }
+             *             ],
+             *             "createdAt": "2025-10-14T10:30:23.780Z",
+             *             "updatedAt": "2025-10-14T10:30:45.000Z"
+             *           }
+             *         ],
+             *         "totalItems": null,
+             *         "createdAt": "2025-10-14T10:14:39.363Z",
+             *         "updatedAt": "2025-10-14T10:30:45.000Z"
+             *       }
+             *     }
+             */
             readonly version: Record<string, never>;
         };
         SectionNotFoundErrorResponse: {
@@ -1267,33 +7283,10 @@ export interface components {
              */
             readonly message: string;
         };
-        DeleteSectionParams: {
-            /**
-             * Version ID
-             * Format: Mongo Object ID
-             * @description ID of the course version containing the module
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
-             */
-            versionId: string;
-            /**
-             * Module ID
-             * Format: Mongo Object ID
-             * @description ID of the module to delete
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
-             */
-            moduleId: string;
-            /**
-             * Section ID
-             * Format: Mongo Object ID
-             * @description ID of the section to delete
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
-             */
-            sectionId: string;
-        };
         VideoDetailsPayloadValidator: {
             /**
              * Video URL
-             * Format: uri
+             * Format: url
              * @description Public video URL (e.g., YouTube or Vimeo link)
              * @example https://www.youtube.com/watch?v=dQw4w9WgXcQ
              */
@@ -1319,75 +7312,68 @@ export interface components {
         };
         QuizDetailsPayloadValidator: {
             /**
-             * Pass Threshold
              * @description Minimum percentage required to pass, between 0 and 1
              * @example 0.7
              */
             passThreshold: number;
             /**
-             * Maximum Attempts
              * @description Maximum number of attempts allowed for the quiz, -1 for unlimited
              * @example 3
              */
             maxAttempts: number;
             /**
-             * Quiz Type
              * @description Type of quiz: DEADLINE or NO_DEADLINE
              * @example DEADLINE
              * @enum {string}
              */
             quizType: "DEADLINE" | "NO_DEADLINE";
             /**
-             * Approximate Time to Complete
              * @description Approximate time to complete the quiz in HH:MM:SS format
              * @example 00:30:00
              */
             approximateTimeToComplete: string;
             /**
-             * Allow Partial Grading
              * @description Whether to allow partial grading for questions, particularly for MSQ/SML type of questions.
              * @example true
              */
             allowPartialGrading: boolean;
             /**
-             * Allow Hint
              * @description Whether to allow students to see the hints for questions
              * @example true
              */
             allowHint: boolean;
             /**
-             * Show Correct Answers After Submission
+             * @description Whether to allow students to skip the quiz
+             * @example true
+             */
+            allowSkip: boolean;
+            /**
              * @description Whether to return and show correct answers after successful submission of an attempt
              * @example true
              */
             showCorrectAnswersAfterSubmission: boolean;
             /**
-             * Show Explanation After Submission
              * @description Whether to return and show explanations for correct answers after successful submission of an attempt
              * @example true
              */
             showExplanationAfterSubmission: boolean;
             /**
-             * Show Score After Submission
              * @description Whether to return and show score after successful submission of an attempt
              * @example true
              */
             showScoreAfterSubmission: boolean;
             /**
-             * Question Visibility
              * @description Number of quiz questions visible to students in an attempt
              * @example 5
              */
             questionVisibility: number;
             /**
-             * Quiz Release Time
              * Format: date-time
              * @description ISO date string representing quiz release time
              * @example 2023-10-15T14:00:00Z
              */
             releaseTime: string;
             /**
-             * Quiz Deadline
              * Format: date-time
              * @description ISO date string for quiz deadline
              * @example 2023-10-22T23:59:59Z
@@ -1395,308 +7381,233 @@ export interface components {
             deadline?: string;
         };
         BlogDetailsPayloadValidator: {
-            /**
-             * Blog Tags
-             * @description Tags for categorizing the blog (auto-managed)
-             * @example [
-             *       "programming",
-             *       "algorithms"
-             *     ]
-             */
-            readonly tags?: string[] | "" | unknown;
-            /**
-             * Blog Content
-             * @description Full blog content in markdown or plain text
-             * @example # Introduction
-             *
-             *     This is a sample blog post about programming...
-             */
+            tags?: "" | unknown;
+            /** @description Content of the blog item */
             content: string;
-            /**
-             * Blog Points
-             * @description Points assigned to the blog submission
-             * @example 20
-             */
+            /** @description Points assigned to the blog interaction */
             points: string;
+            /** @description Estimated time to read the blog in minutes */
+            estimatedReadTimeInMinutes: string;
+        };
+        FeedBackFormPayloadValidator: {
+            /** @description JSON Schema for the feedback form */
+            jsonSchema: string;
+            /** @description UI Schema for the feedback form */
+            uiSchema: string;
+        };
+        ProjectDetailsPayloadValidator: {
             /**
-             * Estimated Read Time
-             * @description Estimated time to complete reading the blog in minutes
-             * @example 15
+             * Project Title
+             * @description Title of the project
+             * @example Build a REST API
              */
-            estimatedReadTimeInMinutes: number;
+            name: string;
+            /**
+             * Project Description
+             * @description Description of the project
+             * @example Create a RESTful API using Node.js and Express.
+             */
+            description: string;
         };
         CreateItemBody: {
             /**
-             * Item Name
              * @description Title of the item
              * @example Introduction to Data Structures
              */
             name: string;
             /**
-             * Item Description
              * @description Description of the item
              * @example Learn about basic data structures like arrays, linked lists, and stacks.
              */
             description: string;
             /**
-             * After Item ID
-             * Format: Mongo Object ID
              * @description Place item after this item ID
              * @example 60d5ec49b3f1c8e4a8f8b8c3
              */
             afterItemId?: string;
             /**
-             * Before Item ID
-             * Format: Mongo Object ID
              * @description Place item before this item ID
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
             beforeItemId?: string;
             /**
-             * Item Type
-             * @description Type of the item: VIDEO, BLOG, QUIZ, or PROJECT
+             * @description Type of the item: VIDEO, BLOG, or QUIZ
              * @example VIDEO
              * @enum {string}
              */
-            type: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
+            type: "VIDEO" | "BLOG" | "QUIZ" | "PROJECT" | "FEEDBACK";
             /**
-             * Video Details
-             * @description Details specific to video items
+             * @description Is the item optional?
+             * @example false
              */
+            isOptional?: boolean;
+            /** @description Details specific to video items */
             videoDetails?: components["schemas"]["VideoDetailsPayloadValidator"];
-            /**
-             * Blog Details
-             * @description Details specific to blog items
-             */
+            /** @description Details specific to blog items */
             blogDetails?: components["schemas"]["BlogDetailsPayloadValidator"];
-            /**
-             * Quiz Details
-             * @description Details specific to quiz items
-             */
+            /** @description Details specific to quiz items */
             quizDetails?: components["schemas"]["QuizDetailsPayloadValidator"];
+            /** @description Details specific to feedback form items */
+            feedbackFormDetails?: components["schemas"]["FeedBackFormPayloadValidator"];
         };
         UpdateItemBody: {
             /**
-             * Item Name
-             * @description Updated title of the item
-             * @example Advanced Data Structures
+             * @description Title of the item
+             * @example Introduction to Data Structures
              */
-            name?: string;
+            name: string;
             /**
-             * Item Description
-             * @description Updated description of the item
-             * @example Learn about advanced data structures like trees, graphs, and hash tables.
+             * @description Description of the item
+             * @example Learn about basic data structures like arrays, linked lists, and stacks.
              */
-            description?: string;
+            description: string;
             /**
-             * Item Order
-             * @description Order key for item placement (auto-managed)
-             * @example a1b2c3
-             */
-            readonly order?: string | "" | unknown;
-            /**
-             * Item Details
-             * @description Item details (depends on type) – video, blog, or quiz
-             */
-            readonly itemDetails?: "" | unknown;
-            /**
-             * Created At
-             * Format: date-time
-             * @description Item creation timestamp (auto-managed)
-             * @example 2023-10-01T12:00:00Z
-             */
-            readonly createdAt?: string | "" | unknown;
-            /**
-             * Updated At
-             * Format: date-time
-             * @description Item update timestamp (auto-managed)
-             * @example 2023-10-05T15:30:00Z
-             */
-            readonly updatedAt?: string | "" | unknown;
-            /**
-             * Item Type
-             * @description Updated type of the item: VIDEO, BLOG, or QUIZ
-             * @example BLOG
-             * @enum {string}
-             */
-            type?: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT";
-            /**
-             * After Item ID
-             * Format: Mongo Object ID
              * @description Place item after this item ID
              * @example 60d5ec49b3f1c8e4a8f8b8c3
              */
             afterItemId?: string;
             /**
-             * Before Item ID
-             * Format: Mongo Object ID
              * @description Place item before this item ID
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
             beforeItemId?: string;
             /**
-             * Video Details
-             * @description Updated details specific to video items
+             * @description Type of the item: VIDEO, BLOG, QUIZ or PROJECT
+             * @example VIDEO
+             * @enum {string}
              */
-            videoDetails?: components["schemas"]["VideoDetailsPayloadValidator"];
-            /**
-             * Blog Details
-             * @description Updated details specific to blog items
-             */
-            blogDetails?: components["schemas"]["BlogDetailsPayloadValidator"];
-            /**
-             * Quiz Details
-             * @description Updated details specific to quiz items
-             */
-            quizDetails?: components["schemas"]["QuizDetailsPayloadValidator"];
+            type: "VIDEO" | "BLOG" | "QUIZ" | "PROJECT" | "FEEDBACK";
+            /** @description isOptional field is required only for Feedback type items */
+            isOptional?: boolean;
+            /** @description Details specific to video items */
+            details: string & (components["schemas"]["VideoDetailsPayloadValidator"] | components["schemas"]["BlogDetailsPayloadValidator"] | components["schemas"]["QuizDetailsPayloadValidator"] | components["schemas"]["ProjectDetailsPayloadValidator"]);
         };
         MoveItemBody: {
             /**
              * After Item ID
-             * Format: Mongo Object ID
              * @description Move the item after this item ID
              * @example 60d5ec49b3f1c8e4a8f8b8c3
              */
             afterItemId?: string;
             /**
              * Before Item ID
-             * Format: Mongo Object ID
              * @description Move the item before this item ID
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
             beforeItemId?: string;
-            /**
-             * @deprecated
-             * @description [READONLY] Validation helper. Either afterItemId or beforeItemId must be provided.
-             */
-            readonly onlyOneAllowed?: string;
-            /**
-             * @deprecated
-             * @description [READONLY] Validation helper. Both afterItemId and beforeItemId should not be provided together.
-             */
-            readonly bothNotAllowed?: string;
         };
-        CreateItemParams: {
+        VersionModuleSectionItemParams: {
             /**
              * Version ID
-             * Format: Mongo Object ID
              * @description ID of the course version
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
              */
             versionId: string;
             /**
              * Module ID
-             * Format: Mongo Object ID
-             * @description ID of the module inside the version
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
+             * @description ID of the module
              */
             moduleId: string;
             /**
              * Section ID
-             * Format: Mongo Object ID
-             * @description ID of the section inside the module
-             * @example 60d5ec49b3f1c8e4a8f8b8f7
-             */
-            sectionId: string;
-        };
-        ReadAllItemsParams: {
-            /**
-             * Version ID
-             * Format: Mongo Object ID
-             * @description ID of the course version containing the items
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
-             */
-            versionId: string;
-            /**
-             * Module ID
-             * Format: Mongo Object ID
-             * @description ID of the module containing the section
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
-             */
-            moduleId: string;
-            /**
-             * Section ID
-             * Format: Mongo Object ID
-             * @description ID of the section containing the items
-             * @example 60d5ec49b3f1c8e4a8f8b8f7
-             */
-            sectionId: string;
-        };
-        UpdateItemParams: {
-            /**
-             * Version ID
-             * Format: Mongo Object ID
-             * @description ID of the course version containing the item
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
-             */
-            versionId: string;
-            /**
-             * Module ID
-             * Format: Mongo Object ID
-             * @description ID of the module containing the section
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
-             */
-            moduleId: string;
-            /**
-             * Section ID
-             * Format: Mongo Object ID
-             * @description ID of the section containing the item
-             * @example 60d5ec49b3f1c8e4a8f8b8f7
+             * @description ID of the section
              */
             sectionId: string;
             /**
              * Item ID
-             * Format: Mongo Object ID
-             * @description ID of the item to be updated
-             * @example 60d5ec49b3f1c8e4a8f8b8f8
+             * @description ID of the item
              */
             itemId: string;
         };
-        MoveItemParams: {
+        CourseVersionModuleSectionParams: {
+            /**
+             * Course ID
+             * @description ID of the course
+             */
+            courseId: string;
             /**
              * Version ID
-             * Format: Mongo Object ID
-             * @description ID of the course version containing the item
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
+             * @description ID of the course version
              */
             versionId: string;
             /**
              * Module ID
-             * Format: Mongo Object ID
-             * @description ID of the module containing the section
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
+             * @description ID of the module
              */
             moduleId: string;
             /**
              * Section ID
-             * Format: Mongo Object ID
-             * @description ID of the section containing the item
-             * @example 60d5ec49b3f1c8e4a8f8b8f7
+             * @description ID of the section
              */
             sectionId: string;
+        };
+        VersionItemParams: {
+            /**
+             * Version ID
+             * @description ID of the course version
+             */
+            versionId: string;
             /**
              * Item ID
-             * Format: Mongo Object ID
-             * @description ID of the item to be moved
-             * @example 60d5ec49b3f1c8e4a8f8b8f8
+             * @description ID of the item
              */
             itemId: string;
+            /**
+             * courseId ID
+             * @description courseId of the item
+             */
+            courseId: string;
         };
         DeleteItemParams: {
             /**
              * Items Group ID
-             * Format: Mongo Object ID
              * @description ID of the items group containing the item
              * @example 60d5ec49b3f1c8e4a8f8b8g9
              */
             itemsGroupId: string;
             /**
              * Item ID
-             * Format: Mongo Object ID
              * @description ID of the item to delete
              * @example 60d5ec49b3f1c8e4a8f8b8f8
              */
             itemId: string;
+            /**
+             * courseId ID
+             * @description ID of the courseId to delete
+             * @example 60d5ec49b3f1c8e4a8f8b8f8
+             */
+            courseId: string;
+        };
+        GetItemParams: {
+            /**
+             * Course ID
+             * @description ID of the course in which user is enrolled
+             * @example 60d5ec49b3f1c8e4a8f8b8g9
+             */
+            courseId: string;
+            /**
+             * Course Version ID
+             * @description ID of the course version containing the item
+             * @example 60d5ec49b3f1c8e4a8f8b8f8
+             */
+            versionId: string;
+            /**
+             * Item ID
+             * @description ID of the item
+             * @example 60d5ec49b3f1c8e4a8f8b8f8
+             */
+            itemId: string;
+            /**
+             * module ID
+             * @description module ID of the item
+             * @example 60d5ec49b3f1c8e4a8f8b8f8
+             */
+            moduleId: string;
+            /**
+             * section ID
+             * @description section ID of the item
+             * @example 60d5ec49b3f1c8e4a8f8b8f8
+             */
+            sectionId: string;
         };
         ItemNotFoundErrorResponse: {
             /**
@@ -1705,296 +7616,2061 @@ export interface components {
              */
             readonly message: string;
         };
+        ItemRefResponse: {
+            /** @description The unique identifier of the item */
+            readonly _id?: string;
+            /**
+             * @description The type of the item
+             * @enum {string}
+             */
+            readonly type: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
+            /** @description The order of the item */
+            readonly order: string;
+            /** @description Whether the item is hidden */
+            readonly isHidden?: boolean;
+            /** @description The name of the item */
+            readonly name: string;
+        };
+        ItemsGroupResponse: {
+            /** @description The unique identifier of the items group */
+            readonly _id?: string;
+            /** @description The list of items in the group */
+            readonly items: components["schemas"]["ItemRefResponse"][];
+            /** @description The ID of the section to which this items group belongs */
+            readonly sectionId: string;
+        };
+        VideoUserAnalytics: {
+            userName: string;
+            email: string;
+            userId: string;
+            viewCount: number;
+            watchHours: number;
+        };
+        VideoUserAnalyticsResponse: {
+            totalDocuments: number;
+            totalPages: number;
+            page: number;
+            limit: number;
+        };
+        VideoUserAnalyticsQuery: {
+            search?: string;
+            page?: number;
+            limit?: number;
+            /**
+             * @description Sort field
+             * @enum {string}
+             */
+            sortBy?: "name" | "views" | "watchHours";
+            /**
+             * @description Sort order
+             * @enum {string}
+             */
+            sortOrder?: "asc" | "desc";
+        };
+        GetVideoAnalyticsParams: {
+            courseId: string;
+            versionId: string;
+            itemId: string;
+        };
         ItemDataResponse: {
             /** @description The item data */
-            readonly itemsGroup: Record<string, never>;
+            readonly itemsGroup: components["schemas"]["ItemsGroupResponse"];
             /** @description The updated version data (when applicable) */
             readonly version?: Record<string, never>;
         };
         DeletedItemResponse: {
-            /** @description The deleted item data */
+            /**
+             * @description The deleted item data
+             * @example {
+             *       "deletedItemId": "68ee280e1f1beg90c14b68ba"
+             *     }
+             */
             readonly deletedItem: Record<string, never>;
-            /** @description The updated items group after deletion */
+            /**
+             * @description The updated items group after deletion
+             * @example {
+             *       "itemsGroup": {
+             *         "_id": "68ee26547f26e0acc3dff10c",
+             *         "items": [],
+             *         "sectionId": "68ee26547f26e0acc3dff10b"
+             *       }
+             *     }
+             */
             readonly updatedItemsGroup: Record<string, never>;
         };
-        ReadItemParams: {
+        GetFeedbackSubmissionsParams: {
             /**
-             * Version ID
-             * Format: Mongo Object ID
-             * @description ID of the course version containing the item
-             * @example 60d5ec49b3f1c8e4a8f8b8d5
-             */
-            versionId: string;
-            /**
-             * Module ID
-             * Format: Mongo Object ID
-             * @description ID of the module containing the section
-             * @example 60d5ec49b3f1c8e4a8f8b8e6
-             */
-            moduleId: string;
-            /**
-             * Section ID
-             * Format: Mongo Object ID
-             * @description ID of the section containing the item
-             * @example 60d5ec49b3f1c8e4a8f8b8f7
-             */
-            sectionId: string;
-            /**
-             * Item ID
-             * Format: Mongo Object ID
-             * @description ID of the item to be retrieved
-             * @example 60d5ec49b3f1c8e4a8f8b8f8
-             */
-            itemId: string;
-        };
-        GetUserProgressParams: {
-            /**
-             * Format: Mongo Object ID
-             * @description User ID to retrieve progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
-             */
-            userId: string;
-            /**
-             * Format: Mongo Object ID
-             * @description Course ID to retrieve progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c2
+             * Course ID
+             * @description ID of the course in which user is enrolled
+             * @example 60d5ec49b3f1c8e4a8f8b8g9
              */
             courseId: string;
             /**
-             * Format: Mongo Object ID
-             * @description Course version ID to retrieve progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             * Item ID
+             * @description ID of the item
+             * @example 60d5ec49b3f1c8e4a8f8b8f8
+             */
+            feedbackId: string;
+        };
+        GetFeedbackSubmissionsQuery: {
+            /**
+             * search
+             * @description ID of the course in which user is enrolled
+             * @example 60d5ec49b3f1c8e4a8f8b8g9
+             */
+            search: string;
+            page: string;
+            limit: string;
+        };
+        CSVRow: {
+            /**
+             * Youtube URL
+             * @description Youtube URL of the video
+             * @example https://www.youtube.com/watch?v=1234567890
+             */
+            "yotube url": string;
+            /**
+             * Segment
+             * @description Segment of the video
+             * @example 1
+             */
+            Segment: string;
+            /**
+             * Question Timestamp [mm:ss]
+             * @description Question Timestamp [mm:ss]
+             * @example 00:00
+             */
+            "Question Timestamp [mm:ss]": string;
+            "S.No.": string;
+            Question: string;
+            Hint: string;
+            "Option A": string;
+            "Expln-A": string;
+            "Option B": string;
+            "Expln-B": string;
+            "Option C": string;
+            "Expln-C": string;
+            "Option D": string;
+            "Expln-D": string;
+            "Correct Answer": string;
+        };
+        csvResponse: {
+            success: boolean;
+            message: string;
+            createdItems: unknown[];
+        };
+        InviteIdParams: {
+            /** @description Unique identifier for the invite */
+            inviteId: string;
+        };
+        CourseAndVersionId: {
+            /** @description ID of the course to which users are being invited */
+            courseId: string;
+            /** @description ID of the specific version of the course */
+            versionId: string;
+        };
+        CourseVersionIdParams: {
+            /** @description ID of the specific version of the course */
+            versionId: string;
+        };
+        InviteQueryParams: {
+            /**
+             * @description Filter by invite status (e.g., ACCEPTED, PENDING)
+             * @example PASSED
+             * @enum {string}
+             */
+            inviteStatus?: "ACCEPTED" | "PENDING" | "CANCELLED" | "EMAIL_FAILED" | "ALREADY_ENROLLED";
+            /**
+             * @description Search term (email)
+             * @example john
+             */
+            search?: string;
+            /**
+             * @description Sort option (e.g., RECENT, OLDER)
+             * @example RECENT
+             * @enum {string}
+             */
+            sort?: "accept_date_desc" | "accept_date_asc";
+            /**
+             * @description Current page number for pagination
+             * @example 1
+             */
+            currentPage?: number;
+            /**
+             * @description Number of items per page
+             * @example 10
+             */
+            limit?: number;
+            /**
+             * @description Filter invites from this date (ISO 8601 format)
+             * @example 2025-01-01
+             */
+            startDate?: string;
+            /**
+             * @description Filter invites until this date (ISO 8601 format)
+             * @example 2025-12-31
+             */
+            endDate?: string;
+        };
+        EmailInvite: {
+            /**
+             * Format: email
+             * @description Email address of the user to be invited
+             * @example user@example.com
+             */
+            email: string;
+            /**
+             * @description Role that the user will have in the course
+             * @example STUDENT
+             * @enum {string}
+             */
+            role: "INSTRUCTOR" | "STUDENT" | "MANAGER" | "TA" | "STAFF";
+        };
+        InviteBody: {
+            /** @description Array of email invitations (maximum 500) */
+            inviteData: components["schemas"]["EmailInvite"][];
+            /**
+             * @description Cohort to which the users will be invited (if applicable)
+             * @example Cohort A
+             */
+            cohortId?: unknown;
+        };
+        InviteResult: {
+            /**
+             * @description Unique identifier for the invite
+             * @example 60c72b2f9b1e8d3f4c8b4567
+             */
+            inviteId: string;
+            /**
+             * Format: email
+             * @description Email address of the invited user
+             * @example user@example.com
+             */
+            email: string;
+            /**
+             * @description Status of the invite</br>
+             *     - ACCEPTED: User has accepted the invite
+             *     - PENDING: Invite is still pending
+             *     - CANCELLED: Invite has been cancelled
+             *     - EMAIL_FAILED: Email sending failed
+             *     - ALREADY_ENROLLED: User is already enrolled in the course
+             * @example PENDING
+             * @enum {string}
+             */
+            inviteStatus: "ACCEPTED" | "PENDING" | "CANCELLED" | "EMAIL_FAILED" | "ALREADY_ENROLLED";
+            /**
+             * @description Role that the user will have in the course
+             * @example STUDENT
+             * @enum {string}
+             */
+            role: "INSTRUCTOR" | "STUDENT" | "MANAGER" | "TA" | "STAFF";
+            courseId?: string;
+            courseVersionId?: string;
+            cohortId?: string;
+            /**
+             * Format: date-time
+             * @description Date when the invite was accepted
+             * @example 2023-10-01T12:00:00Z
+             */
+            acceptedAt?: string;
+            course?: components["schemas"]["Course"];
+            /**
+             * @description Exclusive link the user can open to accept this invite and enrol
+             * @example https://app.example.com/api/notifications/invite/60c72b2f9b1e8d3f4c8b4567
+             */
+            acceptUrl?: string;
+        };
+        InviteResponse: {
+            /** @description Results of the invite */
+            invites: components["schemas"]["InviteResult"][];
+            /** @description total documents returned */
+            totalDocuments?: number;
+            /** @description total pages */
+            totalPages?: number;
+        };
+        InviteLinkResponse: {
+            /** @description Invite link */
+            link: string;
+        };
+        NotificationIdParams: {
+            notificationId: string;
+        };
+        GetNotificationsQuery: {
+            /**
+             * @description Max number of notifications to return
+             * @example 20
+             */
+            limit?: number;
+            /** @description Return only unread notifications */
+            onlyUnread?: boolean;
+        };
+        NotificationResponse: {
+            _id: string;
+            type: string;
+            title: string;
+            message: string;
+            read: boolean;
+            courseId?: string;
+            courseVersionId?: string;
+            cohortId?: string;
+            policyId?: string;
+        };
+        NotificationsListResponse: {
+            unreadCount: number;
+        };
+        MarkReadResponse: {
+            message: string;
+        };
+        Enrollment: {
+            percentCompleted: string;
+            completedItemsCount?: string;
+            cohortId?: unknown;
+            ethicsConsentSignedAt?: unknown;
+            ethicsConsentSignature?: string;
+            ethicsConsentVersion?: string;
+            ethicsAdditionalImageConsent?: unknown;
+        };
+        EnrollUserResponse: {
+            enrollment: components["schemas"]["Enrollment"];
+        };
+        EnrolledUserResponse: {
+            role: string;
+            status: string;
+        };
+        QuestionParameter: {
+            /**
+             * @description Name of the parameter
+             * @example Param1
+             */
+            name: string;
+            /**
+             * @description Possible values for the parameter
+             * @example [
+             *       "easy",
+             *       "medium",
+             *       "hard"
+             *     ]
+             */
+            possibleValues: string[];
+            /**
+             * @description Type of the parameter
+             * @example number
+             * @enum {string}
+             */
+            type: "number" | "string";
+        };
+        LotItem: {
+            /**
+             * @description Text of the lot item
+             * @example Option A
+             */
+            text: string;
+            /**
+             * @description Explanation for the lot item
+             * @example This is the correct answer because...
+             */
+            explaination: string;
+        };
+        LotOrder: {
+            /** @description Lot item to be ordered */
+            lotItem: components["schemas"]["LotItem"];
+            /**
+             * @description Order of the lot item
+             * @example 1
+             */
+            order: number;
+        };
+        Question: {
+            /**
+             * @description Text of the question
+             * @example What is 2 + 2?
+             */
+            text: string;
+            /**
+             * @description Type of the question
+             * @example SELECT_ONE_IN_LOT
+             * @enum {string}
+             */
+            type: "SELECT_ONE_IN_LOT" | "SELECT_MANY_IN_LOT" | "ORDER_THE_LOTS" | "NUMERIC_ANSWER_TYPE" | "DESCRIPTIVE";
+            /**
+             * @description Whether the question is parameterized
+             * @example false
+             */
+            isParameterized: boolean;
+            /**
+             * @description Parameters for the question
+             * @example [
+             *       {
+             *         "name": "Param1",
+             *         "possibleValues": [
+             *           "cat",
+             *           "dog"
+             *         ],
+             *         "type": "string"
+             *       }
+             *     ]
+             */
+            parameters: components["schemas"]["QuestionParameter"][];
+            /**
+             * @description Hint for the question
+             * @example Think about basic addition.
+             */
+            hint: string;
+            /**
+             * @description Time limit for the question in seconds
+             * @example 60
+             */
+            timeLimitSeconds: number;
+            /**
+             * @description Points for the question
+             * @example 5
+             */
+            points?: number;
+            /**
+             * @description Priority of the question
+             * @example MEDIUM
+             * @enum {string}
+             */
+            priority: "LOW" | "MEDIUM" | "HIGH";
+        };
+        SOLSolution: {
+            /**
+             * @description Incorrect lot items
+             * @example [
+             *       {
+             *         "text": "Option B",
+             *         "explaination": "Incorrect because..."
+             *       },
+             *       {
+             *         "text": "Option C",
+             *         "explaination": "Incorrect because..."
+             *       }
+             *     ]
+             */
+            incorrectLotItems: components["schemas"]["LotItem"][];
+            /**
+             * @description Correct lot item
+             * @example {
+             *       "text": "Option A",
+             *       "explaination": "Correct because..."
+             *     }
+             */
+            correctLotItem: components["schemas"]["LotItem"];
+        };
+        SMLSolution: {
+            /**
+             * @description Incorrect lot items
+             * @example [
+             *       {
+             *         "text": "Option B",
+             *         "explaination": "Incorrect because..."
+             *       },
+             *       {
+             *         "text": "Option C",
+             *         "explaination": "Incorrect because..."
+             *       }
+             *     ]
+             */
+            incorrectLotItems: components["schemas"]["LotItem"][];
+            /**
+             * @description Correct lot items
+             * @example [
+             *       {
+             *         "text": "Option A",
+             *         "explaination": "Correct because..."
+             *       },
+             *       {
+             *         "text": "Option D",
+             *         "explaination": "Correct because..."
+             *       }
+             *     ]
+             */
+            correctLotItems: components["schemas"]["LotItem"][];
+        };
+        OTLSolution: {
+            /**
+             * @description Ordering of lot items
+             * @example [
+             *       {
+             *         "lotItem": {
+             *           "text": "Step 1",
+             *           "explaination": "..."
+             *         },
+             *         "order": 1
+             *       },
+             *       {
+             *         "lotItem": {
+             *           "text": "Step 2",
+             *           "explaination": "..."
+             *         },
+             *         "order": 2
+             *       }
+             *     ]
+             */
+            ordering: components["schemas"]["LotOrder"][];
+        };
+        NATSoltion: {
+            /**
+             * @description Decimal precision for the answer
+             * @example 2
+             */
+            decimalPrecision: number;
+            /**
+             * @description Upper limit for the answer
+             * @example 100
+             */
+            upperLimit: number;
+            /**
+             * @description Lower limit for the answer
+             * @example 0
+             */
+            lowerLimit: number;
+            /**
+             * @description Value of the answer (optional)
+             * @example 42
+             */
+            value?: number;
+            /**
+             * @description Expression for the answer (optional)
+             * @example 21 * 2
+             */
+            expression?: string;
+        };
+        DESSolution: {
+            /**
+             * @description Descriptive solution text
+             * @example The answer is found by adding 2 and 2.
+             */
+            solutionText: string;
+        };
+        QuestionBody: {
+            /** @description Question object */
+            question: components["schemas"]["Question"];
+            /** @description Solution object for the question */
+            solution: string & (components["schemas"]["SOLSolution"] | components["schemas"]["SMLSolution"] | components["schemas"]["OTLSolution"] | components["schemas"]["NATSoltion"] | components["schemas"]["DESSolution"]);
+        };
+        QuestionResponse: {
+            /**
+             * @description ID of the question
+             * @example 60d21b4667d0d8992e610c87
+             */
+            _id: string;
+            /**
+             * @description Number of times this question was skipped in quizzes that allow skipping
+             * @example 0
+             */
+            skipCount?: number;
+            /**
+             * @description Descriptive solution text
+             * @example The answer is found by adding 2 and 2.
+             */
+            solutionText?: string;
+            /**
+             * @description Decimal precision for the answer
+             * @example 2
+             */
+            decimalPrecision?: number;
+            /**
+             * @description Upper limit for the answer
+             * @example 100
+             */
+            upperLimit?: number;
+            /**
+             * @description Lower limit for the answer
+             * @example 0
+             */
+            lowerLimit?: number;
+            /**
+             * @description Value of the answer (optional)
+             * @example 42
+             */
+            value?: number;
+            /**
+             * @description Expression for the answer (optional)
+             * @example 21 * 2
+             */
+            expression?: string;
+            /**
+             * @description Ordering of lot items
+             * @example [
+             *       {
+             *         "lotItem": {
+             *           "text": "Step 1",
+             *           "explaination": "..."
+             *         },
+             *         "order": 1
+             *       },
+             *       {
+             *         "lotItem": {
+             *           "text": "Step 2",
+             *           "explaination": "..."
+             *         },
+             *         "order": 2
+             *       }
+             *     ]
+             */
+            ordering?: components["schemas"]["LotOrder"][];
+            /**
+             * @description Correct lot items
+             * @example [
+             *       {
+             *         "text": "Option A",
+             *         "explaination": "Correct because..."
+             *       },
+             *       {
+             *         "text": "Option D",
+             *         "explaination": "Correct because..."
+             *       }
+             *     ]
+             */
+            correctLotItems?: components["schemas"]["LotItem"][];
+            /**
+             * @description Incorrect lot items
+             * @example [
+             *       {
+             *         "text": "Option B",
+             *         "explaination": "Incorrect because..."
+             *       },
+             *       {
+             *         "text": "Option C",
+             *         "explaination": "Incorrect because..."
+             *       }
+             *     ]
+             */
+            incorrectLotItems?: components["schemas"]["LotItem"][];
+            /**
+             * @description Correct lot item
+             * @example {
+             *       "text": "Option A",
+             *       "explaination": "Correct because..."
+             *     }
+             */
+            correctLotItem?: components["schemas"]["LotItem"];
+            /**
+             * @description Total attempts across all users that included this question
+             * @example 42
+             */
+            attemptCount?: number;
+            /**
+             * @description Distinct users who attempted this question
+             * @example 17
+             */
+            attemptedByUsersCount?: number;
+            /**
+             * @description Text of the question
+             * @example What is 2 + 2?
+             */
+            text: string;
+            /**
+             * @description Type of the question
+             * @example SELECT_ONE_IN_LOT
+             * @enum {string}
+             */
+            type: "SELECT_ONE_IN_LOT" | "SELECT_MANY_IN_LOT" | "ORDER_THE_LOTS" | "NUMERIC_ANSWER_TYPE" | "DESCRIPTIVE";
+            /**
+             * @description Whether the question is parameterized
+             * @example false
+             */
+            isParameterized: boolean;
+            /**
+             * @description Parameters for the question
+             * @example [
+             *       {
+             *         "name": "Param1",
+             *         "possibleValues": [
+             *           "cat",
+             *           "dog"
+             *         ],
+             *         "type": "string"
+             *       }
+             *     ]
+             */
+            parameters: components["schemas"]["QuestionParameter"][];
+            /**
+             * @description Hint for the question
+             * @example Think about basic addition.
+             */
+            hint: string;
+            /**
+             * @description Time limit for the question in seconds
+             * @example 60
+             */
+            timeLimitSeconds: number;
+            /**
+             * @description Points for the question
+             * @example 5
+             */
+            points?: number;
+            /**
+             * @description Priority of the question
+             * @example MEDIUM
+             * @enum {string}
+             */
+            priority: "LOW" | "MEDIUM" | "HIGH";
+        };
+        QuestionId: {
+            /**
+             * @description ID of the question
+             * @example 60d21b4667d0d8992e610c87
+             */
+            questionId: string;
+        };
+        QuestionNotFoundErrorResponse: {
+            /**
+             * @description The error message.
+             * @example Question not found.
+             */
+            readonly message: string;
+        };
+        FlagQuestionBody: {
+            /**
+             * @description Reason for flagging the question
+             * @example This question contains inappropriate content
+             */
+            reason: string;
+            /**
+             * @description course id for the question
+             * @example 6864be0c86bc95b1c9e49e19
+             */
+            courseId?: string;
+            /**
+             * @description version id for the question
+             * @example 6864be0c86bc95b1c9e49e19
+             */
+            versionId?: string;
+        };
+        FlagId: {
+            /**
+             * @description ID of the flag to resolve
+             * @example 60d21b4667d0d8992e610c87
+             */
+            flagId: string;
+        };
+        ResolveFlagBody: {
+            /**
+             * @description Status to set for the flag
+             * @example RESOLVED
+             * @enum {string}
+             */
+            status: "RESOLVED" | "REJECTED";
+        };
+        GenerateAIQuestionsBody: {
+            text?: string;
+        };
+        CreateQuestionBankBody: {
+            /**
+             * @description ID of the course
+             * @example 60d21b4667d0d8992e610c85
+             */
+            courseId?: string;
+            /**
+             * @description ID of the course version
+             * @example 60d21b4667d0d8992e610c86
+             */
+            courseVersionId?: string;
+            /**
+             * @description Array of question IDs
+             * @example [
+             *       "60d21b4667d0d8992e610c87"
+             *     ]
+             */
+            questions?: string[];
+            /**
+             * @description Tags for the question bank
+             * @example [
+             *       "math",
+             *       "science"
+             *     ]
+             */
+            tags?: string[];
+            /**
+             * @description Points for each question in the bank
+             * @example 5
+             */
+            points?: number;
+            /**
+             * @description Title of the question bank
+             * @example Algebra Basics
+             */
+            title: string;
+            /**
+             * @description Description of the question bank
+             * @example A collection of algebra questions.
+             */
+            description?: string;
+        };
+        GetQuestionBankByIdParams: {
+            /**
+             * @description ID of the question bank
+             * @example 60d21b4667d0d8992e610c85
+             */
+            questionBankId: string;
+        };
+        QuestionBankAndQuestionParams: {
+            /**
+             * @description ID of the question bank
+             * @example 60d21b4667d0d8992e610c85
+             */
+            questionBankId: string;
+            /**
+             * @description ID of the question
+             * @example 60d21b4667d0d8992e610c87
+             */
+            questionId: string;
+        };
+        CreateQuestionBankResponse: {
+            /**
+             * @description ID of the created question bank
+             * @example 60d21b4667d0d8992e610c85
+             */
+            questionBankId: string;
+        };
+        QuestionBankResponse: {
+            /**
+             * @description ID of the question bank
+             * @example 60d21b4667d0d8992e610c85
+             */
+            _id: string;
+            /**
+             * @description ID of the course
+             * @example 60d21b4667d0d8992e610c85
+             */
+            courseId?: string;
+            /**
+             * @description ID of the course version
+             * @example 60d21b4667d0d8992e610c86
+             */
+            courseVersionId?: string;
+            /**
+             * @description Array of question IDs
+             * @example [
+             *       "60d21b4667d0d8992e610c87"
+             *     ]
+             */
+            questions?: string[];
+            /**
+             * @description Tags for the question bank
+             * @example [
+             *       "math",
+             *       "science"
+             *     ]
+             */
+            tags?: string[];
+            /**
+             * @description Points for each question in the bank
+             * @example 5
+             */
+            points?: number;
+            /**
+             * @description Title of the question bank
+             * @example Algebra Basics
+             */
+            title: string;
+            /**
+             * @description Description of the question bank
+             * @example A collection of algebra questions.
+             */
+            description: string;
+        };
+        ReplaceQuestionResponse: {
+            /**
+             * @description ID of the new question
+             * @example 60d21b4667d0d8992e610c88
+             */
+            newQuestionId: string;
+        };
+        QuestionBankNotFoundErrorResponse: {
+            /**
+             * @description The error message.
+             * @example Question bank not found.
+             */
+            readonly message: string;
+        };
+        QuestionBankRef: {
+            /**
+             * @description ID of the question bank
+             * @example 60d21b4667d0d8992e610c85
+             */
+            bankId: string;
+            /**
+             * @description How many questions to pick
+             * @example 10
+             */
+            count: number;
+            /**
+             * @description Optional filter for question difficulty
+             * @example [
+             *       "easy",
+             *       "medium"
+             *     ]
+             */
+            difficulty?: string[];
+            /**
+             * @description Optional filter for question tags
+             * @example [
+             *       "math",
+             *       "science"
+             *     ]
+             */
+            tags?: string[];
+            /**
+             * @description Optional question type filter
+             * @example multiple-choice
+             */
+            type?: string;
+        };
+        QuestionAnswerFeedback: {
+            /**
+             * @description ID of the question
+             * @example 60d21b4667d0d8992e610c02
+             */
+            questionId: string;
+            /**
+             * @description Status of the answer
+             * @example CORRECT
+             * @enum {string}
+             */
+            status: "CORRECT" | "INCORRECT" | "PARTIAL";
+            /**
+             * @description Score for the answer
+             * @example 5
+             */
+            score: number;
+            /**
+             * @description Feedback for the answer
+             * @example Good job! You answered correctly.
+             */
+            answerFeedback?: string;
+        };
+        CreateAttemptParams: {
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+        };
+        SaveAttemptParams: {
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the attempt
+             * @example 60d21b4667d0d8992e610c99
+             */
+            attemptId: string;
+        };
+        SubmitAttemptParams: {
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the attempt
+             * @example 60d21b4667d0d8992e610c99
+             */
+            attemptId: string;
+        };
+        ExportQuizAttemptsParams: {
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+        };
+        SubmitFeedbackParams: {
+            /**
+             * @description ID of the feedback form
+             * @example 60d21b4667d0d8992e610c85
+             */
+            itemId: string;
+        };
+        GetAttemptResponse: {
+            /**
+             * @description ID of the attempt
+             * @example 60d21b4667d0d8992e610c99
+             */
+            _id: string;
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the user
+             * @example 60d21b4667d0d8992e610c01
+             */
+            userId: string;
+            /**
+             * @description List of question details in the quiz
+             * @example [
+             *       {
+             *         "questionId": "60d21b4667d0d8992e610c02"
+             *       }
+             *     ]
+             */
+            questionDetails: components["schemas"]["QuestionDetails"][];
+            /** @description Answers for the attempt */
+            answers?: components["schemas"]["QuestionAnswer"][];
+            /**
+             * Format: date-time
+             * @description Creation date
+             * @example 2024-06-18T12:00:00.000Z
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Last update date
+             * @example 2024-06-18T12:30:00.000Z
+             */
+            updatedAt: string;
+        };
+        SOLAnswer: {
+            /**
+             * @description ID of the selected lot item
+             * @example 60d21b4667d0d8992e610c10
+             */
+            lotItemId: string;
+        };
+        SMLAnswer: {
+            /**
+             * @description IDs of the selected lot items
+             * @example [
+             *       "60d21b4667d0d8992e610c10",
+             *       "60d21b4667d0d8992e610c11"
+             *     ]
+             */
+            lotItemIds: string[];
+        };
+        Order: {
+            /**
+             * @description Order of the lot item
+             * @example 1
+             */
+            order: number;
+            /**
+             * @description ID of the lot item
+             * @example 60d21b4667d0d8992e610c10
+             */
+            lotItemId: string;
+        };
+        OTLAnswer: {
+            /**
+             * @description Orderings of lot items
+             * @example [
+             *       {
+             *         "order": 1,
+             *         "lotItemId": "60d21b4667d0d8992e610c10"
+             *       }
+             *     ]
+             */
+            orders: components["schemas"]["Order"][];
+        };
+        NATAnswer: {
+            /**
+             * @description Numeric answer value
+             * @example 42
+             */
+            value: number;
+        };
+        DESAnswer: {
+            /**
+             * @description Descriptive answer text
+             * @example The answer is four.
+             */
+            answerText: string;
+        };
+        QuestionAnswer: {
+            /**
+             * @description ID of the question
+             * @example 60d21b4667d0d8992e610c02
+             */
+            questionId: string;
+            /**
+             * @description Type of the question
+             * @example SELECT_ONE_IN_LOT
+             * @enum {string}
+             */
+            questionType: "SELECT_ONE_IN_LOT" | "SELECT_MANY_IN_LOT" | "ORDER_THE_LOTS" | "NUMERIC_ANSWER_TYPE" | "DESCRIPTIVE";
+            /** @description Answer for the question */
+            answer: string & (components["schemas"]["SOLAnswer"] | components["schemas"]["SMLAnswer"] | components["schemas"]["OTLAnswer"] | components["schemas"]["NATAnswer"] | components["schemas"]["DESAnswer"]);
+            /**
+             * @description Stage-2 crowd questions only: the student's thumbs up/down on the ungraded peer question. Ignored for graded questions.
+             * @example UP
+             * @enum {string}
+             */
+            thumb?: "UP" | "DOWN";
+        };
+        QuestionDetails: {
+            /**
+             * @description ID of the question
+             * @example 60d21b4667d0d8992e610c02
+             */
+            questionId: string;
+            /**
+             * @description Parameter map for the question
+             * @example {
+             *       "difficulty": "easy",
+             *       "maxScore": 10
+             *     }
+             */
+            parameterMap?: {
+                [key: string]: string | number;
+            };
+        };
+        QuestionAnswersBody: {
+            /** @description Array of answers for the quiz */
+            answers?: components["schemas"]["QuestionAnswer"][];
+            /**
+             * @description Whether this attempt is skipped
+             * @example true
+             */
+            isSkipped?: boolean;
+        };
+        SubmitFeedbackBody: {
+            /** @description Dynamic key-value pairs submitted by the student as feedback. */
+            details: Record<string, never>;
+            /**
+             * @description ID of the course
+             * @example 60d21b4667d0d8992e610c99
+             */
+            courseId: string;
+            /**
+             * @description ID of the second which feedback form belongs to
+             * @example 60d21b4667d0d8992e610c99
+             */
+            sectionId?: string;
+            /**
+             * @description ID of the course version
+             * @example 60d21b4667d0d8992e610c99
              */
             courseVersionId: string;
+            /**
+             * @description Cohort of the student
+             * @example cohort-1
+             */
+            cohortId?: string;
+        };
+        QuestionRenderView: {
+            /**
+             * @description Parameter map for the question
+             * @example {
+             *       "difficulty": "easy",
+             *       "maxScore": 10
+             *     }
+             */
+            parameterMap?: {
+                [key: string]: string | number;
+            };
+            /**
+             * @description Text of the question
+             * @example What is 2 + 2?
+             */
+            text: string;
+            /**
+             * @description Type of the question
+             * @example SELECT_ONE_IN_LOT
+             * @enum {string}
+             */
+            type: "SELECT_ONE_IN_LOT" | "SELECT_MANY_IN_LOT" | "ORDER_THE_LOTS" | "NUMERIC_ANSWER_TYPE" | "DESCRIPTIVE";
+            /**
+             * @description Whether the question is parameterized
+             * @example false
+             */
+            isParameterized: boolean;
+            /**
+             * @description Parameters for the question
+             * @example [
+             *       {
+             *         "name": "Param1",
+             *         "possibleValues": [
+             *           "cat",
+             *           "dog"
+             *         ],
+             *         "type": "string"
+             *       }
+             *     ]
+             */
+            parameters: components["schemas"]["QuestionParameter"][];
+            /**
+             * @description Hint for the question
+             * @example Think about basic addition.
+             */
+            hint: string;
+            /**
+             * @description Time limit for the question in seconds
+             * @example 60
+             */
+            timeLimitSeconds: number;
+            /**
+             * @description Points for the question
+             * @example 5
+             */
+            points?: number;
+            /**
+             * @description Priority of the question
+             * @example MEDIUM
+             * @enum {string}
+             */
+            priority: "LOW" | "MEDIUM" | "HIGH";
+        };
+        CreateAttemptResponse: {
+            /**
+             * @description ID of the created attempt
+             * @example 60d21b4667d0d8992e610c99
+             */
+            attemptId: string;
+            /** @description Question render views for the attempt */
+            questionRenderViews: components["schemas"]["QuestionRenderView"][];
+        };
+        SubmitAttemptResponse: {
+            /**
+             * @description Total score for the attempt
+             * @example 8
+             */
+            totalScore?: number;
+            /**
+             * @description Maximum possible score for the attempt
+             * @example 10
+             */
+            totalMaxScore?: number;
+            /** @description Overall feedback for the attempt */
+            overallFeedback: components["schemas"]["QuestionAnswerFeedback"][];
+            /**
+             * @description Grading status
+             * @example PASSED
+             * @enum {string}
+             */
+            gradingStatus: "PENDING" | "PASSED" | "FAILED";
+            /**
+             * @description Date when graded
+             * @example 2024-06-18T12:30:00.000Z
+             */
+            gradedAt?: string;
+            /**
+             * @description User who graded the attempt
+             * @example admin
+             */
+            gradedBy?: string;
+        };
+        GetQuizSubmissionsQuery: {
+            /**
+             * @description Filter by grading status (e.g., PASSED, FAILED)
+             * @example PASSED
+             * @enum {string}
+             */
+            gradeStatus?: "PENDING" | "PASSED" | "FAILED";
+            /**
+             * @description Search term (name, email, etc.)
+             * @example john
+             */
+            search?: string;
+            /**
+             * @description Sort option (e.g., RECENT, SCORE_ASC, SCORE_DESC)
+             * @example RECENT
+             * @enum {string}
+             */
+            sort?: "date_desc" | "date_asc" | "score_desc" | "score_asc";
+            /**
+             * @description Current page number for pagination
+             * @example 1
+             */
+            currentPage?: number;
+            /**
+             * @description Number of items per page
+             * @example 10
+             */
+            limit?: number;
+        };
+        QuizIdParam: {
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+        };
+        QuizAttemptParam: {
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the attempt
+             * @example 60d21b4667d0d8992e610c99
+             */
+            attemptId: string;
+        };
+        QuizSubmissionParam: {
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the submission
+             * @example 60d21b4667d0d8992e610c77
+             */
+            submissionId: string;
+        };
+        UpdateQuizSubmissionParam: {
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the submission
+             * @example 60d21b4667d0d8992e610c77
+             */
+            submissionId: string;
+            /**
+             * @description Score to update
+             * @example 8
+             */
+            score: number;
+        };
+        RemoveQuestionBankParams: {
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the question bank
+             * @example 60d21b4667d0d8992e610c88
+             */
+            questionBankId: string;
+        };
+        AddFeedbackParams: {
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the submission
+             * @example 60d21b4667d0d8992e610c77
+             */
+            submissionId: string;
+            /**
+             * @description ID of the question
+             * @example 60d21b4667d0d8992e610c02
+             */
+            questionId: string;
+        };
+        GetUserMatricesParams: {
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the user
+             * @example 60d21b4667d0d8992e610c01
+             */
+            userId: string;
+        };
+        AddQuestionBankBody: {
+            /**
+             * @description ID of the question bank
+             * @example 60d21b4667d0d8992e610c88
+             */
+            bankId: string;
+            /**
+             * @description Number of questions to pick
+             * @example 10
+             */
+            count: number;
+            /**
+             * @description Difficulty filters
+             * @example [
+             *       "easy",
+             *       "medium"
+             *     ]
+             */
+            difficulty?: string[];
+            /**
+             * @description Tags filters
+             * @example [
+             *       "math",
+             *       "science"
+             *     ]
+             */
+            tags?: string[];
+        };
+        EditQuestionBankBody: {
+            /**
+             * @description ID of the question bank
+             * @example 60d21b4667d0d8992e610c88
+             */
+            bankId: string;
+            /**
+             * @description Number of questions to pick
+             * @example 10
+             */
+            count: number;
+            /**
+             * @description Difficulty filters
+             * @example [
+             *       "easy",
+             *       "medium"
+             *     ]
+             */
+            difficulty?: string[];
+            /**
+             * @description Tags filters
+             * @example [
+             *       "math",
+             *       "science"
+             *     ]
+             */
+            tags?: string[];
+            /**
+             * @description Points for each question in the bank
+             * @example 5
+             */
+            points?: number;
+        };
+        RegradeSubmissionBody: {
+            /**
+             * @description Total score after regrading
+             * @example 8
+             */
+            totalScore?: number;
+            /**
+             * @description Maximum possible score after regrading
+             * @example 10
+             */
+            totalMaxScore?: number;
+            /** @description Overall feedback after regrading */
+            overallFeedback?: components["schemas"]["QuestionAnswerFeedback"][];
+            /**
+             * @description Grading status after regrading
+             * @example PASSED
+             * @enum {string}
+             */
+            gradingStatus: "PENDING" | "PASSED" | "FAILED";
+        };
+        AddFeedbackBody: {
+            /**
+             * @description Feedback text
+             * @example Great answer!
+             */
+            feedback: string;
+        };
+        AttemptDetails: {
+            /**
+             * @description ID of the attempt
+             * @example 60d21b4667d0d8992e610c99
+             */
+            attemptId: string;
+            /**
+             * @description ID of the submission result
+             * @example 60d21b4667d0d8992e610c77
+             */
+            submissionResultId?: string;
+        };
+        UserQuizMetricsResponse: {
+            /**
+             * @description ID of the metrics record
+             * @example 60d21b4667d0d8992e610c01
+             */
+            _id?: string;
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the user
+             * @example 60d21b4667d0d8992e610c01
+             */
+            userId: string;
+            /**
+             * @description Latest attempt status
+             * @example ATTEMPTED
+             * @enum {string}
+             */
+            latestAttemptStatus: "ATTEMPTED" | "SUBMITTED";
+            /**
+             * @description ID of the latest attempt
+             * @example 60d21b4667d0d8992e610c99
+             */
+            latestAttemptId?: string;
+            /**
+             * @description ID of the latest submission result
+             * @example 60d21b4667d0d8992e610c77
+             */
+            latestSubmissionResultId?: string;
+            /**
+             * @description Number of remaining attempts
+             * @example 2
+             */
+            remainingAttempts: number;
+            /**
+             * @description Number of times the quiz was skipped
+             * @example 0
+             */
+            skipCount: number;
+            /** @description List of attempts */
+            attempts: components["schemas"]["AttemptDetails"][];
+        };
+        QuizAttemptResponse: {
+            /**
+             * @description ID of the attempt
+             * @example 60d21b4667d0d8992e610c99
+             */
+            _id?: string;
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the user
+             * @example 60d21b4667d0d8992e610c01
+             */
+            userId: string;
+            /** @description List of question details in the quiz */
+            questionDetails: Record<string, never>[];
+            /** @description Answers for the attempt */
+            answers?: Record<string, never>[];
+            /**
+             * Format: date-time
+             * @description Creation date
+             * @example 2024-06-18T12:00:00.000Z
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Last update date
+             * @example 2024-06-18T12:30:00.000Z
+             */
+            updatedAt: string;
+        };
+        GradingResult: {
+            /**
+             * @description Total score for the grading result
+             * @example 8
+             */
+            totalScore?: number;
+            /**
+             * @description Maximum possible score for the grading result
+             * @example 10
+             */
+            totalMaxScore?: number;
+            /** @description Overall feedback for the grading result */
+            overallFeedback?: components["schemas"]["QuestionAnswerFeedback"][];
+        };
+        QuizSubmissionResponse: {
+            /**
+             * @description ID of the submission
+             * @example 60d21b4667d0d8992e610c77
+             */
+            _id?: string;
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the user
+             * @example 60d21b4667d0d8992e610c01
+             */
+            userId: string;
+            /**
+             * @description ID of the attempt
+             * @example 60d21b4667d0d8992e610c99
+             */
+            attemptId: string;
+            /**
+             * @description Submission date
+             * @example 2024-06-18T12:45:00.000Z
+             */
+            submittedAt: string;
+            /** @description Grading result for the submission */
+            gradingResult?: components["schemas"]["GradingResult"];
+        };
+        QuizDetails: {
+            /** @description List of question banks referenced in the quiz */
+            questionBankRefs: components["schemas"]["QuestionBankRef"][];
+            /**
+             * @description Passing threshold for the quiz
+             * @example 0.7
+             */
+            passThreshold: number;
+            /**
+             * @description Maximum number of attempts allowed
+             * @example 3
+             */
+            maxAttempts: number;
+            /**
+             * @description Type of the quiz
+             * @example DEADLINE
+             * @enum {string}
+             */
+            quizType: "DEADLINE" | "NO_DEADLINE";
+            /**
+             * @description Release time for the quiz
+             * @example 2024-06-18T12:00:00.000Z
+             */
+            releaseTime: string;
+            /**
+             * @description Number of questions visible to the user at a time
+             * @example 5
+             */
+            questionVisibility: number;
+            /**
+             * @description Deadline for the quiz, only applicable for DEADLINE type
+             * @example 2024-06-25T12:00:00.000Z
+             */
+            deadline?: string;
+            /**
+             * @description Approximate time to complete the quiz
+             * @example 01:30:00
+             */
+            approximateTimeToComplete: string;
+            /**
+             * @description If true, allows partial grading for SML questions
+             * @example true
+             */
+            allowPartialGrading: boolean;
+            /**
+             * @description If true, allows users to use hints for questions
+             * @example false
+             */
+            allowHint: boolean;
+            /**
+             * @description If true, shows correct answers after submission
+             * @example true
+             */
+            showCorrectAnswersAfterSubmission: boolean;
+            /**
+             * @description If true, shows explanation after submission
+             * @example true
+             */
+            showExplanationAfterSubmission: boolean;
+            /**
+             * @description If true, shows score after submission
+             * @example true
+             */
+            showScoreAfterSubmission: boolean;
+            /**
+             * @description If true, allows skipping quiz
+             * @example false
+             */
+            allowSkip: boolean;
+        };
+        QuizDetailsResponse: {
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            _id?: string;
+            /**
+             * @description Name of the quiz
+             * @example Algebra Quiz
+             */
+            name: string;
+            /**
+             * @description Description of the quiz
+             * @example A quiz on algebra basics.
+             */
+            description: string;
+            /**
+             * @description Type of the quiz
+             * @example QUIZ
+             * @enum {string}
+             */
+            type: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
+            /** @description Quiz details */
+            details?: components["schemas"]["QuizDetails"];
+        };
+        QuizAnalyticsResponse: {
+            /**
+             * @description Total number of attempts
+             * @example 100
+             */
+            totalAttempts: number;
+            /**
+             * @description Number of submissions
+             * @example 80
+             */
+            submissions: number;
+            /**
+             * @description Pass rate (%)
+             * @example 75
+             */
+            passRate: number;
+            /**
+             * @description Average score
+             * @example 7.5
+             */
+            averageScore: number;
+        };
+        QuizPerformanceResponse: {
+            /**
+             * @description ID of the question
+             * @example 60d21b4667d0d8992e610c02
+             */
+            questionId: string;
+            /**
+             * @description Correct answer rate (%)
+             * @example 80
+             */
+            correctRate: number;
+            /**
+             * @description Average score for the question
+             * @example 4.2
+             */
+            averageScore: number;
+        };
+        QuizResultsResponse: {
+            /**
+             * @description ID of the student
+             * @example 60d21b4667d0d8992e610c01
+             */
+            studentId: string;
+            /**
+             * @description ID of the attempt
+             * @example 60d21b4667d0d8992e610c99
+             */
+            attemptId: string;
+            /**
+             * @description Score for the attempt
+             * @example 9
+             */
+            score: number;
+            /**
+             * @description Status of the attempt
+             * @example PASSED
+             * @enum {string}
+             */
+            status: "PENDING" | "PASSED" | "FAILED";
+        };
+        SubmissionResponse: {
+            /**
+             * @description ID of the submission
+             * @example 60d21b4667d0d8992e610c77
+             */
+            _id: string;
+            /**
+             * @description ID of the quiz
+             * @example 60d21b4667d0d8992e610c85
+             */
+            quizId: string;
+            /**
+             * @description ID of the user
+             * @example 60d21b4667d0d8992e610c01
+             */
+            userId: string;
+            /**
+             * @description ID of the attempt
+             * @example 60d21b4667d0d8992e610c99
+             */
+            attemptId: string;
+            /**
+             * Format: date-time
+             * @description Submission date
+             * @example 2024-06-18T12:45:00.000Z
+             */
+            submittedAt: string;
+            /** @description Grading result for the submission */
+            gradingResult?: Record<string, never>;
+            course: string;
+            courseVersion: string;
+            userInfo: unknown[];
+        };
+        GetAllSubmissionsResponse: {
+            /** @description List of all submissions */
+            submissions: components["schemas"]["SubmissionResponse"][];
+        };
+        QuestionBankRefResponse: {
+            /**
+             * @description ID of the question bank
+             * @example 60d21b4667d0d8992e610c88
+             */
+            bankId: string;
+            /**
+             * @description Number of questions to pick
+             * @example 10
+             */
+            count: number;
+            /**
+             * @description Difficulty filters
+             * @example [
+             *       "easy",
+             *       "medium"
+             *     ]
+             */
+            difficulty?: string[];
+            /**
+             * @description Tags filters
+             * @example [
+             *       "math",
+             *       "science"
+             *     ]
+             */
+            tags?: string[];
+            /**
+             * @description Type filter
+             * @example MCQ
+             */
+            type?: string;
+        };
+        AttemptNotFoundErrorResponse: {
+            /**
+             * @description The error message.
+             * @example No attempt found.
+             */
+            readonly message: string;
+        };
+        QuizNotFoundErrorResponse: {
+            /**
+             * @description The error message.
+             * @example Quiz not found.
+             */
+            readonly message: string;
+        };
+        GetAllQuestionBanksResponse: {
+            /** @description List of all question banks */
+            questionBanks: components["schemas"]["QuestionBankRef"][];
+        };
+        GetUserProgressParams: {
+            /** @description Course ID to retrieve progress for */
+            courseId: string;
+            /** @description Course version ID to retrieve progress for */
+            versionId: string;
+        };
+        GetLeaderboardQuery: {
+            /**
+             * @description Page number (starts from 1)
+             * @default 1
+             */
+            page: number;
+            /**
+             * @description Number of records per page
+             * @default 10
+             */
+            limit: number;
+            /** @description Cohort ID to filter leaderboard by */
+            cohortId?: string;
+        };
+        LeaderboardNoAuthResponse: {
+            /** @description User ID */
+            userId: string;
+            /** @description User full name */
+            userName: string;
+            /**
+             * Format: email
+             * @description User email address
+             */
+            email: string;
+            /** @description Completion percentage of the course */
+            completionPercentage: number;
+            /** @description Completion timestamp (null if not completed) */
+            completedAt?: string | null;
+            /** @description Rank in leaderboard */
+            rank: number;
+        };
+        GetLeaderboardResponse: {
+            /** @description Course name */
+            course: string;
+            /** @description Course version */
+            version: string;
+            /** @description Leaderboard data */
+            data: components["schemas"]["LeaderboardNoAuthResponse"][];
         };
         StartItemBody: {
             /**
-             * Format: Mongo Object ID
              * @description ID of the course item to start
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
             itemId: string;
             /**
-             * Format: Mongo Object ID
              * @description ID of the module containing the item
              * @example 60d5ec49b3f1c8e4a8f8b8c5
              */
             moduleId: string;
             /**
-             * Format: Mongo Object ID
              * @description ID of the section containing the item
              * @example 60d5ec49b3f1c8e4a8f8b8c6
              */
             sectionId: string;
+            cohortId?: string;
         };
         StartItemParams: {
-            /**
-             * Format: Mongo Object ID
-             * @description User ID to track progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
-             */
-            userId: string;
-            /**
-             * Format: Mongo Object ID
-             * @description Course ID to track progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c2
-             */
+            /** @description Course ID to track progress for */
             courseId: string;
-            /**
-             * Format: Mongo Object ID
-             * @description Course version ID to track progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c3
-             */
-            courseVersionId: string;
+            /** @description Course version ID to track progress for */
+            versionId: string;
         };
         StartItemResponse: {
             /**
-             * Format: Mongo Object ID
              * @description Watch item ID for tracking progress
              * @example 60d5ec49b3f1c8e4a8f8b8c7
              */
             watchItemId: string;
         };
         StopItemParams: {
-            /**
-             * Format: Mongo Object ID
-             * @description User ID to stop tracking progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
-             */
-            userId: string;
-            /**
-             * Format: Mongo Object ID
-             * @description Course ID to stop tracking progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c2
-             */
+            /** @description Course ID to stop tracking progress for */
             courseId: string;
-            /**
-             * Format: Mongo Object ID
-             * @description Course version ID to stop tracking progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c3
-             */
-            courseVersionId: string;
+            /** @description Course version ID to stop tracking progress for */
+            versionId: string;
         };
         StopItemBody: {
             /**
-             * Format: Mongo Object ID
              * @description Watch item ID used for tracking progress
              * @example 60d5ec49b3f1c8e4a8f8b8c7
              */
             watchItemId: string;
             /**
-             * Format: Mongo Object ID
              * @description ID of the course item to stop tracking
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
             itemId: string;
             /**
-             * Format: Mongo Object ID
              * @description ID of the section containing the item
              * @example 60d5ec49b3f1c8e4a8f8b8c6
              */
             sectionId: string;
             /**
-             * Format: Mongo Object ID
              * @description ID of the module containing the item
              * @example 60d5ec49b3f1c8e4a8f8b8c5
              */
             moduleId: string;
-            attemptId?: string | null;
+            /**
+             * @description Attempt ID for quiz tracking
+             * @example 60d5ec49b3f1c8e4a8f8b8c7
+             */
+            attemptId?: string;
+            /**
+             * @description Whether this attempt is skipped
+             * @example true
+             */
+            isSkipped?: boolean;
+            /**
+             * @description Whether seek forward is allowed
+             * @example true
+             */
+            seekForwardEnabled?: boolean;
+            /**
+             * @description Next item ID to proceed to after stopping
+             * @example 60d5ec49b3f1c8e4a8f8b8c8
+             */
+            nextItemId?: string;
+            /**
+             * @description Cohort to which the user belongs
+             * @example Cohort A
+             */
+            cohortId?: string;
+        };
+        ItemIdparams: {
+            /** @description Gives as ItemId */
+            itemId: string;
         };
         UpdateProgressBody: {
             /**
-             * Format: Mongo Object ID
              * @description ID of the module to update progress for
              * @example 60d5ec49b3f1c8e4a8f8b8c5
              */
             moduleId: string;
             /**
-             * Format: Mongo Object ID
              * @description ID of the section to update progress for
              * @example 60d5ec49b3f1c8e4a8f8b8c6
              */
             sectionId: string;
             /**
-             * Format: Mongo Object ID
              * @description ID of the item to update progress for
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
             itemId: string;
             /**
-             * Format: Mongo Object ID
              * @description Watch item ID used for tracking progress
              * @example 60d5ec49b3f1c8e4a8f8b8c7
              */
-            watchItemId?: string | null;
+            watchItemId?: string;
             /**
-             * Format: Mongo Object ID
-             * @description Attempt ID used for quiz tracking progress
-             * @example 60d5ec49b3f1c8e4a8f8b8c7
+             * @description ID of the attempt for quiz
+             * @example 60d5ec49b3f1c8e4a8f8b8c6
              */
-            attemptId?: string | null;
+            attemptId?: string;
         };
         UpdateProgressParams: {
-            /**
-             * Format: Mongo Object ID
-             * @description User ID to update progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
-             */
-            userId: string;
-            /**
-             * Format: Mongo Object ID
-             * @description Course ID to update progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c2
-             */
+            /** @description Course ID to update progress for */
             courseId: string;
-            /**
-             * Format: Mongo Object ID
-             * @description Course version ID to update progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c3
-             */
-            courseVersionId: string;
+            /** @description Course version ID to update progress for */
+            versionId: string;
         };
         ResetCourseProgressParams: {
-            /**
-             * Format: Mongo Object ID
-             * @description User ID to reset progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
-             */
+            /** @description User ID to reset progress for */
             userId: string;
-            /**
-             * Format: Mongo Object ID
-             * @description Course ID to reset progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c2
-             */
+            /** @description Course ID to reset progress for */
             courseId: string;
-            /**
-             * Format: Mongo Object ID
-             * @description Course version ID to reset progress for
-             * @example 60d5ec49b3f1c8e4a8f8b8c3
-             */
-            courseVersionId: string;
+            /** @description Course version ID to reset progress for */
+            versionId: string;
         };
         ResetCourseProgressBody: {
             /**
-             * Format: Mongo Object ID
              * @description Optional module ID to reset progress to
              * @example 60d5ec49b3f1c8e4a8f8b8c5
              */
             moduleId?: string | null;
             /**
-             * Format: Mongo Object ID
              * @description Optional section ID to reset progress to
              * @example 60d5ec49b3f1c8e4a8f8b8c6
              */
             sectionId?: string | null;
             /**
-             * Format: Mongo Object ID
              * @description Optional item ID to reset progress to
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
             itemId?: string | null;
-            invalidFieldsCheck?: unknown;
-            invalidFieldsCheck2?: unknown;
+            /** @description field to trigger validation error if moduleId is not provided */
+            readonly invalidFieldsCheck?: string;
+            /** @description field to trigger validation error if sectionId is not provided */
+            readonly invalidFieldsCheck2?: string;
+            /**
+             * @description Cohort to which the user belongs
+             * @example Cohort A
+             */
+            cohortId?: string;
         };
         ProgressDataResponse: {
             /**
-             * Format: Mongo Object ID
              * @description Unique identifier for the progress record
              * @example 60d5ec49b3f1c8e4a8f8b8d1
              */
             readonly _id: string;
             /**
-             * Format: Mongo Object ID
              * @description User ID associated with this progress
              * @example 60d5ec49b3f1c8e4a8f8b8c1
              */
             userId: string;
             /**
-             * Format: Mongo Object ID
              * @description Course ID associated with this progress
              * @example 60d5ec49b3f1c8e4a8f8b8c2
              */
             courseId: string;
             /**
-             * Format: Mongo Object ID
              * @description Course version ID associated with this progress
              * @example 60d5ec49b3f1c8e4a8f8b8c3
              */
             courseVersionId: string;
             /**
-             * Format: Mongo Object ID
              * @description ID of the current module in progress
              * @example 60d5ec49b3f1c8e4a8f8b8c5
              */
             currentModule: string;
             /**
-             * Format: Mongo Object ID
              * @description ID of the current section in progress
              * @example 60d5ec49b3f1c8e4a8f8b8c6
              */
             currentSection: string;
             /**
-             * Format: Mongo Object ID
              * @description ID of the current item in progress
              * @example 60d5ec49b3f1c8e4a8f8b8c4
              */
@@ -2005,51 +9681,271 @@ export interface components {
              */
             completed: boolean;
         };
-        EnrollmentParams: {
+        CompletedProgressResponse: {
             /**
-             * Format: Mongo Object ID
-             * @description User ID of the student to enroll
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
+             * @description Indicates whether the course has been completed
+             * @example true
              */
+            readonly completed: boolean;
+            /**
+             * @description Percentage of course completion
+             * @example 75
+             */
+            readonly percentCompleted: number;
+            /**
+             * @description Total number of items in the course
+             * @example 20
+             */
+            readonly totalItems: number;
+            /**
+             * @description Total number of completed items in the course
+             * @example 15
+             */
+            readonly completedItems: number;
+        };
+        ProgressNotFoundErrorResponse: {
+            /**
+             * @description Error message indicating progress not found
+             * @example Progress not found for the specified user and course version
+             */
+            readonly message: string;
+        };
+        WatchTimeParams: {
+            /** @description user ID to get watch time for */
             userId: string;
-            /**
-             * Format: Mongo Object ID
-             * @description ID of the course to enroll in
-             * @example 60d5ec49b3f1c8e4a8f8b8c2
-             */
+            /** @description Course ID to get watch time for */
             courseId: string;
+            /** @description Course version ID to get watch time for */
+            versionId: string;
+            /** @description Item ID to get watch time for */
+            itemId: string;
             /**
-             * Format: Mongo Object ID
-             * @description ID of the specific course version to enroll in
-             * @example 60d5ec49b3f1c8e4a8f8b8c3
+             * @description Type of the item (e.g., video, quiz)
+             * @example VIDEO
+             * @enum {string}
              */
-            courseVersionId: string;
+            type: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
+        };
+        WatchTimeResponse: {
+            /** @description Array of watch time records */
+            watchTime: unknown[];
+            /** @description Quiz metrics if applicable */
+            quizMetrics?: Record<string, never> | null;
+        };
+        TotalWatchTimeResponse: {
+            /**
+             * @description Total watch time of the user
+             * @example 120
+             */
+            totalWatchTime: number;
+        };
+        UpsertWatchTimeBody: {
+            /**
+             * @description Watch item ID used for tracking progress
+             * @example 60d5ec49b3f1c8e4a8f8b8c7
+             */
+            watchItemId: string;
+            /**
+             * @description ID of the course item being watched
+             * @example 60d5ec49b3f1c8e4a8f8b8c4
+             */
+            itemId: string;
+            /**
+             * @description ID of the cohort if applicable
+             * @example 60d5ec49b3f1c8e4a8f8b8c8
+             */
+            cohortId?: string;
+        };
+        UpsertWatchTimeResponse: {
+            /**
+             * @description Watch item ID of the upserted record
+             * @example 60d5ec49b3f1c8e4a8f8b8c7
+             */
+            watchItemId: string;
+        };
+        ContentCountsValidator: {
+            /**
+             * @description Total number of items in the course
+             * @example 45
+             */
+            totalItems?: number;
+            /**
+             * @description Number of video items in the course
+             * @example 24
+             */
+            videos?: number;
+            /**
+             * @description Number of quiz items in the course
+             * @example 12
+             */
+            quizzes?: number;
+            /**
+             * @description Number of blog/article items in the course
+             * @example 9
+             */
+            articles?: number;
+            /**
+             * @description Number of project items in the course
+             * @example 2
+             */
+            project?: number;
+            /**
+             * @description Total quiz score achieved by the student
+             * @example 85
+             */
+            totalQuizScore?: number;
+            /**
+             * @description Total maximum quiz score possible
+             * @example 100
+             */
+            totalQuizMaxScore?: number;
+            /**
+             * @description Number of completed video items
+             * @example 20
+             */
+            completedVideos?: number;
+            /**
+             * @description Number of completed quiz items
+             * @example 10
+             */
+            completedQuizzes?: number;
+            /**
+             * @description Number of completed article items
+             * @example 8
+             */
+            completedArticles?: number;
+            /**
+             * @description Number of completed project items
+             * @example 1
+             */
+            completedProjects?: number;
+        };
+        EnrollmentParams: {
+            /** @description User ID of the student to enroll */
+            userId: string;
+            /** @description ID of the course to enroll in */
+            courseId: string;
+            /** @description ID of the specific course version to enroll in */
+            versionId: string;
+        };
+        EnrollmentBody: {
+            /**
+             * @description Role of the user
+             * @example INSTRUCTOR
+             * @enum {string}
+             */
+            role: "INSTRUCTOR" | "STUDENT" | "MANAGER" | "TA" | "STAFF";
+        };
+        BulkUnenrollBody: {
+            /**
+             * @description Array of user IDs to unenroll (maximum 50)
+             * @example [
+             *       "60d5ec49b3f1c8e4a8f8b8d2",
+             *       "60d5ec49b3f1c8e4a8f8b8d3"
+             *     ]
+             */
+            userIds: string[];
+            cohortId?: string;
+        };
+        ChangeEnrollmentStatusBody: {
+            /**
+             * @description New status for the enrollment
+             * @example inactive
+             * @enum {string}
+             */
+            status: "active" | "inactive";
+            cohortId?: string;
+        };
+        BulkChangeEnrollmentStatusBody: {
+            /**
+             * @description Array of user IDs to update (maximum 50)
+             * @example [
+             *       "60d5ec49b3f1c8e4a8f8b8d2",
+             *       "60d5ec49b3f1c8e4a8f8b8d3"
+             *     ]
+             */
+            userIds: string[];
+            /**
+             * @description New status for the enrollments
+             * @example inactive
+             * @enum {string}
+             */
+            status: "active" | "inactive";
+            cohortId?: string;
         };
         EnrollmentDataResponse: {
             /**
-             * Format: Mongo Object ID
              * @description Unique identifier for the enrollment record
              * @example 60d5ec49b3f1c8e4a8f8b8d2
              */
             readonly _id: string;
             /**
-             * Format: Mongo Object ID
-             * @description User ID associated with this enrollment
-             * @example 60d5ec49b3f1c8e4a8f8b8c1
-             */
-            userId: string;
-            /**
-             * Format: Mongo Object ID
              * @description Course ID associated with this enrollment
              * @example 60d5ec49b3f1c8e4a8f8b8c2
              */
             courseId: string;
             /**
-             * Format: Mongo Object ID
              * @description Course version ID associated with this enrollment
              * @example 60d5ec49b3f1c8e4a8f8b8c3
              */
             courseVersionId: string;
+            /**
+             * @description Role of the user
+             * @example INSTRUCTOR
+             * @enum {string}
+             */
+            role: "INSTRUCTOR" | "STUDENT";
+            /**
+             * @description Status of the enrollment
+             * @example active
+             * @enum {string}
+             */
+            status: "active" | "inactive";
+            /**
+             * Format: date-time
+             * @description Date when the user was enrolled
+             * @example 2023-10-01T12:00:00Z
+             */
+            enrollmentDate: string;
+            /** @description Optional course details related to the enrollment */
+            course?: components["schemas"]["CourseDataResponse"];
+            /** @description Content counts for the course (videos, quizzes, articles) */
+            contentCounts?: components["schemas"]["ContentCountsValidator"];
+            /** @description Flag indicating new items were added after course completion */
+            hasNewItemsAfterCompletion?: boolean;
+            cohortId?: unknown;
+            cohortName?: unknown;
+            hpSystem?: unknown;
+        };
+        QuizScoresResponse: {
+            /**
+             * Format: float
+             * @description Total quiz score achieved by the user
+             * @example 85
+             */
+            totalQuizScore: number;
+            /**
+             * Format: float
+             * @description Total maximum quiz score possible
+             * @example 100
+             */
+            totalQuizMaxScore: number;
+        };
+        EnrollUserResponseData: {
+            /** @description Enrollment data for the user */
+            enrollment: components["schemas"]["EnrollmentDataResponse"];
+            /** @description Progress data for the user */
+            progress: components["schemas"]["ProgressDataResponse"];
+            /** @description Quiz scores data for the user */
+            quizScores: components["schemas"]["QuizScoresResponse"];
+        };
+        EnrolledUserResponseData: {
+            /**
+             * @description Role of the user in the course
+             * @example INSTRUCTOR
+             * @enum {string}
+             */
+            role: "INSTRUCTOR" | "STUDENT";
             /**
              * @description Status of the enrollment
              * @example active
@@ -2063,19 +9959,142 @@ export interface components {
              */
             enrollmentDate: string;
         };
-        EnrollUserResponseData: {
-            /** @description Enrollment data for the user */
-            enrollment: Record<string, never>;
-            /** @description Progress data for the user */
-            progress: Record<string, never>;
+        UserResponse: {
+            /**
+             * @description Unique identifier for the user
+             * @example 60d5ec49b3f1c8e4a8f8b8d2
+             */
+            userId: string;
+            /**
+             * @description First name of the user
+             * @example John
+             */
+            firstName: string;
+            /**
+             * @description Last name of the user
+             * @example Doe
+             */
+            lastName: string;
+            /**
+             * Format: email
+             * @description Email address of the user
+             * @example user@example.com
+             */
+            email: string;
+        };
+        ProgressResponse: {
+            /**
+             * @description Number of items completed by the user
+             * @example 5
+             */
+            completedItems: number;
+            /**
+             * @description Total number of items in the course
+             * @example 10
+             */
+            totalItems: number;
+            /**
+             * Format: float
+             * @description Percentage of the course completed by the user
+             * @example 50
+             */
+            percentCompleted: number;
+        };
+        UpdateEnrollmentProgressResponse: {
+            totalCount: number;
+            updatedCount: number;
+        };
+        AllEnrollmentsResponse: {
+            /**
+             * @description Role of the user
+             * @example INSTRUCTOR
+             * @enum {string}
+             */
+            role: "INSTRUCTOR" | "STUDENT";
+            /**
+             * @description Status of the enrollment
+             * @example active
+             * @enum {string}
+             */
+            status: "active" | "inactive";
+            /**
+             * Format: date-time
+             * @description Date when the user was enrolled
+             * @example 2023-10-01T12:00:00Z
+             */
+            enrollmentDate: string;
+            /**
+             * Format: date-time
+             * @description Date when the user was unenrolled
+             * @example 2023-10-01T12:00:00Z
+             */
+            unenrolledAt?: string;
+            /** @description User data associated with the enrollment */
+            user: components["schemas"]["UserResponse"];
+            /** @description Progress data for the user in the course */
+            progress: components["schemas"]["ProgressResponse"];
         };
         EnrollmentResponse: {
+            /**
+             * @description Total number of documents in the response
+             * @example 100
+             */
             totalDocuments: number;
+            /**
+             * @description Total number of pages in the response
+             * @example 10
+             */
             totalPages: number;
+            /**
+             * @description Current page number in the response
+             * @example 1
+             */
             currentPage: number;
-            enrollments: Record<string, never>[];
+            /** @description Array of enrollment data for the user */
+            enrollments: components["schemas"]["EnrollmentDataResponse"][];
+            /**
+             * @description Optional message about the enrollment status
+             * @example No enrollments found for the user
+             */
+            message?: string;
+            /**
+             * @description Count of active courses
+             * @example 4
+             */
             activeCount?: number;
+            /**
+             * @description Count of archived courses
+             * @example 4
+             */
             archivedCount?: number;
+        };
+        BulkUnenrollResponse: {
+            /**
+             * @description Whether the bulk operation was successful
+             * @example true
+             */
+            success: boolean;
+            /**
+             * @description Total number of users requested to unenroll
+             * @example 5
+             */
+            totalRequested: number;
+            /**
+             * @description Number of users successfully unenrolled
+             * @example 4
+             */
+            successCount: number;
+            /**
+             * @description Number of users that failed to unenroll
+             * @example 1
+             */
+            failureCount: number;
+            /** @description Array of error messages for failed unenrollments */
+            errors?: string[];
+        };
+        CourseVersionEnrollmentResponse: {
+            /** @description Array of enrollment data for the course version */
+            enrollments: components["schemas"]["AllEnrollmentsResponse"][];
         };
         EnrollmentNotFoundErrorResponse: {
             /**
@@ -2084,19 +10103,67 @@ export interface components {
              */
             message: string;
         };
-        UserByFirebaseUIDParams: {
+        EnrollmentStatisticsResponse: {
+            totalEnrollments: number;
+            completedCount: number;
+            averageProgressPercent: number;
+            averageWatchHoursPerUser: number;
+        };
+        UserEnrollmentStatisticsResponse: {
+            totalCourses: number;
+            completedCourses: number;
+            totalItems: number;
+            completedItems: number;
+            overallProgress: number;
+        };
+        EthicsConsentBody: {
+            /** @description Full name typed by the student as their signature */
+            signature: string;
+            /** @description Optional consent for use of anonymized images/audio in future research or demonstrations */
+            additionalImageConsent?: boolean;
+        };
+        EthicsConsentStatusResponse: {
+            /** @description Whether the student has signed the ethics consent */
+            signed: boolean;
+            /** Format: date-time */
+            signedAt?: string;
+            signature?: string;
+            additionalImageConsent?: boolean;
+        };
+        StudentQuizScoreDto: {
+            studentId: string;
+            name: string;
+            email: string;
+            percentCompleted: number;
+            cohortName?: string;
+            totalCourseScore: number;
+            totalCourseMaxScore: number;
+            quizScores: unknown[];
+        };
+        QuizScoresMetadataDto: {
+            courseId: string;
+            versionId: string;
+            totalStudents: number;
+            statusTab?: string;
+            durationMs: number;
+            generatedAt: string;
+        };
+        QuizScoresExportResponseDto: {
+            data: components["schemas"]["StudentQuizScoreDto"];
+        };
+        GetUserParams: {
             /**
-             * @description Firebase UID of the user to find
+             * @description User ID of the person
              * @example cKy6H2O04PgTh8O3DpUXjgJYUr53
              */
-            firebaseUID: string;
+            userId: string;
         };
-        UserByFirebaseUIDResponse: {
+        GetUserResponse: {
             /**
              * @description Unique identifier for the user in the database
              * @example 60d5ec49b3f1c8e4a8f8b8c1
              */
-            readonly id: string;
+            readonly _id: string;
             /**
              * @description Firebase UID of the user
              * @example cKy6H2O04PgTh8O3DpUXjgJYUr53
@@ -2117,7 +10184,58 @@ export interface components {
              * @description User's last name
              * @example Smith
              */
-            readonly lastName: string;
+            readonly lastName?: string;
+            /**
+             * @description User's avatar image URL or data URI
+             * @example https://example.com/avatar.png
+             */
+            readonly avatar?: string;
+        };
+        EditUserBody: {
+            /**
+             * @description User's first name
+             * @example John
+             */
+            readonly firstName?: string;
+            /**
+             * @description User's last name
+             * @example Smith
+             */
+            readonly lastName?: string;
+            /**
+             * @description User's avatar image URL or data URI
+             * @example https://example.com/avatar.png
+             */
+            readonly avatar?: string;
+            /**
+             * @description User's gender
+             * @example Male
+             */
+            readonly gender?: string;
+            /**
+             * @description User's country
+             * @example India
+             */
+            readonly country?: string;
+            /**
+             * @description User's state
+             * @example Maharashtra
+             */
+            readonly state?: string;
+            /**
+             * @description User's city
+             * @example Pune
+             */
+            readonly city?: string;
+        };
+        UpdateFaceReferenceBody: {
+            /**
+             * @description Profile image as a data URL or remote URL
+             * @example data:image/jpeg;base64,/9j/4AAQSk...
+             */
+            profileImage: string;
+            /** @description 128-length face embedding generated from the registration image */
+            faceEmbedding: number[];
         };
         UserNotFoundErrorResponse: {
             /**
@@ -2125,6 +10243,2134 @@ export interface components {
              * @example User not found with the provided Firebase UID
              */
             readonly message: string;
+        };
+        SetPacingTargetBody: {
+            /** @description Target completion date in ISO8601 format */
+            targetCompletionDate?: (string) | null;
+            /** @description Cohort ID */
+            cohortId?: string;
+        };
+        ModuleBreakdownEntry: {
+            /** @description Module ID */
+            moduleId: string;
+            /** @description Module name */
+            moduleName: string;
+            /** @description Total items in module */
+            totalItems: number;
+            /** @description Completed items count */
+            completedItems: number;
+            /** @description Items remaining */
+            itemsRemaining: number;
+            /** @description Effort minutes remaining */
+            effortMinutesRemaining: number;
+            /**
+             * Format: date-time
+             * @description Suggested finish by date
+             */
+            suggestedFinishByDate?: string | null;
+        };
+        PacingPlanResponse: {
+            /** @description Has target set */
+            hasTarget: boolean;
+            /**
+             * Format: date-time
+             * @description Target completion date
+             */
+            targetCompletionDate?: string | null;
+            /** @description Items remaining */
+            itemsRemaining: number;
+            /** @description Effort minutes remaining */
+            effortMinutesRemaining: number;
+            /** @description Days left */
+            daysLeft: number;
+            /** @description Items per day */
+            itemsPerDay: number;
+            /** @description Required minutes per day */
+            requiredMinutesPerDay: number;
+            /** @description Is overdue */
+            isOverdue: boolean;
+            /**
+             * @description Pace status
+             * @enum {string}
+             */
+            paceStatus: "ahead" | "on_track" | "behind" | "no_data";
+            /** @description Ahead/Behind by days */
+            aheadOrBehindByDays?: number | null;
+            /**
+             * Format: date-time
+             * @description Suggested catch-up date
+             */
+            suggestedCatchUpDate?: string | null;
+            /** @description Module breakdown entries */
+            moduleBreakdown: components["schemas"]["ModuleBreakdownEntry"][];
+        };
+        ReportStatusEntry: {
+            /**
+             * Status
+             * @description Status of the report at a given point
+             * @example REPORTED
+             * @enum {string}
+             */
+            status: "REPORTED" | "IN_REVIEW" | "RESOLVED" | "DISCARDED" | "CLOSED";
+            /**
+             * Comment
+             * @description Comment or note for the status change
+             * @example Report submitted for review
+             */
+            comment: string;
+        };
+        Report: {
+            /**
+             * Status History
+             * @description Array of status entries tracking the report’s lifecycle
+             */
+            status: components["schemas"]["ReportStatusEntry"][];
+            /**
+             * cohortId in a version
+             * @description CohortId in a course version if any
+             * @example 64bfcb05e13e3547e90c8767
+             */
+            cohortId?: string;
+        };
+        ReportBody: {
+            /**
+             * Course ID
+             * @description ID of the course associated with the report
+             * @example 64bfcaf6e13e3547e90c1234
+             */
+            courseId: string;
+            /**
+             * Course Version ID
+             * @description ID of the course version associated with the report
+             * @example 64bfcaf6e13e3547e90c5678
+             */
+            versionId: string;
+            /**
+             * Entity ID
+             * @description ID of the content being reported (e.g., quiz, video)
+             * @example 64bfcb05e13e3547e90c8765
+             */
+            entityId: string;
+            /**
+             * Question ID
+             * @description ID of the question being reported (optional)
+             * @example 64bfcb05e13e3547e90c8766
+             */
+            questionId?: string;
+            /**
+             * Entity Type
+             * @description Type of the reported entity
+             * @example quiz
+             * @enum {string}
+             */
+            entityType: "QUIZ" | "VIDEO" | "ARTICLE" | "QUESTION";
+            /**
+             * Report Reason
+             * @description Reason for submitting the report
+             * @example Question is incorrect
+             */
+            reason: string;
+            /**
+             * cohortId in a version
+             * @description CohortId in a course version if any
+             * @example 64bfcb05e13e3547e90c8767
+             */
+            cohortId?: string;
+        };
+        UpdateReportStatusBody: {
+            /**
+             * New Status
+             * @description Updated status of the report
+             * @example RESOLVED
+             * @enum {string}
+             */
+            status: "REPORTED" | "IN_REVIEW" | "RESOLVED" | "DISCARDED" | "CLOSED";
+            /**
+             * Status Change Comment
+             * @description Reason/comment for changing the status
+             * @example Report reviewed and resolved by moderator
+             */
+            comment: string;
+        };
+        ResponseIntersetBody: {
+            /**
+             * Flag report Id
+             * @description ID ofthe report
+             * @example 64bfcaf6e13e3547e90c5678
+             */
+            issueId: string;
+            /**
+             * Student response for flag raised
+             * @description Adding the student response for the flag comment
+             * @example yes
+             */
+            interest: string;
+        };
+        ReportUpdateParams: {
+            /**
+             * @description Object ID of the report
+             * @example 64bfcd02e13e3547e90c9876
+             */
+            reportId: string;
+        };
+        GetReportParams: {
+            /**
+             * @description ID of the course for which reports are being queried
+             * @example 64bfcaf6e13e3547e90c1234
+             */
+            courseId: string;
+            /**
+             * @description ID of the course version for which reports are being queried
+             * @example 64bfcaf6e13e3547e90c1234
+             */
+            versionId: string;
+        };
+        ReportFiltersQuery: {
+            /**
+             * @description Type of the reported entity (optional)
+             * @example quiz
+             * @enum {string}
+             */
+            entityType?: "QUIZ" | "VIDEO" | "ARTICLE" | "QUESTION";
+            /**
+             * @description Status of the report (optional)
+             * @example REPORTED
+             * @enum {string}
+             */
+            status?: "REPORTED" | "IN_REVIEW" | "RESOLVED" | "DISCARDED" | "CLOSED";
+            /**
+             * @description Limit for pagination
+             * @example 10
+             */
+            limit?: number;
+            /**
+             * @description Offset for pagination
+             * @example 0
+             */
+            currentPage?: number;
+            sortBy?: unknown;
+            /** @enum {string} */
+            sortOrder?: "asc" | "desc";
+        };
+        ReportDataResponse: {
+            courseId: components["schemas"]["Course"];
+            reportedBy: components["schemas"]["User"];
+            /**
+             * Status History
+             * @description List of status updates for the report
+             */
+            status: components["schemas"]["ReportStatusEntry"][];
+        };
+        ReportResponse: {
+            /**
+             * @description Total number of report documents in the response
+             * @example 100
+             */
+            totalDocuments: number;
+            /**
+             * @description Total number of pages in the response
+             * @example 10
+             */
+            totalPages: number;
+            /**
+             * @description Current page number in the response
+             * @example 1
+             */
+            currentPage: number;
+            /** @description Array of report data */
+            reports: components["schemas"]["ReportDataResponse"][];
+        };
+        ReportNotFoundErrorResponse: {
+            /**
+             * @description The error message.
+             * @example No report found with the given ID.
+             */
+            message: string;
+        };
+        IssueFilterQuery: {
+            page?: number;
+            limit?: number;
+            /** @enum {string} */
+            status?: "ALL" | "REPORTED" | "IN_REVIEW" | "RESOLVED" | "DISCARDED" | "CLOSED";
+            search?: string;
+            sort?: string;
+        };
+        IssueReportResponse: {
+            /** @description Array of issue reports */
+            issues: string;
+            /**
+             * @description Total number of issue reports
+             * @example 100
+             */
+            totalDocuments: number;
+            /**
+             * @description Total number of pages in the response
+             * @example 10
+             */
+            totalPages: number;
+            /**
+             * @description Current page number in the response
+             * @example 1
+             */
+            currentPage: number;
+        };
+        AnnouncementIdParams: {
+            /** @description Unique identifier for the announcement */
+            announcementId: string;
+        };
+        AttachmentBody: {
+            /**
+             * @description Name of the attached file
+             * @example syllabus.pdf
+             */
+            fileName: string;
+            /**
+             * Format: url
+             * @description URL of the attached file
+             * @example https://storage.example.com/syllabus.pdf
+             */
+            fileUrl: string;
+            /**
+             * @description Type of the file (e.g., pdf, link)
+             * @example pdf
+             */
+            fileType: string;
+        };
+        CreateAnnouncementBody: {
+            /**
+             * @description Title of the announcement
+             * @example Important Course Update
+             */
+            title: string;
+            /**
+             * @description Detailed content of the announcement
+             * @example The deadline for assignment 3 has been extended...
+             */
+            content: string;
+            /**
+             * @description Type of announcement: GENERAL, COURSE_SPECIFIC, VERSION_SPECIFIC, or COHORT_SPECIFIC
+             * @example GENERAL
+             * @enum {string}
+             */
+            type: "GENERAL" | "COURSE_SPECIFIC" | "VERSION_SPECIFIC" | "COHORT_SPECIFIC";
+            /** @description Course ID (required for COURSE_SPECIFIC and VERSION_SPECIFIC) */
+            courseId?: string;
+            /** @description Course Version ID (required for VERSION_SPECIFIC) */
+            courseVersionId?: string;
+            /** @description Optional file attachments */
+            attachments?: components["schemas"]["AttachmentBody"][];
+            /** @description Cohort ID (required for COHORT_SPECIFIC) */
+            cohortId?: string;
+        };
+        UpdateAnnouncementBody: {
+            /** @description Updated title */
+            title?: string;
+            /** @description Updated content */
+            content?: string;
+            /** @description Updated attachments */
+            attachments?: components["schemas"]["AttachmentBody"][];
+        };
+        AnnouncementQueryParams: {
+            page?: number;
+            limit?: number;
+            /** @enum {string} */
+            type?: "GENERAL" | "VERSION_SPECIFIC" | "COURSE_SPECIFIC" | "COHORT_SPECIFIC";
+            courseId?: string;
+            courseVersionId?: string;
+            cohortId?: string;
+        };
+        Announcement: {
+            /**
+             * Title
+             * @description Title of the announcement
+             */
+            title: string;
+            /**
+             * Content
+             * @description Detailed content of the announcement
+             */
+            content: string;
+            /**
+             * Type
+             * @description Announcement type
+             * @enum {string}
+             */
+            type: "GENERAL" | "COURSE_SPECIFIC" | "VERSION_SPECIFIC" | "COHORT_SPECIFIC";
+            /** Course ID */
+            courseId?: string;
+            /** Course Version ID */
+            courseVersionId?: string;
+            /** Course Name */
+            courseName?: string;
+            /** Course Version Name */
+            courseVersionName?: string;
+            /** Instructor Name */
+            instructorName: string;
+            /** Attachments */
+            attachments?: unknown[];
+            /** Is Hidden */
+            isHidden: boolean;
+        };
+        AnnouncementResponse: {
+            announcements: components["schemas"]["Announcement"][];
+            totalDocuments?: unknown;
+            totalPages?: unknown;
+            isAdmin?: unknown;
+        };
+        AnnouncementMessageResponse: {
+            message: string;
+        };
+        AuditTrailsDetails: {
+            id: string;
+            category: string;
+            action: string;
+            actor: Record<string, never>;
+            context: Record<string, never>;
+            changes: Record<string, never>;
+            outcome: Record<string, never>;
+            timestamp: string;
+        };
+        AuditTrailsResponse: {
+            message: string;
+            /** @description List of audit trails */
+            data: components["schemas"]["AuditTrailsDetails"][];
+        };
+        AuditTrailUserIdParams: {
+            /** @description User ID for which to retrieve audit trails */
+            userId: string;
+        };
+        CourseVersionDto: {
+            courseVersionId: string;
+            versionName: string;
+            totalCohorts: number;
+            createdAt: string;
+        };
+        CourseWithVersionsDto: {
+            courseId: string;
+            courseName: string;
+            versions: components["schemas"]["CourseVersionDto"][];
+        };
+        CourseVersionListMetaDto: {
+            totalCourses: number;
+            totalVersions: number;
+            page: number;
+            limit: number;
+            sortBy: string;
+            sortOrder: string;
+            search?: string;
+        };
+        CourseVersionListResponseDto: {
+            success: boolean;
+            data: components["schemas"]["CourseWithVersionsDto"][];
+            meta: components["schemas"]["CourseVersionListMetaDto"];
+        };
+        CohortStatsDto: {
+            totalStudents: number;
+            totalActivities: number;
+            publishedActivities: number;
+            draftActivities: number;
+            totalHpDistributed: number;
+            totalCredits: number;
+            totalDebits: number;
+            pendingApprovals: number;
+            overdueActivities: number;
+        };
+        CohortListItemDto: {
+            cohortId: string;
+            cohortName: string;
+            courseId: string;
+            courseVersionId: string;
+            stats: components["schemas"]["CohortStatsDto"];
+            lastActivityAt: string;
+            createdAt: string;
+            percentCompleted: number;
+        };
+        CohortListMetaDto: {
+            totalRecords: number;
+            totalPages: number;
+            currentPage: number;
+            limit: number;
+            sortBy: string;
+            sortOrder: string;
+            search?: string;
+        };
+        CohortListResponseDto: {
+            success: boolean;
+            message: string;
+            data: components["schemas"]["CohortListItemDto"][];
+            meta: components["schemas"]["CohortListMetaDto"];
+        };
+        CourseVersionListQueryDto: {
+            page?: number;
+            limit?: number;
+            sortBy?: string;
+            /** @enum {string} */
+            sortOrder?: "asc" | "desc";
+            search?: string;
+        };
+        CohortListQueryDto: {
+            page?: number;
+            limit?: number;
+            sortBy?: string;
+            /** @enum {string} */
+            sortOrder?: "asc" | "desc";
+            search?: string;
+            courseVersionId?: string;
+        };
+        CohortStudentItemDto: {
+            _id: string;
+            enrollmentId: string;
+            name: string;
+            /** Format: email */
+            email: string;
+            totalHp: number;
+            completionPercentage: number;
+            isSafe?: boolean;
+        };
+        CohortStudentsResponseDto: {
+            success: boolean;
+            data: components["schemas"]["CohortStudentItemDto"][];
+        };
+        CohortStudentsListQueryDto: {
+            page?: number;
+            limit?: number;
+            sortBy?: string;
+            /** @enum {string} */
+            sortOrder?: "asc" | "desc";
+            search?: string;
+            /** @enum {string} */
+            status?: "ALL" | "SAFE" | "UNSAFE";
+        };
+        ResetHpRequest: {
+            targetHp: number;
+            /** @enum {string} */
+            mode: "ALL" | "ONLY_ZERO_HP" | "ONLY_WITH_HP";
+        };
+        ResetRequestParams: {
+            /**
+             * @description Course version id
+             * @example 69bed49fc461e665a086938c
+             */
+            versionId: string;
+            /**
+             * @description Name of the cohort
+             * @example Krushkalians
+             */
+            cohortName: string;
+        };
+        ResetStudentRequestParams: {
+            /**
+             * @description Course version id
+             * @example 69bed49fc461e665a086938c
+             */
+            versionId: string;
+            /**
+             * @description Name of the cohort
+             * @example Krushkalians
+             */
+            cohortName: string;
+            /**
+             * @description Id of student
+             * @example 69d389b65670ad9fcd11df17
+             */
+            studentId: string;
+        };
+        ResetStudentHpRequest: {
+            targetHp: number;
+        };
+        CourseRegistration: {
+            /**
+             * Registration Details
+             * @description Additional information provided during registration
+             * @example {
+             *       "priorExperience": "Intermediate",
+             *       "preferredLanguage": "English"
+             *     }
+             */
+            detail: {
+                [key: string]: unknown;
+            };
+            /**
+             * Status
+             * @description Current status of the registration
+             * @example PENDING
+             * @enum {string}
+             */
+            status: "PENDING" | "APPROVED" | "REJECTED";
+        };
+        CourseRegistrationBody: {
+            /** @example John Doe */
+            name: string;
+            /**
+             * Format: email
+             * @example john@example.com
+             */
+            email: string;
+            /** @example 9876543210 */
+            mobile: string;
+            /**
+             * @example MALE
+             * @enum {string}
+             */
+            gender: "MALE" | "FEMALE" | "OTHERS";
+            /** @example CityName */
+            city: string;
+            /** @example StateName */
+            state: string;
+            /**
+             * @example GENERAL
+             * @enum {string}
+             */
+            category: "GENERAL" | "OBC" | "SE" | "ST" | "OTHERS";
+            /** @example UniversityName */
+            university: string;
+        };
+        RegistrationFilterQuery: {
+            page?: number;
+            limit?: number;
+            search?: string;
+            /** @enum {string} */
+            status?: "PENDING" | "APPROVED" | "REJECTED" | "ALL";
+            /** @enum {string} */
+            sort?: "older" | "latest";
+        };
+        RegistrationParams: {
+            /** @description ID of the registration */
+            registrationId: string;
+        };
+        UpdateStatusBody: {
+            /** @enum {string} */
+            status: "PENDING" | "APPROVED" | "REJECTED";
+            cohort?: string;
+        };
+        BulkUpdateStatusBody: {
+            /**
+             * @description Array of registration IDs to update
+             * @example [
+             *       "68d7c3aaa1291bb31a3739f0",
+             *       "68d7c3aaa1291bb31a3739f1"
+             *     ]
+             */
+            selected?: string[];
+        };
+        UpdateRegistrationSchemasBody: {
+            /** @description Dynamic JSON Schema for the form */
+            jsonSchema: Record<string, never>;
+            /** @description Dynamic UI Schema for the form */
+            uiSchema: Record<string, never>;
+        };
+        ToggleRegistrationBody: {
+            /**
+             * @description Active status of course registration
+             * @example true
+             */
+            isActive: boolean;
+        };
+        AutoApprovalSettingsBody: {
+            /**
+             * @description Whether auto-approval is enabled or not
+             * @example true
+             */
+            registrationsAutoApproved: boolean;
+            /**
+             * @description Email patterns to auto-approve (if empty, all emails are approved)
+             * @example [
+             *       "iitm.ac.in",
+             *       "gmail.com"
+             *     ]
+             */
+            autoapproval_emails: string[];
+            /**
+             * @description Cohort ID for which the auto-approval settings apply (required if course version has cohorts)
+             * @example cohortId123
+             */
+            cohortId?: string;
+        };
+        PendingRegistrationResponse: {
+            _id: string;
+            userId: string;
+            courseId: string;
+            versionId: string;
+            status: string;
+            createdAt: string;
+            /** @description User information */
+            user: Record<string, never>;
+            /** @description Course information */
+            course: Record<string, never>;
+            /** @description Version information */
+            version: Record<string, never>;
+        };
+        ApprovedRegistrationResponse: {
+            _id: string;
+            userId: string;
+            courseId: string;
+            versionId: string;
+            status: string;
+            /** @description Course information */
+            course: Record<string, never>;
+        };
+        GetPendingRegistrationsParams: {
+            instructorId: string;
+        };
+        GetUnreadApprovedRegistrationsParams: {
+            studentId: string;
+        };
+        GetPendingStudentRegistrationsParams: {
+            studentId: string;
+        };
+        GetRejectedStudentRegistrationsParams: {
+            studentId: string;
+        };
+        markNotificationAsReadResponse: {
+            message: string;
+            success: boolean;
+        };
+        CourseVersionDetailsObject: {
+            id: string;
+            courseId: string;
+            course: Record<string, never>;
+            version: string;
+            description: string;
+            modules: unknown[];
+            totalItems: number;
+            createdAt: string;
+            updatedAt: string;
+            instructors: unknown[];
+            cohorts?: unknown[];
+        };
+        CourseVersionDetailsResponse: {
+            /** @description Course Version Details */
+            courseVersionDetails: components["schemas"]["CourseVersionDetailsObject"];
+        };
+        AllRegistrationsResponse: {
+            totalDocuments: number;
+            totalPages: number;
+            currentPage: number;
+            registrations: unknown[];
+        };
+        updateStatusResponse: {
+            /**
+             * @description Message
+             * @example Registration status updated successfully
+             */
+            message: string;
+            registration: unknown[];
+        };
+        updateStatusBulkResponse: {
+            /**
+             * @description Message
+             * @example Registration status updated successfully
+             */
+            message: string;
+            registration: number;
+        };
+        InactivityTriggerDto: {
+            enabled: boolean;
+            thresholdDays: number;
+            warningDays: number;
+        };
+        MissedDeadlinesTriggerDto: {
+            enabled: boolean;
+            consecutiveMisses: number;
+            warningAfterMisses: number;
+            progressRules?: components["schemas"]["ProgressRuleDto"][];
+        };
+        ProgressRuleDto: {
+            timeframeDays: number;
+            targetPercentage: number;
+        };
+        ViolationsDto: {
+            predefined: string[];
+            custom?: string[];
+        };
+        PolicyViolationsTriggerDto: {
+            enabled: boolean;
+            violations: components["schemas"]["ViolationsDto"];
+            thresholdCount: number;
+        };
+        CustomTriggerDto: {
+            type: string;
+            condition: Record<string, never>;
+            threshold: number;
+        };
+        AnomalyDetectionTriggerDto: {
+            enabled: boolean;
+            thresholdScore: number;
+            warningScore?: number;
+        };
+        PolicyTriggersDto: {
+            inactivity?: components["schemas"]["InactivityTriggerDto"];
+            missedDeadlines?: components["schemas"]["MissedDeadlinesTriggerDto"];
+            policyViolations?: components["schemas"]["PolicyViolationsTriggerDto"];
+            anomalyDetection?: components["schemas"]["AnomalyDetectionTriggerDto"];
+            customTriggers?: components["schemas"]["CustomTriggerDto"][];
+        };
+        PolicyActionsDto: {
+            sendWarning: boolean;
+            warningTemplate?: string;
+            ejectionTemplate?: string;
+            allowAppeal: boolean;
+            appealDeadlineDays?: number;
+            autoReinstatementRules?: Record<string, never>;
+        };
+        CreateEjectionPolicyBody: {
+            /**
+             * @description Policy name
+             * @example Standard Inactivity Policy
+             */
+            name: string;
+            /** @description Policy description */
+            description?: string;
+            /** @description Course ID (required if scope is "course") */
+            courseId?: string;
+            /** @description Course Version ID (required if scope is "course") */
+            courseVersionId?: string;
+            /** @description Cohort ID (required for course-specific policies) */
+            cohortId: string;
+            /** @description Trigger configuration */
+            triggers: components["schemas"]["PolicyTriggersDto"];
+            /** @description Action configuration */
+            actions: components["schemas"]["PolicyActionsDto"];
+        };
+        UpdateEjectionPolicyBody: {
+            name?: string;
+            description?: string;
+            isActive?: boolean;
+            triggers?: components["schemas"]["PolicyTriggersDto"];
+            actions?: components["schemas"]["PolicyActionsDto"];
+        };
+        PolicyIdParams: {
+            /** @description Policy ID */
+            policyId: string;
+        };
+        GetPoliciesQuery: {
+            courseId?: string;
+            courseVersionId?: string;
+            /** @description Cohort ID filter */
+            cohortId?: string;
+            active?: boolean;
+        };
+        EjectionPolicyResponse: {
+            /**
+             * @description Policy ID
+             * @example 507f1f77bcf86cd799439011
+             */
+            _id: string;
+            /**
+             * @description Policy name
+             * @example Platform Inactivity Policy
+             */
+            name: string;
+            /**
+             * @description Policy description
+             * @example Removes inactive users after 30 days
+             */
+            description?: string;
+            /**
+             * @description Course ID (for course-specific policies)
+             * @example 507f1f77bcf86cd799439011
+             */
+            courseId?: string;
+            /**
+             * @description Course Version ID (for course-specific policies)
+             * @example 507f1f77bcf86cd799439011
+             */
+            courseVersionId?: string;
+            /**
+             * @description Cohort ID this policy applies to
+             * @example 507f1f77bcf86cd799439011
+             */
+            cohortId?: string;
+            /**
+             * @description Whether the policy is active
+             * @example true
+             */
+            isActive: boolean;
+            /** @description Policy triggers */
+            triggers: components["schemas"]["PolicyTriggersDto"];
+            /** @description Policy actions */
+            actions: components["schemas"]["PolicyActionsDto"];
+            /**
+             * @description User ID who created the policy
+             * @example 507f1f77bcf86cd799439011
+             */
+            createdBy: string;
+            /**
+             * @description Creation timestamp
+             * @example 2026-03-14T08:00:00.000Z
+             */
+            createdAt: string;
+            /**
+             * @description Last update timestamp
+             * @example 2026-03-14T08:00:00.000Z
+             */
+            updatedAt: string;
+            /** @description Deletion timestamp (if soft deleted) */
+            deletedAt?: string;
+        };
+        PoliciesListResponse: {
+            /** @description List of ejection policies */
+            policies: components["schemas"]["EjectionPolicyResponse"][];
+            /** @description Total number of policies */
+            total: number;
+            /** @description Tells if user is an admin */
+            isAdmin: boolean;
+        };
+        DeletePolicyResponse: {
+            /**
+             * @description Success message
+             * @example Policy deleted successfully
+             */
+            message: string;
+            /**
+             * @description ID of the deleted policy
+             * @example 507f1f77bcf86cd799439011
+             */
+            policyId: string;
+        };
+        EjectionStudentsParams: {
+            /** @description Course ID */
+            courseId: string;
+            /** @description Course Version ID */
+            courseVersionId: string;
+            /** @description Cohort ID */
+            cohortId: string;
+        };
+        EjectionStudentsQuery: {
+            page?: number;
+            limit?: number;
+            /** @description Search by name or email */
+            search?: string;
+            /** @description Filter by status */
+            statusFilter?: string;
+        };
+        StudentEjectionHistoryEntry: {
+            ejectedAt: string;
+            ejectionReason: string;
+            ejectedBy: string;
+            /** @description Display name of the user who ejected the learner */
+            ejectedByName?: string;
+            policyId?: string;
+            reinstatedAt?: string;
+            reinstatedBy?: string;
+        };
+        EjectionStudentResponse: {
+            /** @description Enrollment ID */
+            enrollmentId: string;
+            /** @description User ID */
+            userId: string;
+            /** @description Full name */
+            name: string;
+            /** @description Email */
+            email: string;
+            /** @description Enrollment date */
+            enrollmentDate: string;
+            /** @description Course completion percentage */
+            percentCompleted: number;
+            /** @description Whether the student is currently ejected */
+            isEjected: boolean;
+            /**
+             * @description Status: active | ejected | warning
+             * @enum {string}
+             */
+            ejectionStatus: "active" | "ejected" | "warning";
+            /** @description Last time the student was active in the course */
+            lastActiveAt?: string;
+            /** @description Days since last activity — used for inactivity trigger preview */
+            daysSinceLastActive?: number;
+            /** @description Full ejection history for this student */
+            ejectionHistory: components["schemas"]["StudentEjectionHistoryEntry"][];
+        };
+        EjectionStudentsListResponse: {
+            students: components["schemas"]["EjectionStudentResponse"][];
+            policies?: components["schemas"]["EjectionPolicyResponse"][];
+            totalDocuments: number;
+            totalPages: number;
+            currentPage: number;
+        };
+        ManualEjectionParams: {
+            /** @description Course ID */
+            courseId: string;
+            /** @description Course Version ID */
+            courseVersionId: string;
+            /** @description Learner user ID to eject */
+            userId: string;
+        };
+        ManualEjectionBody: {
+            /**
+             * @description Reason for ejection — required and will be shown to the learner
+             * @example Student has been inactive for over 60 days despite two warnings.
+             */
+            reason: string;
+            /** @description Cohort ID if the enrollment is cohort-scoped */
+            cohortId?: string;
+            /** @description Policy ID this ejection is based on (optional for manual ejection) */
+            policyId?: string;
+        };
+        ManualEjectionResponse: {
+            /** @description Success message */
+            message: string;
+            /** @description Enrollment ID that was ejected */
+            enrollmentId: string;
+            /** @description User ID of the ejected learner */
+            userId: string;
+            /** @description Course ID */
+            courseId: string;
+            /** @description Course Version ID */
+            courseVersionId: string;
+            /** @description Reason provided for ejection */
+            reason: string;
+            /** @description Timestamp of ejection */
+            ejectedAt: string;
+        };
+        BulkEjectionBody: {
+            /** @description Array of user IDs to eject */
+            userIds: string[];
+            /** @description Shared reason applied to all ejections */
+            reason: string;
+            /** @description Course ID */
+            courseId: string;
+            /** @description Course Version ID */
+            courseVersionId: string;
+            /** @description Cohort ID */
+            cohortId?: string;
+            /** @description Policy ID */
+            policyId?: string;
+        };
+        BulkEjectionResponse: {
+            successCount: number;
+            failureCount: number;
+            errors: unknown[];
+        };
+        EjectionHistoryQuery: {
+            /** @description Course ID */
+            courseId: string;
+            /** @description Course Version ID */
+            courseVersionId: string;
+            /** @description Filter by cohort ID */
+            cohortId?: string;
+            /**
+             * @description Filter by trigger type (MANUAL or POLICY)
+             * @enum {string}
+             */
+            triggerType?: "MANUAL" | "POLICY" | "APPEAL";
+            /** @description Filter by start date */
+            startDate?: string;
+            /** @description Filter by end date */
+            endDate?: string;
+            /** @description Search by student name or email */
+            search?: string;
+            /** @description User timezone offset in minutes */
+            timezoneOffset?: number;
+            /** @description Page number for pagination */
+            page?: number;
+            /** @description Number of items per page */
+            limit?: number;
+        };
+        EjectionHistoryEntryResponse: {
+            ejectedAt: string;
+            reinstatedAt?: string;
+            reinstatedBy?: unknown;
+        };
+        ReinstatementParams: {
+            /** @description Course ID */
+            courseId: string;
+            /** @description Course Version ID */
+            courseVersionId: string;
+            /** @description Learner user ID to reinstate */
+            userId: string;
+        };
+        ReinstatementBody: {
+            /** @description Cohort ID — defaults to the cohort they were ejected from */
+            cohortId?: string;
+        };
+        ReinstatementResponse: {
+            /** @description Success message */
+            message: string;
+            /** @description Enrollment ID that was reinstated */
+            enrollmentId: string;
+            /** @description User ID of the reinstated learner */
+            userId: string;
+            /** @description Course ID */
+            courseId: string;
+            /** @description Course Version ID */
+            courseVersionId: string;
+            /** @description Timestamp of reinstatement */
+            reinstatedAt: string;
+        };
+        BulkReinstatementBody: {
+            /** @description Array of user IDs to reinstate */
+            userIds: string[];
+            /** @description Course ID */
+            courseId: string;
+            /** @description Course Version ID */
+            courseVersionId: string;
+            /** @description Cohort ID */
+            cohortId?: string;
+        };
+        BulkReinstatementResponse: {
+            successCount: number;
+            failureCount: number;
+            errors: unknown[];
+        };
+        CreateAppealBody: {
+            courseId: string;
+            courseVersionId: string;
+            cohortId: string;
+            reason: string;
+            evidenceUrl?: string;
+        };
+        RejectAppealBody: {
+            reason: string;
+        };
+        GetAppealsQuery: {
+            status?: string;
+            courseId?: string;
+            courseVersionId?: string;
+            cohortId?: string;
+        };
+        /** TranscriptParameters */
+        TranscriptParameters: {
+            /**
+             * Language
+             * @description Language for the job
+             * @example en
+             * @enum {string}
+             */
+            language?: "en" | "hi";
+            /**
+             * Model Size
+             * @description Model size to use for the job
+             * @example large
+             */
+            modelSize?: string;
+        };
+        /** SegmentationParameters */
+        SegmentationParameters: {
+            /**
+             * Lambda
+             * @description Lambda parameter for segmentation
+             * @example 4.6
+             */
+            lam?: number;
+            /**
+             * Runs
+             * @description Number of runs for segmentation
+             * @example 25
+             */
+            runs?: number;
+            /**
+             * Noise ID
+             * @description ID of the noise to be used for segmentation
+             * @example -1
+             */
+            noiseId?: number;
+        };
+        /** SmartBloomDistribution */
+        SmartBloomDistribution: {
+            /**
+             * Knowledge Percentage
+             * @description Bloom knowledge-level percentage
+             * @example 40
+             */
+            knowledge: number;
+            /**
+             * Understanding Percentage
+             * @description Bloom understanding-level percentage
+             * @example 35
+             */
+            understanding: number;
+            /**
+             * Application Percentage
+             * @description Bloom application-level percentage
+             * @example 25
+             */
+            application: number;
+            /**
+             * Analysis Percentage
+             * @description Bloom analysis-level percentage
+             * @example 0
+             */
+            analysis?: number;
+            /**
+             * Evaluation Percentage
+             * @description Bloom evaluation-level percentage
+             * @example 0
+             */
+            evaluation?: number;
+            /**
+             * Creation Percentage
+             * @description Bloom creation-level percentage
+             * @example 0
+             */
+            creation?: number;
+        };
+        /** SmartBloomParameters */
+        SmartBloomParameters: {
+            /**
+             * Smart Bloom Enabled
+             * @description Enable Smart Bloom mode for question generation
+             * @example true
+             */
+            enabled?: boolean;
+            /**
+             * Segmentation Strategy
+             * @description Segmentation strategy for Smart Bloom mode
+             * @example CONCEPT_END
+             * @enum {string}
+             */
+            segmentationStrategy?: "DEFAULT" | "CONCEPT_END";
+            /**
+             * Bloom Distribution
+             * @description Bloom level distribution for generated questions
+             */
+            distribution?: components["schemas"]["SmartBloomDistribution"];
+        };
+        /** QuestionGenerationParameters */
+        QuestionGenerationParameters: {
+            /**
+             * Model
+             * @description Model to use for question generation
+             * @example deepseek-r1:70b
+             */
+            model?: string;
+            /**
+             * SOL Number
+             * @description Number of select one in lot questions to be generated
+             * @example 2
+             */
+            SOL?: number;
+            /**
+             * SML Number
+             * @description Number of select multiple in lot questions to be generated
+             * @example 1
+             */
+            SML?: number;
+            /**
+             * NAT Number
+             * @description Number of natural questions to be generated
+             * @example 1
+             */
+            NAT?: number;
+            /**
+             * DES Number
+             * @description Number of descriptive questions to be generated
+             * @example 1
+             */
+            DES?: number;
+            /**
+             * BIN Number
+             * @description Number of binary questions to be generated
+             * @example 1
+             */
+            BIN?: number;
+            /**
+             * Prompt
+             * @description Prompt to use for question generation
+             * @example Focus on conceptual understanding
+             *     - Test comprehension of key ideas, principles, and relationships discussed in the content
+             *     - Avoid questions that require memorizing exact numerical values, dates, or statistics mentioned in the content
+             *     - The answer of questions should be present within the content, but not directly quoted
+             *     - make all the options roughly the same length
+             *     - Set isParameterized to false unless the question uses variables
+             *     - Do not mention the word 'transcript' for giving references, use the word 'video' instead
+             */
+            prompt?: string;
+            /**
+             * Smart Bloom Parameters
+             * @description Smart Bloom mode configuration for question generation
+             */
+            smartBloom?: components["schemas"]["SmartBloomParameters"];
+        };
+        /** UploadParameters */
+        UploadParameters: {
+            /**
+             * Course ID
+             * @description ID of the course to upload the content to
+             * @example 60d5f484f1c4d8b3c8f8e4b1
+             */
+            courseId: string;
+            /**
+             * Version ID
+             * @description ID of the course version to upload the content to
+             * @example 60d5f484f1c4d8b3c8f8e4b2
+             */
+            versionId: string;
+            /**
+             * Module ID
+             * @description ID of the module to upload the content to
+             * @example 60d5f484f1c4d8b3c8f8e4b3
+             */
+            moduleId?: string;
+            /**
+             * Section ID
+             * @description ID of the section to upload the content to
+             * @example 60d5f484f1c4d8b3c8f8e4b4
+             */
+            sectionId?: string;
+            /**
+             * Video Item Base Name
+             * @description Base name for the video item to be created
+             * @example video_item
+             */
+            videoItemBaseName: string;
+            /**
+             * Quiz Item Base Name
+             * @description Base name for the quiz item to be created
+             * @example quiz_item
+             */
+            quizItemBaseName: string;
+            /**
+             * Questions Per Quiz
+             * @description Number of questions to show per quiz item
+             * @example 5
+             */
+            questionsPerQuiz?: number;
+            /**
+             * Smart Bloom Enabled
+             * @description Forces bloom-level question-bank split during upload
+             * @example true
+             */
+            smartBloomEnabled?: boolean;
+            /**
+             * Curated Questions
+             * @description Optional curated questions payload for upload content task
+             */
+            questions?: Record<string, never>[];
+        };
+        /** PartialUploadParameters */
+        PartialUploadParameters: {
+            /**
+             * Course ID
+             * @description ID of the course to upload the content to
+             * @example 60d5f484f1c4d8b3c8f8e4b1
+             */
+            courseId?: string;
+            /**
+             * Version ID
+             * @description ID of the course version to upload the content to
+             * @example 60d5f484f1c4d8b3c8f8e4b2
+             */
+            versionId?: string;
+            /**
+             * Module ID
+             * @description ID of the module to upload the content to
+             * @example 60d5f484f1c4d8b3c8f8e4b3
+             */
+            moduleId?: string;
+            /**
+             * Section ID
+             * @description ID of the section to upload the content to
+             * @example 60d5f484f1c4d8b3c8f8e4b4
+             */
+            sectionId?: string;
+            /**
+             * Video Item Base Name
+             * @description Base name for the video item to be created
+             * @example video_item
+             */
+            videoItemBaseName?: string;
+            /**
+             * Quiz Item Base Name
+             * @description Base name for the quiz item to be created
+             * @example quiz_item
+             */
+            quizItemBaseName?: string;
+            /**
+             * Questions Per Quiz
+             * @description Number of questions to show per quiz item
+             * @example 5
+             */
+            questionsPerQuiz?: number;
+            /**
+             * Smart Bloom Enabled
+             * @description Forces bloom-level question-bank split during upload
+             * @example true
+             */
+            smartBloomEnabled?: boolean;
+            /**
+             * Curated Questions
+             * @description Optional curated questions payload for upload content task
+             */
+            questions?: Record<string, never>[];
+        };
+        Chunk: {
+            /**
+             * @description Timestamps of the chunk
+             * @example [
+             *       0,
+             *       5
+             *     ]
+             */
+            timestamp: number[];
+            /**
+             * @description Text content of the chunk
+             * @example This is a sample chunk of text.
+             */
+            text: string;
+        };
+        Transcript: {
+            /** @description Chunks of the transcript */
+            chunks: components["schemas"]["Chunk"][];
+        };
+        GenAIResponse: {
+            /** @description Unique identifier for the genAI job */
+            readonly _id?: string;
+            /**
+             * @description Type of genAI job
+             * @example VIDEO
+             * @enum {string}
+             */
+            type: "VIDEO" | "PLAYLIST";
+            /**
+             * Format: url
+             * @description url of the video or playlist to process
+             * @example https://www.youtube.com/watch?v=dQw4w9WgXcQ
+             */
+            url: string;
+        };
+        JobBody: {
+            /**
+             * Job Type
+             * @description Type of genAI job to create
+             * @example VIDEO
+             * @enum {string}
+             */
+            type: "VIDEO" | "PLAYLIST";
+            /**
+             * Source URL
+             * Format: url
+             * @description URL of the video or playlist to process
+             * @example https://www.youtube.com/watch?v=dQw4w9WgXcQ
+             */
+            url: string;
+            /**
+             * Transcript
+             * @description Transcript of the video
+             * @example {}
+             */
+            transcript?: components["schemas"]["Transcript"];
+            /**
+             * Transcript Parameters
+             * @description Parameters for generating transcripts
+             */
+            transcriptParameters?: components["schemas"]["TranscriptParameters"];
+            /**
+             * Segmentation Parameters
+             * @description Parameters for segmenting the video
+             */
+            segmentationParameters?: components["schemas"]["SegmentationParameters"];
+            /**
+             * Question Generation Parameters
+             * @description Parameters for generating questions from the transcript
+             */
+            questionGenerationParameters?: components["schemas"]["QuestionGenerationParameters"];
+            /**
+             * Upload Parameters
+             * @description Parameters for uploading the content to a course
+             */
+            uploadParameters: components["schemas"]["UploadParameters"];
+        };
+        GenAIIdParams: {
+            /** @description Object ID of the genAI job */
+            id: string;
+        };
+        TaskStatusParams: {
+            /**
+             * @description Type of task to get status for
+             * @example TRANSCRIPT_GENERATION
+             * @enum {string}
+             */
+            type: "AUDIO_EXTRACTION" | "TRANSCRIPT_GENERATION" | "SEGMENTATION" | "QUESTION_GENERATION" | "UPLOAD_CONTENT";
+            /** @description Object ID of the genAI job */
+            id: string;
+        };
+        ApproveStartBody: {
+            /**
+             * Task Type
+             * @description Type of task to start
+             * @example TRANSCRIPT_GENERATION
+             * @enum {string}
+             */
+            type: "AUDIO_EXTRACTION" | "TRANSCRIPT_GENERATION" | "SEGMENTATION" | "QUESTION_GENERATION" | "UPLOAD_CONTENT";
+            /**
+             * Task Parameters
+             * @description Parameters for the task to start
+             */
+            parameters?: components["schemas"]["TranscriptParameters"] | components["schemas"]["SegmentationParameters"] | components["schemas"]["QuestionGenerationParameters"] | components["schemas"]["UploadParameters"];
+            /**
+             * Use Previous
+             * @description Which previous task output to use for this task
+             * @example 1
+             */
+            usePrevious?: number;
+        };
+        RerunTaskBody: {
+            /**
+             * Task Type
+             * @description Type of task to rerun
+             * @example TRANSCRIPT_GENERATION
+             * @enum {string}
+             */
+            type: "AUDIO_EXTRACTION" | "TRANSCRIPT_GENERATION" | "SEGMENTATION" | "QUESTION_GENERATION" | "UPLOAD_CONTENT";
+            /**
+             * Rerun Task Parameters
+             * @description Parameters for the task to rerun
+             */
+            parameters?: components["schemas"]["TranscriptParameters"] | components["schemas"]["SegmentationParameters"] | components["schemas"]["QuestionGenerationParameters"] | components["schemas"]["UploadParameters"];
+            /**
+             * Use Previous
+             * @description Which previous task output to use for this task
+             * @example 1
+             */
+            usePrevious?: number;
+        };
+        TaskStatusResponse: {
+            /**
+             * Task type
+             * @example TRANSCRIPT_GENERATION
+             * @enum {string}
+             */
+            type: "AUDIO_EXTRACTION" | "TRANSCRIPT_GENERATION" | "SEGMENTATION" | "QUESTION_GENERATION" | "UPLOAD_CONTENT";
+            /**
+             * @description Task status
+             * @example RUNNING
+             * @enum {string}
+             */
+            status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "FAILED" | "ABORTED";
+        };
+        JobStatusResponse: {
+            /** @description Unique identifier for the genAI job */
+            readonly _id: string;
+            /**
+             * @description Type of genAI job
+             * @example VIDEO
+             * @enum {string}
+             */
+            type: "VIDEO" | "PLAYLIST";
+            /**
+             * @description Current status of the job
+             * @example RUNNING
+             * @enum {string}
+             */
+            status: "PENDING" | "RUNNING" | "WAITING" | "COMPLETED" | "FAILED" | "ABORTED";
+            /**
+             * @description Source URL for the job
+             * @example https://www.youtube.com/watch?v=dQw4w9WgXcQ
+             */
+            sourceUrl: string;
+            /** @description Current task in the process */
+            currentTask?: components["schemas"]["TaskStatusResponse"];
+            /**
+             * @description Overall tasks completed in the job
+             * @example 2
+             */
+            tasksCompleted?: number;
+            /**
+             * Job Created At
+             * Format: date-time
+             * @description Timestamp when the job was created
+             * @example 2023-10-01T12:00:00Z
+             */
+            readonly createdAt: string;
+            /**
+             * Job Updated At
+             * Format: date-time
+             * @description Timestamp when the job was last updated
+             * @example 2023-10-01T12:00:00Z
+             */
+            readonly updatedAt: string;
+        };
+        GenAINotFoundErrorResponse: {
+            /**
+             * @description The error message.
+             * @example No genAI job found with the specified ID. Please verify the ID and try again.
+             */
+            readonly message: string;
+        };
+        WebhookBody: {
+            /**
+             * Task
+             * @description The task type that the webhook is reporting on
+             * @example TRANSCRIPT_GENERATION
+             * @enum {string}
+             */
+            task: "AUDIO_EXTRACTION" | "TRANSCRIPT_GENERATION" | "SEGMENTATION" | "QUESTION_GENERATION" | "UPLOAD_CONTENT";
+            /**
+             * Job ID
+             * @description The unique identifier for the genAI job
+             */
+            jobId: string;
+            /**
+             * Data
+             * @description Additional data related to the task status
+             */
+            data?: Record<string, never>;
+        };
+        EditSegmentMapBody: {
+            /**
+             * Segment Map
+             * @description Map of segments to edit
+             */
+            segmentMap: Record<string, never>;
+            /**
+             * Index
+             * @description Index of the segment to edit
+             * @example 0
+             */
+            index?: number;
+        };
+        EditQuestionData: {
+            /**
+             * Question Data
+             * @description The question data to edit
+             */
+            questionData: Record<string, never>;
+            /**
+             * Index
+             * @description Index of the question to edit (optional, defaults to last)
+             * @example 0
+             */
+            index?: number;
+        };
+        EditTranscript: {
+            /**
+             * Transcript
+             * @description The transcript to edit
+             */
+            transcript: Record<string, never>;
+            /**
+             * Index
+             * @description Index of the transcript to edit
+             * @example 0
+             */
+            index: number;
+        };
+        TaskStatusdetailsResponse: {
+            /**
+             * Task Status Details
+             * @description Additional data related to the task status
+             */
+            data: Record<string, never> | Record<string, never> | Record<string, never> | Record<string, never> | Record<string, never>;
+        };
+        HpRewardRuleDto: {
+            enabled: boolean;
+            /** @enum {string} */
+            type?: "ABSOLUTE" | "PERCENTAGE";
+            value?: number;
+            /** @enum {string} */
+            applyWhen?: "ON_SUBMISSION" | "ON_APPROVAL" | "ON_MILESTONE_COMPLETION";
+            /** @enum {string} */
+            lateBehavior?: "NO_REWARD" | "REWARD";
+        };
+        HpPenaltyRuleDto: {
+            enabled: boolean;
+            /** @enum {string} */
+            type?: "ABSOLUTE" | "PERCENTAGE";
+            value?: number;
+            /** @enum {string} */
+            applyWhen?: "AFTER_DEADLINE";
+            graceMinutes?: number;
+            runOnce?: boolean;
+        };
+        HpRuleLimitsDto: {
+            minHp?: number;
+            maxHp?: number;
+        };
+        CreateHpRuleConfigBody: {
+            courseId: string;
+            courseVersionId: string;
+            activityId?: string;
+            isMandatory: boolean;
+            deadlineAt?: string;
+            allowLateSubmission: boolean;
+            reward: components["schemas"]["HpRewardRuleDto"];
+            penalty: components["schemas"]["HpPenaltyRuleDto"];
+            limits: components["schemas"]["HpRuleLimitsDto"];
+            submissionValidation: ("TEXT" | "PDF" | "IMAGE" | "URL")[];
+        };
+        UpdateHpRuleConfigBody: {
+            isMandatory?: boolean;
+            deadlineAt?: string;
+            allowLateSubmission?: boolean;
+            reward?: components["schemas"]["HpRewardRuleDto"];
+            penalty?: components["schemas"]["HpPenaltyRuleDto"];
+            limits?: components["schemas"]["HpRuleLimitsDto"];
+            submissionValidation: ("TEXT" | "PDF" | "IMAGE" | "URL")[];
+        };
+        AttachmentDto: {
+            name: string;
+            url: string;
+            /** @enum {string} */
+            kind: "PDF" | "LINK" | "OTHER";
+        };
+        CreateActivityBody: {
+            courseVersionId: string;
+            courseId?: string;
+            cohortId?: string;
+            cohort?: string;
+            title: string;
+            description: string;
+            /** @enum {string} */
+            activityType: "ASSIGNMENT" | "MILESTONE" | "EXTERNAL_IMPORT" | "VIBE_MILESTONE" | "OTHER";
+            /** @enum {string} */
+            status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+            deadlineAt?: string;
+            allowLateSubmission: boolean;
+            /** @enum {string} */
+            submissionMode: "IN_PLATFORM" | "EXTERNAL_LINK";
+            externalLink?: string;
+            attachments?: components["schemas"]["AttachmentDto"][];
+            required_percentage?: number;
+        };
+        CreateActivityWithRuleBody: {
+            activity: components["schemas"]["CreateActivityBody"];
+            ruleConfig: components["schemas"]["CreateHpRuleConfigBody"];
+        };
+        UpdateActivityBody: {
+            title?: string;
+            description?: string;
+            /** @enum {string} */
+            activityType?: "ASSIGNMENT" | "MILESTONE" | "EXTERNAL_IMPORT" | "VIBE_MILESTONE" | "OTHER";
+            deadlineAt?: string;
+            allowLateSubmission?: boolean;
+            /** @enum {string} */
+            submissionMode?: "IN_PLATFORM" | "EXTERNAL_LINK";
+            externalLink?: string;
+            attachments?: components["schemas"]["AttachmentDto"][];
+            ruleConfigId?: string;
+            isMandatory?: boolean;
+            cohortId?: string;
+            cohort?: string;
+            required_percentage?: number;
+        };
+        ListActivitiesQuery: {
+            courseId?: string;
+            courseVersionId?: string;
+            cohortId?: string;
+            /** @enum {string} */
+            status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+            /** @enum {string} */
+            activityType?: "ASSIGNMENT" | "MILESTONE" | "EXTERNAL_IMPORT" | "VIBE_MILESTONE" | "OTHER";
+            createdByTeacherId?: string;
+            search?: string;
+            activity?: string;
+        };
+        SubmissionLinkDto: {
+            url: string;
+            label: string;
+        };
+        SubmissionFileDto: {
+            fileId: string;
+            url: string;
+            name: string;
+            mimeType: string;
+            sizeBytes: number;
+        };
+        SubmissionImageDto: {
+            fileId: string;
+            url: string;
+            name: string;
+        };
+        SubmissionPayloadDto: {
+            textResponse?: string;
+            links?: components["schemas"]["SubmissionLinkDto"][];
+            files?: components["schemas"]["SubmissionFileDto"][];
+            images?: components["schemas"]["SubmissionImageDto"][];
+        };
+        CreateOrUpdateHpActivitySubmissionBodyDto: {
+            courseId: string;
+            courseVersionId: string;
+            cohortId: string;
+            activityId: string;
+            payload: components["schemas"]["SubmissionPayloadDto"];
+            /** @enum {string} */
+            submissionSource?: "CSV_IMPORT" | "IN_PLATFORM" | "VIBE_AUTO";
+        };
+        ReviewHpActivitySubmissionBodyDto: {
+            /** @enum {string} */
+            decision: "APPROVED" | "REJECTED" | "REVERTED";
+            note?: string;
+            pointsToDeduct?: number;
+        };
+        SubmissionFeedbackDto: {
+            feedback: string;
+            username: string;
+            email: string;
+            feedbackAt: string;
+        };
+        SubmissionFeedbackBody: {
+            feedback: string;
+        };
+        ListSubmissionsQueryDto: {
+            page?: number;
+            limit?: number;
+            search?: string;
+            courseVersionId?: string;
+            cohortId?: string;
+            activityId?: string;
+            /** @enum {string} */
+            status?: "SUBMITTED" | "APPROVED" | "REJECTED" | "REVERTED";
+            sortBy?: string;
+            /** @enum {string} */
+            sortOrder?: "asc" | "desc";
+        };
+        FilterQueryDto: {
+            page?: number;
+            limit?: number;
+            search?: string;
+            sortBy?: string;
+            /** @enum {string} */
+            sortOrder?: "asc" | "desc";
+        };
+        StudentSubmissionActivityDto: {
+            id: string;
+            title: string;
+            description: string;
+            activityType: string;
+        };
+        SubmissionAttachmentsDto: {
+            textResponse: string;
+            links: unknown[];
+            files: unknown[];
+            images: unknown[];
+        };
+        StudentSubmissionDto: {
+            _id: string;
+            status: string;
+            submittedAt?: string;
+            isLate: boolean;
+        };
+        SubmissionHpDto: {
+            baseHp: number;
+            currentHp: number;
+        };
+        InstructorFeedbackDto: {
+            reviewedBy: string;
+            /** Format: email */
+            reviewerEmail?: string;
+            reviewerName?: string;
+            reviewedAt: string;
+            decision: string;
+            note: string;
+        };
+        StudentActivitySubmissionsViewDto: {
+            courseId: string;
+            deadline: string;
+            instructorFeedback?: unknown;
+            feedbacks?: unknown[];
+            isRequiredInstructorApproval: string;
+        };
+        PaginationMetaDto: {
+            total: number;
+            page: number;
+            limit: number;
+        };
+        StudentActivitySubmissionsResponseDto: {
+            success: boolean;
+            data: unknown[];
+            meta?: unknown;
+        };
+        RewardInfoDto: {
+            /** @enum {string} */
+            type: "ABSOLUTE" | "PERCENTAGE";
+            value: number;
+        };
+        CoursePerformanceDto: {
+            courseId: string;
+            courseName: string;
+            totalHp: number;
+            studentCount: number;
+        };
+        WeeklyActivityDto: {
+            date: string;
+            studentCount: number;
+        };
+        StudentActivitySubmissionStatsViewDto: {
+            totalActivities: number;
+            totalSubmissions: number;
+            totalPendings: number;
+            totalLateSubmissions: number;
+            currentHp: number;
+            reward?: unknown;
+            totalStudents: number;
+            bestPerformingCohort: string;
+            coursePerformance: unknown[];
+            weeklyActivity: unknown[];
+        };
+        StudentActivitySubmissionStatsResponseDto: {
+            success: boolean;
+        };
+        StudentDashboardStatsQueryDto: {
+            cohortName: string;
+            courseVersionId: string;
+            timelineDays?: number;
+        };
+        MyStatsDto: {
+            totalHp: number;
+            completedActivities: number;
+            pendingSubmissions: number;
+            completionPercentage: number;
+        };
+        ProgressTimelineItemDto: {
+            date: string;
+            hpChange: number;
+            activitiesCompleted: number;
+        };
+        ActivityBreakdownDto: {
+            notStarted: number;
+            submitted: number;
+            approved: number;
+            rejected: number;
+        };
+        UpcomingDeadlineDto: {
+            activityTitle: string;
+            deadlineDate: string;
+            daysLeft: number;
+        };
+        RecentSubmissionDto: {
+            activityTitle: string;
+            submittedAt: string;
+            status: string;
+            hpEarned: number;
+        };
+        StudentDashboardStatsDataDto: {
+            progressTimeline: unknown[];
+            upcomingDeadlines: unknown[];
+            recentSubmissions: unknown[];
+        };
+        StudentDashboardStatsResponseDto: {
+            success: boolean;
+        };
+        HpLedgerCalc: {
+            /**
+             * Rule Type
+             * @enum {string}
+             */
+            ruleType: "ABSOLUTE" | "PERCENTAGE";
+            /**
+             * Percentage
+             * @example 20
+             */
+            percentage?: number;
+            /**
+             * Absolute Points
+             * @example 10
+             */
+            absolutePoints?: number;
+            /**
+             * Base HP At Time
+             * @example 120
+             */
+            baseHpAtTime: number;
+            /**
+             * Computed Amount
+             * @example 24
+             */
+            computedAmount: number;
+            /**
+             * Deadline At
+             * Format: date-time
+             */
+            deadlineAt?: string;
+            /**
+             * Within Deadline
+             * @example true
+             */
+            withinDeadline: boolean;
+            /**
+             * Reason Code
+             * @example SUBMISSION_REWARD
+             * @enum {string}
+             */
+            reasonCode: "SUBMISSION_REWARD" | "MILESTONE_REWARD" | "MISSED_DEADLINE_PENALTY" | "REWARD_REVERSAL" | "BASE_INIT" | "MANUAL";
+        };
+        HpLedgerMeta: {
+            /**
+             * Triggered By
+             * @example SYSTEM
+             * @enum {string}
+             */
+            triggeredBy: "SYSTEM" | "TEACHER" | "STUDENT" | "SYSTEM_AUTOMATION";
+            /**
+             * Note
+             * @example Auto reward on submission
+             */
+            note: string;
+        };
+        HpLedgerTransformer: {
+            /** Cohort ID */
+            cohort?: string;
+            /** Student ID */
+            studentId: string;
+            /**
+             * Student Email
+             * @example student@mail.com
+             */
+            studentEmail: string;
+            /** Activity ID */
+            activityId?: string;
+            /** Submission ID */
+            submissionId?: string;
+            /**
+             * Event Type
+             * @example CREDIT
+             * @enum {string}
+             */
+            eventType: "BASE_INIT" | "CREDIT" | "DEBIT" | "REVERSAL" | "MANUAL_ADJUST" | "MILESTONE" | "AUTO_REWARD" | "AUTO_PENALTY" | "RESTORE";
+            /**
+             * Direction
+             * @example CREDIT
+             * @enum {string}
+             */
+            direction: "CREDIT" | "DEBIT";
+            /**
+             * Amount
+             * @example 24
+             */
+            amount: number;
+            /** Calc */
+            calc: components["schemas"]["HpLedgerCalc"];
+            /** Links */
+            links: Record<string, never>;
+            /** Meta */
+            meta: components["schemas"]["HpLedgerMeta"];
+        };
+        StudentLedgerDetailsDto: {
+            studentName: string;
+            studentEmail: string;
+            hpPoints: number;
+        };
+        LedgerListResponseDto: {
+            studentDetails: components["schemas"]["StudentLedgerDetailsDto"];
+        };
+        SubmitProjectBody: {
+            /**
+             * Format: url
+             * @description Submitted URL from student
+             */
+            submissionURL: string;
+            /** @description Comment submitted by student from project */
+            comment?: unknown;
+            sectionId: string;
+            moduleId: string;
+            /** @description Watch item ID for tracking progress */
+            watchItemId?: unknown;
+            courseId: string;
+            versionId: string;
+            projectId: string;
+            /** @description Cohort of the student submitting the project */
+            cohortId?: string;
+        };
+        SuccessResponse: {
+            message: string;
+        };
+        StudentQuestionOptionDto: {
+            /**
+             * @description Text content of the MCQ option (1-150 characters).
+             * @example It allows us to repeatedly halve the search space.
+             */
+            text: string;
+        };
+        CreateStudentQuestionBody: {
+            /**
+             * @description Question type. Only SELECT_ONE_IN_LOT (single-answer MCQ) is supported in v1.
+             * @default SELECT_ONE_IN_LOT
+             * @enum {string}
+             */
+            questionType: "SELECT_ONE_IN_LOT";
+            /**
+             * @description The MCQ prompt (10-300 characters after trimming).
+             * @example Why must the input be sorted for binary search to work?
+             */
+            questionText: string;
+            /** @description Between 2 and 8 answer options. */
+            options: components["schemas"]["StudentQuestionOptionDto"][];
+            /**
+             * @description Zero-based index of the correct option in the options array.
+             * @example 0
+             */
+            correctOptionIndex: number;
+        };
+        StudentQuestionPathParams: {
+            courseId: string;
+            courseVersionId: string;
+            segmentId: string;
+        };
+        StudentQuestionStatusPathParams: {
+            courseId: string;
+            courseVersionId: string;
+            segmentId: string;
+            questionId: string;
+        };
+        StudentQuestionListQuery: {
+            limit?: number;
+        };
+        UpdateStudentQuestionStatusBody: {
+            /**
+             * @description Target status. REJECTED requires a non-empty `reason`.
+             * @enum {string}
+             */
+            status: "PENDING" | "APPROVED" | "REJECTED";
+            /** @description Required when status is REJECTED. 3-500 characters. */
+            reason?: string;
+        };
+        StudentQuestionCreateResponse: {
+            questionId: string;
+        };
+        StudentQuestionListItemResponse: {
+            _id: string;
+            segmentId: string;
+            courseId?: string;
+            courseVersionId?: string;
+            questionText: string;
+            options: unknown[];
+            correctOptionIndex: number;
+            status: string;
+            source: string;
+            createdBy: string;
+            createdAt: string;
+            reviewedBy?: string;
+            reviewedAt?: string;
+            rejectionReason?: string;
+        };
+        StudentQuestionListResponse: {
+            items: components["schemas"]["StudentQuestionListItemResponse"][];
+        };
+        CourseVersionStudentQuestionPathParams: {
+            courseId: string;
+            courseVersionId: string;
+        };
+        CourseVersionStudentQuestionListQuery: {
+            /**
+             * @description Status filter. Defaults to ALL.
+             * @enum {string}
+             */
+            status?: "PENDING" | "APPROVED" | "REJECTED" | "ALL";
+            limit?: number;
+        };
+        MyStudentQuestionsListQuery: {
+            /**
+             * @description Status filter for the current user's submissions. Defaults to ALL.
+             * @enum {string}
+             */
+            status?: "PENDING" | "APPROVED" | "REJECTED" | "ALL";
+            limit?: number;
+        };
+        UpdateStudentQuestionBody: {
+            /** @description Updated question prompt (10-300 characters). Required only if changing content. */
+            questionText?: string;
+            /** @description Updated options (2-8). Required only if changing content. */
+            options?: components["schemas"]["StudentQuestionOptionDto"][];
+            /** @description Zero-based index of the correct option (0-7). Required only if changing content. */
+            correctOptionIndex?: number;
+            /**
+             * @description Optional concurrent status transition. REJECTED requires `reason`.
+             * @enum {string}
+             */
+            status?: "PENDING" | "APPROVED" | "REJECTED";
+            /** @description Required when status is REJECTED. 3-500 characters. */
+            reason?: string;
         };
     };
     responses: never;
@@ -2135,6 +12381,1910 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "InviteController.getInvitesForCourseVersion": {
+        parameters: {
+            query?: {
+                inviteStatus?: "ACCEPTED" | "PENDING" | "CANCELLED" | "EMAIL_FAILED" | "ALREADY_ENROLLED";
+                search?: string;
+                sort?: "accept_date_desc" | "accept_date_asc";
+                currentPage?: number;
+                limit?: number;
+                startDate?: string;
+                endDate?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of invites for the course version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteResponse"];
+                };
+            };
+        };
+    };
+    "InviteController.inviteUsers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description InviteBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["InviteBody"];
+            };
+        };
+        responses: {
+            /** @description Invite users to a course version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteResponse"];
+                };
+            };
+            /** @description Invalid input data */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "InviteController.generateInviteLink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            /** @description Invite link generated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteLinkResponse"];
+                };
+            };
+            /** @description Invalid input data */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "InviteController.processInvites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inviteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invite processed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    html: components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Invalid invite id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    html: components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "InviteController.processInvites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inviteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invite processed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    html: components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Invalid invite id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    html: components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "InviteController.getInvitesForUser": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of pending invites for the User */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteResponse"];
+                };
+            };
+            /** @description Invalid input data */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "InviteController.resendInvite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inviteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invite resent successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResendInviteResponse"];
+                };
+            };
+            /** @description Invalid input data */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "InviteController.cancelInvite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inviteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invite cancelled successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CancelInviteResponse"];
+                };
+            };
+            /** @description Invalid input data */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "NotificationController.getNotifications": {
+        parameters: {
+            query?: {
+                limit?: number;
+                onlyUnread?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "NotificationController.markAsRead": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notificationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "NotificationController.markAllAsRead": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "EnrollmentController.getEnrollment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Enrollment details for the user in the course version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrolledUserResponse"];
+                };
+            };
+            /** @description Enrollment not found for the user in the specified course version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.enrollUser": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description EnrollmentBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EnrollmentBody"];
+            };
+        };
+        responses: {
+            /** @description User enrolled successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollUserResponse"];
+                };
+            };
+            /** @description Invalid role or User already enrolled */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description User or course version not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.unenrollUser": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            /** @description User unenrolled successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollUserResponse"];
+                };
+            };
+            /** @description Enrollment not found for the user in the specified course version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.bulkUnenrollUsers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description BulkUnenrollBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["BulkUnenrollBody"];
+            };
+        };
+        responses: {
+            /** @description Users unenrolled successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkUnenrollResponse"];
+                };
+            };
+            /** @description Invalid request or missing user IDs */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.changeStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ChangeEnrollmentStatusBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ChangeEnrollmentStatusBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "EnrollmentController.resetFaceReference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "EnrollmentController.bulkChangeStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description BulkChangeEnrollmentStatusBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["BulkChangeEnrollmentStatusBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "EnrollmentController.getUserEnrollments": {
+        parameters: {
+            query: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                role: "STUDENT" | "INSTRUCTOR" | "MANAGER" | "TA" | "STAFF";
+                courseVersionId?: string;
+                tab?: "active" | "archived";
+                cohortId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated list of user enrollments */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentResponse"];
+                };
+            };
+            /** @description Invalid page or limit parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description No enrollments found for the user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.getCourseVersionEnrollments": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                sortBy?: "name" | "enrollmentDate" | "progress" | "unenrolledAt";
+                sortOrder?: "asc" | "desc";
+                filter?: "STUDENT" | "OTHER";
+                statusTab?: "ACTIVE" | "INACTIVE";
+                cohort?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated list of enrollments for the course version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseVersionEnrollmentResponse"];
+                };
+            };
+            /** @description Invalid page or limit parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.getStudentProgressDetail": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                userId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "EnrollmentController.getStudentCourseStructure": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                userId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "EnrollmentController.updateAllEnrollmentsProgress": {
+        parameters: {
+            query?: {
+                courseId?: string;
+                versionId?: string;
+                userId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Enrollment progress updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateEnrollmentProgressResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.getCourseVersionEnrollmentStatistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aggregated enrollment statistics for the course version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentStatisticsResponse"];
+                };
+            };
+            /** @description No enrollments found for the course version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.exportQuizScores": {
+        parameters: {
+            query?: {
+                statusTab?: string;
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Quiz scores exported successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizScoresExportResponseDto"];
+                };
+            };
+            /** @description Invalid request parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Course or version not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.exportGuruSetuFeedback": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "EnrollmentController.updateAllCompletedItemsCount": {
+        parameters: {
+            query?: {
+                courseId?: string;
+                versionId?: string;
+                userId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed items count updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateEnrollmentProgressResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.bulk_update_watchtime_progress_completeCounts": {
+        parameters: {
+            query?: {
+                courseId?: string;
+                versionId?: string;
+                userId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed items count updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateEnrollmentProgressResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.getUserEnrollmentsDetails": {
+        parameters: {
+            query: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                role: "STUDENT" | "INSTRUCTOR" | "MANAGER" | "TA" | "STAFF";
+                courseVersionId?: string;
+                tab?: "active" | "archived";
+                cohortId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated list of user enrollments */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentResponse"];
+                };
+            };
+            /** @description Invalid page or limit parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description No enrollments found for the user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.getUserModuleProgress": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                userId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Module-wise progress for the student */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Enrollment not found for the user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.acknowledgePolicyUpdate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+                cohortId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "EnrollmentController.getEthicsConsent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EthicsConsentStatusResponse"];
+                };
+            };
+        };
+    };
+    "EnrollmentController.signEthicsConsent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description EthicsConsentBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EthicsConsentBody"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EthicsConsentStatusResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "UserSettingController.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CreateUserSettingBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateUserSettingBody"];
+            };
+        };
+        responses: {
+            /** @description User settings created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSetting"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseSettingController.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Course settings fetched successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseSetting"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Setting Not Found Error */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseSettingController.updateCourseSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description AddCourseProctoringBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AddCourseProctoringBody"];
+            };
+        };
+        responses: {
+            /** @description Course settings Updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateCourseSettingResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Setting Not Found Error */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseSettingController.updateFollowUpInvite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateFollowUpInviteBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateFollowUpInviteBody"];
+            };
+        };
+        responses: {
+            /** @description Follow-up invite settings updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateCourseSettingResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Setting Not Found Error */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseSettingController.backfillFollowUpInvites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "UserSettingController.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                studentId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User settings fetched successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSetting"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Setting Not Found Error */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "UserSettingController.updateUserSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                studentId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description AddUserProctoringBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AddUserProctoringBody"];
+            };
+        };
+        responses: {
+            /** @description Course settings Updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateCourseSettingResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Setting Not Found Error */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "TimeSlotController.addTimeSlots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description AddTimeSlotsRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Time slots added successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Failed to add time slots */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "TimeSlotController.removeTimeSlots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description RemoveTimeSlotsRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Time slots removed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Failed to remove time slots */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "TimeSlotController.toggleTimeSlots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ToggleTimeSlotsRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Time slots status toggled successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Failed to toggle time slots status */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "TimeSlotController.getTimeSlots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Time slots retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Failed to get time slots */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "TimeSlotController.updateTimeSlot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description UpdateTimeSlotRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Time slot updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Failed to update time slot */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "TimeSlotController.checkTimeSlotAccess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "TimeSlotController.setHoursBudget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description SetHoursBudgetRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Hours budget configured successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    "TimeSlotController.setFulfillmentConfig": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description SetFulfillmentConfigRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Fulfillment settings configured successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    "TimeSlotController.setCapacityConfig": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description SetCapacityConfigRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Capacity settings configured successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    "TimeSlotController.extendStudentHours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ExtendStudentHoursRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Extra hours granted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    "TimeSlotController.grantExtraBookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description GrantExtraBookingsRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Extra bookings awarded successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    "TimeSlotController.chooseTimeSlot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ChooseTimeSlotRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Time slot chosen successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Failed to choose time slot */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "TimeSlotController.removeStudentFromTimeSlot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            /** @description Student removed from time slot successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Failed to remove student from time slot */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "SlotBookingController.bookSlot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description BookSlotRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "SlotBookingController.cancelBooking": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CancelBookingRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "SlotBookingController.myBookings": {
+        parameters: {
+            query?: {
+                date?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "SlotBookingController.myExtraBookings": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "SlotBookingController.myHoursSummary": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "SlotBookingController.getAvailability": {
+        parameters: {
+            query?: {
+                date?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "SlotBookingController.getDemand": {
+        parameters: {
+            query?: {
+                date?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     "AuthController.signup": {
         parameters: {
             query?: never;
@@ -2149,7 +14299,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description User successfully registered */
+            /** @description User registered successfully */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -2158,7 +14308,7 @@ export interface operations {
                     "application/json": components["schemas"]["SignUpResponse"];
                 };
             };
-            /** @description Invalid input data */
+            /** @description Bad Request Error */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2167,8 +14317,8 @@ export interface operations {
                     "application/json": components["schemas"]["BadRequestErrorResponse"];
                 };
             };
-            /** @description Registration failed */
-            500: {
+            /** @description Auth Error */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2178,21 +14328,21 @@ export interface operations {
             };
         };
     };
-    "AuthController.verifySignUpProvider": {
+    "AuthController.googleSignup": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** @description VerifySignUpProviderBody */
+        /** @description GoogleSignUpBody */
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["VerifySignUpProviderBody"];
+                "application/json": components["schemas"]["GoogleSignUpBody"];
             };
         };
         responses: {
-            /** @description User successfully verified */
+            /** @description User registered successfully */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -2201,7 +14351,7 @@ export interface operations {
                     "application/json": components["schemas"]["SignUpResponse"];
                 };
             };
-            /** @description Invalid input data */
+            /** @description Bad Request Error */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2210,8 +14360,8 @@ export interface operations {
                     "application/json": components["schemas"]["BadRequestErrorResponse"];
                 };
             };
-            /** @description Registration failed */
-            500: {
+            /** @description Auth Error */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2244,7 +14394,7 @@ export interface operations {
                     "application/json": components["schemas"]["ChangePasswordResponse"];
                 };
             };
-            /** @description Invalid password format or mismatch */
+            /** @description Bad Request Error */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2253,8 +14403,8 @@ export interface operations {
                     "application/json": components["schemas"]["BadRequestErrorResponse"];
                 };
             };
-            /** @description Password change failed */
-            500: {
+            /** @description Auth Error */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2264,7 +14414,376 @@ export interface operations {
             };
         };
     };
-    "AuthController.verifyToken": {
+    "AuthController.login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description LoginBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["LoginBody"];
+            };
+        };
+        responses: {
+            /** @description User logged in successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Auth Error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.getUserProgress": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User progress retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressDataResponse"];
+                };
+            };
+            /** @description Progress not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.getCurrentProgressPath": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ProgressController.getUserProgressPercentage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User progress retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompletedProgressResponse"];
+                };
+            };
+            /** @description Progress not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.startItem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description StartItemBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StartItemBody"];
+            };
+        };
+        responses: {
+            /** @description Item started successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartItemResponse"];
+                };
+            };
+            /** @description courseVersionId, moduleId, sectionId, or itemId do not match user progress */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Progress not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.stopItem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description StopItemBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StopItemBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description courseVersionId, moduleId, sectionId, or itemId do not match user progress */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Progress not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressNotFoundErrorResponse"];
+                };
+            };
+            /** @description Failed to stop tracking item */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.resetProgress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ResetCourseProgressBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ResetCourseProgressBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserNotFoundErrorResponse"];
+                };
+            };
+            /** @description Progress could not be reset */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.getWatchTime": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                userId: string;
+                courseId: string;
+                versionId: string;
+                itemId: string;
+                type: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Watch time fetched successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchTimeResponse"];
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserNotFoundErrorResponse"];
+                };
+            };
+            /** @description Could not Fetch the Watch Time */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.upsertWatchTime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description UpsertWatchTimeBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpsertWatchTimeBody"];
+            };
+        };
+        responses: {
+            /** @description Watch time upserted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpsertWatchTimeResponse"];
+                };
+            };
+            /** @description Invalid request body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Failed to upsert watch time */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.getTotalWatchtimeOfUser": {
         parameters: {
             query?: never;
             header?: never;
@@ -2273,22 +14792,1117 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Token verification successful */
+            /** @description Total watch time fetched successfully */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenVerificationResponse"];
+                    "application/json": components["schemas"]["TotalWatchTimeResponse"];
                 };
             };
-            /** @description Invalid or expired token */
-            401: {
+            /** @description User not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthErrorResponse"];
+                    "application/json": components["schemas"]["UserNotFoundErrorResponse"];
+                };
+            };
+            /** @description Could not Fetch the Total Watch Time */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.skipOptionalItem": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Could not skip the item */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.getLeaderboard": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Leaderboard retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressDataResponse"][];
+                };
+            };
+            /** @description Failed to fetch leaderboard */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.recalculateStudentProgress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Failed to recalculate student progress */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.getModuleWiseProgress": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Module wise progress retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressDataResponse"][];
+                };
+            };
+            /** @description Progress not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgressNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.createBulkWatchiTimeDocs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Failed to create watch-time records */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.getNoAuthLeaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Leaderboard retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetLeaderboardResponse"];
+                };
+            };
+            /** @description Failed to fetch leaderboard */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "UserController.getUserEnrollmentStatistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User-level enrollment statistics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserEnrollmentStatisticsResponse"];
+                };
+            };
+        };
+    };
+    "UserController.getUserById": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User information retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "UserController.getCurrentUser": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current user information retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    "UserController.getCurrentUserFaceReference": {
+        parameters: {
+            query?: {
+                courseId?: string;
+                versionId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "UserController.updateCurrentUserFaceReference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description UpdateFaceReferenceBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateFaceReferenceBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "UserController.editUser": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description EditUserBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EditUserBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "UserController.makeAdmin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "UserActivityEventController.CreateUserActivityEvent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description UserActivityEventRequestBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description User activity event data stored successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Failed to store user activity event data */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "IntegrationController.getLearnersCompletions": {
+        parameters: {
+            query?: {
+                page?: unknown;
+                limit?: unknown;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "PacingController.getPacingPlan": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pacing plan retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PacingPlanResponse"];
+                };
+            };
+        };
+    };
+    "PacingController.setPacingTarget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description SetPacingTargetBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SetPacingTargetBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "AnomalyController.recordImageAnomaly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description NewAnomalyData */
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["NewAnomalyData"] & {
+                    /** Format: binary */
+                    image?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Anomaly recorded successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnomalyData"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "AnomalyController.recordAudioAnomaly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description NewAnomalyData */
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["NewAnomalyData"] & {
+                    /** Format: binary */
+                    audio: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Anomaly recorded successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnomalyData"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "AnomalyController.getAnomaly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                anomalyId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Anomaly retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnomalyDataResponse"];
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserNotFoundErrorResponse"];
+                };
+            };
+            /** @description Could not Fetch the Anomaly */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "AnomalyController.getUserAnomalies": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                userId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Anomalies retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnomalyData"];
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserNotFoundErrorResponse"];
+                };
+            };
+            /** @description Could not Fetch the Anomalies */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "AnomalyController.getCourseAnomalies": {
+        parameters: {
+            query?: {
+                search?: string;
+                type?: "VOICE_DETECTION" | "NO_FACE" | "MULTIPLE_FACES" | "BLUR_DETECTION" | "FOCUS" | "HAND_GESTURE_DETECTION" | "FACE_RECOGNITION";
+                cohort?: string;
+                page?: number;
+                limit?: number;
+                sortField?: string;
+                sortOrder?: "asc" | "desc";
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Anomalies retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedResponse"];
+                };
+            };
+            /** @description Could not Fetch the Anomalies */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "AnomalyController.getItemAnomalies": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                itemId: string;
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Anomalies retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnomalyData"];
+                };
+            };
+            /** @description Could not Fetch the Anomalies */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponse"];
+                };
+            };
+        };
+    };
+    "AnomalyController.getAnomalyStats": {
+        parameters: {
+            query?: {
+                itemId?: string;
+                userId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Anomaly statistics retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnomalyStats"];
+                };
+            };
+        };
+    };
+    "AnomalyController.deleteAnomaly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description DeleteAnomalyBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DeleteAnomalyBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "AnnouncementController.createAnnouncement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CreateAnnouncementBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateAnnouncementBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "AnnouncementController.deleteAnnouncement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                announcementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "AnnouncementController.updateAnnouncement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                announcementId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateAnnouncementBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateAnnouncementBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "AnnouncementController.toggleHideAnnouncement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                announcementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "AnnouncementController.getAnnouncementsForInstructor": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                type?: "GENERAL" | "VERSION_SPECIFIC" | "COURSE_SPECIFIC" | "COHORT_SPECIFIC";
+                courseId?: string;
+                courseVersionId?: string;
+                cohortId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "AnnouncementController.getAnnouncementsForStudent": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                type?: "GENERAL" | "VERSION_SPECIFIC" | "COURSE_SPECIFIC" | "COHORT_SPECIFIC";
+                courseId?: string;
+                courseVersionId?: string;
+                cohortId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "AuditTrailsController.getAllAuditTrails": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of audit trails */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditTrailsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "AuditTrailsController.getAuditTrailsByCourseAndVersion": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                startDate?: string;
+                endDate?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of audit trails for the specified course and version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditTrailsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseController.getActiveUsersByCourse": {
+        parameters: {
+            query?: {
+                startTimeStamp?: string;
+                endTimeStamp?: string;
+                courseId?: string;
+                courseVersionId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Course not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseController.getPublicCourses": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
                 };
             };
         };
@@ -2300,10 +15914,10 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description CreateCourseBody */
+        /** @description CourseBody */
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["CreateCourseBody"];
+                "application/json": components["schemas"]["CourseBody"];
             };
         };
         responses: {
@@ -2332,7 +15946,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                courseId: string;
             };
             cookie?: never;
         };
@@ -2367,19 +15981,59 @@ export interface operations {
             };
         };
     };
+    "CourseController.delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Course not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
     "CourseController.update": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                courseId: string;
             };
             cookie?: never;
         };
-        /** @description UpdateCourseBody */
+        /** @description EditCourseBody */
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["UpdateCourseBody"];
+                "application/json": components["schemas"]["EditCourseBody"];
             };
         };
         responses: {
@@ -2412,12 +16066,52 @@ export interface operations {
             };
         };
     };
+    "CourseController.updateCourseVersionTotalItemCount": {
+        parameters: {
+            query?: {
+                courseId?: string;
+                courseVersionId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActiveUsersResponseDto"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Course or Course Version not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
     "CourseVersionController.create": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                courseId: string;
             };
             cookie?: never;
         };
@@ -2459,10 +16153,12 @@ export interface operations {
     };
     "CourseVersionController.read": {
         parameters: {
-            query?: never;
+            query?: {
+                cohortId?: string;
+            };
             header?: never;
             path: {
-                id: string;
+                versionId: string;
             };
             cookie?: never;
         };
@@ -2534,6 +16230,934 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CourseVersionNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseVersionController.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateCourseVersionBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateCourseVersionBody"];
+            };
+        };
+        responses: {
+            /** @description Course version updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseVersionDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Course version not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseVersionNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseVersionController.copy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Course version copied successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopyCourseVersionResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Course or version not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseVersionNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseVersionController.getCourseVersionWatchTime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Course version watch time fetched successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseVersionWatchTimeResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Course or version not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseVersionNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseVersionController.updateStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateCourseVersionStatusBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateCourseVersionStatusBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Course version not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseVersionNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseVersionController.getCourseVersionCohorts": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                sortBy?: "name" | "createdAt" | "updatedAt" | "baseHp" | "safeHp";
+                sortOrder?: "asc" | "desc";
+            };
+            header?: never;
+            path: {
+                versionId: string;
+                courseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated list of cohorts for the course version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CohortsResponse"];
+                };
+            };
+            /** @description Invalid page or limit parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseVersionController.AddCohortInCourseVersion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                courseId: string;
+            };
+            cookie?: never;
+        };
+        /** @description NewCohortBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["NewCohortBody"];
+            };
+        };
+        responses: {
+            /** @description Cohort created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CohortCreatedMessage"];
+                };
+            };
+            /** @description Invalid page or limit parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseVersionController.DeleteCohortInCourseVersion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                courseId: string;
+                cohortId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cohort deleted for the course version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CohortDeletedMessage"];
+                };
+            };
+            /** @description Invalid page or limit parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseVersionController.UpdateCohortInCourseVersion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                courseId: string;
+                cohortId: string;
+            };
+            cookie?: never;
+        };
+        /** @description NewCohortBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["NewCohortBody"];
+            };
+        };
+        responses: {
+            /** @description Cohort updated for the course version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CohortUpdatedMessage"];
+                };
+            };
+            /** @description Invalid page or limit parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseVersionController.MoveNonCohortStudentsToCohort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                courseId: string;
+            };
+            cookie?: never;
+        };
+        /** @description MoveStudentsToCohortBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["MoveStudentsToCohortBody"];
+            };
+        };
+        responses: {
+            /** @description Students moved to cohort successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoveStudentsToCohortResponse"];
+                };
+            };
+            /** @description Invalid page or limit parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.readAll": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                versionId: string;
+                moduleId: string;
+                sectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Items retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                moduleId: string;
+                sectionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description CreateItemBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateItemBody"];
+            };
+        };
+        responses: {
+            /** @description Item created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                itemId: string;
+                courseId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateItemBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateItemBody"];
+            };
+        };
+        responses: {
+            /** @description Item updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itemsGroupId: string;
+                itemId: string;
+                courseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Item deleted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedItemResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                moduleId: string;
+                sectionId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        /** @description MoveItemBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["MoveItemBody"];
+            };
+        };
+        responses: {
+            /** @description Item moved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.getVideoAnalytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Video analytics retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Video item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.getVideoAnalyticsPerStudent": {
+        parameters: {
+            query?: {
+                search?: string;
+                page?: number;
+                limit?: number;
+                sortBy?: "name" | "views" | "watchHours";
+                sortOrder?: "asc" | "desc";
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Per-student video analytics retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoUserAnalytics"][];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Video item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.getItem": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+                itemId: string;
+                moduleId: string;
+                sectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Item retrieved successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.getFeedackSubmissions": {
+        parameters: {
+            query: {
+                search: string;
+                page: string;
+                limit: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                feedbackId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Item retrieved successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.exportFeedbackSubmissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                feedbackId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ItemController.updateOptionalStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            /** @description Item optional status updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.toggleItemVisibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                itemId: string;
+                courseId: string;
+            };
+            cookie?: never;
+        };
+        /** @description HideModuleBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["HideModuleBody"];
+            };
+        };
+        responses: {
+            /** @description Item visibility toggled successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.processCSVtoItem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+                moduleId: string;
+                sectionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description CSVItemBody */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description CSV processed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["csvResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
                 };
             };
         };
@@ -2648,6 +17272,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModuleDeletedResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Module not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ModuleController.toggleVisibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                moduleId: string;
+            };
+            cookie?: never;
+        };
+        /** @description HideModuleBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["HideModuleBody"];
+            };
+        };
+        responses: {
+            /** @description Module visibility toggled successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleDataResponse"];
                 };
             };
             /** @description Bad Request Error */
@@ -2898,7 +17568,7 @@ export interface operations {
             };
         };
     };
-    "ItemController.readAll": {
+    "SectionController.toggleVisibility": {
         parameters: {
             query?: never;
             header?: never;
@@ -2909,15 +17579,20 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        /** @description HideModuleBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["HideModuleBody"];
+            };
+        };
         responses: {
-            /** @description Items retrieved successfully */
+            /** @description Section visibility toggled successfully */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ItemDataResponse"];
+                    "application/json": components["schemas"]["SectionDataResponse"];
                 };
             };
             /** @description Bad Request Error */
@@ -2929,42 +17604,73 @@ export interface operations {
                     "application/json": components["schemas"]["BadRequestErrorResponse"];
                 };
             };
-            /** @description Item not found */
+            /** @description Section not found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                    "application/json": components["schemas"]["SectionNotFoundErrorResponse"];
                 };
             };
         };
     };
-    "ItemController.create": {
+    "CourseRegistrationController.courseDetails": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 versionId: string;
-                moduleId: string;
-                sectionId: string;
             };
             cookie?: never;
         };
-        /** @description CreateItemBody */
+        requestBody?: never;
+        responses: {
+            /** @description Course details retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseVersionDetailsResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.courseRegistration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["CreateItemBody"];
+                "application/json": unknown;
             };
         };
         responses: {
-            /** @description Item created successfully */
+            /** @description Course registration created successfully */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ItemDataResponse"];
+                    "application/json": {
+                        /** @example 60d5ec49b3f1c8e4a8f8b8d1 */
+                        result?: Record<string, never>;
+                    };
                 };
             };
             /** @description Bad Request Error */
@@ -2976,302 +17682,1591 @@ export interface operations {
                     "application/json": components["schemas"]["BadRequestErrorResponse"];
                 };
             };
-            /** @description Item not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
-                };
-            };
         };
     };
-    "ItemController.readItem": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                versionId: string;
-                moduleId: string;
-                sectionId: string;
-                itemId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Item retrieved successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ItemDataResponse"];
-                };
-            };
-            /** @description Bad Request Error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"];
-                };
-            };
-            /** @description Item not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
-                };
-            };
-        };
-    };
-    "ItemController.update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                versionId: string;
-                moduleId: string;
-                sectionId: string;
-                itemId: string;
-            };
-            cookie?: never;
-        };
-        /** @description UpdateItemBody */
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateItemBody"];
-            };
-        };
-        responses: {
-            /** @description Item updated successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ItemDataResponse"];
-                };
-            };
-            /** @description Bad Request Error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"];
-                };
-            };
-            /** @description Item not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
-                };
-            };
-        };
-    };
-    "ItemController.delete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                itemsGroupId: string;
-                itemId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Item deleted successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeletedItemResponse"];
-                };
-            };
-            /** @description Bad Request Error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"];
-                };
-            };
-            /** @description Item not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
-                };
-            };
-        };
-    };
-    "ItemController.move": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                versionId: string;
-                moduleId: string;
-                sectionId: string;
-                itemId: string;
-            };
-            cookie?: never;
-        };
-        /** @description MoveItemBody */
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["MoveItemBody"];
-            };
-        };
-        responses: {
-            /** @description Item moved successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ItemDataResponse"];
-                };
-            };
-            /** @description Bad Request Error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"];
-                };
-            };
-            /** @description Item not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
-                };
-            };
-        };
-    };
-    "EnrollmentController.enrollUser": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                userId: string;
-                courseId: string;
-                courseVersionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description User successfully enrolled in the course */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnrollUserResponseData"];
-                };
-            };
-            /** @description Bad Request Error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"];
-                };
-            };
-            /** @description Enrollment could not be created or found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnrollmentNotFoundErrorResponse"];
-                };
-            };
-        };
-    };
-    "EnrollmentController.unenrollUser": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                userId: string;
-                courseId: string;
-                courseVersionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description User successfully unenrolled from the course */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnrollUserResponseData"] | components["schemas"]["EnrollUserResponseData"];
-                };
-            };
-            /** @description Bad Request Error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"] | components["schemas"]["BadRequestErrorResponse"];
-                };
-            };
-            /** @description Enrollment could not be found or already removed */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnrollmentNotFoundErrorResponse"] | components["schemas"]["EnrollmentNotFoundErrorResponse"];
-                };
-            };
-        };
-    };
-    "EnrollmentController.getUserEnrollments": {
+    "CourseRegistrationController.getAllRegistrations": {
         parameters: {
             query?: {
-                page?: unknown;
-                limit?: unknown;
+                page?: number;
+                limit?: number;
+                search?: string;
+                status?: "PENDING" | "APPROVED" | "REJECTED" | "ALL";
+                sort?: "older" | "latest";
             };
             header?: never;
             path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All registrations retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllRegistrationsResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.updateStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                registrationId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateStatusBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateStatusBody"];
+            };
+        };
+        responses: {
+            /** @description Registration status updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["updateStatusResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.updateStatusBulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description BulkUpdateStatusBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["BulkUpdateStatusBody"];
+            };
+        };
+        responses: {
+            /** @description Registration status updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["updateStatusBulkResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.getSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registration settings retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateRegistrationSchemasBody"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.updateSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateRegistrationSchemasBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateRegistrationSchemasBody"];
+            };
+        };
+        responses: {
+            /** @description Registration settings updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateSettingResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.updateAutoApprovalSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description AutoApprovalSettingsBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AutoApprovalSettingsBody"];
+            };
+        };
+        responses: {
+            /** @description Auto-approval settings updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateSettingResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.toggleRegistration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ToggleRegistrationBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ToggleRegistrationBody"];
+            };
+        };
+        responses: {
+            /** @description Registration status toggled successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateSettingResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.getRegistrationForm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Course details retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateRegistrationSchemasBody"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.getPendingRegistrations": {
+        parameters: {
+            query: {
+                instructorId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending registrations retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingRegistrationResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.getPendingRegistrationsForStudent": {
+        parameters: {
+            query: {
+                studentId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending student registrations retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingRegistrationResponse"][];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.getRejectedRegistrationsForStudent": {
+        parameters: {
+            query: {
+                studentId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rejected student registrations retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingRegistrationResponse"][];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.getUnreadApprovedRegistrations": {
+        parameters: {
+            query: {
+                studentId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unread approved registrations retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovedRegistrationResponse"][];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseRegistrationController.markNotificationAsRead": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                registrationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Notification marked as read successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["markNotificationAsReadResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuestionController.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description QuestionBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["QuestionBody"];
+            };
+        };
+        responses: {
+            /** @description Question created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionId"];
+                };
+            };
+            /** @description Question creation failed due to invalid body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuestionController.getById": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Question retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionResponse"];
+                };
+            };
+            /** @description Invalid question id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Question not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuestionController.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description QuestionBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["QuestionBody"];
+            };
+        };
+        responses: {
+            /** @description Question updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionResponse"];
+                };
+            };
+        };
+    };
+    "QuestionController.delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid question id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Question not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuestionController.flagQuestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description FlagQuestionBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["FlagQuestionBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid question id or reason */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description You do not have permission to flag this question */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForbiddenErrorResponse"];
+                };
+            };
+            /** @description Question not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuestionController.resolveFlag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flagId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ResolveFlagBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ResolveFlagBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid flag id or status */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description You do not have permission to resolve this flag */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForbiddenErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuestionController.generateAIQuestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description GenerateAIQuestionsBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["GenerateAIQuestionsBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid request body or insufficient data */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description You do not have permission to generate questions */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForbiddenErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.getAllQuestionBanks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of question banks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetAllQuestionBanksResponse"];
+                };
+            };
+            /** @description Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.addQuestionBank": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+            };
+            cookie?: never;
+        };
+        /** @description AddQuestionBankBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AddQuestionBankBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid request body or parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.editQuestionBank": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+            };
+            cookie?: never;
+        };
+        /** @description EditQuestionBankBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EditQuestionBankBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid request body or parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.removeQuestionBank": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+                questionBankId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid request parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Quiz or question bank not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.getUserMetrices": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                quizId: string;
                 userId: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description List of user enrollments */
+            /** @description User quiz metrics */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EnrollmentResponse"];
+                    "application/json": components["schemas"]["UserQuizMetricsResponse"];
+                };
+            };
+            /** @description Invalid request parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.getQuizAttempt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+                attemptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Quiz attempt details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizAttemptResponse"];
+                };
+            };
+            /** @description Quiz or attempt not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.getQuizSubmission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+                submissionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Quiz submission details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizSubmissionResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.getAllSubmissions": {
+        parameters: {
+            query?: {
+                gradeStatus?: "PENDING" | "PASSED" | "FAILED";
+                search?: string;
+                sort?: "date_desc" | "date_asc" | "score_desc" | "score_asc";
+                currentPage?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                quizId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of submissions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetAllSubmissionsResponse"][];
+                };
+            };
+            /** @description Invalid request parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.getQuizDetails": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Quiz details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizDetailsResponse"];
+                };
+            };
+            /** @description Invalid request parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.getQuizAnalytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Quiz analytics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizAnalyticsResponse"];
+                };
+            };
+            /** @description Invalid request parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.getQuizPerformance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Performance stats per question */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizPerformanceResponse"][];
+                };
+            };
+            /** @description Invalid request parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.getQuizResults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Quiz results */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizResultsResponse"][];
+                };
+            };
+            /** @description Invalid request parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.updateQuizSubmissionScore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+                submissionId: string;
+                score: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid submission ID or score */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Submission not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.regradeSubmission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+                submissionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description RegradeSubmissionBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RegradeSubmissionBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid submission ID or regrade data */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Submission not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.addFeedbackToQuestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+                submissionId: string;
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description AddFeedbackBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AddFeedbackBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid submission ID or question ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Submission or question not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.resetAvailableAttempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid quiz ID or user ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuizController.updateMissingSubmissionResultIds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid quiz ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuestionBankController.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CreateQuestionBankBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateQuestionBankBody"];
+            };
+        };
+        responses: {
+            /** @description Question bank created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateQuestionBankResponse"];
+                };
+            };
+            /** @description Course or course version or some questions not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionBankNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuestionBankController.getById": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                questionBankId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Question bank retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionBankResponse"];
+                };
+            };
+            /** @description Question bank not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionBankNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuestionBankController.addQuestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                questionBankId: string;
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Question added to question bank successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionBankResponse"];
+                };
+            };
+            /** @description Invalid input data */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Question bank or question not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionBankNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuestionBankController.removeQuestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                questionBankId: string;
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Question removed from question bank successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionBankResponse"];
+                };
+            };
+            /** @description Question bank or question not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionBankNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "QuestionBankController.replaceQuestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                questionBankId: string;
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Question replaced with duplicate successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplaceQuestionResponse"];
+                };
+            };
+            /** @description Question bank or question not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionBankNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "AttemptController.attempt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attempt created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html; charset=utf-8": components["schemas"]["CreateAttemptResponse"];
                 };
             };
             /** @description Bad Request */
@@ -3280,26 +19275,821 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                    "text/html; charset=utf-8": components["schemas"]["BadRequestErrorResponse"];
                 };
             };
-            /** @description Enrollments Not Found */
+            /** @description Quiz not found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EnrollmentNotFoundErrorResponse"];
+                    "text/html; charset=utf-8": components["schemas"]["AttemptNotFoundErrorResponse"];
                 };
             };
         };
     };
-    "ProgressController.getUserProgress": {
+    "AttemptController.save": {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                quizId: string;
+                attemptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html; charset=utf-8": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html; charset=utf-8": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Attempt or Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html; charset=utf-8": components["schemas"]["AttemptNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "AttemptController.submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+                attemptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attempt submitted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html; charset=utf-8": components["schemas"]["SubmitAttemptResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html; charset=utf-8": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Attempt or Quiz not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html; charset=utf-8": components["schemas"]["AttemptNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "AttemptController.submitFeedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        /** @description SubmitFeedbackBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SubmitFeedbackBody"];
+            };
+        };
+        responses: {
+            /** @description Feedback submitted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitAttemptResponse"];
+                };
+            };
+            /** @description Invalid feedback submission request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Attempt or feedback form not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttemptNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "AttemptController.getAttempt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+                attemptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Attempt retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html; charset=utf-8": components["schemas"]["GetAttemptResponse"];
+                };
+            };
+            /** @description Attempy does not belong to user or quiz */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html; charset=utf-8": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Attempt not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html; charset=utf-8": components["schemas"]["AttemptNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "AttemptController.exportQuizAttempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quizId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html; charset=utf-8": unknown;
+                };
+            };
+        };
+    };
+    "EjectionPolicyController.getPolicies": {
+        parameters: {
+            query?: {
+                courseId?: string;
+                courseVersionId?: string;
+                cohortId?: string;
+                active?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of ejection policies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoliciesListResponse"];
+                };
+            };
+        };
+    };
+    "EjectionPolicyController.createPolicy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CreateEjectionPolicyBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateEjectionPolicyBody"];
+            };
+        };
+        responses: {
+            /** @description Ejection policy created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EjectionPolicyResponse"];
+                };
+            };
+            /** @description Invalid input data */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "EjectionPolicyController.getPolicy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ejection policy details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EjectionPolicyResponse"];
+                };
+            };
+            /** @description Policy not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "EjectionPolicyController.updatePolicy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateEjectionPolicyBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateEjectionPolicyBody"];
+            };
+        };
+        responses: {
+            /** @description Policy updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EjectionPolicyResponse"];
+                };
+            };
+            /** @description Invalid input data */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "EjectionPolicyController.deletePolicy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Policy deleted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletePolicyResponse"];
+                };
+            };
+            /** @description Policy not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "EjectionPolicyController.getActivePoliciesForCourse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+                cohortId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active policies for the course version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoliciesListResponse"];
+                };
+            };
+        };
+    };
+    "EjectionPolicyController.togglePolicyStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Policy status toggled successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EjectionPolicyResponse"];
+                };
+            };
+        };
+    };
+    "ManualEjectionController.ejectLearner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
                 userId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ManualEjectionBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ManualEjectionBody"];
+            };
+        };
+        responses: {
+            /** @description Learner ejected successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualEjectionResponse"];
+                };
+            };
+            /** @description Learner not enrolled or already ejected */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ManualEjectionController.getStudentsForEjection": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                statusFilter?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+                cohortId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Students in cohort with ejection metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EjectionStudentsListResponse"];
+                };
+            };
+        };
+    };
+    "ManualEjectionController.bulkEjectLearners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description BulkEjectionBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["BulkEjectionBody"];
+            };
+        };
+        responses: {
+            /** @description Bulk ejection result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkEjectionResponse"];
+                };
+            };
+        };
+    };
+    "ManualEjectionController.getEjectionHistory": {
+        parameters: {
+            query: {
+                courseId: string;
+                courseVersionId: string;
+                cohortId?: string;
+                triggerType?: "MANUAL" | "POLICY" | "APPEAL";
+                startDate?: string;
+                endDate?: string;
+                search?: string;
+                timezoneOffset?: number;
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    "ManualEjectionController.exportEjectionHistory": {
+        parameters: {
+            query: {
+                courseId: string;
+                courseVersionId: string;
+                cohortId?: string;
+                triggerType?: "MANUAL" | "POLICY" | "APPEAL";
+                startDate?: string;
+                endDate?: string;
+                search?: string;
+                timezoneOffset?: number;
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ReinstatementController.reinstateLearner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ReinstatementBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReinstatementBody"];
+            };
+        };
+        responses: {
+            /** @description Learner reinstated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReinstatementResponse"];
+                };
+            };
+            /** @description Learner not ejected or already active */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ReinstatementController.bulkReinstateLearners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description BulkReinstatementBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["BulkReinstatementBody"];
+            };
+        };
+        responses: {
+            /** @description Bulk reinstatement result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkReinstatementResponse"];
+                };
+            };
+        };
+    };
+    "AutoEjectionController.triggerEjectionEngine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "AppealController.getAppeals": {
+        parameters: {
+            query?: {
+                status?: string;
+                courseId?: string;
+                courseVersionId?: string;
+                cohortId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "AppealController.createAppeal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CreateAppealBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateAppealBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "AppealController.getAppealById": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "AppealController.approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "AppealController.reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description RejectAppealBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RejectAppealBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "EmotionController.submitEmotion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "EmotionController.getItemEmotionStats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "EmotionController.getEmotionHistory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
                 courseId: string;
                 courseVersionId: string;
             };
@@ -3307,82 +20097,6 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description User progress retrieved successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProgressDataResponse"];
-                };
-            };
-            /** @description Bad Request Error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"];
-                };
-            };
-        };
-    };
-    "ProgressController.startItem": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                userId: string;
-                courseId: string;
-                courseVersionId: string;
-            };
-            cookie?: never;
-        };
-        /** @description StartItemBody */
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["StartItemBody"];
-            };
-        };
-        responses: {
-            /** @description Course item started successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StartItemResponse"];
-                };
-            };
-            /** @description Bad Request Error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"];
-                };
-            };
-        };
-    };
-    "ProgressController.stopItem": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                userId: string;
-                courseId: string;
-                courseVersionId: string;
-            };
-            cookie?: never;
-        };
-        /** @description StopItemBody */
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["StopItemBody"];
-            };
-        };
-        responses: {
             /** @description Successful response */
             200: {
                 headers: {
@@ -3392,111 +20106,52 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Bad Request Error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"];
-                };
-            };
         };
     };
-    "ProgressController.updateProgress": {
+    "EmotionController.getCourseEmotionReport": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                userId: string;
                 courseId: string;
                 courseVersionId: string;
-            };
-            cookie?: never;
-        };
-        /** @description UpdateProgressBody */
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateProgressBody"];
-            };
-        };
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Bad Request Error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"];
-                };
-            };
-        };
-    };
-    "ProgressController.resetProgress": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                userId: string;
-                courseId: string;
-                courseVersionId: string;
-            };
-            cookie?: never;
-        };
-        /** @description ResetCourseProgressBody */
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["ResetCourseProgressBody"];
-            };
-        };
-        responses: {
-            /** @description Successful response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Bad Request Error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"];
-                };
-            };
-        };
-    };
-    "UserController.getUserByFirebaseUID": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                firebaseUID: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description User found successfully */
+            /** @description Successful response */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserByFirebaseUIDResponse"];
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "GenAIController.start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description JobBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["JobBody"];
+            };
+        };
+        responses: {
+            /** @description GenAI job created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAIResponse"];
                 };
             };
             /** @description Bad Request Error */
@@ -3508,13 +20163,1909 @@ export interface operations {
                     "application/json": components["schemas"]["BadRequestErrorResponse"];
                 };
             };
-            /** @description User not found */
+        };
+    };
+    "GenAIController.startWithAudio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description JobBody */
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["JobBody"] & {
+                    /** Format: binary */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description GenAI job created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAIResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "GenAIController.getStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Job retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobStatusResponse"];
+                };
+            };
+            /** @description Job not found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserNotFoundErrorResponse"];
+                    "application/json": components["schemas"]["GenAINotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "GenAIController.getTaskStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type: "AUDIO_EXTRACTION" | "TRANSCRIPT_GENERATION" | "SEGMENTATION" | "QUESTION_GENERATION" | "UPLOAD_CONTENT";
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Task status retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskStatusdetailsResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAINotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "GenAIController.approveStart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description ApproveStartBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ApproveStartBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAINotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "GenAIController.approveContinue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAINotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "GenAIController.rerunTask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description RerunTaskBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RerunTaskBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description GenAI not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAINotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "GenAIController.abortTask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description GenAI not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAINotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "GenAIController.stopTask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description GenAI not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAINotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "GenAIController.editSegmentMap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description EditSegmentMapBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EditSegmentMapBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Forbidden Error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForbiddenErrorResponse"];
+                };
+            };
+            /** @description GenAI not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAINotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "GenAIController.editQuestionData": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description EditQuestionData */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EditQuestionData"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Forbidden Error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForbiddenErrorResponse"];
+                };
+            };
+            /** @description GenAI not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAINotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "GenAIController.editTranscript": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description EditTranscript */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EditTranscript"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Forbidden Error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForbiddenErrorResponse"];
+                };
+            };
+            /** @description GenAI not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAINotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "GenAIController.getLiveUpdates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description GenAI not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAINotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "WebhookController.handleWebhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description WebhookBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["WebhookBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "WebhookController.getJobStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ActivityController.createActivityWithRule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CreateActivityWithRuleBody */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateActivityWithRuleBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ActivityController.getById": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ActivityController.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateActivityBody */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateActivityBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ActivityController.publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ActivityController.archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ActivityController.list": {
+        parameters: {
+            query?: {
+                courseId?: string;
+                courseVersionId?: string;
+                cohortId?: string;
+                status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+                activityType?: "ASSIGNMENT" | "MILESTONE" | "EXTERNAL_IMPORT" | "VIBE_MILESTONE" | "OTHER";
+                createdByTeacherId?: string;
+                search?: string;
+                activity?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ActivityController.delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                courseVersionId?: string;
+                cohortId?: string;
+                activityId?: string;
+                status?: "SUBMITTED" | "APPROVED" | "REJECTED" | "REVERTED";
+                sortBy?: string;
+                sortOrder?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description CreateOrUpdateHpActivitySubmissionBodyDto */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOrUpdateHpActivitySubmissionBodyDto"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.updateSubmission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submissionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description CreateOrUpdateHpActivitySubmissionBodyDto */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOrUpdateHpActivitySubmissionBodyDto"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.getById": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.getMySubmissions": {
+        parameters: {
+            query?: {
+                cohort?: string;
+                page?: number;
+                limit?: number;
+                search?: string;
+                sortBy?: string;
+                sortOrder?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.getStudentDashboardStats": {
+        parameters: {
+            query: {
+                cohortName: string;
+                courseVersionId: string;
+                timelineDays?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentDashboardStatsResponseDto"];
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.listStudentCohortWiseSubmssions": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                sortBy?: string;
+                sortOrder?: "asc" | "desc";
+            };
+            header?: never;
+            path: {
+                studentId: string;
+                cohortId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentActivitySubmissionsResponseDto"];
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.listStatsByStudentId": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                studentId: string;
+                cohortId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentActivitySubmissionStatsResponseDto"];
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description ReviewHpActivitySubmissionBodyDto */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewHpActivitySubmissionBodyDto"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.addfeedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description SubmissionFeedbackBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SubmissionFeedbackBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": unknown;
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.getCohortActivityStats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cohortId: string;
+                activityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    "ActivitySubmissionsController.getBulkCohortActivityStats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cohortId: string;
+                courseVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentActivitySubmissionStatsResponseDto"];
+                };
+            };
+        };
+    };
+    "LedgerController.listByStudentId": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                sortBy?: string;
+                sortOrder?: "asc" | "desc";
+            };
+            header?: never;
+            path: {
+                studentId: string;
+                cohortId: string;
+                courseId: string;
+                courseVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerListResponseDto"];
+                };
+            };
+        };
+    };
+    "LedgerController.getMyLedger": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+                sortBy?: string;
+                sortOrder?: "asc" | "desc";
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+                cohortId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerListResponseDto"];
+                };
+            };
+        };
+    };
+    "RuleConfigsController.getById": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleConfigId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "RuleConfigsController.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleConfigId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateHpRuleConfigBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateHpRuleConfigBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "RuleConfigsController.getByActivityId": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "CohortsController.listCourseVersions": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                sortBy?: string;
+                sortOrder?: "asc" | "desc";
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CohortsController.getCourseDetails": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "CohortsController.listCohorts": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                sortBy?: string;
+                sortOrder?: "asc" | "desc";
+                search?: string;
+                courseVersionId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CohortsController.listStudentCohorts": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                sortBy?: string;
+                sortOrder?: "asc" | "desc";
+                search?: string;
+                courseVersionId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CohortsController.listCohortStudents": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                sortBy?: string;
+                sortOrder?: "asc" | "desc";
+                search?: string;
+                status?: "ALL" | "SAFE" | "UNSAFE";
+            };
+            header?: never;
+            path: {
+                versionId: string;
+                cohortId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CohortStudentsResponseDto"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CohortsController.resetHp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                cohortName: string;
+            };
+            cookie?: never;
+        };
+        /** @description ResetHpRequest */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ResetHpRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "CohortsController.resetHpForStudent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                cohortName: string;
+                studentId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ResetStudentHpRequest */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ResetStudentHpRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ProjectController.submitProject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description SubmitProjectBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SubmitProjectBody"];
+            };
+        };
+        responses: {
+            /** @description Project submitted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttemptNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProjectController.getSubmissions": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of submissions fetched successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionResponse"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttemptNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "StudentQuestionController.listMine": {
+        parameters: {
+            query?: {
+                status?: "PENDING" | "APPROVED" | "REJECTED" | "ALL";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentQuestionListResponse"];
+                };
+            };
+        };
+    };
+    "StudentQuestionController.listBySegment": {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+                segmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentQuestionListResponse"];
+                };
+            };
+        };
+    };
+    "StudentQuestionController.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+                segmentId: string;
+            };
+            cookie?: never;
+        };
+        /** @description CreateStudentQuestionBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateStudentQuestionBody"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentQuestionCreateResponse"];
+                };
+            };
+        };
+    };
+    "StudentQuestionController.listByCourseVersion": {
+        parameters: {
+            query?: {
+                status?: "PENDING" | "APPROVED" | "REJECTED" | "ALL";
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentQuestionListResponse"];
+                };
+            };
+        };
+    };
+    "StudentQuestionController.updateQuestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+                segmentId: string;
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateStudentQuestionBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateStudentQuestionBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "StudentQuestionController.updateStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                courseVersionId: string;
+                segmentId: string;
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateStudentQuestionStatusBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateStudentQuestionStatusBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ReportController.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ReportBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReportBody"];
+            };
+        };
+        responses: {
+            /** @description Report created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example Flag submitted successfully */
+                        message?: string;
+                    };
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ReportController.getReportById": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Returns the requested report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportDataResponse"];
+                };
+            };
+        };
+    };
+    "ReportController.updateStatus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateReportStatusBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateReportStatusBody"];
+            };
+        };
+        responses: {
+            /** @description Report status updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example Flag updated successfully */
+                        message?: string;
+                    };
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ReportController.getFilteredReports": {
+        parameters: {
+            query?: {
+                entityType?: "QUIZ" | "VIDEO" | "ARTICLE" | "QUESTION";
+                status?: "REPORTED" | "IN_REVIEW" | "RESOLVED" | "DISCARDED" | "CLOSED";
+                limit?: number;
+                currentPage?: number;
+                sortBy?: unknown;
+                sortOrder?: "asc" | "desc";
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportResponse"][];
+                };
+            };
+            /** @description Invalid request parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ReportController.getMyIssueReports": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                status?: "ALL" | "REPORTED" | "IN_REVIEW" | "RESOLVED" | "DISCARDED" | "CLOSED";
+                search?: string;
+                sort?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Returns reports submitted by the logged-in user with filters, search, sorting, and pagination */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueReportResponse"][];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ReportController.updateResponseInterset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description ResponseIntersetBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ResponseIntersetBody"];
+            };
+        };
+        responses: {
+            /** @description Report status updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example Response updated successfully */
+                        message?: string;
+                    };
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
                 };
             };
         };

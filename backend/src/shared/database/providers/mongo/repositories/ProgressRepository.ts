@@ -134,6 +134,36 @@ class ProgressRepository {
     return completedIds.filter(id => !hiddenSet.has(id));
   }
 
+  async getCompletedItemsInWindow(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    sinceDate: Date,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<string[]> {
+    await this.init();
+
+    const distinctItemIds = await this.watchTimeCollection.distinct(
+      'itemId',
+      {
+        userId: new ObjectId(userId),
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+        endTime: { $exists: true, $ne: null, $gte: sinceDate },
+        isDeleted: { $ne: true },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
+      },
+      { session },
+    );
+    const completedIds = distinctItemIds.map(id => id.toString());
+
+    const hiddenItems = await this.getHiddenOrDeletedItems(courseVersionId, session);
+    const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
+
+    return completedIds.filter(id => !hiddenSet.has(id));
+  }
+
   async getAllDistinctCompletedItems(
     userId: string,
     courseId: string,

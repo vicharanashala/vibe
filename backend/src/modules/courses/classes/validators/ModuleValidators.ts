@@ -7,6 +7,7 @@ import {
   IsMongoId,
   ValidateIf,
   IsBoolean,
+  IsIn,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {OnlyOneId} from './customValidators.js';
@@ -36,6 +37,18 @@ class CreateModuleBody implements Partial<IModule> {
   @IsString()
   @MaxLength(1000)
   description: string;
+
+  @JSONSchema({
+    title: 'Module Difficulty',
+    description: 'Difficulty rating of the module (easy, moderate, difficult, hard)',
+    example: 'easy',
+    type: 'string',
+    enum: ['easy', 'moderate', 'difficult', 'hard'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['easy', 'moderate', 'difficult', 'hard'])
+  difficulty?: 'easy' | 'moderate' | 'difficult' | 'hard';
 
   @JSONSchema({
     title: 'After Module ID',
@@ -89,6 +102,18 @@ class UpdateModuleBody implements Partial<IModule> {
   @IsString()
   @MaxLength(1000)
   description: string;
+
+  @JSONSchema({
+    title: 'Module Difficulty',
+    description: 'Difficulty rating of the module (easy, moderate, difficult, hard)',
+    example: 'easy',
+    type: 'string',
+    enum: ['easy', 'moderate', 'difficult', 'hard'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['easy', 'moderate', 'difficult', 'hard'])
+  difficulty?: 'easy' | 'moderate' | 'difficult' | 'hard';
 }
 
 class MoveModuleBody {

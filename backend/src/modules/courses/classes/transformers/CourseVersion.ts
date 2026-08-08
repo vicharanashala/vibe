@@ -67,6 +67,10 @@ class CourseVersion implements ICourseVersion {
   cohorts?: ID[];
 
   @Expose()
+  @Type(() => Date)
+  teacherDeadline?: Date;
+
+  @Expose()
   @Type(() => Cohort)
   cohortDetails?: Cohort[];
 

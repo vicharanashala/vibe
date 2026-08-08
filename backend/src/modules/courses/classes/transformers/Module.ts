@@ -1,15 +1,15 @@
-import {calculateNewOrder} from '#courses/utils/calculateNewOrder.js';
+import { calculateNewOrder } from '#courses/utils/calculateNewOrder.js';
 
-import {Expose, Transform, Type} from 'class-transformer';
-import {ObjectId} from 'mongodb';
+import { Expose, Transform, Type } from 'class-transformer';
+import { ObjectId } from 'mongodb';
 
-import {CreateModuleBody} from '../validators/ModuleValidators.js';
-import {Section} from './Section.js';
+import { CreateModuleBody } from '../validators/ModuleValidators.js';
+import { Section } from './Section.js';
 import {
   ObjectIdToString,
   StringToObjectId,
 } from '#root/shared/constants/transformerConstants.js';
-import {IModule, ID} from '#root/shared/interfaces/models.js';
+import { IModule, ID } from '#root/shared/interfaces/models.js';
 
 /**
  * Module data transformation.
@@ -18,8 +18,8 @@ import {IModule, ID} from '#root/shared/interfaces/models.js';
  */
 class Module implements IModule {
   @Expose()
-  @Transform(ObjectIdToString.transformer, {toPlainOnly: true})
-  @Transform(StringToObjectId.transformer, {toClassOnly: true})
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
   moduleId?: ID;
 
   @Expose()
@@ -47,6 +47,9 @@ class Module implements IModule {
   updatedAt: Date;
 
   @Expose()
+  difficulty?: 'easy' | 'moderate' | 'difficult' | 'hard';
+
+  @Expose()
   isDeleted?: boolean;
 
   @Expose()
@@ -57,6 +60,7 @@ class Module implements IModule {
     if (moduleBody) {
       this.name = moduleBody.name;
       this.description = moduleBody.description;
+      this.difficulty = moduleBody.difficulty;
     }
     const sortedModules = existingModules.sort((a, b) =>
       a.order.localeCompare(b.order),
@@ -77,4 +81,4 @@ class Module implements IModule {
   }
 }
 
-export {Module};
+export { Module };

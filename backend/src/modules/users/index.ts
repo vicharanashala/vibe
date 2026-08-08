@@ -1,17 +1,19 @@
-import {authContainerModule} from '#auth/container.js';
-import {sharedContainerModule} from '#root/container.js';
-import {InversifyAdapter} from '#root/inversify-adapter.js';
-import {Container, ContainerModule} from 'inversify';
-import {RoutingControllersOptions, useContainer} from 'routing-controllers';
-import {usersContainerModule} from './container.js';
-import {EnrollmentController} from './controllers/EnrollmentController.js';
-import {ProgressController} from './controllers/ProgressController.js';
-import {UserController} from './controllers/UserController.js';
-import {UserActivityEventController} from './controllers/UserActivityEventController.js';
-import {IntegrationController} from './controllers/IntegrationController.js';
+import { authContainerModule } from '#auth/container.js';
+import { sharedContainerModule } from '#root/container.js';
+import { InversifyAdapter } from '#root/inversify-adapter.js';
+import { Container, ContainerModule } from 'inversify';
+import { RoutingControllersOptions, useContainer } from 'routing-controllers';
+import { usersContainerModule } from './container.js';
+import { EnrollmentController } from './controllers/EnrollmentController.js';
+import { ProgressController } from './controllers/ProgressController.js';
+import { UserController } from './controllers/UserController.js';
+import { UserActivityEventController } from './controllers/UserActivityEventController.js';
+import { IntegrationController } from './controllers/IntegrationController.js';
+import { PacingController } from './controllers/PacingController.js';
+import { PacingGroupController } from './controllers/PacingGroupController.js';
 import { CourseController } from '../courses/controllers/CourseController.js';
 import { coursesContainerModule } from '../courses/container.js';
-import { ENROLLMENT_VALIDATORS, PROGRESS_VALIDATORS, USER_VALIDATORS } from './classes/validators/index.js';
+import { ENROLLMENT_VALIDATORS, PROGRESS_VALIDATORS, USER_VALIDATORS, PACING_VALIDATORS, PACING_GROUP_VALIDATORS } from './classes/validators/index.js';
 import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 
 
@@ -28,6 +30,8 @@ export const usersModuleControllers: Function[] = [
   UserController,
   UserActivityEventController,
   IntegrationController,
+  PacingController,
+  PacingGroupController,
   CourseController,
 ];
 
@@ -51,5 +55,7 @@ export const usersModuleOptions: RoutingControllersOptions = {
 export const usersModuleValidators: Function[] = [
   ...ENROLLMENT_VALIDATORS,
   ...PROGRESS_VALIDATORS,
-  ...USER_VALIDATORS
+  ...USER_VALIDATORS,
+  ...PACING_VALIDATORS,
+  ...PACING_GROUP_VALIDATORS,
 ]

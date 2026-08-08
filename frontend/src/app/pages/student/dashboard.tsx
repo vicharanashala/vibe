@@ -8,6 +8,7 @@ import { toast } from "sonner";
 // Import components
 import { CourseSection } from "@/components/course/CourseSection";
 import { LearningInsights } from "@/components/dashboard/LearningInsights";
+import { CombinedPacingPlanner } from "@/components/dashboard/CombinedPacingPlanner";
 // import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar"; // Hidden: Learning Checklist sidebar (commented out, not removed)
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting, bufferToHex } from "@/utils/helpers";
@@ -179,7 +180,7 @@ function DashboardContent() {
   const { data: statsData, isLoading: statsLoading } = useUserEnrollmentStats(!!token);
 
 
-   // Calculate distinct lists for tabs
+  // Calculate distinct lists for tabs
   const activeEnrollments = useMemo(() => {
     return enrollments.filter(enrollment => (enrollment.percentCompleted ?? 0) !== 100);
   }, [enrollments]);
@@ -252,62 +253,64 @@ function DashboardContent() {
 
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full space-y-2">
               <div className="flex items-center justify-between gap-3">
-              <TabsList className="w-full md:w-fit flex h-auto p-1 bg-neutral-100/80 dark:bg-white/[0.04] rounded-xl border border-neutral-200/70 dark:border-white/[0.07] overflow-x-auto scrollbar-hide">
-                <TabsTrigger
-                  value="available"
-                  className="rounded-lg px-3 py-1.5 md:px-4 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm whitespace-nowrap"
-                >
-                  Available
-                  {(publicCoursesData?.totalDocuments || 0) > 0 && (
-                    <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-md bg-primary/10 text-primary border border-primary/20">
-                      {publicCoursesData?.totalDocuments}
-                    </span>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="enrolled"
-                  className="rounded-lg px-3 py-1.5 md:px-4 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm whitespace-nowrap"
-                >
-                  Enrolled
-                  {activeEnrollments.length > 0 && (
-                    <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-md bg-blue-100 text-blue-600 border border-blue-200 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/20">
-                      {activeEnrollments.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="completed"
-                  className="rounded-lg px-3 py-1.5 md:px-4 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm whitespace-nowrap"
-                >
-                  Completed
-                  {completedEnrollments.length > 0 && (
-                    <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-md bg-green-100 text-green-600 border border-green-200 dark:bg-green-500/15 dark:text-green-400 dark:border-green-500/20">
-                      {completedEnrollments.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-              <div className="flex items-center gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="About these tabs">
-                        <Info className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        {activeTab === 'available'
-                          ? 'Recommended courses to start next'
-                          : activeTab === 'enrolled'
-                            ? "Courses you're actively learning"
-                            : 'Courses you have finished'}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <ViewSwitcher viewMode={viewMode} setViewMode={setViewMode} />
-              </div>
+                <TabsList className="w-full md:w-fit flex h-auto p-1 bg-neutral-100/80 dark:bg-white/[0.04] rounded-xl border border-neutral-200/70 dark:border-white/[0.07] overflow-x-auto scrollbar-hide">
+                  <TabsTrigger
+                    value="available"
+                    className="rounded-lg px-3 py-1.5 md:px-4 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm whitespace-nowrap"
+                  >
+                    Available
+                    {(publicCoursesData?.totalDocuments || 0) > 0 && (
+                      <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-md bg-primary/10 text-primary border border-primary/20">
+                        {publicCoursesData?.totalDocuments}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="enrolled"
+                    className="rounded-lg px-3 py-1.5 md:px-4 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm whitespace-nowrap"
+                  >
+                    Enrolled
+                    {activeEnrollments.length > 0 && (
+                      <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-md bg-blue-100 text-blue-600 border border-blue-200 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/20">
+                        {activeEnrollments.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="completed"
+                    className="rounded-lg px-3 py-1.5 md:px-4 text-xs md:text-sm font-semibold transition-all duration-300 data-[state=active]:bg-white dark:data-[state=active]:bg-white/10 data-[state=active]:text-foreground dark:data-[state=active]:text-white data-[state=active]:shadow-sm whitespace-nowrap"
+                  >
+                    Completed
+                    {completedEnrollments.length > 0 && (
+                      <span className="ml-1.5 md:ml-2 px-1.5 py-0.5 text-[9px] md:text-[10px] font-bold rounded-md bg-green-100 text-green-600 border border-green-200 dark:bg-green-500/15 dark:text-green-400 dark:border-green-500/20">
+                        {completedEnrollments.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+                <div className="flex items-center gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="About these tabs">
+                          <Info className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {activeTab === 'available'
+                            ? 'Recommended courses to start next'
+                            : activeTab === 'enrolled'
+                              ? "Courses you're actively learning"
+                              : 'Courses you have finished'}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <CombinedPacingPlanner enrollments={enrollments} />
+                  <ViewSwitcher viewMode={viewMode} setViewMode={setViewMode} />
+                </div>
+
               </div>
 
               <TabsContent value="available" className="mt-2 space-y-4 animate-in fade-in-50 duration-300 slide-in-from-left-2">

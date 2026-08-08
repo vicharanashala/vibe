@@ -40,7 +40,12 @@ export class MongoDatabase implements IDatabase<Db> {
       return;
     }
 
+    const useTls = !uri.includes('localhost') && !uri.includes('127.0.0.1');
     this.client = new MongoClient(uri, {
+      ssl: useTls,
+      tls: useTls,
+      tlsAllowInvalidCertificates: false,
+      tlsAllowInvalidHostnames: false,
       retryWrites: true,
 
       // 🔹 CONNECTION POOL
@@ -58,19 +63,19 @@ export class MongoDatabase implements IDatabase<Db> {
   }
 
   private async ensureIndexes(): Promise<void> {
-  if (!this.database) return;
+    if (!this.database) return;
 
-  const auditCollection = this.database.collection("auditTrails");
+    const auditCollection = this.database.collection("auditTrails");
 
-  await auditCollection.createIndex({
-    actor: 1,
-    "context.courseId": 1,
-    "context.courseVersionId": 1,
-    createdAt: -1,
-  });
+    await auditCollection.createIndex({
+      actor: 1,
+      "context.courseId": 1,
+      "context.courseVersionId": 1,
+      createdAt: -1,
+    });
 
-  console.log("AuditTrails indexes ensured");
-}
+    console.log("AuditTrails indexes ensured");
+  }
 
   /**
    * Connects to the MongoDB database.
@@ -83,25 +88,25 @@ export class MongoDatabase implements IDatabase<Db> {
   //   return this.database;
   // }
 
-public async connect(): Promise<Db> {
-  if (this.database) {
-    return this.database;
-  }
-
-  if (!this.connectingPromise) {
-    this.connectingPromise = (async () => {
-      await this.client?.connect();
-      this.database = this.client?.db(this.dbName);
-
-      // 🔥 Ensure indexes after connection
-      await this.ensureIndexes();
-
+  public async connect(): Promise<Db> {
+    if (this.database) {
       return this.database;
-    })();
-  }
+    }
 
-  return this.connectingPromise;
-}
+    if (!this.connectingPromise) {
+      this.connectingPromise = (async () => {
+        await this.client?.connect();
+        this.database = this.client?.db(this.dbName);
+
+        // 🔥 Ensure indexes after connection
+        await this.ensureIndexes();
+
+        return this.database;
+      })();
+    }
+
+    return this.connectingPromise;
+  }
 
   /**
    * Disconnects from the MongoDB database.
