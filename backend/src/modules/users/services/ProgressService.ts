@@ -1684,7 +1684,7 @@ class ProgressService extends BaseService {
 
       return {
         completed: progress.completed,
-        percentCompleted: Math.min(100, enrollment.percentCompleted ?? 0),
+        percentCompleted: Math.min(100, enrollment.percentCompleted),
         totalItems,
         completedItems: completedItemsSet.size,
       };
@@ -4094,8 +4094,8 @@ class ProgressService extends BaseService {
     >();
     for (const enrollment of enrollments) {
       enrollmentMap.set(enrollment.userId?.toString(), {
-        completionPercentage: enrollment.percentCompleted ?? 0,
-        enrollmentDate: enrollment.enrollmentDate ?? null,
+        completionPercentage: enrollment.percentCompleted || 0,
+        enrollmentDate: enrollment.enrollmentDate || null,
       });
     }
 
@@ -4121,9 +4121,13 @@ class ProgressService extends BaseService {
         cohortId,
       );
 
-    // Get user names for all enrolled students
+    // Get user names for all enrolled students (fetching only required name & email fields)
     const userIds = enrollments.map(e => e.userId?.toString());
-    const users = await this.userRepo.getUsersByIds(userIds);
+    const users = await this.userRepo.getUsersByIds(userIds, {
+      firstName: 1,
+      lastName: 1,
+      email: 1,
+    });
 
     const userMap = new Map();
     for (const user of users) {
@@ -4161,7 +4165,7 @@ class ProgressService extends BaseService {
       const enrollment = enrollmentMap.get(id);
       const completionPercentage = Math.min(
         100,
-        enrollment?.completionPercentage ?? 0,
+        enrollment?.completionPercentage || 0,
       );
       // Use the finish timestamp regardless of the legacy `completed` flag.
       const completedAt = progress.completedAt ?? null;
@@ -4792,14 +4796,18 @@ class ProgressService extends BaseService {
     const enrollmentMap = new Map();
     for (const enrollment of enrollments) {
       enrollmentMap.set(enrollment.userId.toString(), {
-        completionPercentage: enrollment.percentCompleted ?? 0,
+        completionPercentage: enrollment.percentCompleted || 0,
         enrolledAt: enrollment.enrollmentDate,
       });
     }
 
     // Get user names for all enrolled students
     const userIds = enrollments.map(e => e.userId.toString());
-    const users = await this.userRepo.getUsersByIds(userIds);
+    const users = await this.userRepo.getUsersByIds(userIds, {
+      firstName: 1,
+      lastName: 1,
+      email: 1,
+    });
     if (!users || users.length === 0) {
       throw new BadRequestError(
         'No users found for the given course and version',
@@ -4841,7 +4849,7 @@ class ProgressService extends BaseService {
         userName: user?.name || 'Unknown User',
         email: user?.email || 'No email',
 
-        completionPercentage: Math.min(100, enrollment?.completionPercentage ?? 0),
+        completionPercentage: Math.min(100, enrollment?.completionPercentage) ?? 0,
 
         completedAt:
           progress.completed && progress.completedAt
