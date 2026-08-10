@@ -19,6 +19,24 @@ ViBe is an innovative educational platform that enhances learning through contin
   - **Smart Proctoring:** AI-powered monitoring ensures that assessments are conducted honestly, providing a supportive framework that maintains academic integrity.
   - **Engagement Verification:** The system checks that students are actively engaged, reinforcing a positive learning atmosphere.
 
+## VibeCode (New Coding Module)
+
+We recently introduced **VibeCode**, a full-featured integrated coding environment built directly into ViBe. VibeCode allows students to solve algorithmic coding problems with real-time feedback, similar to LeetCode, and provides teachers with a powerful dashboard to track student progress.
+
+### Teacher Module Features
+- **Problem Creation UI:** Teachers can easily create custom coding problems with descriptions, difficulty levels, and time/memory limits.
+- **Language Support Dropdown:** Seamlessly switch between languages (JavaScript/TypeScript) to define starting Boilerplate code and hidden Execution Wrappers.
+- **Test Case Management:** Upload thousands of test cases via CSV files in a single click, and easily toggle which test cases are hidden from students.
+- **Submissions Dashboard:** A comprehensive view of all student submissions, automatically grouping multiple attempts by student name. Teachers can instantly see exact error details, runtime metrics, and test case pass ratios (e.g. `Wrong Answer (2/4)`).
+
+### Student Module Features
+- **In-Browser IDE:** A split-pane code editor layout allowing students to read problem descriptions, view test cases, and write code all on one screen.
+- **Real-Time Execution Engine:** Powered by a lightweight, highly secure `isolated-vm` (Node.js worker_threads) backend that intercepts stdout/stderr, prevents infinite loops (Time Limit Exceeded), and blocks memory leaks (Memory Limit Exceeded).
+- **Instant Feedback:**
+  - **Run Code:** Evaluates code against visible test cases and automatically autosaves progress to the database without cluttering the teacher's dashboard.
+  - **Submit Code:** Evaluates code against all test cases (including hidden ones) and logs the submission.
+- **Detailed Metrics:** Students can instantly see their test case pass ratio (e.g., `4 / 4 test cases passed`), execution runtime in milliseconds, and diffs highlighting differences between their output and the expected output.
+
 ## Inspiration
 
 ViBe draws inspiration from the classical Indian tale of Vikram and Betaal. In the story, Betaal challenges King Vikramaditya with riddles, and any incorrect answer prompts a review of the challenge. Similarly, ViBe reinforces learning by requiring students to revisit content if their responses do not meet the mark, ensuring a deep and lasting understanding of the material.

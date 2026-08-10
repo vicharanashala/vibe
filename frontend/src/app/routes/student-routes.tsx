@@ -10,6 +10,8 @@ import Leaderboard from "../pages/student/leaderboard";
 import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
 import StudentCohorts from "@/app/pages/student/hp-system/cohorts";
 import StudentLedgerPage from "@/app/pages/student/hp-system/student-ledger";
+import VibeCodeMain from "@/app/pages/student/vibecode/VibeCodeMain";
+import VibeCodeProblem from "@/app/pages/student/vibecode/VibeCodeProblem";
 
 const studentRoutes: RouteObject = {
   path: "/student",
@@ -50,6 +52,14 @@ const studentRoutes: RouteObject = {
     {
       path: "hp-system/ledger",
       element: <StudentLedgerPage />
+    },
+    {
+      path: "vibecode",
+      element: <VibeCodeMain />
+    },
+    {
+      path: "vibecode/:problemId",
+      element: <VibeCodeProblem />
     },
     {
       index: true,

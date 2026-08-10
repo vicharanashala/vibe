@@ -18,6 +18,7 @@ export type StudentNavItem = {
  */
 export const STUDENT_NAV_ITEMS: StudentNavItem[] = [
   { key: "dashboard", title: "Dashboard", to: "/student", icon: LayoutDashboard },
+  { key: "vibecode", title: "VibeCode", to: "/student/vibecode", icon: SquareTerminal },
   { key: "flags", title: "My Flags", to: "/student/issues", icon: Flag },
   { key: "courses", title: "Courses", to: "/student/courses", icon: BookOpen },
   { key: "hp-system", title: "HP System", to: "/student/hp-system/cohorts", icon: SquareTerminal, requires: "hpSystem" },

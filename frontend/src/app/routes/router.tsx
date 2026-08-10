@@ -33,7 +33,6 @@ import { useCourseStore } from '@/store/course-store'
 // import CourseEnrollments from '../pages/teacher/course-enrollments'
 import CourseEnrollmentsContainer from '../pages/teacher/course-enrollments'
 import CourseEmotionAnalyticsPage from '../pages/teacher/course-emotion-analytics'
-import CourseVideosPage from '../pages/teacher/course-videos'
 import InvitePage from '../pages/teacher/invite'
 import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
@@ -71,6 +70,11 @@ import StudentSubmissions from '@/app/pages/student/hp-system/submissions'
 import StudentMyLedgerPage from '@/app/pages/student/hp-system/student-ledger'
 import StudentActivityDetail from '@/app/pages/student/hp-system/activity-detail'
 import NotificationsPage from '@/app/pages/shared/NotificationsPage'
+import VibeCodeMain from '@/app/pages/student/vibecode/VibeCodeMain'
+import VibeCodeProblem from '@/app/pages/student/vibecode/VibeCodeProblem'
+import TeacherVibeCodeCreate from '@/app/pages/teacher/vibecode/CreateProblem'
+import TeacherVibeCodeProblems from '@/app/pages/teacher/vibecode/TeacherVibeCodeProblems'
+import TeacherSubmissions from '@/app/pages/teacher/vibecode/TeacherSubmissions';
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -334,13 +338,6 @@ const teacherCourseEnrollmentsRoute = new Route({
   component: CourseEnrollmentsContainer,
 });
 
-// The course's video library: upload lectures once, reuse across many lessons.
-const teacherCourseVideosRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/videos',
-  component: CourseVideosPage,
-});
-
 const teacherCourseEmotionAnalyticsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/emotion-analytics',
@@ -487,6 +484,30 @@ const teacherSubmissionDetailsRoute = new Route({
   component: SubmissionDetailsPage,
 })
 
+const teacherVibeCodeCreateRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/vibecode/create',
+  component: TeacherVibeCodeCreate,
+})
+
+const teacherVibeCodeEditRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/vibecode/edit/$problemId',
+  component: TeacherVibeCodeCreate,
+})
+
+const teacherVibeCodeProblemsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/vibecode/problems',
+  component: TeacherVibeCodeProblems,
+})
+
+const teacherVibeCodeSubmissionsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/vibecode/submissions',
+  component: TeacherSubmissions,
+});
+
 // Student dashboard route
 const studentDashboardRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -575,6 +596,19 @@ const studentHpSystemActivitiesDetailRoute = new Route({
   path: '/hp-system/$courseVersionId/$cohortId/activities/$activityId',
   component: StudentActivityDetail,
 });
+
+const studentVibeCodeRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/vibecode',
+  component: VibeCodeMain,
+});
+
+const studentVibeCodeProblemRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/vibecode/$problemId',
+  component: VibeCodeProblem,
+});
+
 // export const studentCourseInviteRegistration = new Route({
 //   getParentRoute: () => studentLayoutRoute,
 //   path: "/course-registration/$versionId",
@@ -691,7 +725,6 @@ const routeTree = rootRoute.addChildren([
     teacherViewCourseRoute, teacherCourseFlagsRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
-    teacherCourseVideosRoute,
     teacherCourseEmotionAnalyticsRoute,
     teacherAudioManagerRoute,
     teacherAddCourseRoute,
@@ -717,6 +750,10 @@ const routeTree = rootRoute.addChildren([
     teacherStudentSubmissionsRoute,
     teacherSubmissionDetailsRoute,
     teacherNotificationsRoute,
+    teacherVibeCodeCreateRoute,
+    teacherVibeCodeEditRoute,
+    teacherVibeCodeProblemsRoute,
+    teacherVibeCodeSubmissionsRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
@@ -733,6 +770,8 @@ const routeTree = rootRoute.addChildren([
     studentHpSystemSubmissionsRoute,
     studentHpSystemLedgerRoute,
     studentNotificationsRoute,
+    studentVibeCodeRoute,
+    studentVibeCodeProblemRoute,
   ]),
   coursePageRoute,
 ]);
