@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuthStore } from "@/store/auth-store";
-import { useUserEnrollments, useWatchtimeTotal, usePublicCourses, useUserEnrollmentStats, useCheckTimeSlotAccessOnDemand } from "@/hooks/hooks";
+import { useUserEnrollments, useWatchtimeTotal, usePublicCourses, useUserEnrollmentStats, useCheckTimeSlotAccessOnDemand, useStudentStreak } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
 import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
@@ -8,6 +8,8 @@ import { toast } from "sonner";
 // Import components
 import { CourseSection } from "@/components/course/CourseSection";
 import { LearningInsights } from "@/components/dashboard/LearningInsights";
+import { StreakProgressRing } from "@/components/dashboard/StreakProgressRing";
+import { DailyMotivationBanner } from "@/components/dashboard/DailyMotivationBanner";
 // import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar"; // Hidden: Learning Checklist sidebar (commented out, not removed)
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting, bufferToHex } from "@/utils/helpers";
@@ -173,6 +175,22 @@ function DashboardContent() {
   useWatchtimeTotal();
   const { data: statsData, isLoading: statsLoading } = useUserEnrollmentStats(!!token);
 
+  // Learning streak — shared by the progress ring, the motivation banner, and
+  // the achievement toast below (all derived from the same GET /users/me/streak).
+  const { data: streak, isLoading: streakLoading } = useStudentStreak(!!token);
+
+  // Achievement toast: the backend returns each newly-crossed milestone exactly
+  // once (it acknowledges server-side), so this fires a one-time celebration.
+  useEffect(() => {
+    const milestones = streak?.newlyUnlockedMilestones || [];
+    milestones.forEach(m => {
+      toast.success(`Achievement unlocked — ${m}-day learning streak!`, {
+        description: "Keep the flame going — consistency compounds.",
+        duration: 6000,
+      });
+    });
+  }, [streak?.newlyUnlockedMilestones]);
+
 
    // Calculate distinct lists for tabs
   const activeEnrollments = useMemo(() => {
@@ -231,6 +249,35 @@ function DashboardContent() {
               <p className="mt-1 text-sm text-muted-foreground">
                 Welcome back — here's your progress at a glance.
               </p>
+            </section>
+
+            {/* Learning streak: progress ring + daily motivation banner,
+                both fed by the shared useStudentStreak() hook. */}
+            <section className="grid gap-4 md:grid-cols-[220px_1fr]">
+              <div className="flex items-center justify-center rounded-3xl border border-neutral-200/70 bg-white p-5 shadow-sm ring-1 ring-black/[0.02] dark:border-white/[0.06] dark:bg-white/[0.03] dark:ring-white/[0.04]">
+                {streakLoading ? (
+                  <div className="h-44 w-44 animate-pulse rounded-full bg-muted" />
+                ) : streak ? (
+                  <StreakProgressRing
+                    currentStreak={streak.currentStreak}
+                    nextMilestone={streak.nextMilestone}
+                    progressToNext={streak.progressToNext}
+                    isActiveToday={streak.isActiveToday}
+                  />
+                ) : null}
+              </div>
+              <div>
+                {streakLoading ? (
+                  <div className="h-full min-h-44 animate-pulse rounded-3xl bg-muted" />
+                ) : streak ? (
+                  <DailyMotivationBanner
+                    currentStreak={streak.currentStreak}
+                    longestStreak={streak.longestStreak}
+                    isActiveToday={streak.isActiveToday}
+                    nextMilestone={streak.nextMilestone}
+                  />
+                ) : null}
+              </div>
             </section>
 
             {/* Exclusive follow-up course invites unlocked by completing a course */}

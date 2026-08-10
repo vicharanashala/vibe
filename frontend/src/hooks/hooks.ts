@@ -7252,6 +7252,42 @@ export function useUserEnrollmentStats(enabled: boolean = true): {
   };
 }
 
+export interface StudentStreak {
+  currentStreak: number;
+  longestStreak: number;
+  isActiveToday: boolean;
+  lastActiveDate: string | null;
+  nextMilestone: number | null;
+  progressToNext: number;
+  newlyUnlockedMilestones: number[];
+}
+
+// GET /users/me/streak
+export function useStudentStreak(enabled: boolean = true): {
+  data: StudentStreak | undefined;
+  isLoading: boolean;
+  isFetching: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = api.useQuery(
+    "get",
+    "/users/me/streak" as any,
+    {},
+    { enabled },
+  );
+
+  return {
+    data: result.data as StudentStreak | undefined,
+    isLoading: result.isLoading,
+    isFetching: result.isFetching,
+    error: result.error
+      ? result.error.message || "Failed to fetch learning streak"
+      : null,
+    refetch: result.refetch,
+  };
+}
+
 export function useResetFace(): {
   mutate: (variables: { params: { path: { userId: string, courseId: string, versionId: string } } }) => void,
   mutateAsync: (variables: { params: { path: { userId: string, courseId: string, versionId: string } } }) => Promise<any>,

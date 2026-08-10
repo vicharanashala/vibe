@@ -106,19 +106,31 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
   ) {
     super(database);
     if (!admin.apps.length) {
-      if (appConfig.isDevelopment) {
+      if (
+        appConfig.isDevelopment &&
+        appConfig.firebase.clientEmail &&
+        appConfig.firebase.privateKey &&
+        appConfig.firebase.projectId
+      ) {
         admin.initializeApp({
           credential: admin.credential.cert({
             clientEmail: appConfig.firebase.clientEmail,
-            privateKey: appConfig.firebase.privateKey.replace(/\\n/g, '\n'),
+            privateKey: appConfig.firebase.privateKey?.replace(/\\n/g, '\n'),
             projectId: appConfig.firebase.projectId,
           }),
         });
-      } else {
+      } else if (!appConfig.isDevelopment) {
         admin.initializeApp({
           credential: admin.credential.applicationDefault(),
         });
+      } else if (appConfig.firebase.projectId) {
+        // Local development against the Firebase auth emulator. No real service
+        // account exists, so initialize without a credential; firebase-admin
+        // routes token verification to the emulator via FIREBASE_AUTH_EMULATOR_HOST.
+        admin.initializeApp({projectId: appConfig.firebase.projectId});
       }
+      // Local dev without a Firebase project (no emulator): leave firebase-admin
+      // uninitialized so the server boots at import time.
     }
     this.auth = admin.auth();
   }
@@ -283,6 +295,20 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       body.email,
     );
     if (existingUserByEmail) {
+      // The Firebase Auth emulator keeps users in memory, so its UID for an
+      // account can change whenever the emulator is (re)started. The database
+      // record is keyed by email and stable Mongo _id, so reconcile the stored
+      // firebaseUID with the token's current uid. Otherwise every request with
+      // this token would 401 (findByFirebaseUID misses -> "Failed to create").
+      if (
+        existingUserByEmail.firebaseUID !== firebaseUID &&
+        firebaseUID
+      ) {
+        await this.userRepository.edit(
+          existingUserByEmail._id.toString(),
+          {firebaseUID},
+        );
+      }
       // User already exists, return existing user ID
       return {
         userId: existingUserByEmail._id.toString(),

@@ -1,4 +1,4 @@
-import { loginWithGoogle, loginWithEmail, auth } from "@/lib/firebase";
+import { loginWithGoogle, loginWithEmail, createUserWithEmail, auth } from "@/lib/firebase";
 import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ export default function AuthPage({ role }: AuthPageProps) {
   }>({});
 
   const isRecaptchaEnabled: boolean = import.meta.env.VITE_IS_RECAPTCHA_ENABLED === "true";
+  const isEmulator: boolean = import.meta.env.VITE_USE_FIREBASE_EMULATOR === "true";
 
   // reCAPTCHA state
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
@@ -763,23 +764,27 @@ export default function AuthPage({ role }: AuthPageProps) {
       setLoading(true);
       setFormErrors({});
 
-      // Call backend login endpoint with reCAPTCHA token
-      const backendUrl = `${import.meta.env.VITE_BASE_URL}/auth/login`;
-      const response = await fetch(backendUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA",
-        }),
-      });
+      // Local dev (auth emulator): skip the reCAPTCHA-protected backend route
+      // and sign in directly against the Firebase emulator.
+      if (!isEmulator) {
+        // Call backend login endpoint with reCAPTCHA token
+        const backendUrl = `${import.meta.env.VITE_BASE_URL}/auth/login`;
+        const response = await fetch(backendUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email,
+            password,
+            recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA",
+          }),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Login failed');
+        }
       }
 
       // If backend validation succeeds, proceed with Firebase login
@@ -887,18 +892,25 @@ export default function AuthPage({ role }: AuthPageProps) {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ' ';
 
-      await signupMutation({
-        body: {
-          email: email,
-          password: password,
-          firstName: firstName,
-          lastName: lastName,
-          recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA",
-          profileImage,
-          faceEmbedding,
-        }
-      });
-      const result = await loginWithEmail(email, password);
+let result;
+      if (isEmulator) {
+        // Local dev (auth emulator): create the user directly in the Firebase
+        // emulator, bypassing the reCAPTCHA-protected backend signup route.
+        result = await createUserWithEmail(email, password, fullName);
+      } else {
+        await signupMutation({
+          body: {
+            email: email,
+            password: password,
+            firstName: firstName,
+            lastName: lastName,
+            recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA",
+            profileImage,
+            faceEmbedding,
+          }
+        });
+        result = await loginWithEmail(email, password);
+      }
 
       // Set user in store
       setUser({

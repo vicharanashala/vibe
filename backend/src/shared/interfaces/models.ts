@@ -27,6 +27,11 @@ export interface IUser {
   profileImage?: string;
   faceEmbedding?: number[];
   roles: 'admin' | 'user';
+  /**
+   * Streak milestones (day counts like 3, 7, 30) the user has already been
+   * shown a celebration for, so the achievement toast fires only once each.
+   */
+  acknowledgedStreakMilestones?: number[];
 }
 
 export type Versions = {

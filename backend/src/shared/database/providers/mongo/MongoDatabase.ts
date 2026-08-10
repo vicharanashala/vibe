@@ -2,6 +2,9 @@ import { GLOBAL_TYPES } from '#root/types.js';
 import { IDatabase } from '#shared/database/interfaces/IDatabase.js';
 import { injectable, inject } from 'inversify';
 import { Db, MongoClient, Document, Collection } from 'mongodb';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
+import path from 'node:path';
+import fs from 'node:fs';
 
 /**
  * @class MongoDatabase
@@ -18,6 +21,8 @@ export class MongoDatabase implements IDatabase<Db> {
   private client: MongoClient | null;
   public database: Db | null;
   private connectingPromise: Promise<Db> | null = null;
+  private mongod: MongoMemoryReplSet | null = null;
+  private readonly useMemoryDb: boolean;
 
   /**
    * Creates an instance of MongoDatabase.
@@ -30,12 +35,25 @@ export class MongoDatabase implements IDatabase<Db> {
     @inject(GLOBAL_TYPES.dbName)
     private readonly dbName: string,
   ) {
+    this.useMemoryDb = process.env.USE_MEMORY_DB === 'true';
+
     // Skip database connection if environment variable is set
     if (process.env.SKIP_DB_CONNECTION === 'true') {
       this.client = null;
       this.database = null;
       console.log(
         'Database connection skipped due to SKIP_DB_CONNECTION environment variable',
+      );
+      return;
+    }
+
+    // In-memory database (local dev without real Atlas credentials): the
+    // client is created lazily in connect() once the ephemeral server URI is
+    // known, since MongoMemoryServer.create() is asynchronous.
+    if (this.useMemoryDb) {
+      this.client = null;
+      console.log(
+        'Using in-memory MongoDB (USE_MEMORY_DB=true) — client created on connect',
       );
       return;
     }
@@ -95,6 +113,37 @@ public async connect(): Promise<Db> {
 
   if (!this.connectingPromise) {
     this.connectingPromise = (async () => {
+      if (this.useMemoryDb) {
+        // Start as a single-node replica set so multi-document transactions and
+        // retryable writes (which the codebase relies on) work with the
+        // in-memory mongod. A fixed port + persistent dbPath make the data
+        // addressable from external tooling (e.g. scripts/seed-demo.mjs) and
+        // keep it across backend restarts.
+        const memoryPort = Number(process.env.MEMORY_MONGO_PORT || 27017);
+        const memoryDbPath = process.env.MEMORY_MONGO_DBPATH
+          ? path.resolve(process.env.MEMORY_MONGO_DBPATH)
+          : path.resolve(process.cwd(), '.localdb');
+        // mongodb-memory-server requires the dbPath directory to already exist.
+        fs.mkdirSync(memoryDbPath, {recursive: true});
+        this.mongod = await MongoMemoryReplSet.create({
+          replSet: {count: 1},
+          instanceOpts: [{port: memoryPort, dbPath: memoryDbPath}],
+        });
+        const memoryUri = this.mongod.getUri();
+        this.client = new MongoClient(memoryUri, {
+          retryWrites: true,
+
+          // 🔹 CONNECTION POOL
+          maxPoolSize: 50,
+          minPoolSize: 10,
+          maxIdleTimeMS: 60000,
+
+          // 🔹 TIMEOUTS
+          connectTimeoutMS: 20000,
+          socketTimeoutMS: 30000,
+        });
+      }
+
       await this.client?.connect();
       this.database = this.client?.db(this.dbName);
 
@@ -116,6 +165,10 @@ public async connect(): Promise<Db> {
     if (this.client) {
       await this.client.close();
       this.database = null;
+    }
+    if (this.mongod) {
+      await this.mongod.stop();
+      this.mongod = null;
     }
     return this.database;
   }

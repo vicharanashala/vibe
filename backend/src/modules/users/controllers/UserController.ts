@@ -26,6 +26,8 @@ import {
 } from '../classes/validators/UserValidators.js';
 import { UserEnrollmentStatisticsResponse } from '../classes/validators/EnrollmentValidators.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
+import { StreakService } from '#users/services/StreakService.js';
+import { StreakResponse } from '../classes/dtos/StreakResponse.js';
 import { AUTH_TYPES } from '#root/modules/auth/types.js';
 import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
 import { IUser } from '#root/shared/interfaces/models.js';
@@ -48,6 +50,9 @@ export class UserController {
 
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+
+    @inject(USERS_TYPES.StreakService)
+    private readonly streakService: StreakService,
 
     @inject(SETTING_TYPES.CourseSettingService)
     private readonly courseSettingService: CourseSettingService,
@@ -72,6 +77,25 @@ export class UserController {
   }
 
   @OpenAPI({
+    summary: 'Get current user profile',
+    description: 'Retrieves user information for the currently authenticated user.',
+  })
+  @Authorized()
+  @Get('/me')
+  @HttpCode(200)
+  @ResponseSchema(User, {
+    description: 'Current user information retrieved successfully',
+  })
+  async getCurrentUser(@Req() req: any): Promise<User> {
+    const token = req.headers.authorization?.split(' ')[1];
+    const user = await this.authService.getCurrentUserFromToken(token);
+    return {
+      ...user,
+      _id: user._id!.toString(),
+    } as User;
+  }
+
+  @OpenAPI({
     summary: 'Get user information by user ID',
     description: 'Retrieves user information based on the provided user ID.',
   })
@@ -93,22 +117,19 @@ export class UserController {
   }
 
   @OpenAPI({
-    summary: 'Get current user profile',
-    description: 'Retrieves user information for the currently authenticated user.',
+    summary: 'Get the current user learning streak',
+    description: 'Returns the current and longest learning streak computed from watch activity, progress toward the next milestone (for the ring/banner), and any milestones newly unlocked since the last call (for the achievement toast).',
   })
   @Authorized()
-  @Get('/me')
+  @Get('/me/streak')
   @HttpCode(200)
-  @ResponseSchema(User, {
-    description: 'Current user information retrieved successfully',
+  @ResponseSchema(StreakResponse, {
+    description: 'Current user streak information',
   })
-  async getCurrentUser(@Req() req: any): Promise<User> {
-    const token = req.headers.authorization?.split(' ')[1];
-    const user = await this.authService.getCurrentUserFromToken(token);
-    return {
-      ...user,
-      _id: user._id!.toString(),
-    } as User;
+  async getCurrentUserStreak(
+    @CurrentUser({ required: true }) user: IUser,
+  ): Promise<StreakResponse> {
+    return await this.streakService.getStreak(user._id!.toString());
   }
 
   @OpenAPI({
