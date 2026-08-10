@@ -35,6 +35,15 @@ class SOLQuestionRenderer extends BaseQuestionRenderer {
       ...renderedQuestion.incorrectLotItems.map(toLotItemRenderView),
     ];
 
+    while (lotItems.length < 4) {
+      const isWeb = (renderedQuestion.text || '').toLowerCase().includes('css') || (renderedQuestion.text || '').toLowerCase().includes('html');
+      lotItems.push({
+        _id: Array.from({ length: 24 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+        text: isWeb ? 'None of the options listed' : 'None of the above',
+        explaination: 'Incorrect. One of the other options is correct.'
+      });
+    }
+
     //Shuffle lot items
     let shuffledLotItems = lotItems.sort(() => Math.random() - 0.5);
 

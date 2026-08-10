@@ -40,7 +40,16 @@ export class MongoDatabase implements IDatabase<Db> {
       return;
     }
 
+    const useTls = process.env.DB_TLS !== 'false';
+
     this.client = new MongoClient(uri, {
+      ssl: useTls,
+      tls: useTls,
+      ...(useTls ? {
+        tlsAllowInvalidCertificates: false,
+        tlsAllowInvalidHostnames: false,
+      } : {}),
+
       retryWrites: true,
 
       // 🔹 CONNECTION POOL

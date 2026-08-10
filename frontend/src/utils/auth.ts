@@ -38,6 +38,7 @@ const mapFirebaseUserToAppUser = async (firebaseUser: FirebaseUser | null) => {
     const resolvedName = `${resolvedFirstName} ${resolvedLastName}`.trim();
 
     return {
+      _id: backendUser?._id || '',
       uid: firebaseUser.uid,
       email: firebaseUser.email || '',
       name: resolvedName || firebaseUser.displayName || '',
