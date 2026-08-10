@@ -14,6 +14,7 @@ import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, lazy, useEffect } from "react";
 import { bufferToHex } from "@/utils/helpers";
+import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
@@ -142,10 +143,15 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       return;
     }
 
+    // Enter F11-style fullscreen from the click gesture (before any await) for a
+    // focused learn experience; back it out if the time-slot gate blocks entry.
+    enterFullscreen();
+
     // Time-slot ("commitment") gate at entry: only let the student in during a
     // booked window. The backend getItem gate is the safety net.
     const access = await checkTimeSlotAccess(courseId, versionId);
     if (!access.canAccess) {
+      exitFullscreen();
       toast.error(access.message || "You can only access this course during your booked time slot.");
       return;
     }

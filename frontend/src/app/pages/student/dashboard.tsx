@@ -11,6 +11,7 @@ import { LearningInsights } from "@/components/dashboard/LearningInsights";
 // import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar"; // Hidden: Learning Checklist sidebar (commented out, not removed)
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getGreeting, bufferToHex } from "@/utils/helpers";
+import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
 import type { CourseCardProps } from '@/types/course.types';
 import { stopAllStreams } from "@/lib/MediaRegistry";
 import { cn } from "@/utils/utils";
@@ -128,10 +129,14 @@ function DashboardContent() {
   // Resume a specific course from the "next best action" CTA. Mirrors the card's
   // Continue flow (time-slot gate at entry; backend getItem is the safety net).
   const handleResume = async (enrollment: any) => {
+    // Enter F11-style fullscreen from the click gesture (before any await) for a
+    // focused learn experience; back it out if the time-slot gate blocks entry.
+    enterFullscreen();
     const courseId = bufferToHex(enrollment.courseId as string);
     const versionId = bufferToHex(enrollment.courseVersionId as string) || "";
     const access = await checkTimeSlotAccess(courseId, versionId);
     if (!access.canAccess) {
+      exitFullscreen();
       toast.error(access.message || "You can only access this course during your booked time slot.");
       return;
     }

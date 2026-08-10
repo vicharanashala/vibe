@@ -20,7 +20,9 @@ import {
   UseAfter,
   UseInterceptor,
   Req,
+  CurrentUser,
 } from 'routing-controllers';
+import { IUser } from '#root/shared/interfaces/models.js';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {COURSES_TYPES} from '#courses/types.js';
 import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
@@ -69,7 +71,7 @@ export class CourseController {
     description:
       'Fetches the list of active users enrolled in a specific course by course ID.',
   })
-  // @Authorized()
+  @Authorized()
   @Get('/active-users', {transformResponse: true})
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Bad Request Error',
@@ -81,8 +83,28 @@ export class CourseController {
   })
   async getActiveUsersByCourse(
     @QueryParams() query: CourseVersionQueryWithTime,
+    @CurrentUser() user: IUser,
   ) {
     const {courseId, courseVersionId, startTimeStamp, endTimeStamp} = query;
+
+    if (!courseId) {
+      throw new BadRequestError('courseId is required');
+    }
+
+    const userId = user._id.toString();
+    if (user.roles !== 'admin') {
+      const enrollments = await this.enrollmentService.getAllEnrollments(userId);
+      const hasAccess = enrollments.some(e =>
+        e.courseId === courseId &&
+        (!courseVersionId || e.courseVersionId === courseVersionId) &&
+        ['INSTRUCTOR', 'MANAGER', 'TA'].includes(e.role),
+      );
+      if (!hasAccess) {
+        throw new ForbiddenError(
+          'You do not have permission to view active users for this course',
+        );
+      }
+    }
 
     const activeUsers = await this.courseService.getActiveUsersByCourse(
       courseId,

@@ -12,20 +12,23 @@ const envPath = path.join(backendDir, ".env");
 // Constants
 const STEP_NAME = "Env Variables";
 
+function maskMongoUri(uri: string): string {
+  return uri.replace(/:\/\/([^:@/]+):([^@]+)@/, '://$1:****@');
+}
+
 async function getMongoUri() {
-  const userPassword = await password({
-    message: 'Enter your MongoDB password:',
+  const mongoUri = await password({
+    message: 'Enter your MongoDB connection URI (ask a maintainer for this):',
     mask: '*',
   });
 
-  const encodedPassword = encodeURIComponent(userPassword);
-  const uriTemplate = 'mongodb+srv://Vibe:<db_password>@vibe-test.jt5wz7s.mongodb.net/?retryWrites=true&w=majority&appName=vibe-test';
-  const finalUri = uriTemplate.replace('<db_password>', encodedPassword);
+  if (!isValidMongoUri(mongoUri)) {
+    throw new Error('Invalid MongoDB URI. It must start with "mongodb://" or "mongodb+srv://".');
+  }
 
-  console.log('\nYour MongoDB URI:');
-  console.log(finalUri);
+  console.log(`\nMongoDB URI: ${maskMongoUri(mongoUri)}`);
 
-  return finalUri;
+  return mongoUri;
 }
 
 // Read state

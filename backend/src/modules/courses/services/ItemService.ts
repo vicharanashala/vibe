@@ -543,14 +543,15 @@ export class ItemService extends BaseService {
     itemId: string,
     userId: string,
     courseId: string,
-    versionId: string
+    versionId: string,
+    cohortId?: string
   ): Promise<boolean> {
     const previousItem = await this.progressService.getPreviousItemInSequence(courseVersion, moduleId, sectionId, itemId);
-    // First item ? 
+    // First item ?
     if (!previousItem) {
       return true;
     }
-    const previousItemCompleted = await this.progressRepo.isItemCompleted(userId, courseId, versionId, previousItem.itemId);
+    const previousItemCompleted = await this.progressRepo.isItemCompleted(userId, courseId, versionId, previousItem.itemId, cohortId);
     return previousItemCompleted;
   }
 
@@ -693,6 +694,7 @@ export class ItemService extends BaseService {
       userId,
       courseId,
       versionId,
+      cohortId,
     );
 
     if (previousItemCompleted) {
@@ -1447,6 +1449,25 @@ export class ItemService extends BaseService {
                 .get(timestamp)!)
             : previousEndTime + 300;
 
+          if (timestamp !== undefined && Number.isNaN(endTime)) {
+            throw new Error(
+              `Segment ${segmentNumber} has an invalid timestamp "${timestamp}". Expected "MM:SS" format.`,
+            );
+          }
+
+          // A video segment's timestamp marks where its context ends, so segments
+          // must be strictly increasing; otherwise this segment's video would
+          // start after (or at) the point it's supposed to end.
+          if (endTime <= previousEndTime) {
+            throw new Error(
+              `Segment ${segmentNumber}'s timestamp (${this._formatSecondsToHHMMSS(
+                endTime,
+              )}) must be after the previous segment's end time (${this._formatSecondsToHHMMSS(
+                previousEndTime,
+              )}). Segments must appear in increasing chronological order.`,
+            );
+          }
+
           // Create video item
           const videoItem = await this.createItem(
             versionId,
@@ -1517,7 +1538,10 @@ export class ItemService extends BaseService {
 
           // Process questions
           for (const question of segmentQuestions) {
-            const options = [
+            // Index against the full, unfiltered A-D array so the letter in
+            // "Correct Answer" always lines up with its own column, even when
+            // an earlier option is blank.
+            const allOptions = [
               {
                 text: question['Option A'] || '',
                 explanation: question['Expln-A'] || '',
@@ -1534,17 +1558,19 @@ export class ItemService extends BaseService {
                 text: question['Option D'] || '',
                 explanation: question['Expln-D'] || '',
               },
-            ].filter(opt => opt.text);
+            ];
 
             const correctAnswer = question['Correct Answer']?.toUpperCase();
             const correctOptionIndex = correctAnswer
               ? correctAnswer.charCodeAt(0) - 65
               : -1;
 
-            if (
-              correctOptionIndex >= 0 &&
-              correctOptionIndex < options.length
-            ) {
+            const correctOption =
+              correctOptionIndex >= 0 && correctOptionIndex < allOptions.length
+                ? allOptions[correctOptionIndex]
+                : undefined;
+
+            if (correctOption && correctOption.text) {
               const questionBody = {
                 question: {
                   text: question.Question || '',
@@ -1558,13 +1584,12 @@ export class ItemService extends BaseService {
                 },
                 solution: {
                   correctLotItem: {
-                    text: options[correctOptionIndex].text,
+                    text: correctOption.text,
                     explaination:
-                      options[correctOptionIndex].explanation ||
-                      'No explanation provided',
+                      correctOption.explanation || 'No explanation provided',
                   },
-                  incorrectLotItems: options
-                    .filter((_, i) => i !== correctOptionIndex)
+                  incorrectLotItems: allOptions
+                    .filter((opt, i) => i !== correctOptionIndex && opt.text)
                     .map(opt => ({
                       text: opt.text,
                       explaination:

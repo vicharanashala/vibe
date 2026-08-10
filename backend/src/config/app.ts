@@ -47,7 +47,13 @@ export const appConfig = {
   },
   // Server-to-server integration API (e.g. external apps querying learner completions)
   integration: {
+    // Legacy single shared key. Still honoured so existing consumers keep
+    // working; prefer giving each consumer its own named key below.
     apiKey: env('INTEGRATION_API_KEY') || undefined,
+    // Named per-consumer keys, "name:key,name:key". Lets one consumer be
+    // revoked by deleting its entry, without rotating the key for everyone
+    // else, and makes each request attributable in the logs.
+    apiKeys: env('INTEGRATION_API_KEYS') || undefined,
   },
 };
 console.log(appConfig.url)

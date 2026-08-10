@@ -41,9 +41,8 @@ export function setupQuestionBankAbilities(
                 // Students typically don't have access to question banks
                 break;
             case 'INSTRUCTOR':
-                can(QuestionBankActions.Create, 'QuestionBank', courseBounded);
-                can(QuestionBankActions.Modify, 'QuestionBank', courseBounded);
-                can(QuestionBankActions.View, 'QuestionBank', courseBounded);
+                // Instructor == admin, scoped to their own courses.
+                can('manage', 'QuestionBank', courseBounded);
                 break;
             case 'MANAGER':
                 can('manage', 'QuestionBank', courseBounded);
