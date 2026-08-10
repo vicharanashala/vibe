@@ -7,6 +7,7 @@ import {RoutingControllersOptions, useContainer} from 'routing-controllers';
 import {coursesContainerModule} from './container.js';
 import {
   CourseController,
+  CourseTransferController,
   CourseVersionController,
   ItemController,
   ModuleController,
@@ -14,7 +15,7 @@ import {
 } from './controllers/index.js';
 import { usersContainerModule } from '../users/container.js';
 import { quizzesContainerModule } from '../quizzes/container.js';
-import { COURSE_VALIDATORS, COURSEVERSION_VALIDATORS, ITEM_VALIDATORS, MODULE_VALIDATORS, SECTION_VALIDATORS } from './classes/validators/index.js';
+import { COURSE_TRANSFER_VALIDATORS, COURSE_VALIDATORS, COURSEVERSION_VALIDATORS, ITEM_VALIDATORS, MODULE_VALIDATORS, SECTION_VALIDATORS } from './classes/validators/index.js';
 import { notificationsContainerModule } from '../notifications/container.js';
 
 export const coursesContainerModules: ContainerModule[] = [
@@ -32,6 +33,7 @@ export const coursesModuleControllers: Function[] = [
   ModuleController,
   SectionController,
   ItemController,
+  CourseTransferController,
 ];
 
 export async function setupCoursesContainer(): Promise<void> {
@@ -54,5 +56,6 @@ export const coursesModuleValidators: Function[] = [
   ...COURSEVERSION_VALIDATORS,
   ...ITEM_VALIDATORS,
   ...MODULE_VALIDATORS,
-  ...SECTION_VALIDATORS
+  ...SECTION_VALIDATORS,
+  ...COURSE_TRANSFER_VALIDATORS
 ]

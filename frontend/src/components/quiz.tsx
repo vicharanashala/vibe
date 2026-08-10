@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown } from "lucide-react";
+import { Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, GripVertical, PlayCircle, BookOpen, Target, Timer, Users, AlertCircle, Eye, FileQuestion, ChevronDown, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAttemptQuiz, useSubmitQuiz, useSaveQuiz, useStartItem, useStopItem, CreateAttemptResponse, SaveQuizResponse, useSkipOptionalItem, useSubmitStudentQuestion } from '@/hooks/hooks';
 import StudentQuestionComposer from './StudentQuestionComposer';
 import type { StudentQuestionSubmissionPayload } from '@/types/student-question.types';
@@ -66,6 +66,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   // ===== CORE STATE =====
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | number | number[] | string[]>>({});
+  // Stage-2 crowd questions: the student's optional 👍/👎 on a peer-contributed question.
+  const [peerThumbs, setPeerThumbs] = useState<Record<string, 'UP' | 'DOWN'>>({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
@@ -116,25 +118,26 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     clearPendingStudentQuestionContext?.();
   }, [clearPendingStudentQuestionContext]);
 
+  // Returns the AI screening verdict to the composer, which shows the result
+  // and lets the student edit & retry on a reject. (No toast/close here — the
+  // composer owns the pass/reject/hold UX.)
   const handleQuestionSubmit = useCallback(async (payload: StudentQuestionSubmissionPayload) => {
     if (!pendingStudentQuestionContext) {
-      toast.error('Unable to submit question for this video.');
-      return;
+      throw new Error('Unable to submit question for this video.');
     }
-    try {
-      await submitQuestion(
-        pendingStudentQuestionContext.courseId,
-        pendingStudentQuestionContext.courseVersionId,
-        pendingStudentQuestionContext.segmentId,
-        payload,
-      );
-      toast.success('Question submitted successfully');
-      setShowQuestionModal(false);
-      clearPendingStudentQuestionContext?.();
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to submit question');
-    }
-  }, [clearPendingStudentQuestionContext, pendingStudentQuestionContext, submitQuestion]);
+    return await submitQuestion(
+      pendingStudentQuestionContext.courseId,
+      pendingStudentQuestionContext.courseVersionId,
+      pendingStudentQuestionContext.segmentId,
+      payload,
+    );
+  }, [pendingStudentQuestionContext, submitQuestion]);
+
+  // Called after a terminal verdict (contributed / sent for review) is dismissed.
+  const handleQuestionDone = useCallback(() => {
+    setShowQuestionModal(false);
+    clearPendingStudentQuestionContext?.();
+  }, [clearPendingStudentQuestionContext]);
 
   useEffect(() => {
     if (!pendingStudentQuestionContext) {
@@ -235,6 +238,8 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }, []);
 
   const isAnswerValid = useCallback((question: QuizQuestion, answer: string | number | number[] | string[]): boolean => {
+    // Stage-2 crowd questions are optional — never block Next/Finish on them.
+    if (question.isPeerContributed) return true;
     if (answer === undefined || answer === null) return false;
 
     switch (question.type) {
@@ -256,6 +261,18 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       default:
         return false;
     }
+  }, []);
+
+  const togglePeerThumb = useCallback((questionId: string, thumb: 'UP' | 'DOWN') => {
+    setPeerThumbs(prev => {
+      const next = { ...prev };
+      if (next[questionId] === thumb) {
+        delete next[questionId];
+      } else {
+        next[questionId] = thumb;
+      }
+      return next;
+    });
   }, []);
 
   // ===== DATA CONVERSION FUNCTIONS =====
@@ -341,7 +358,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       answerText?: string;
       value?: number;
       orders?: Order[];
-    }
+    };
+    // Stage-2 crowd questions only: the student's 👍/👎 on the ungraded peer question.
+    thumb?: 'UP' | 'DOWN';
   }> => {
     return quizQuestions
       .map(question => {
@@ -434,7 +453,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         return {
           questionId: question.id,
           questionType: question.type,
-          answer: saveAnswer
+          answer: saveAnswer,
+          ...(question.isPeerContributed && peerThumbs[question.id]
+            ? { thumb: peerThumbs[question.id] }
+            : {}),
         };
       })
       .filter(questionAnswer => {
@@ -445,7 +467,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           (!Array.isArray(value) || value.length > 0)
         );
       });
-  }, [quizQuestions, answers]);
+  }, [quizQuestions, answers, peerThumbs]);
 
   // ===== COURSE ITEM TRACKING FUNCTIONS =====
   const handleSendStartItem = useCallback(async (forceStart = false) => {
@@ -1234,10 +1256,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
             <CardHeader className="pb-4">
               <div className="space-y-3">
                 <CardTitle className="text-2xl font-bold">
-                  Before the Quiz, Submit an MCQ for This Video
+                  Contribute a Question for This Video
                 </CardTitle>
                 <CardDescription className="text-base text-muted-foreground">
-                  You just completed the video segment. Please submit one MCQ for this segment before proceeding to the quiz.
+                  You just finished this segment — contribute one MCQ. We'll verify it with AI before it goes to your instructor.
                 </CardDescription>
               </div>
             </CardHeader>
@@ -1247,7 +1269,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   onClick={() => setShowQuestionModal(true)}
                   disabled={isSubmittingQuestion}
                 >
-                  Submit MCQ Question
+                  Contribute Question
                 </Button>
                 <Button
                   variant="outline"
@@ -1277,13 +1299,13 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               onEscapeKeyDown={e => e.preventDefault()}
             >
               <DialogHeader>
-                <DialogTitle>Submit an MCQ Question</DialogTitle>
+                <DialogTitle>Contribute a Question</DialogTitle>
               </DialogHeader>
               <StudentQuestionComposer
                 isOpen={showQuestionModal}
-                isSubmitting={isSubmittingQuestion}
                 onCancel={() => setShowQuestionModal(false)}
                 onSubmit={handleQuestionSubmit}
+                onDone={handleQuestionDone}
               />
             </DialogContent>
           </Dialog>
@@ -1973,6 +1995,29 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               </Badge>
             )}
           </div>
+          {currentQuestion.isPeerContributed && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                Was this a good question? (optional)
+              </span>
+              <Button
+                type="button"
+                variant={peerThumbs[currentQuestion.id] === 'UP' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => togglePeerThumb(currentQuestion.id, 'UP')}
+              >
+                <ThumbsUp className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant={peerThumbs[currentQuestion.id] === 'DOWN' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => togglePeerThumb(currentQuestion.id, 'DOWN')}
+              >
+                <ThumbsDown className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           <h2 className="text-2xl font-semibold leading-tight">
             {/* <MathRenderer>
               {preprocessMathContent(currentQuestion.question.replace(/\\n/g, '\n'))}

@@ -12,6 +12,7 @@ interface StudentPickerProps {
   options: StudentOption[];
   value: string;
   onChange: (id: string) => void;
+  onSearchChange?: (query: string) => void;
   /** Placeholder when nothing is selected (e.g. an error message). */
   placeholder?: string;
   loading?: boolean;
@@ -29,6 +30,7 @@ export function StudentPicker({
   options,
   value,
   onChange,
+  onSearchChange,
   placeholder = "Search students by name or email…",
   loading = false,
   disabled = false,
@@ -39,7 +41,20 @@ export function StudentPicker({
   const [highlight, setHighlight] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const selected = options.find((o) => o.id === value);
+  const [selectedOption, setSelectedOption] = useState<StudentOption | null>(null);
+
+  useEffect(() => {
+    if (!value) {
+      setSelectedOption(null);
+      return;
+    }
+    const found = options.find((o) => o.id === value);
+    if (found) {
+      setSelectedOption(found);
+    }
+  }, [value, options]);
+
+  const displaySelected = options.find((o) => o.id === value) ?? selectedOption;
 
   // Close the dropdown when clicking outside the picker.
   useEffect(() => {
@@ -47,11 +62,12 @@ export function StudentPicker({
     const onDocClick = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
+        onSearchChange?.("");
       }
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
-  }, [open]);
+  }, [open, onSearchChange]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -62,12 +78,13 @@ export function StudentPicker({
   }, [query, options, maxResults]);
 
   // Show the selected label when closed; the live query while searching.
-  const inputValue = open ? query : selected?.label ?? "";
+  const inputValue = open ? query : displaySelected?.label ?? "";
 
   const choose = (o: StudentOption) => {
     onChange(o.id);
     setQuery("");
     setOpen(false);
+    onSearchChange?.("");
   };
 
   return (
@@ -81,11 +98,14 @@ export function StudentPicker({
             setOpen(true);
             setQuery("");
             setHighlight(0);
+            onSearchChange?.("");
           }}
           onChange={(e) => {
-            setQuery(e.target.value);
+            const val = e.target.value;
+            setQuery(val);
             setOpen(true);
             setHighlight(0);
+            onSearchChange?.(val);
           }}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") {
@@ -100,6 +120,7 @@ export function StudentPicker({
               if (filtered[highlight]) choose(filtered[highlight]);
             } else if (e.key === "Escape") {
               setOpen(false);
+              onSearchChange?.("");
             }
           }}
           className="pr-8"

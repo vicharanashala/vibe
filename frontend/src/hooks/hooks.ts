@@ -1046,10 +1046,16 @@ export function useUpdateCohort(): {
 }
 
 
+export interface DeleteCohortResponse {
+  message: string
+  requiresConfirmation?: boolean
+  pendingInviteCount?: number
+}
+
 export function useDeleteCohort(): {
-  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } } }) => void,
-  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string } } }) => Promise<CohortsResponse>,
-  data: CohortsResponse | undefined,
+  mutate: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string }, query?: { confirmCancelInvites?: boolean } } }) => void,
+  mutateAsync: (variables: { params: { path: { courseId: string, versionId: string, cohortId: string }, query?: { confirmCancelInvites?: boolean } } }) => Promise<DeleteCohortResponse>,
+  data: DeleteCohortResponse | undefined,
   error: string | null,
   isPending: boolean,
   isSuccess: boolean,
@@ -2253,6 +2259,54 @@ export function useUpdateFollowUpInvite() {
   return { updateFollowUpInvite, loading, error };
 }
 
+// PATCH /users/{userId}/enrollments/courses/{courseId}/versions/{versionId}/cohorts
+// Replaces the cohorts an instructor is confined to on a course version. An
+// empty list clears the assignment, returning them to course-wide access.
+// Raw fetch rather than the generated client because this endpoint is not in
+// src/types/schema.ts yet — regenerate and switch to api.useMutation once it is.
+export function useAssignInstructorCohorts() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const assignCohorts = async (
+    userId: string,
+    courseId: string,
+    versionId: string,
+    cohortIds: string[],
+  ) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const url = `${import.meta.env.VITE_BASE_URL}/users/${userId}/enrollments/courses/${courseId}/versions/${versionId}/cohorts`;
+
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
+        },
+        body: JSON.stringify({ cohortIds }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data?.message || `Failed to assign cohorts: ${res.status}`);
+      }
+
+      return data as { cohortIds: string[] };
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { assignCohorts, loading, error };
+}
+
 // POST /setting/course-setting/{courseId}/{versionId}/follow-up-invite/backfill
 // Re-sends the configured follow-up invite to every student who already
 // completed this (source) course version but isn't yet enrolled in the target
@@ -2346,7 +2400,7 @@ export function useSubmitStudentQuestion(): {
     courseVersionId: string,
     segmentId: string,
     payload: import('@/types/student-question.types').StudentQuestionSubmissionPayload,
-  ) => Promise<{ questionId: string }>;
+  ) => Promise<import('@/types/student-question.types').StudentQuestionSubmissionResult>;
   loading: boolean;
   error: string | null;
 } {
@@ -2358,7 +2412,7 @@ export function useSubmitStudentQuestion(): {
     courseVersionId: string,
     segmentId: string,
     payload: import('@/types/student-question.types').StudentQuestionSubmissionPayload,
-  ): Promise<{ questionId: string }> => {
+  ): Promise<import('@/types/student-question.types').StudentQuestionSubmissionResult> => {
     setLoading(true);
     setError(null);
 
@@ -2403,6 +2457,7 @@ export function useListStudentQuestions(): {
     courseVersionId: string,
     status?: import('@/types/student-question.types').StudentQuestionStatusFilter,
     limit?: number,
+    gateState?: import('@/types/student-question.types').StudentQuestionGateStateFilter,
   ) => Promise<import('@/types/student-question.types').StudentQuestionListResponse>;
   listForSegment: (
     courseId: string,
@@ -2410,6 +2465,11 @@ export function useListStudentQuestions(): {
     segmentId: string,
     limit?: number,
   ) => Promise<import('@/types/student-question.types').StudentQuestionListResponse>;
+  getSegmentDetails: (
+    courseId: string,
+    courseVersionId: string,
+    segmentId: string,
+  ) => Promise<import('@/types/student-question.types').SegmentDetails>;
   loading: boolean;
   error: string | null;
 } {
@@ -2456,9 +2516,11 @@ export function useListStudentQuestions(): {
     courseVersionId: string,
     status: import('@/types/student-question.types').StudentQuestionStatusFilter = 'ALL',
     limit = 100,
+    gateState?: import('@/types/student-question.types').StudentQuestionGateStateFilter,
   ) => {
     const params = new URLSearchParams();
     if (status && status !== 'ALL') params.set('status', status);
+    if (gateState && gateState !== 'ALL') params.set('gateState', gateState);
     params.set('limit', String(limit));
     const url = `${import.meta.env.VITE_BASE_URL}/student-questions/courses/${courseId}/versions/${courseVersionId}?${params.toString()}`;
     return await request(url);
@@ -2476,7 +2538,16 @@ export function useListStudentQuestions(): {
     return await request(url);
   }, [request]);
 
-  return { listForCourseVersion, listForSegment, loading, error };
+  const getSegmentDetails = useCallback(async (
+    courseId: string,
+    courseVersionId: string,
+    segmentId: string,
+  ) => {
+    const url = `${import.meta.env.VITE_BASE_URL}/student-questions/courses/${courseId}/versions/${courseVersionId}/segments/${segmentId}/details`;
+    return await request(url);
+  }, [request]);
+
+  return { listForCourseVersion, listForSegment, getSegmentDetails, loading, error };
 }
 
 export function useListMyStudentQuestions(): {
@@ -3386,9 +3457,17 @@ export function useQuestionBankById(questionBankId: string): {
   error: string | null,
   refetch: () => void
 } {
+  // A bank's question list changes outside this screen — approving a student
+  // submission promotes a question into it. The global 5-minute staleTime made
+  // those additions invisible until the cache expired, so this query opts out
+  // and always revalidates on mount.
   const result = api.useQuery("get", "/quizzes/question-bank/{questionBankId}", {
     params: { path: { questionBankId } }
-  }, { enabled: !!questionBankId && questionBankId !== '' });
+  }, {
+    enabled: !!questionBankId && questionBankId !== '',
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
 
   return {
     data: result.data,
@@ -3604,9 +3683,15 @@ export function useGetAllQuestionBanksForQuiz(quizId: string): {
   error: string | null,
   refetch: () => void
 } {
+  // Same reasoning as useQuestionBankById: bank membership and question counts
+  // change from the student-question review screen, so never serve this stale.
   const result = api.useQuery("get", "/quizzes/quiz/{quizId}/bank", {
     params: { path: { quizId } }
-  }, { enabled: !!quizId });
+  }, {
+    enabled: !!quizId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
 
   return {
     data: result.data,
@@ -5251,6 +5336,11 @@ export const useHideItem = (): {
 
 export interface GenerateAIQuestionsBody {
   text?: string;
+  courseId?: string;
+  versionId?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  focusAreas?: string;
+  avoidTopics?: string;
 }
 
 export const useGenerateAIQuestions = (): {

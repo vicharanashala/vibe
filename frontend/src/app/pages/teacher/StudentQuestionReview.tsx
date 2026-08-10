@@ -10,6 +10,7 @@ import {
   useUpdateStudentQuestionStatus,
 } from '@/hooks/hooks';
 import type {
+  StudentQuestionGateStateFilter,
   StudentQuestionListItem,
   StudentQuestionStatusFilter,
   UpdateStudentQuestionPayload,
@@ -17,6 +18,7 @@ import type {
 import StudentQuestionRow from './components/StudentQuestionRow';
 import StudentQuestionRejectDialog from './components/StudentQuestionRejectDialog';
 import StudentQuestionEditDialog from './components/StudentQuestionEditDialog';
+import SegmentDetailsDialog from './components/SegmentDetailsDialog';
 import CourseBackButton from './CourseBackButton';
 
 const STATUS_FILTER_OPTIONS: StudentQuestionStatusFilter[] = [
@@ -26,12 +28,21 @@ const STATUS_FILTER_OPTIONS: StudentQuestionStatusFilter[] = [
   'REJECTED',
 ];
 
+// Peer-validation gate state filter — only meaningful while status is PENDING
+// (or ALL). Defaults to ELIGIBLE: "what should I review right now."
+const GATE_STATE_FILTER_OPTIONS: StudentQuestionGateStateFilter[] = [
+  'ELIGIBLE',
+  'COLLECTING',
+  'ALL',
+];
+
 export default function StudentQuestionReview() {
   const {currentCourse} = useCourseStore();
   const courseId = currentCourse?.courseId;
   const courseVersionId = currentCourse?.versionId;
 
   const [statusFilter, setStatusFilter] = useState<StudentQuestionStatusFilter>('PENDING');
+  const [gateStateFilter, setGateStateFilter] = useState<StudentQuestionGateStateFilter>('ELIGIBLE');
   const [items, setItems] = useState<StudentQuestionListItem[]>([]);
   const [hasFetched, setHasFetched] = useState(false);
 
@@ -43,17 +54,24 @@ export default function StudentQuestionReview() {
 
   const [rejectTarget, setRejectTarget] = useState<StudentQuestionListItem | null>(null);
   const [editTarget, setEditTarget] = useState<StudentQuestionListItem | null>(null);
+  const [segmentTarget, setSegmentTarget] = useState<string | null>(null);
 
   const fetchQuestions = useCallback(async () => {
     if (!courseId || !courseVersionId) return;
     try {
-      const response = await listForCourseVersion(courseId, courseVersionId, statusFilter, 100);
+      const response = await listForCourseVersion(
+        courseId,
+        courseVersionId,
+        statusFilter,
+        100,
+        gateStateFilter,
+      );
       setItems(response?.items ?? []);
       setHasFetched(true);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to load student questions');
     }
-  }, [courseId, courseVersionId, listForCourseVersion, statusFilter]);
+  }, [courseId, courseVersionId, listForCourseVersion, statusFilter, gateStateFilter]);
 
   useEffect(() => {
     void fetchQuestions();
@@ -137,6 +155,21 @@ export default function StudentQuestionReview() {
               ))}
             </SelectContent>
           </Select>
+          <Select
+            value={gateStateFilter}
+            onValueChange={value => setGateStateFilter(value as StudentQuestionGateStateFilter)}
+          >
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Gate state" />
+            </SelectTrigger>
+            <SelectContent>
+              {GATE_STATE_FILTER_OPTIONS.map(option => (
+                <SelectItem key={option} value={option}>
+                  {option === 'ALL' ? 'Any gate state' : option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant="outline"
             size="icon"
@@ -168,6 +201,7 @@ export default function StudentQuestionReview() {
               onApprove={() => void handleApprove(question)}
               onReject={() => setRejectTarget(question)}
               onEdit={() => setEditTarget(question)}
+              onSegmentClick={() => setSegmentTarget(question.segmentId)}
             />
           ))}
         </div>
@@ -185,6 +219,13 @@ export default function StudentQuestionReview() {
         isSubmitting={isUpdatingContent}
         onCancel={() => setEditTarget(null)}
         onSubmit={handleEditSubmit}
+      />
+      <SegmentDetailsDialog
+        isOpen={segmentTarget !== null}
+        segmentId={segmentTarget}
+        courseId={courseId}
+        courseVersionId={courseVersionId}
+        onClose={() => setSegmentTarget(null)}
       />
     </div>
   );

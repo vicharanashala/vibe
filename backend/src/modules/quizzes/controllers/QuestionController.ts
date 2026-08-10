@@ -48,6 +48,8 @@ import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTr
 import { ObjectId } from 'mongodb';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import { QuestionBankService } from '../services/QuestionBankService.js';
+import { USERS_TYPES } from '#root/modules/users/types.js';
+import { EnrollmentRepository } from '#root/shared/index.js';
 
 @OpenAPI({
   tags: ['Questions'],
@@ -60,7 +62,10 @@ class QuestionController {
     private readonly questionService: QuestionService,
 
     @inject(QUIZZES_TYPES.QuestionBankService)
-    private readonly questionBankService: QuestionBankService
+    private readonly questionBankService: QuestionBankService,
+
+    @inject(USERS_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepository: EnrollmentRepository,
   ) {}
 
   @OpenAPI({
@@ -407,7 +412,7 @@ class QuestionController {
     description: `Generates questions based on the provided topic or content.<br/>
     It returns the generated questions array.`,
   })
-  // @Authorized()
+  @Authorized()
   @Post('/generate-csv-res')
   @ResponseSchema(BadRequestErrorResponse, {
     description: 'Invalid request body or insufficient data',
@@ -419,8 +424,41 @@ class QuestionController {
   })
   async generateAIQuestions(
     @Body() body: GenerateAIQuestionsBody,
+    @Ability(getQuestionAbility) {ability, user},
   ): Promise<{success: boolean; response: TranscriptResponse[]}> {
-    let {text} = body;
+    if (!ability.can(QuestionActions.Create, 'Question')) {
+      throw new ForbiddenError(
+        'You do not have permission to generate questions',
+      );
+    }
+
+    const userId = user._id.toString();
+    let {text, courseId, versionId, difficulty, focusAreas, avoidTopics} =
+      body;
+
+    // The INSTRUCTOR/MANAGER "Create Question" ability above is granted
+    // globally, not per-course, so it alone doesn't stop an instructor from
+    // passing an arbitrary courseId and pulling that course's name/description
+    // into their prompt. Explicitly confirm enrollment in the requested course
+    // before letting its metadata be fetched. Admins (full "manage" ability)
+    // are exempt, matching how course access is treated elsewhere.
+    if (courseId && !ability.can('manage', 'Question')) {
+      const enrollments = await this.enrollmentRepository.getAllEnrollments(
+        userId,
+      );
+      const hasCourseAccess = enrollments.some(
+        enrollment =>
+          enrollment.courseId?.toString() === courseId &&
+          (!versionId ||
+            enrollment.courseVersionId?.toString() === versionId) &&
+          ['INSTRUCTOR', 'MANAGER'].includes(enrollment.role),
+      );
+      if (!hasCourseAccess) {
+        throw new ForbiddenError(
+          'You do not have permission to generate questions for this course',
+        );
+      }
+    }
 
     const timestampRegex =
       /\b\d{2};\d{2};\d{2};\d{2}\s*-\s*\d{2};\d{2};\d{2};\d{2}\b/;
@@ -475,21 +513,23 @@ class QuestionController {
     };
 
     const chunks = chunkTranscriptByTimestamps(text);
+
+   
+
     let allSegments: TranscriptResponse[] = [];
-    // for (const chunk of chunks) {
-    //   const segments = await this.questionService.generateQuestionsWithAI(
-    //     'userId',
-    //     chunk,
-    //   );
-    //   allSegments = allSegments.concat(segments);
-    // }
 
     if(chunks && chunks.length > 90)
       throw new BadRequestError(`Given segments are too large, please try reducing content.`)
 
     const results = await Promise.all(
       chunks.map(chunk =>
-        this.questionService.generateQuestionsWithAI('userId', chunk),
+        this.questionService.generateQuestionsWithAI(userId, chunk, {
+          courseId,
+          versionId,
+          difficulty,
+          focusAreas,
+          avoidTopics,
+        }),
       ),
     );
 
