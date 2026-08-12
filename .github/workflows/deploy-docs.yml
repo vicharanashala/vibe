@@ -30,7 +30,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
-        working-directory: docs  # Path to your Docusaurus project
 
       - name: Build Docusaurus site
         run: pnpm run build
