@@ -6,10 +6,10 @@ import {
   SupportQuestionStatus,
   SUPPORT_CHAT_TYPES,
   ChatMessageRequest,
-} from '../types';
-import { FAQRetrievalService } from './FAQRetrievalService';
-import { FAQRepository } from '../repositories/providers/mongodb';
-import { SupportQuestionRepository } from '../repositories/providers/mongodb';
+} from '../types.js';
+import { FAQRetrievalService } from './FAQRetrievalService.js';
+import { FAQRepository } from '../repositories/providers/mongodb/index.js';
+import { SupportQuestionRepository } from '../repositories/providers/mongodb/index.js';
 import { Logger } from '@/shared/logger';
 
 @injectable()

@@ -1,1 +1,1 @@
-export { SupportChatValidator } from './SupportChatValidator';
+export { SupportChatValidator } from './SupportChatValidator.js';

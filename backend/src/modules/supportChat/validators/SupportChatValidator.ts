@@ -1,6 +1,6 @@
 import { injectable } from 'inversify';
 import { validate, ValidationError, IsString, MinLength, MaxLength, IsOptional } from 'class-validator';
-import { ChatMessageRequest, AdminResponseRequest } from '../types';
+import { ChatMessageRequest, AdminResponseRequest } from '../types.js';
 
 @injectable()
 export class SupportChatValidator {

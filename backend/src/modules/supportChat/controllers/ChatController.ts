@@ -9,8 +9,8 @@ import {
   queryParams,
 } from 'routing-controllers';
 import { ObjectId } from 'mongodb';
-import { ChatMessageRequest, ChatMessageResponse, SUPPORT_CHAT_TYPES } from '../types';
-import { ChatService } from '../services';
+import { ChatMessageRequest, ChatMessageResponse, SUPPORT_CHAT_TYPES } from '../types.js';
+import { ChatService } from '../services/index.js';
 import { Authorized, CurrentUser } from '@/shared/decorators';
 
 @controller('/api/support/chat')

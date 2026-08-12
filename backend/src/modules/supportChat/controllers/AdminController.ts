@@ -15,8 +15,8 @@ import {
   FAQCategory,
   IFAQ,
   SUPPORT_CHAT_TYPES,
-} from '../types';
-import { AdminService } from '../services';
+} from '../types.js';
+import { AdminService } from '../services/index.js';
 import { Authorized, CurrentUser } from '@/shared/decorators';
 
 @controller('/api/admin/support')

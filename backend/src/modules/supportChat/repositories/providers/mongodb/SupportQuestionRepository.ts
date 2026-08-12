@@ -1,6 +1,6 @@
 import { inject, injectable } from 'inversify';
 import { Collection, ObjectId } from 'mongodb';
-import { ISupportQuestion, SUPPORT_CHAT_CONFIG, SupportQuestionStatus } from '../../../types';
+import { ISupportQuestion, SUPPORT_CHAT_CONFIG, SupportQuestionStatus } from '../../../types.js';
 import { TYPES } from '@/shared/container/types';
 
 @injectable()

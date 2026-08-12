@@ -8,10 +8,10 @@ import {
   SUPPORT_CHAT_TYPES,
   FAQCategory,
   FAQSource,
-} from '../types';
-import { FAQRepository } from '../repositories/providers/mongodb';
-import { SupportQuestionRepository } from '../repositories/providers/mongodb';
-import { FAQRetrievalService } from './FAQRetrievalService';
+} from '../types.js';
+import { FAQRepository } from '../repositories/providers/mongodb/index.js';
+import { SupportQuestionRepository } from '../repositories/providers/mongodb/index.js';
+import { FAQRetrievalService } from './FAQRetrievalService.js';
 import { Logger } from '@/shared/logger';
 
 @injectable()

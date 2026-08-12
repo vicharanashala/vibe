@@ -1,8 +1,8 @@
 import { ContainerModule, interfaces } from 'inversify';
-import { SUPPORT_CHAT_TYPES } from './types';
-import { FAQRepository, SupportQuestionRepository } from './repositories/providers/mongodb';
-import { ChatService, FAQRetrievalService, AdminService } from './services';
-import { ChatController, AdminController } from './controllers';
+import { SUPPORT_CHAT_TYPES } from './types.js';
+import { FAQRepository, SupportQuestionRepository } from './repositories/providers/mongodb/index.js';
+import { ChatService, FAQRetrievalService, AdminService } from './services/index.js';
+import { ChatController, AdminController } from './controllers/index.js';
 
 export const supportChatContainerModule = new ContainerModule(
   (bind: interfaces.Bind) => {

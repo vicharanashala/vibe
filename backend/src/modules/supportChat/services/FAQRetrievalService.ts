@@ -4,8 +4,8 @@ import {
   FAQRetrievalResult,
   SUPPORT_CHAT_CONFIG,
   SUPPORT_CHAT_TYPES,
-} from '../types';
-import { FAQRepository } from '../repositories/providers/mongodb';
+} from '../types.js';
+import { FAQRepository } from '../repositories/providers/mongodb/index.js';
 import { Logger } from '@/shared/logger';
 
 @injectable()
