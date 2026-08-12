@@ -421,12 +421,15 @@ export default function AuthPage() {
                   ))}
                 </h3>
                 <p className="text-[rgba(228,143,57,1)] text-base font-normal leading-[26px]">Connect, collaborate, and grow with our innovative educational platform designed for the next generation</p>
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   <button onClick={() => window.open(links.DEMO_VIDEO, '_blank')} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                     Explore Demo
                   </button>
                   <button onClick={() => { navigate({ to: "/student/login" }) }} className="text-base px-7 py-3 rounded-lg bg-[rgb(52,152,169)] hover:bg-[rgb(102,187,205)] text-white font-semibold shadow-[0_2px_8px_rgba(52,152,169,0.3)] hover:shadow-[0_4px_16px_rgba(52,152,169,0.4)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
                     Get Started
+                  </button>
+                  <button onClick={() => { navigate({ to: "/system-check" }) }} className="text-base px-7 py-3 rounded-lg border-2 border-[rgb(52,152,169)] text-[rgb(52,152,169)] hover:bg-[rgb(52,152,169)] hover:text-white font-semibold hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
+                    Check System
                   </button>
                 </div>
               </div>
