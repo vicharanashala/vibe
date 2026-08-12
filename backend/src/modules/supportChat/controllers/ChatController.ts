@@ -1,29 +1,30 @@
 import { inject, injectable } from 'inversify';
 import {
-  controller,
-  httpPost,
-  httpGet,
-  httpPatch,
-  requestBody,
-  pathParams,
-  queryParams,
+  JsonController,
+  Post,
+  Get,
+  Patch,
+  Body,
+  Param,
+  QueryParams,
+  Authorized,
+  CurrentUser,
 } from 'routing-controllers';
 import { ObjectId } from 'mongodb';
 import { ChatMessageRequest, ChatMessageResponse, SUPPORT_CHAT_TYPES } from '../types.js';
 import { ChatService } from '../services/index.js';
-import { Authorized, CurrentUser } from '@/shared/decorators';
 
-@controller('/api/support/chat')
+@JsonController('/api/support/chat')
 @injectable()
 export class ChatController {
   constructor(@inject(SUPPORT_CHAT_TYPES.ChatService) private chatService: ChatService) {}
 
-  @httpPost('/message')
+  @Post('/message')
   @Authorized('user')
   async sendMessage(
     @CurrentUser() user: any,
-    @requestBody() messageRequest: ChatMessageRequest,
-    @queryParams() query: { courseId?: string; courseVersionId?: string; cohortId?: string }
+    @Body() messageRequest: ChatMessageRequest,
+    @QueryParams() query: { courseId?: string; courseVersionId?: string; cohortId?: string }
   ): Promise<ChatMessageResponse> {
     const userId = new ObjectId(user.id);
     const courseId = query.courseId ? new ObjectId(query.courseId) : undefined;
@@ -39,11 +40,11 @@ export class ChatController {
     );
   }
 
-  @httpGet('/history')
+  @Get('/history')
   @Authorized('user')
   async getHistory(
     @CurrentUser() user: any,
-    @queryParams() query: { limit?: string }
+    @QueryParams() query: { limit?: string }
   ) {
     const userId = new ObjectId(user.id);
     const limit = query.limit ? parseInt(query.limit, 10) : 50;
@@ -56,14 +57,14 @@ export class ChatController {
     };
   }
 
-  @httpGet('/:questionId')
+  @Get('/:questionId')
   @Authorized('user')
   async getQuestion(
     @CurrentUser() user: any,
-    @pathParams() params: { questionId: string }
+    @Param('questionId') questionId: string
   ) {
-    const questionId = new ObjectId(params.questionId);
-    const question = await this.chatService.getQuestion(questionId);
+    const qId = new ObjectId(questionId);
+    const question = await this.chatService.getQuestion(qId);
 
     if (!question) {
       throw new Error('Question not found');
@@ -77,15 +78,15 @@ export class ChatController {
     return question;
   }
 
-  @httpPatch('/:questionId/rate')
+  @Patch('/:questionId/rate')
   @Authorized('user')
   async rateQuestion(
     @CurrentUser() user: any,
-    @pathParams() params: { questionId: string },
-    @requestBody() body: { rating: 'helpful' | 'not_helpful' }
+    @Param('questionId') questionId: string,
+    @Body() body: { rating: 'helpful' | 'not_helpful' }
   ) {
-    const questionId = new ObjectId(params.questionId);
-    const question = await this.chatService.getQuestion(questionId);
+    const qId2 = new ObjectId(questionId);
+    const question = await this.chatService.getQuestion(qId2);
 
     if (!question) {
       throw new Error('Question not found');
@@ -96,10 +97,10 @@ export class ChatController {
       throw new Error('Unauthorized');
     }
 
-    return await this.chatService.rateResolution(questionId, body.rating);
+    return await this.chatService.rateResolution(qId2, body.rating);
   }
 
-  @httpGet('/faqs/search')
+  @Get('/faqs/search')
   async searchFAQs(@queryParams() query: { search?: string; category?: string }) {
     // This would be implemented with FAQ retrieval and search logic
     // For now, returning placeholder
