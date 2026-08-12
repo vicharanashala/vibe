@@ -10,11 +10,9 @@ import {
 import { FAQRetrievalService } from './FAQRetrievalService.js';
 import { FAQRepository } from '../repositories/providers/mongodb/index.js';
 import { SupportQuestionRepository } from '../repositories/providers/mongodb/index.js';
-import { Logger } from '@/shared/logger';
 
 @injectable()
 export class ChatService {
-  private logger = Logger.getLogger('ChatService');
 
   constructor(
     @inject(SUPPORT_CHAT_TYPES.FAQRetrievalService) private faqRetrieval: FAQRetrievalService,
@@ -76,7 +74,7 @@ export class ChatService {
         questionId: question._id!,
       };
     } catch (error) {
-      this.logger.error('Error handling user question', error);
+      console.error('Error handling user question', error);
       throw error;
     }
   }
@@ -85,7 +83,7 @@ export class ChatService {
     try {
       return await this.questionRepo.findByUserId(userId, limit);
     } catch (error) {
-      this.logger.error('Error fetching question history', error);
+      console.error('Error fetching question history', error);
       throw error;
     }
   }
@@ -94,7 +92,7 @@ export class ChatService {
     try {
       return await this.questionRepo.findById(questionId);
     } catch (error) {
-      this.logger.error('Error fetching question', error);
+      console.error('Error fetching question', error);
       throw error;
     }
   }
@@ -105,10 +103,10 @@ export class ChatService {
   ): Promise<ISupportQuestion | null> {
     try {
       const updated = await this.questionRepo.setResolutionRating(questionId, rating);
-      this.logger.info(`Question ${questionId} rated as ${rating}`);
+      console.log(`Question ${questionId} rated as ${rating}`);
       return updated;
     } catch (error) {
-      this.logger.error('Error rating resolution', error);
+      console.error('Error rating resolution', error);
       throw error;
     }
   }

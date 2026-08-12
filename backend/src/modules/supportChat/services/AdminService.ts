@@ -12,11 +12,9 @@ import {
 import { FAQRepository } from '../repositories/providers/mongodb/index.js';
 import { SupportQuestionRepository } from '../repositories/providers/mongodb/index.js';
 import { FAQRetrievalService } from './FAQRetrievalService.js';
-import { Logger } from '@/shared/logger';
 
 @injectable()
 export class AdminService {
-  private logger = Logger.getLogger('AdminService');
 
   constructor(
     @inject(SUPPORT_CHAT_TYPES.FAQRepo) private faqRepo: FAQRepository,
@@ -33,7 +31,7 @@ export class AdminService {
       }
       return await this.questionRepo.findPending(limit);
     } catch (error) {
-      this.logger.error('Error fetching pending questions', error);
+      console.error('Error fetching pending questions', error);
       throw error;
     }
   }
@@ -75,7 +73,7 @@ export class AdminService {
         // Link FAQ to original question
         await this.questionRepo.linkFaqCreated(questionId, newFAQ._id!);
 
-        this.logger.info(`Created FAQ ${newFAQ._id} from question ${questionId}`);
+        console.log(`Created FAQ ${newFAQ._id} from question ${questionId}`);
       }
 
       // Set admin response on question
@@ -85,11 +83,11 @@ export class AdminService {
         adminUserId
       );
 
-      this.logger.info(`Admin ${adminUserId} responded to question ${questionId}`);
+      console.log(`Admin ${adminUserId} responded to question ${questionId}`);
 
       return updated;
     } catch (error) {
-      this.logger.error('Error responding to question', error);
+      console.error('Error responding to question', error);
       throw error;
     }
   }
@@ -115,7 +113,7 @@ export class AdminService {
         satisfactionRate,
       };
     } catch (error) {
-      this.logger.error('Error fetching dashboard stats', error);
+      console.error('Error fetching dashboard stats', error);
       throw error;
     }
   }
@@ -127,7 +125,7 @@ export class AdminService {
         category,
       });
     } catch (error) {
-      this.logger.error('Error fetching FAQs', error);
+      console.error('Error fetching FAQs', error);
       throw error;
     }
   }
@@ -145,7 +143,7 @@ export class AdminService {
         createdBy: adminUserId,
       });
     } catch (error) {
-      this.logger.error('Error creating FAQ', error);
+      console.error('Error creating FAQ', error);
       throw error;
     }
   }
@@ -154,7 +152,7 @@ export class AdminService {
     try {
       return await this.faqRepo.updateById(faqId, updates);
     } catch (error) {
-      this.logger.error('Error updating FAQ', error);
+      console.error('Error updating FAQ', error);
       throw error;
     }
   }
@@ -163,11 +161,11 @@ export class AdminService {
     try {
       const result = await this.faqRepo.deleteById(faqId);
       if (result) {
-        this.logger.info(`FAQ ${faqId} deleted`);
+        console.log(`FAQ ${faqId} deleted`);
       }
       return result;
     } catch (error) {
-      this.logger.error('Error deleting FAQ', error);
+      console.error('Error deleting FAQ', error);
       throw error;
     }
   }
@@ -176,7 +174,7 @@ export class AdminService {
     try {
       return await this.questionRepo.updateStatus(questionId, SupportQuestionStatus.RESOLVED);
     } catch (error) {
-      this.logger.error('Error marking question resolved', error);
+      console.error('Error marking question resolved', error);
       throw error;
     }
   }
