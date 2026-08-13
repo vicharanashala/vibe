@@ -10,7 +10,7 @@ jobs:
     environment: jest-test 
     steps:
       - name: Checkout merged PR code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

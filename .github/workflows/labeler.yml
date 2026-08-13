@@ -10,14 +10,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/labeler@v5
+      - uses: actions/labeler@v7
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           sync-labels: true
     
       - name: Add 'revert' label to relevant PRs
         if: contains(github.event.pull_request.title, 'Revert')
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
