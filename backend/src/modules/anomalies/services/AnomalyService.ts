@@ -335,6 +335,9 @@ export class AnomalyService extends BaseService {
           case AnomalyType.FACE_RECOGNITION:
             stats.FACE_RECOGNITION++;
             break;
+          case AnomalyType.PHONE_DETECTION:
+            stats.PHONE_DETECTION++;
+            break;
         }
       });
       return stats;

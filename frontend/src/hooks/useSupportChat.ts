@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { ChatMessageResponse } from '@/modules/supportChat/types';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_BASE_URL || 'http://localhost:3001';
 
 export default function useSupportChat() {
   const sendMessage = useCallback(

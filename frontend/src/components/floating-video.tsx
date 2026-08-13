@@ -6,6 +6,7 @@ import GestureDetector from './ai/GestureDetector';
 import BlurDetection from './ai/BlurDetector';
 import SpeechDetector from './ai/SpeechDetector';
 import FaceDetectors from './ai/FaceDetectors';
+import PhoneDetector from './ai/PhoneDetector';
 import FaceRecognitionOverlay from './ai/FaceRecognitionOverlay';
 // import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
 import useCameraProcessor from './ai/useCameraProcessor';
@@ -69,8 +70,9 @@ function FloatingVideo({
   const [isBlur, setIsBlur] = useState("No");
   const [isSpeaking, setIsSpeaking] = useState("No");
   const [gesture, setGesture] = useState("No Gesture Detected ❌");
-  const [isFocused, setIsFocused] = useState(true); 
+  const [isFocused, setIsFocused] = useState(true);
   const [facesCount, setFacesCount] = useState(0);
+  const [isPhoneDetected, setIsPhoneDetected] = useState("No");
   const [recognizedFaces, setRecognizedFaces] = useState<any[]>([]);
   const [hasFaceRecognitionMismatch, setHasFaceRecognitionMismatch] = useState(false);
   const [showFaceRegisterModal, setShowFaceRegisterModal] = useState(false);
@@ -127,6 +129,7 @@ function FloatingVideo({
   const isFaceRecognitionEnabled = isComponentEnabled('faceRecognition');
   const isRighClickDisabled = isComponentEnabled("rightClickDisabled");
   const isFocusEnabled = false; //isComponentEnabled('focus');
+  const isPhoneDetectionEnabled = isComponentEnabled('phoneDetection');
 
   // Log enabled components for debugging
   // useEffect(() => {
@@ -290,6 +293,8 @@ const lastCalledRef = useRef<number>(0);
             console.log("Invalid face count for anomaly reporting");
             return;
           }
+        } else if (anomalyType === "phoneDetection") {
+          reportAnomalyType = AnomalyType.PHONE_DETECTION;
         } else {
           console.log("Unknown anomaly type:", anomalyType);
           return;
@@ -633,6 +638,15 @@ const lastCalledRef = useRef<number>(0);
         newPenaltyPoints += 1;
       }
 
+      // Condition 4b: A phone was detected in frame (only if phone detection is enabled)
+      let hasPhoneDetected = false;
+      if (isPhoneDetected === "Yes" && isPhoneDetectionEnabled) {
+        hasPhoneDetected = true;
+        activeAnomalies.push("phoneDetection");
+        newPenaltyType = "Phone Detected";
+        newPenaltyPoints += 2; // Same severity as multiple faces
+      }
+
       // Condition 5: Registered face does not match current camera frame
       let hasFaceMismatch = false;
       if (hasFaceRecognitionMismatch && isFaceRecognitionEnabled) {
@@ -657,6 +671,11 @@ const lastCalledRef = useRef<number>(0);
         immediateRewind = true;
       }
 
+      if (hasPhoneDetected) {
+        immediatePause = true;
+        immediateRewind = true;
+      }
+
       // If there are any new penalty points, increment the cumulative score
       if (newPenaltyPoints > 0) {
         setAnomaly(true);
@@ -668,6 +687,7 @@ const lastCalledRef = useRef<number>(0);
           newPenaltyType === "No Face Detected" || newPenaltyType === "Multiple Faces" ? "faceCountDetection" :
           newPenaltyType === "Speaking" ? "voiceDetection" :
           newPenaltyType === "Pre-emptive Thumbs-Up" || newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :
+          newPenaltyType === "Phone Detected" ? "phoneDetection" :
           "faceRecognition"
         );
         
@@ -716,16 +736,18 @@ const lastCalledRef = useRef<number>(0);
 
     return () => clearInterval(interval);
   }, [readyToDetect,
-    isSpeaking, 
-    facesCount, 
-    isBlur, 
-    isFocused, 
+    isSpeaking,
+    facesCount,
+    isBlur,
+    isFocused,
+    isPhoneDetected,
     // reportAnomaly,
     courseStore.currentCourse,
     isVoiceDetectionEnabled,
     isFaceCountDetectionEnabled,
     isBlurDetectionEnabled,
     isFocusEnabled,
+    isPhoneDetectionEnabled,
     isFaceRecognitionEnabled,
     hasFaceRecognitionMismatch,
     // data,
@@ -820,10 +842,11 @@ const lastCalledRef = useRef<number>(0);
   }, [gesture, isThumbsUpChallenge, isHandGestureDetectionEnabled, setDoGesture]);
 
   // Check if any anomalies are detected - only consider enabled detectors
-  const isAnomaliesDetected = (isSpeaking === "Yes" && isVoiceDetectionEnabled) || 
-                              (facesCount !== 1 && isFaceCountDetectionEnabled) || 
-                              (isBlur === "Yes" && isBlurDetectionEnabled) || 
+  const isAnomaliesDetected = (isSpeaking === "Yes" && isVoiceDetectionEnabled) ||
+                              (facesCount !== 1 && isFaceCountDetectionEnabled) ||
+                              (isBlur === "Yes" && isBlurDetectionEnabled) ||
                               (!isFocused && isFocusEnabled) ||
+                              (isPhoneDetected === "Yes" && isPhoneDetectionEnabled) ||
                               (hasFaceRecognitionMismatch && isFaceRecognitionEnabled) ||
                               (isThumbsUpChallenge && isHandGestureDetectionEnabled);
 
@@ -1234,6 +1257,11 @@ const lastCalledRef = useRef<number>(0);
     Please stay in frame
   </div>
 )}
+{modelReady && isPhoneDetectionEnabled && isPhoneDetected === "Yes" && !isCollapsed && (
+  <div className="absolute inset-x-0 bottom-0 z-40 bg-red-700 bg-opacity-90 text-white text-sm font-medium text-center py-2 px-2">
+    📱 Phone detected — please put it away
+  </div>
+)}
         {/* Enhanced Face Recognition Debug Overlay */}
         {/* {!isCollapsed && (
           <div className="absolute top-0 left-0 z-20 bg-black bg-opacity-75 text-white p-3 text-xs font-mono border-r border-b border-gray-600">
@@ -1384,6 +1412,12 @@ const lastCalledRef = useRef<number>(0);
                           </span></div>
                         )}
 
+                        {isPhoneDetected === "Yes" && (
+                          <div>Phone: <span className="text-red-400">
+                            Detected
+                          </span></div>
+                        )}
+
                         {isFaceCountDetectionEnabled && facesCount !== 1 && (
                           <div>Faces: <span className="text-red-400">
                             {facesCount} {facesCount === 0 ? "(None detected)" : facesCount > 1 ? "(Multiple detected)" : ""}
@@ -1441,9 +1475,16 @@ const lastCalledRef = useRef<number>(0);
           />
         )}
         {isVoiceDetectionEnabled && (
-          <SpeechDetector 
+          <SpeechDetector
             key={`speech-${aiComponentsKey}`}
             setIsSpeaking={setIsSpeaking}
+          />
+        )}
+        {isPhoneDetectionEnabled && (
+          <PhoneDetector
+            key={`phone-${aiComponentsKey}`}
+            videoRef={videoRef}
+            setIsPhoneDetected={setIsPhoneDetected}
           />
         )}
         {isHandGestureDetectionEnabled && (

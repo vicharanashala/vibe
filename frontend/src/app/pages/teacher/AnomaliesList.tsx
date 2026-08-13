@@ -46,6 +46,7 @@ export default function AnomaliesList() {
     { value: 'FACE_RECOGNITION', label: 'Face Recognition' },
     { value: 'HAND_GESTURE_DETECTION', label: 'Hand Gesture' },
     { value: 'BLUR_DETECTION', label: 'Blur Detection' },
+    { value: 'PHONE_DETECTION', label: 'Phone Detected' },
   ];
 
   // Debounce search input

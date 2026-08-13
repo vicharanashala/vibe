@@ -8,6 +8,7 @@ export enum AnomalyType {
   FOCUS = 'focus',
   HAND_GESTURE_DETECTION = 'handGestureDetection',
   FACE_RECOGNITION = 'faceRecognition',
+  PHONE_DETECTION = 'PHONE_DETECTION',
 
   VIRTUAL_CAMERA = 'VIRTUAL_CAMERA',
 }

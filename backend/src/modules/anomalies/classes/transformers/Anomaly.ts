@@ -10,6 +10,7 @@ export enum AnomalyType {
   FOCUS = 'FOCUS',
   HAND_GESTURE_DETECTION = 'HAND_GESTURE_DETECTION',
   FACE_RECOGNITION = 'FACE_RECOGNITION',
+  PHONE_DETECTION = 'PHONE_DETECTION',
 }
 
 export enum FileType {
@@ -130,6 +131,13 @@ export class AnomalyStats {
   })
   FACE_RECOGNITION: number;
 
+  @IsNumber()
+  @JSONSchema({
+    title: 'Number of phone detection anomalies',
+    description: 'Number of phone detection anomalies',
+  })
+  PHONE_DETECTION: number;
+
   constructor() {
     this.VOICE_DETECTION = 0;
     this.NO_FACE = 0;
@@ -138,6 +146,7 @@ export class AnomalyStats {
     this.FOCUS = 0;
     this.HAND_GESTURE_DETECTION = 0;
     this.FACE_RECOGNITION = 0;
+    this.PHONE_DETECTION = 0;
   }
 }
 

@@ -5,6 +5,17 @@ export interface BlurDetectionProps {
   setIsBlur: (value: string) => void;
 }
 
+export interface PhoneDetection {
+  bbox: [number, number, number, number]; // [x, y, width, height]
+  score: number;
+}
+
+export interface PhoneDetectorProps {
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  setIsPhoneDetected: (value: string) => void;
+  onDetection?: (detection: PhoneDetection | null) => void;
+}
+
 export interface FaceDetectorsProps {
   faces: Face[],
   setIsFocused: (focused: boolean) => void;

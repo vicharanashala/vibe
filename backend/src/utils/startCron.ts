@@ -12,7 +12,14 @@ export const startCron = () => {
 
     console.log('✅ Delete cron job scheduled successfully');
 
-    deleteCronService.scheduleProgressUpdateCron();
+    // scheduleProgressUpdateCron is async and was previously called without
+    // await/catch here — a rejection (e.g. no courses yet on a fresh DB)
+    // became an unhandled promise rejection that crashed the whole process,
+    // bypassing this try/catch entirely since it runs after this function
+    // returns. Attach .catch() so a failure here can't take down the server.
+    deleteCronService.scheduleProgressUpdateCron().catch(error => {
+      console.error('❌ Progress update cron failed:', error);
+    });
 
     console.log('✅ Progress update cron job scheduled successfully');
 
