@@ -69,14 +69,14 @@ export class FAQRetrievalService {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(`Minimax API error: ${error.message || response.statusText}`);
+        const error = (await response.json()) as { message?: string };
+        throw new Error(`Minimax API error: ${error?.message || response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { data?: Array<{ embedding: number[] }> };
 
       // Minimax returns embeddings in data.data array
-      if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
+      if (!data?.data || !Array.isArray(data.data) || data.data.length === 0) {
         throw new Error('Invalid embedding response from Minimax');
       }
 

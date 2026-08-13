@@ -130,7 +130,7 @@ export class AdminService {
   }
 
   async createFAQ(
-    faq: Omit<IFAQ, '_id' | 'createdAt' | 'updatedAt' | 'embedding'>,
+    faq: Omit<IFAQ, '_id' | 'createdAt' | 'updatedAt' | 'embedding' | 'createdBy'>,
     adminUserId: ObjectId
   ): Promise<IFAQ> {
     try {

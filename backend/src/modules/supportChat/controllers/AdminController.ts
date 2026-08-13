@@ -81,7 +81,7 @@ export class AdminController {
 
   @Get('/faqs')
   @Authorized()
-  async getFAQs(@queryParams() query: { category?: string }) {
+  async getFAQs(@QueryParams() query: { category?: string }) {
     const category = query.category ? (query.category as FAQCategory) : undefined;
     const faqs = await this.adminService.getAllFAQs(category);
 

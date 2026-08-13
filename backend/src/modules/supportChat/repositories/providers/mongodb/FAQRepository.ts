@@ -60,7 +60,7 @@ export class FAQRepository {
       { returnDocument: 'after' }
     );
 
-    return result.value as IFAQ | null;
+    return result as IFAQ | null;
   }
 
   async incrementUsageCount(id: ObjectId): Promise<void> {

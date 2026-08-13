@@ -101,7 +101,7 @@ export class ChatController {
   }
 
   @Get('/faqs/search')
-  async searchFAQs(@queryParams() query: { search?: string; category?: string }) {
+  async searchFAQs(@QueryParams() query: { search?: string; category?: string }) {
     // This would be implemented with FAQ retrieval and search logic
     // For now, returning placeholder
     return {
