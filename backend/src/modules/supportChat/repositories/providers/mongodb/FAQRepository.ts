@@ -1,11 +1,11 @@
 import { inject, injectable } from 'inversify';
 import { Collection, ObjectId } from 'mongodb';
 import { IFAQ, SUPPORT_CHAT_CONFIG, FAQCategory } from '../../../types.js';
-import { TYPES } from '@/shared/container/types';
+import { GLOBAL_TYPES } from '#root/types.js';
 
 @injectable()
 export class FAQRepository {
-  constructor(@inject(TYPES.Database) private db: any) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: any) {}
 
   private getCollection(): Collection<IFAQ> {
     return this.db.collection(SUPPORT_CHAT_CONFIG.collectionsNames.faq);
