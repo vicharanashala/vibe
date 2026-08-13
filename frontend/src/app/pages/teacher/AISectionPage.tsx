@@ -1,9 +1,10 @@
 import * as React from "react";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { aiSectionAPI, JobStatus, getApiUrl } from "@/lib/genai-api";
+import { aiSectionAPI, JobStatus, getApiUrl, getConceptMapPreview, deleteConceptMapPreviewNode, ConceptMapResponse } from "@/lib/genai-api";
+import { ConceptMapPanel } from "@/components/concept-map";
 import {
   Accordion,
   AccordionContent,
@@ -42,7 +43,8 @@ import {
   Upload,
   Share,
   BookOpen,
-  RotateCcw
+  RotateCcw,
+  Network
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
@@ -141,6 +143,12 @@ const WORKFLOW_STEPS = [
     explanation: "Breaks down the transcript into logical sections or chunks."
   },
   {
+    key: 'conceptMap',
+    label: 'Concept Map',
+    icon: <Network className="w-5 h-5" />,
+    explanation: "Extracts the lecture's key concepts and their prerequisite relationships as a navigable map."
+  },
+  {
     key: 'questionGeneration',
     label: 'Question Generation',
     icon: <MessageSquareText className="w-5 h-5" />,
@@ -154,8 +162,30 @@ const WORKFLOW_STEPS = [
   },
 ];
 
+// The job never reports task === 'CONCEPT_MAP' (the task is backend-executed,
+// not webhook-driven), so the conceptMap step is keyed directly off
+// jobStatus.jobStatus.conceptMap everywhere in this file.
+const isConceptMapPhase = (jobStatus: any): boolean => {
+  const cm = jobStatus?.jobStatus?.conceptMap;
+  return (
+    cm !== undefined &&
+    cm !== 'PENDING' &&
+    jobStatus?.jobStatus?.segmentation === 'COMPLETED' &&
+    jobStatus?.jobStatus?.questionGeneration === 'PENDING'
+  );
+};
+
 const getStepStatus = (jobStatus: any, stepKey: string) => {
   if (!jobStatus) return 'pending';
+
+  if (stepKey === 'conceptMap') {
+    const cm = jobStatus.jobStatus?.conceptMap;
+    if (cm === 'RUNNING') return 'active';
+    if (cm === 'COMPLETED') return 'completed';
+    if (cm === 'FAILED') return 'failed';
+    if (cm === 'WAITING') return 'waiting';
+    return 'pending';
+  }
 
   const taskToStep: Record<string, string> = {
     'AUDIO_EXTRACTION': 'audioExtraction',
@@ -165,11 +195,14 @@ const getStepStatus = (jobStatus: any, stepKey: string) => {
     'UPLOAD_CONTENT': 'uploadContent',
   };
 
-  const currentTaskStep = taskToStep[jobStatus.task] || null;
+  let currentTaskStep = taskToStep[jobStatus.task] || null;
+  if (currentTaskStep === 'segmentation' && isConceptMapPhase(jobStatus)) {
+    currentTaskStep = 'conceptMap';
+  }
 
   if (!currentTaskStep) return 'pending';
 
-  const stepOrder = ['audioExtraction', 'transcriptGeneration', 'segmentation', 'questionGeneration', 'uploadContent'];
+  const stepOrder = ['audioExtraction', 'transcriptGeneration', 'segmentation', 'conceptMap', 'questionGeneration', 'uploadContent'];
 
   const stepIndex = stepOrder.indexOf(stepKey);
   const currentIndex = stepOrder.indexOf(currentTaskStep);
@@ -206,6 +239,13 @@ const Stepper = React.memo(({
   audioExtractionProgress: number
 }) => {
 
+  // Jobs without the conceptMap field (legacy / kill switch off) keep the
+  // original 5-dot stepper; new jobs get the Concept Map dot.
+  const hasConceptMap = !jobStatus?.jobStatus || jobStatus.jobStatus.conceptMap !== undefined;
+  const visibleSteps = hasConceptMap
+    ? WORKFLOW_STEPS
+    : WORKFLOW_STEPS.filter((step) => step.key !== 'conceptMap');
+
   // Calculate progress based on completed steps
   const getStepProgress = () => {
     if (!jobStatus) return 0;
@@ -216,17 +256,21 @@ const Stepper = React.memo(({
       'QUESTION_GENERATION': 'questionGeneration',
       'UPLOAD_CONTENT': 'uploadContent',
     };
-    const stepOrder = ['audioExtraction', 'transcriptGeneration', 'segmentation', 'questionGeneration', 'uploadContent'];
-    const currentTaskStep = taskToStep[jobStatus.task] || null;
+    const stepOrder = visibleSteps.map((step) => step.key);
+    let currentTaskStep = taskToStep[jobStatus.task] || null;
+    if (currentTaskStep === 'segmentation' && isConceptMapPhase(jobStatus)) {
+      currentTaskStep = 'conceptMap';
+    }
     if (!currentTaskStep) return 0;
 
     const currentIndex = stepOrder.indexOf(currentTaskStep);
     if (currentIndex === -1) return 0;
 
-    // Base progress from completed steps: 4 intervals for 5 steps = 25% each
-    const baseProgress = currentIndex * 25;
+    // Base progress from completed steps: N-1 intervals for N steps
+    const stepInterval = 100 / (stepOrder.length - 1);
+    const baseProgress = currentIndex * stepInterval;
 
-    // Add partial progress of the current step (max 25% towards next dot)
+    // Add partial progress of the current step (max one interval towards next dot)
     let stepPartialProgress = 0;
     if (jobStatus.task === 'AUDIO_EXTRACTION') {
       stepPartialProgress = audioExtractionProgress;
@@ -234,7 +278,7 @@ const Stepper = React.memo(({
       stepPartialProgress = progress;
     }
 
-    const additionalProgress = (stepPartialProgress / 100) * 25;
+    const additionalProgress = (stepPartialProgress / 100) * stepInterval;
 
     return Math.min(baseProgress + additionalProgress, 100);
   };
@@ -254,7 +298,7 @@ const Stepper = React.memo(({
       </div>
 
       <div className="flex items-start relative z-10 justify-between gap-0.5 sm:gap-2">
-        {WORKFLOW_STEPS.map((step) => {
+        {visibleSteps.map((step) => {
           const status = getStepStatus(jobStatus, step.key);
           const isActive = status === 'active' || (step.key === activeStep && status !== 'completed' && status !== 'failed' && status !== 'stopped');
 
@@ -699,24 +743,243 @@ const TaskAccordionInternal = ({
       )}
 
       {/* Start Next Task Shortcut */}
-      {runs.some((r: any) => r.id === acceptedRunId) && task !== 'upload' && (
-        <div className="mt-6 pt-6 border-t border-gray-100 dark:border-[#2D2D2F]">
-          <Button
-            onClick={() => {
-              const nextStep = task === 'transcription' ? 2 : task === 'segmentation' ? 3 : 4;
-              setCurrentUiStep(nextStep);
-            }}
-            className="w-full py-4 rounded-xl bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 text-white font-bold flex items-center justify-center gap-2 shadow-md transition-all"
-          >
-            Continue to {task === 'transcription' ? 'Segmentation' : task === 'segmentation' ? 'Question Generation' : 'Publish'} <Play className="w-3 h-3 fill-current" />
-          </Button>
-        </div>
-      )}
+      {runs.some((r: any) => r.id === acceptedRunId) && task !== 'upload' && (() => {
+        // Jobs without the conceptMap field skip the Concept Map UI step.
+        const hasConceptMap = aiJobStatus?.jobStatus?.conceptMap !== undefined;
+        const nextStep = task === 'transcription' ? 2
+          : task === 'segmentation' ? (hasConceptMap ? 3 : 4)
+            : 5;
+        const nextLabel = task === 'transcription' ? 'Segmentation'
+          : task === 'segmentation' ? (hasConceptMap ? 'Concept Map' : 'Question Generation')
+            : 'Publish';
+        return (
+          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-[#2D2D2F]">
+            <Button
+              onClick={() => setCurrentUiStep(nextStep)}
+              className="w-full py-4 rounded-xl bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 text-white font-bold flex items-center justify-center gap-2 shadow-md transition-all"
+            >
+              Continue to {nextLabel} <Play className="w-3 h-3 fill-current" />
+            </Button>
+          </div>
+        );
+      })()}
     </div>
   );
 };
 
 const TaskAccordion = React.memo(TaskAccordionInternal);
+
+// Concept Map approval step. Unlike the other tasks this one is executed
+// synchronously by the backend (no AI-server webhook), so the approve/start
+// call returns only after generation finished — no polling loop needed.
+const ConceptMapApprovalSection = ({
+  aiJobId,
+  aiJobStatus,
+  handleRefreshStatus,
+  onContinue,
+}: {
+  aiJobId: string | null;
+  aiJobStatus: JobStatus | null;
+  handleRefreshStatus: () => Promise<any>;
+  onContinue: () => void;
+}) => {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [preview, setPreview] = useState<ConceptMapResponse | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const cmStatus = aiJobStatus?.jobStatus?.conceptMap;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (cmStatus === 'COMPLETED' && aiJobId && !preview) {
+      getConceptMapPreview(aiJobId)
+        .then(map => {
+          if (!cancelled) {
+            setPreview(map);
+            setPreviewError(null);
+          }
+        })
+        .catch(err => {
+          if (!cancelled) setPreviewError(err?.message || 'Failed to load concept map preview.');
+        });
+    }
+    return () => { cancelled = true; };
+  }, [cmStatus, aiJobId, preview]);
+
+  const runGeneration = async (isRerun: boolean) => {
+    if (!aiJobId) return;
+    setIsGenerating(true);
+    setPreview(null);
+    setPreviewError(null);
+    try {
+      if (isRerun) {
+        await aiSectionAPI.rerunJobTask(aiJobId, 'CONCEPT_MAP', {}, 0);
+      } else {
+        if (cmStatus === 'PENDING') {
+          await aiSectionAPI.approveContinueTask(aiJobId);
+        }
+        await aiSectionAPI.approveStartTask(aiJobId, { type: 'CONCEPT_MAP', parameters: {} });
+      }
+      // The backend stores a FAILED result instead of erroring the request,
+      // so check the freshly-refreshed status before declaring success.
+      const fresh = await handleRefreshStatus();
+      if (fresh?.jobStatus?.conceptMap === 'FAILED') {
+        toast.error('Concept map generation failed. You can retry.');
+        return;
+      }
+      try {
+        const map = await getConceptMapPreview(aiJobId);
+        setPreview(map);
+      } catch (err: any) {
+        setPreviewError(err?.message || 'Concept map generated but the preview failed to load.');
+      }
+      toast.success(isRerun ? 'Concept map regenerated.' : 'Concept map generated.');
+    } catch (error: any) {
+      toast.error(`Concept map generation failed: ${error?.message || 'Unknown error'}`);
+      await handleRefreshStatus();
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const removeNode = async (node: ConceptMapResponse['nodes'][number]) => {
+    if (!aiJobId) return;
+    if (!window.confirm(`Remove the concept "${node.label}" from the map? Its prerequisite links will be re-bridged.`)) {
+      return;
+    }
+    try {
+      const edited = await deleteConceptMapPreviewNode(aiJobId, node.id);
+      setPreview(edited);
+      toast.success(`Removed "${node.label}".`);
+    } catch (error: any) {
+      toast.error(`Failed to remove concept: ${error?.message || 'Unknown error'}`);
+    }
+  };
+
+  const acceptAndContinue = async () => {
+    if (!aiJobId) return;
+    setIsApproving(true);
+    try {
+      await aiSectionAPI.approveContinueTask(aiJobId);
+      await handleRefreshStatus();
+      toast.success('Concept map approved!');
+      onContinue();
+    } catch (error: any) {
+      toast.error(`Failed to approve concept map: ${error?.message || 'Unknown error'}`);
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  // Legacy job / feature disabled on the backend: nothing to do here.
+  if (cmStatus === undefined) {
+    return (
+      <div className="bg-white dark:bg-[#1A1A1C] border border-gray-200 dark:border-[#2D2D2F] rounded-2xl p-6 shadow-sm">
+        <p className="text-sm text-gray-600 dark:text-[#a8a29e]">
+          Concept map generation is not enabled for this job. You can continue to question generation.
+        </p>
+        <Button
+          onClick={onContinue}
+          className="mt-4 w-full py-4 rounded-xl bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 text-white font-bold"
+        >
+          Continue to Question Generation <Play className="w-3 h-3 fill-current ml-1" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-[#1A1A1C] border border-gray-200 dark:border-[#2D2D2F] rounded-2xl p-6 shadow-sm space-y-4">
+      {(isGenerating || cmStatus === 'RUNNING') && (
+        <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 text-sm rounded-xl border border-blue-100 dark:border-blue-900/20">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Extracting concepts and prerequisite links from the lecture...</span>
+        </div>
+      )}
+
+      {!isGenerating && (cmStatus === 'WAITING' || cmStatus === 'PENDING') && (
+        <Button
+          onClick={() => runGeneration(false)}
+          className="w-full py-6 rounded-2xl bg-gradient-to-r from-[#00D492] to-[#2B7FFF] text-white font-bold shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all"
+        >
+          <span className="flex items-center gap-2"><Zap className="w-5 h-5" /> Generate Concept Map</span>
+        </Button>
+      )}
+
+      {!isGenerating && cmStatus === 'FAILED' && (
+        <div className="space-y-4">
+          <div className="p-3 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 text-xs rounded-lg border border-red-100 dark:border-red-900/20">
+            <div className="font-semibold">Concept map generation failed. Try again.</div>
+          </div>
+          <Button
+            onClick={() => runGeneration(true)}
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-xl text-sm flex items-center justify-center gap-2"
+          >
+            <RotateCcw className="w-4 h-4" /> Retry Concept Map
+          </Button>
+        </div>
+      )}
+
+      {!isGenerating && cmStatus === 'COMPLETED' && (
+        <div className="space-y-4">
+          {previewError && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-400 text-xs rounded-lg border border-amber-100 dark:border-amber-900/20">
+              {previewError}
+            </div>
+          )}
+          {preview && (
+            <>
+              <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-[#a8a29e]">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-bold">
+                  {preview.nodes.length} concepts · {preview.edges.length} links
+                </span>
+                {preview.fallback && (
+                  <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 font-medium">
+                    Deterministic fallback (no LLM key configured)
+                  </span>
+                )}
+              </div>
+              <div className="border border-gray-200 dark:border-[#2D2D2F] rounded-xl overflow-hidden">
+                <Suspense
+                  fallback={
+                    <div className="h-[340px] flex items-center justify-center text-sm text-gray-500">
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading map...
+                    </div>
+                  }
+                >
+                  <ConceptMapPanel nodes={preview.nodes} edges={preview.edges} readOnly onNodeDelete={removeNode} />
+                </Suspense>
+              </div>
+            </>
+          )}
+          {!preview && !previewError && (
+            <div className="h-[120px] flex items-center justify-center text-sm text-gray-500">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading preview...
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={() => runGeneration(true)}
+              variant="outline"
+              className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" /> Regenerate
+            </Button>
+            <Button
+              onClick={acceptAndContinue}
+              disabled={isApproving}
+              className="flex-1 py-4 rounded-xl bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 text-white font-bold flex items-center justify-center gap-2"
+            >
+              {isApproving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              Accept & Continue
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Component to edit questions
 const QuestionEditForm = ({ question, onSave, onCancel }: {
@@ -1457,6 +1720,26 @@ async function editSegmentMap(jobId: string, segmentMap: number[], index: number
   throw new Error(errMsg);
 }
 
+// If any task in `status.jobStatus` is FAILED, attach that task's detailed
+// run history (so the UI can show why) — mutates and returns `status`.
+async function enrichFailedTaskStatus(status: any, aiJobId: string): Promise<any> {
+  const failedTask = Object.entries(status.jobStatus || {}).find(([_, s]) => s === 'FAILED')?.[0];
+  if (failedTask) {
+    try {
+      const taskType = failedTask === 'transcriptGeneration' ? 'TRANSCRIPT_GENERATION'
+        : failedTask === 'segmentation' ? 'SEGMENTATION'
+          : failedTask === 'conceptMap' ? 'CONCEPT_MAP'
+            : failedTask === 'questionGeneration' ? 'QUESTION_GENERATION'
+              : failedTask.toUpperCase();
+      const runs = await aiSectionAPI.getTaskStatus(aiJobId, taskType);
+      status[failedTask] = runs;
+    } catch (e) {
+      console.error(`Failed to fetch task details for ${failedTask}:`, e);
+    }
+  }
+  return status;
+}
+
 export default function AISectionPage() {
   const { currentCourse } = useCourseStore();
   // AI Section workflow state
@@ -1658,6 +1941,13 @@ For ANY question where options are "True" and "False":
   // Define activeStep for Stepper
   const activeStep = React.useMemo(() => {
     if (!aiJobStatus) return null;
+
+    // conceptMap never appears as aiJobStatus.task (backend-executed task) —
+    // derive it from the per-task status instead.
+    const cm = aiJobStatus.jobStatus?.conceptMap;
+    if ((cm === 'WAITING' || cm === 'RUNNING') && aiJobStatus.jobStatus?.segmentation === 'COMPLETED') {
+      return 'conceptMap';
+    }
 
     if (aiJobStatus.task === 'AUDIO_EXTRACTION') {
       return 'audioExtraction';
@@ -2080,6 +2370,17 @@ For ANY question where options are "True" and "False":
         case "question":
           console.log("parameters are ", task, segParams, taskParams)
           taskType = "QUESTION_GENERATION";
+          // With the CONCEPT_MAP task pending, approve/start would run the
+          // concept map instead of question generation (the backend resolves
+          // the current task itself) — force the teacher through that step.
+          {
+            const cmState = aiJobStatus?.jobStatus?.conceptMap;
+            if (cmState !== undefined && cmState !== 'COMPLETED') {
+              toast.error('Please generate and approve the concept map before question generation.');
+              setCurrentUiStep(3);
+              return;
+            }
+          }
           const isCompleted = aiJobStatus?.jobStatus?.questionGeneration === 'COMPLETED';
 
           setTaskRuns(prev => ({ ...prev, [task]: [...prev[task], newRun] }));
@@ -2424,22 +2725,10 @@ For ANY question where options are "True" and "False":
   const handleRefreshStatus = async () => {
     if (!aiJobId) return;
     try {
-      const status = await aiSectionAPI.getJobStatus(aiJobId) as any;
-
-      // Enrich status with detailed task runs if a task failed
-      const failedTask = Object.entries(status.jobStatus || {}).find(([_, s]) => s === 'FAILED')?.[0];
-      if (failedTask) {
-        try {
-          const taskType = failedTask === 'transcriptGeneration' ? 'TRANSCRIPT_GENERATION'
-            : failedTask === 'segmentation' ? 'SEGMENTATION'
-              : failedTask === 'questionGeneration' ? 'QUESTION_GENERATION'
-                : failedTask.toUpperCase();
-          const runs = await aiSectionAPI.getTaskStatus(aiJobId, taskType);
-          status[failedTask] = runs;
-        } catch (e) {
-          console.error(`Failed to fetch task details for ${failedTask}:`, e);
-        }
-      }
+      const status = await enrichFailedTaskStatus(
+        await aiSectionAPI.getJobStatus(aiJobId) as any,
+        aiJobId,
+      );
 
       setAiJobStatus(status);
 
@@ -2732,7 +3021,7 @@ For ANY question where options are "True" and "False":
           setIsLoading(false);
           setProgress(100);
         }
-        return;
+        return status;
       }
       if (status?.status === 'COMPLETED' || status?.status === 'FAILED' || status?.status === 'STOPPED') {
         setProgress(100);
@@ -2751,6 +3040,7 @@ For ANY question where options are "True" and "False":
       prevJobStatusRef.current = status;
       if (!didMountRef.current) didMountRef.current = true;
 
+      return status;
     } catch (error) {
       setShouldPoll(false);
       setIsLoading(false);
@@ -2936,22 +3226,10 @@ For ANY question where options are "True" and "False":
     if (!aiJobId) return;
 
     try {
-      let status = await aiSectionAPI.getJobStatus(aiJobId) as any;
-
-      // Enrich status with detailed task runs if a task failed
-      const failedTask = Object.entries(status.jobStatus || {}).find(([_, s]) => s === 'FAILED')?.[0];
-      if (failedTask) {
-        try {
-          const taskType = failedTask === 'transcriptGeneration' ? 'TRANSCRIPT_GENERATION'
-            : failedTask === 'segmentation' ? 'SEGMENTATION'
-              : failedTask === 'questionGeneration' ? 'QUESTION_GENERATION'
-                : failedTask.toUpperCase();
-          const runs = await aiSectionAPI.getTaskStatus(aiJobId, taskType);
-          status[failedTask] = runs;
-        } catch (e) {
-          console.error(`Failed to fetch task details for ${failedTask}:`, e);
-        }
-      }
+      let status = await enrichFailedTaskStatus(
+        await aiSectionAPI.getJobStatus(aiJobId) as any,
+        aiJobId,
+      );
       setAiJobDate(status?.createdAt);
 
       const startTask = async () => {
@@ -3461,9 +3739,33 @@ For ANY question where options are "True" and "False":
                       </div>
                     )
                   }
-                  {/* Question Generation Section */}
+                  {/* Concept Map Section */}
                   {
                     currentUiStep === 3 && (
+                      <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#151516] border border-gray-200 rounded-[14px] p-[15px] w-full dark:border-[#26211E]">
+                        <div className="flex items-center gap-3.5 mb-7">
+                          <div>
+                            <div className="bg-[linear-gradient(135deg,_#FF8904_0%,_#F6339A_100%)] h-12 w-12 rounded-[14px] flex items-center justify-center">
+                              <Network className="w-6 h-6 text-white dark:text-[#0D0D0D]" />
+                            </div>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-xl text-gray-900 dark:text-[#C6D2E1]">Concept Map</p>
+                            <span className="font-normal text-xs text-[#4A5565] dark:text-[#FCFDFF]">Review the lecture's key concepts and their prerequisite links before questions are generated.</span>
+                          </div>
+                        </div>
+                        <ConceptMapApprovalSection
+                          aiJobId={aiJobId}
+                          aiJobStatus={aiJobStatus}
+                          handleRefreshStatus={handleRefreshStatus}
+                          onContinue={() => setCurrentUiStep(4)}
+                        />
+                      </div>
+                    )
+                  }
+                  {/* Question Generation Section */}
+                  {
+                    currentUiStep === 4 && (
                       <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#151516] border border-gray-200 rounded-[14px] p-[15px] w-full dark:border-[#26211E]">
                         <div className="mb-4">
                           <div className="flex items-center gap-3.5 mb-7">
@@ -3563,7 +3865,7 @@ For ANY question where options are "True" and "False":
                         />
                         {acceptedRuns.question && (
                           <div className="flex justify-end mt-4">
-                            <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white dark:text-[#0D0D0D]" onClick={() => setCurrentUiStep(4)}>Next Step</Button>
+                            <Button className="bg-gradient-to-r from-orange-400 to-pink-500 hover:from-orange-500 hover:to-pink-600 text-white dark:text-[#0D0D0D]" onClick={() => setCurrentUiStep(5)}>Next Step</Button>
                           </div>
                         )}
                       </div>
@@ -3624,7 +3926,7 @@ For ANY question where options are "True" and "False":
                   )} */}
 
                   {
-                    currentUiStep === 4 && (
+                    currentUiStep === 5 && (
                       <div className="shadow-xl backdrop-blur bg-white/80 dark:bg-[#151516] border border-gray-200 rounded-[14px] p-[15px] w-full dark:border-[#26211E]">
                         <div className="flex items-center gap-2 mb-4">
                           <div className="flex items-center gap-3.5 mb-7">
@@ -3685,12 +3987,12 @@ For ANY question where options are "True" and "False":
                             onClick={async () => {
                               if (!aiJobId) return;
                               try {
-                                // Use the simplified parameters as shown in the image
-                                const params = {
-                                  videoItemBaseName: "video_item",
-                                  quizItemBaseName: "quiz_item",
-                                  questionsPerQuiz: 1
-                                };
+                                // Publish with server defaults. Passing questionsPerQuiz
+                                // fans the upload out into extra per-item transactions,
+                                // which the outer job transaction loses to a Mongo
+                                // WriteConflict — aborting the publish after inner
+                                // transactions have already committed orphan items.
+                                const params = {};
 
                                 setTaskRuns(prev => ({
                                   ...prev,

@@ -13,6 +13,10 @@ import {
 } from 'routing-controllers';
 import {
   audioData,
+  conceptMapData,
+  ConceptMapEdgeData,
+  ConceptMapNodeData,
+  ConceptMapParameters,
   contentUploadData,
   GenAIBody,
   JobState,
@@ -28,6 +32,9 @@ import {
   trascriptGenerationData,
   UploadParameters,
 } from '../classes/transformers/GenAI.js';
+import { ConceptMapService } from './ConceptMapService.js';
+import { ConceptMapRepository } from '../repositories/providers/mongodb/ConceptMapRepository.js';
+import { ConceptMap } from '../classes/transformers/ConceptMap.js';
 import { QuestionFactory } from '#root/modules/quizzes/classes/index.js';
 import { CreateItemBody } from '#root/modules/courses/classes/index.js';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
@@ -63,6 +70,12 @@ export class GenAIService extends BaseService {
   constructor(
     @inject(GENAI_TYPES.WebhookService)
     private readonly webhookService: WebhookService,
+
+    @inject(GENAI_TYPES.ConceptMapService)
+    private readonly conceptMapService: ConceptMapService,
+
+    @inject(GENAI_TYPES.ConceptMapRepo)
+    private readonly conceptMapRepository: ConceptMapRepository,
 
     @inject(GENAI_TYPES.GenAIRepository)
     private readonly genAIRepository: GenAIRepository,
@@ -204,6 +217,7 @@ export class GenAIService extends BaseService {
     parameters?: Partial<
       | TranscriptParameters
       | SegmentationParameters
+      | ConceptMapParameters
       | QuestionGenerationParameters
       | UploadParameters
     >,
@@ -256,7 +270,200 @@ export class GenAIService extends BaseService {
         const result = await this.uploadContent(jobId, jobState);
         return result;
       }
+      if (jobState.currentTask === TaskType.CONCEPT_MAP) {
+        // Backend-executed (like UPLOAD_CONTENT): never sent to the AI
+        // server / webhook path.
+        return this.runConceptMapTask(jobId, jobState, session);
+      }
       return this.webhookService.approveTaskStart(jobId, jobState);
+    });
+  }
+
+  private async runConceptMapTask(
+    jobId: string,
+    jobState: JobState,
+    session: any,
+  ): Promise<any> {
+    const job = await this.genAIRepository.getById(jobId, session);
+    const taskData = await this.genAIRepository.getTaskDataByJobId(
+      jobId,
+      session,
+    );
+    if (!job || !taskData) {
+      throw new NotFoundError(`Job with ID ${jobId} not found`);
+    }
+    if (!jobState.file) {
+      throw new BadRequestError(
+        'No transcript file available for concept map generation',
+      );
+    }
+    let result: conceptMapData;
+    try {
+      const chunks = await this.conceptMapService.fetchTranscriptChunks(
+        jobState.file,
+      );
+      result = await this.conceptMapService.generate(
+        chunks,
+        jobState.segmentMap ?? [],
+        jobState.parameters as ConceptMapParameters | undefined,
+      );
+    } catch (error: any) {
+      result = {
+        status: TaskStatus.FAILED,
+        error: error?.message || 'Concept map generation failed',
+      };
+    }
+    job.jobStatus.conceptMap = result.status;
+    if (taskData.conceptMap) {
+      taskData.conceptMap.push(result);
+    } else {
+      taskData.conceptMap = [result];
+    }
+    const updatedJob = await this.genAIRepository.update(jobId, job, session);
+    const updatedTaskData = await this.genAIRepository.updateTaskData(
+      jobId,
+      taskData,
+      session,
+    );
+    if (!updatedJob || !updatedTaskData) {
+      throw new InternalServerError(
+        `Failed to store concept map result for job ID ${jobId}`,
+      );
+    }
+    return { message: 'Success', data: result };
+  }
+
+  /**
+   * Retroactive concept-map generation for an already-published job (e.g.
+   * lectures uploaded before the feature existed). The job gains
+   * `jobStatus.conceptMap`, a map is generated from the stored segmentation,
+   * and it is published immediately — anchors are re-derived from the
+   * section's ACTUAL items (the created-items info was never persisted):
+   * video items are matched by the job's URL plus the exact clip-boundary
+   * strings the upload wrote, and each segment's quiz is the QUIZ item that
+   * directly follows its video in the section order.
+   */
+  async generateRetroactiveConceptMap(jobId: string): Promise<conceptMapData> {
+    return this._withTransaction(async session => {
+      const job = await this.genAIRepository.getById(jobId, session);
+      const taskData = await this.genAIRepository.getTaskDataByJobId(
+        jobId,
+        session,
+      );
+      if (!job || !taskData) {
+        throw new NotFoundError(`Job with ID ${jobId} not found`);
+      }
+      if (job.jobStatus.uploadContent !== TaskStatus.COMPLETED) {
+        throw new BadRequestError(
+          'Retroactive concept-map generation is only available for jobs whose content has been published',
+        );
+      }
+      const seg = taskData.segmentation?.[taskData.segmentation.length - 1];
+      if (!seg?.transcriptFileUrl || !seg.segmentationMap?.length) {
+        throw new BadRequestError(
+          'Job has no stored segmentation data to generate a concept map from',
+        );
+      }
+
+      let result: conceptMapData;
+      try {
+        const chunks = await this.conceptMapService.fetchTranscriptChunks(
+          seg.transcriptFileUrl,
+        );
+        result = await this.conceptMapService.generate(
+          chunks,
+          seg.segmentationMap,
+          job.conceptMapParameters,
+        );
+      } catch (error: any) {
+        result = {
+          status: TaskStatus.FAILED,
+          error: error?.message || 'Concept map generation failed',
+        };
+      }
+      // The legacy job gains the field here, by explicit teacher request.
+      job.jobStatus.conceptMap = result.status;
+      if (taskData.conceptMap) {
+        taskData.conceptMap.push(result);
+      } else {
+        taskData.conceptMap = [result];
+      }
+
+      if (result.status === TaskStatus.COMPLETED) {
+        const uploadParams = job.uploadParameters;
+        const items = await this.itemService.readSectionItemsInternal(
+          uploadParams.versionId,
+          uploadParams.moduleId,
+          uploadParams.sectionId,
+        );
+        const videos = items.filter(
+          i => i.type === ItemType.VIDEO && i.details?.URL === job.url,
+        );
+        const quizAfterVideo = (videoId: string): string | undefined => {
+          const index = items.findIndex(i => i._id === videoId);
+          if (index < 0) return undefined;
+          for (let j = index + 1; j < items.length; j++) {
+            if (items[j].type === ItemType.QUIZ) return items[j]._id;
+            if (items[j].type === ItemType.VIDEO) return undefined;
+          }
+          return undefined;
+        };
+        let previousEnd = 0;
+        const createdVideoItemsInfo: Array<{ id?: string; segmentId: string }> = [];
+        const createdQuizItemsInfo: Array<{ id?: string; segmentId: string }> = [];
+        seg.segmentationMap.forEach((segmentEnd, index) => {
+          const startString = this.secondsToTimeString(previousEnd);
+          const endString = this.secondsToTimeString(Number(segmentEnd));
+          const video =
+            videos.find(
+              v =>
+                v.details?.startTime === startString &&
+                v.details?.endTime === endString,
+            ) ?? videos[index];
+          createdVideoItemsInfo.push({
+            id: video?._id,
+            segmentId: String(segmentEnd),
+          });
+          createdQuizItemsInfo.push({
+            id: video ? quizAfterVideo(video._id) : undefined,
+            segmentId: String(segmentEnd),
+          });
+          previousEnd = Number(segmentEnd);
+        });
+
+        const jobState = new JobState();
+        jobState.segmentMap = seg.segmentationMap;
+        jobState.parameters = uploadParams;
+        try {
+          await this.publishConceptMap(
+            jobId,
+            job,
+            jobState,
+            taskData,
+            createdVideoItemsInfo,
+            createdQuizItemsInfo,
+            session,
+          );
+        } catch (error) {
+          console.error(
+            `Failed to publish retroactive concept map for job ${jobId}:`,
+            error,
+          );
+        }
+      }
+
+      const updatedJob = await this.genAIRepository.update(jobId, job, session);
+      const updatedTaskData = await this.genAIRepository.updateTaskData(
+        jobId,
+        taskData,
+        session,
+      );
+      if (!updatedJob || !updatedTaskData) {
+        throw new InternalServerError(
+          `Failed to store retroactive concept map for job ID ${jobId}`,
+        );
+      }
+      return result;
     });
   }
 
@@ -267,6 +474,7 @@ export class GenAIService extends BaseService {
     parameters?: Partial<
       | TranscriptParameters
       | SegmentationParameters
+      | ConceptMapParameters
       | QuestionGenerationParameters
       | UploadParameters
     >,
@@ -322,6 +530,9 @@ export class GenAIService extends BaseService {
         const result = await this.uploadContent(jobId, jobState);
         return result;
       }
+      if (jobState.currentTask === TaskType.CONCEPT_MAP) {
+        return this.runConceptMapTask(jobId, jobState, session);
+      }
       return this.webhookService.rerunTask(jobId, jobState);
     });
   }
@@ -335,8 +546,15 @@ export class GenAIService extends BaseService {
       if (job.jobStatus.uploadContent === TaskStatus.COMPLETED) {
       } else if (job.jobStatus.questionGeneration === TaskStatus.COMPLETED) {
         job.jobStatus.uploadContent = TaskStatus.WAITING;
-      } else if (job.jobStatus.segmentation === TaskStatus.COMPLETED) {
+      } else if (job.jobStatus.conceptMap === TaskStatus.COMPLETED) {
         job.jobStatus.questionGeneration = TaskStatus.WAITING;
+      } else if (job.jobStatus.segmentation === TaskStatus.COMPLETED) {
+        // Legacy jobs have no conceptMap field: skip straight to questions.
+        if (job.jobStatus.conceptMap !== undefined) {
+          job.jobStatus.conceptMap = TaskStatus.WAITING;
+        } else {
+          job.jobStatus.questionGeneration = TaskStatus.WAITING;
+        }
       } else if (job.jobStatus.transcriptGeneration === TaskStatus.COMPLETED) {
         job.jobStatus.segmentation = TaskStatus.WAITING;
       } else if (job.jobStatus.audioExtraction === TaskStatus.COMPLETED) {
@@ -439,6 +657,9 @@ export class GenAIService extends BaseService {
         case TaskType.SEGMENTATION:
           result = taskData.segmentation;
           break;
+        case TaskType.CONCEPT_MAP:
+          result = taskData.conceptMap;
+          break;
         case TaskType.QUESTION_GENERATION:
           result = taskData.questionGeneration;
           break;
@@ -457,6 +678,66 @@ export class GenAIService extends BaseService {
       }
 
       return result;
+    });
+  }
+
+  /**
+   * Teacher approval edit: remove one concept from the job's latest generated
+   * concept map (the entry the preview shows and UPLOAD_CONTENT publishes).
+   * Incident edges drop and parent→child chains are re-bridged in
+   * ConceptMapService.removeNode. Returns the edited map data.
+   */
+  async editConceptMapPreview(
+    jobId: string,
+    removeNodeId: string,
+  ): Promise<conceptMapData> {
+    return this._withTransaction(async session => {
+      const taskData = await this.genAIRepository.getTaskDataByJobId(
+        jobId,
+        session,
+      );
+      if (!taskData) {
+        throw new NotFoundError(`Task data for job ID ${jobId} not found`);
+      }
+      const entries = taskData.conceptMap ?? [];
+      // The preview and publish both use the LATEST completed entry with
+      // nodes — edit exactly that one.
+      let latest: conceptMapData | undefined;
+      for (let i = entries.length - 1; i >= 0; i--) {
+        const entry = entries[i];
+        if (entry.status === TaskStatus.COMPLETED && entry.nodes?.length) {
+          latest = entry;
+          break;
+        }
+      }
+      if (!latest) {
+        throw new NotFoundError(
+          `No generated concept map found for job ${jobId}`,
+        );
+      }
+      let result: { nodes: ConceptMapNodeData[]; edges: ConceptMapEdgeData[] };
+      try {
+        result = this.conceptMapService.removeNode(
+          latest.nodes!,
+          latest.edges ?? [],
+          removeNodeId,
+        );
+      } catch (error: any) {
+        throw new BadRequestError(error?.message || 'Invalid node removal');
+      }
+      latest.nodes = result.nodes;
+      latest.edges = result.edges;
+      const updatedTask = await this.genAIRepository.updateTaskData(
+        jobId,
+        taskData,
+        session,
+      );
+      if (!updatedTask) {
+        throw new InternalServerError(
+          `Failed to update task data for job ID ${jobId}`,
+        );
+      }
+      return latest;
     });
   }
 
@@ -703,6 +984,14 @@ export class GenAIService extends BaseService {
               taskData.segmentation = [{ ...(jobData as segmentationData) }];
             }
             break;
+          case TaskType.CONCEPT_MAP:
+            job.jobStatus.conceptMap = jobData.status;
+            if (taskData.conceptMap) {
+              taskData.conceptMap.push({ ...(jobData as conceptMapData) });
+            } else {
+              taskData.conceptMap = [{ ...(jobData as conceptMapData) }];
+            }
+            break;
           case TaskType.QUESTION_GENERATION:
             job.jobStatus.questionGeneration = jobData.status;
             if (taskData.questionGeneration) {
@@ -726,6 +1015,9 @@ export class GenAIService extends BaseService {
             break;
           case TaskType.SEGMENTATION:
             job.jobStatus.segmentation = jobData.status;
+            break;
+          case TaskType.CONCEPT_MAP:
+            job.jobStatus.conceptMap = jobData.status;
             break;
           case TaskType.QUESTION_GENERATION:
             job.jobStatus.questionGeneration = jobData.status;
@@ -807,6 +1099,25 @@ export class GenAIService extends BaseService {
           ]?.fileUrl;
       }
       if (
+        job.jobStatus.conceptMap !== undefined &&
+        !(
+          job.jobStatus.conceptMap === TaskStatus.PENDING ||
+          job.jobStatus.conceptMap === TaskStatus.RUNNING
+        )
+      ) {
+        jobState.currentTask = TaskType.CONCEPT_MAP;
+        jobState.taskStatus = job.jobStatus.conceptMap;
+        jobState.parameters = job.conceptMapParameters;
+        jobState.file =
+          task.segmentation[
+            usePrevious ? usePrevious : task.segmentation.length - 1
+          ]?.transcriptFileUrl;
+        jobState.segmentMap =
+          task.segmentation[
+            usePrevious ? usePrevious : task.segmentation.length - 1
+          ]?.segmentationMap;
+      }
+      if (
         !(
           job.jobStatus.questionGeneration === TaskStatus.PENDING ||
           job.jobStatus.questionGeneration === TaskStatus.RUNNING
@@ -830,6 +1141,8 @@ export class GenAIService extends BaseService {
         job.jobStatus.audioExtraction === TaskStatus.COMPLETED &&
         job.jobStatus.transcriptGeneration === TaskStatus.COMPLETED &&
         job.jobStatus.segmentation === TaskStatus.COMPLETED &&
+        (job.jobStatus.conceptMap === undefined ||
+          job.jobStatus.conceptMap === TaskStatus.COMPLETED) &&
         job.jobStatus.questionGeneration === TaskStatus.COMPLETED &&
         job.jobStatus.uploadContent !== TaskStatus.PENDING
       ) {
@@ -1554,6 +1867,27 @@ export class GenAIService extends BaseService {
           jobId,
           session,
         );
+
+        // Publish the approved concept map (if this job generated one):
+        // resolve each node's segment anchor to the video item that segment
+        // just became. Failure here must never fail the upload itself.
+        try {
+          await this.publishConceptMap(
+            jobId,
+            jobData,
+            jobState,
+            taskDAta,
+            createdVideoItemsInfo,
+            createdQuizItemsInfo,
+            session,
+          );
+        } catch (error) {
+          console.error(
+            `Failed to publish concept map for job ${jobId} (upload unaffected):`,
+            error,
+          );
+        }
+
         if (!taskDAta.uploadContent) {
           taskDAta.uploadContent = [{ status: TaskStatus.COMPLETED }];
         }
@@ -1606,5 +1940,104 @@ export class GenAIService extends BaseService {
         );
       }
     });
+  }
+
+  private async publishConceptMap(
+    jobId: string,
+    jobData: GenAIBody,
+    jobState: JobState,
+    taskData: TaskData,
+    createdVideoItemsInfo: Array<{ id?: string; segmentId: string }>,
+    createdQuizItemsInfo: Array<{ id?: string; segmentId: string }>,
+    session: any,
+  ): Promise<void> {
+    const latestMap = taskData.conceptMap
+      ?.filter(m => m.status === TaskStatus.COMPLETED && m.nodes?.length)
+      .pop();
+    if (!latestMap) {
+      return; // job has no approved map — feature is additive, skip silently
+    }
+    const uploadParams =
+      (jobState.parameters as UploadParameters) ?? jobData.uploadParameters;
+
+    // Nodes are anchored to the SEGMENTATION task's map; the upload loop may
+    // run on a slightly different rendering of the same boundaries (e.g.
+    // rounded values in segmentMapUsed). Segment ORDER is the stable
+    // identity, so resolve node → item by segment index in the map the
+    // concepts were generated against, falling back to nearest-boundary if
+    // the counts ever diverge (e.g. teacher edited the segment map between
+    // tasks).
+    const conceptSegMap =
+      taskData.segmentation?.[taskData.segmentation.length - 1]
+        ?.segmentationMap ?? jobState.segmentMap ?? [];
+    const uploadSegMap = jobState.segmentMap ?? [];
+
+    const segmentIndexForNode = (segmentEnd: number): number => {
+      let index = conceptSegMap.findIndex(v => v === segmentEnd);
+      if (index < 0 || index >= createdVideoItemsInfo.length) {
+        let best = -1;
+        let bestDist = Number.POSITIVE_INFINITY;
+        uploadSegMap.forEach((v, i) => {
+          const dist = Math.abs(Number(v) - segmentEnd);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = i;
+          }
+        });
+        index = best;
+      }
+      return index;
+    };
+    const itemForNode = (segmentEnd: number): string | undefined => {
+      const index = segmentIndexForNode(segmentEnd);
+      return index >= 0 ? createdVideoItemsInfo[index]?.id : undefined;
+    };
+    // Quiz items only exist for segments that received questions, so they
+    // are looked up by the segment value they were created for — not by
+    // position in createdQuizItemsInfo.
+    const quizBySegmentId = new Map(
+      createdQuizItemsInfo.map(q => [q.segmentId, q.id]),
+    );
+    const quizForNode = (segmentEnd: number): string | undefined => {
+      const index = segmentIndexForNode(segmentEnd);
+      if (index < 0 || index >= uploadSegMap.length) return undefined;
+      return quizBySegmentId.get(String(uploadSegMap[index]));
+    };
+    const conceptSegStart = (segmentEnd: number): number => {
+      const index = conceptSegMap.findIndex(v => v === segmentEnd);
+      return index > 0 ? Number(conceptSegMap[index - 1]) : 0;
+    };
+
+    const map: ConceptMap = {
+      jobId,
+      courseId: uploadParams.courseId,
+      versionId: uploadParams.versionId,
+      moduleId: uploadParams.moduleId,
+      sectionId: uploadParams.sectionId,
+      nodes: latestMap.nodes.map(n => {
+        const offset =
+          typeof n.anchorSeconds === 'number'
+            ? Math.max(0, n.anchorSeconds - conceptSegStart(n.segmentEnd))
+            : 0;
+        return {
+          id: n.id,
+          label: n.label,
+          description: n.description,
+          segmentEnd: n.segmentEnd,
+          videoItemId: itemForNode(n.segmentEnd),
+          quizItemId: quizForNode(n.segmentEnd),
+          offsetSeconds: Math.round(offset * 1000) / 1000,
+        };
+      }),
+      edges: (latestMap.edges ?? []).map(e => ({
+        from: e.from,
+        to: e.to,
+        label: e.label,
+      })),
+      fallback: latestMap.fallback,
+      modelUsed: latestMap.modelUsed,
+      createdAt: new Date(),
+    };
+    await this.conceptMapRepository.upsertForJob(map, session);
   }
 }

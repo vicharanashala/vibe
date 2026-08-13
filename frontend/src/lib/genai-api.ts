@@ -1,4 +1,5 @@
 import { EventSourcePolyfill } from 'event-source-polyfill';
+import type { components } from '@/types/schema';
 
 // GenAI API utility functions
 // Updated to use job+task system
@@ -81,12 +82,15 @@ export interface JobStatus {
     audioExtraction: JobStatusValue;
     transcriptGeneration?: JobStatusValue;
     segmentation?: JobStatusValue;
+    // Absent on legacy jobs and when CONCEPT_MAP_ENABLED=false on the backend.
+    conceptMap?: JobStatusValue;
     questionGeneration?: JobStatusValue;
     uploadContent?: JobStatusValue;
   };
   audioExtraction?: any[];
   transcriptGeneration?: any[];
   segmentation?: any[];
+  conceptMap?: any[];
   questionGeneration?: any[];
   uploadContent?: any[];
 }
@@ -541,6 +545,64 @@ export const rerunJobTask = async (
   });
 };
 
+
+// Concept map (typed via generated component schemas; endpoints are called
+// through the direct-fetch pattern like the rest of this file)
+export type ConceptMapResponse = components['schemas']['ConceptMapResponse'];
+export type ConceptMapNodeResponse = components['schemas']['ConceptMapNodeResponse'];
+export type ConceptMapEdgeResponse = components['schemas']['ConceptMapEdgeResponse'];
+
+// Teacher approval step: latest in-pipeline (not yet published) map of a job.
+export const getConceptMapPreview = async (
+  jobId: string
+): Promise<ConceptMapResponse> => {
+  const response = await makeAuthenticatedRequest(
+    `/concept-maps/job/${jobId}/preview`,
+    { method: 'GET' }
+  );
+  return response.json();
+};
+
+// Student view: published maps of a section (one per generated lecture).
+export const getSectionConceptMaps = async (
+  versionId: string,
+  sectionId: string
+): Promise<ConceptMapResponse[]> => {
+  const response = await makeAuthenticatedRequest(
+    `/concept-maps/section/${versionId}/${sectionId}`,
+    { method: 'GET' }
+  );
+  return response.json();
+};
+
+// Teacher approval edit: remove one node from the latest generated map
+// (incident edges drop; prerequisite chains are re-bridged parent → child).
+export const deleteConceptMapPreviewNode = async (
+  jobId: string,
+  removeNodeId: string
+): Promise<ConceptMapResponse> => {
+  const response = await makeAuthenticatedRequest(
+    `/concept-maps/job/${jobId}/preview`,
+    { method: 'PATCH', body: JSON.stringify({ removeNodeId }) }
+  );
+  return response.json();
+};
+
+// Mastery overlay: the requesting student's per-node quiz outcomes for the
+// section's published maps (mastered = segment quiz passed, weak = attempted
+// but not passed; untouched nodes are absent).
+export type ConceptMapProgressResponse = components['schemas']['ConceptMapProgressResponse'];
+
+export const getSectionConceptMapProgress = async (
+  versionId: string,
+  sectionId: string
+): Promise<ConceptMapProgressResponse[]> => {
+  const response = await makeAuthenticatedRequest(
+    `/concept-maps/section/${versionId}/${sectionId}/progress`,
+    { method: 'GET' }
+  );
+  return response.json();
+};
 
 export const editQuestionData = async (jobId: string, questionData: any, index?: number,) => {
   return makeAuthenticatedRequest(`/genai/jobs/${jobId}/edit/question`, {

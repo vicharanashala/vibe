@@ -146,6 +146,45 @@ export class ItemService extends BaseService {
     return { version, module, section, itemsGroup };
   }
 
+  /**
+   * Internal (service-to-service) read of a section's items in their stored
+   * order, each with full details and its ref type — WITHOUT enrollment
+   * gating. Used by the GenAI module to re-derive concept-map anchors when
+   * generating a map retroactively for an already-published job. Broken or
+   * deleted refs are skipped.
+   */
+  public async readSectionItemsInternal(
+    versionId: string,
+    moduleId: string,
+    sectionId: string,
+  ): Promise<Array<{ _id: string; type: ItemType; details?: any }>> {
+    const { itemsGroup } = await this._getVersionModuleSectionAndItemsGroup(
+      versionId,
+      moduleId,
+      sectionId,
+    );
+    const resolved = await Promise.all(
+      (itemsGroup.items ?? [])
+        .filter(ref => ref?._id)
+        .map(async ref => {
+          try {
+            const item = (await this.itemRepo.readItemById(
+              ref._id.toString(),
+            )) as any;
+            return item
+              ? { _id: ref._id.toString(), type: ref.type, details: item.details }
+              : null;
+          } catch {
+            // deleted or inconsistent ref — skip, anchors degrade gracefully
+            return null;
+          }
+        }),
+    );
+    return resolved.filter(
+      (r): r is { _id: string; type: ItemType; details: any } => r !== null,
+    );
+  }
+
   private async _updateHierarchyAndVersion(
     version: CourseVersion,
     module: { updatedAt: Date },

@@ -5,6 +5,8 @@ import { useContainer, RoutingControllersOptions } from 'routing-controllers';
 import { genAIContainerModule } from './container.js';
 import { GenAIController } from './controllers/GenAIController.js';
 import { WebhookController } from './controllers/WebhookController.js';
+import { ConceptMapController } from './controllers/ConceptMapController.js';
+import { GENAI_VALIDATORS } from './classes/validators/GenAIValidators.js';
 
 export const genAIContainerModules: ContainerModule[] = [
   genAIContainerModule,
@@ -14,7 +16,14 @@ export const genAIContainerModules: ContainerModule[] = [
 export const genAIModuleControllers: Function[] = [
   GenAIController,
   WebhookController,
+  ConceptMapController,
 ];
+
+// GENAI_VALIDATORS also holds plain enum objects (JobType, TaskStatus);
+// only class constructors are usable as OpenAPI validator schemas.
+export const genAIModuleValidators: Function[] = (
+  GENAI_VALIDATORS as unknown[]
+).filter((v): v is Function => typeof v === 'function');
 
 export async function setupGenAIContainer(): Promise<void> {
   const container = new Container();

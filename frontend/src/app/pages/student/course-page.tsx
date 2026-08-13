@@ -23,7 +23,11 @@ import {
   X,
   CircleCheckIcon,
   Maximize2,
+  Network,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getSectionConceptMaps, getSectionConceptMapProgress } from "@/lib/genai-api";
+import { ConceptMapPanel, StudyPlan, buildStudyPlan } from "@/components/concept-map";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
@@ -307,8 +311,53 @@ export default function CoursePage() {
   // Fetch proctoring settings for the course (fetched once when component loads)
   const [proctoringData, setProctoringData] = useState<StudentProctoringSettings | null>(null);
 
+  // Published concept maps for the selected section (most sections have none;
+  // the panel only mounts when maps exist).
+  const { data: sectionConceptMaps } = useQuery({
+    queryKey: ['concept-maps', VERSION_ID, selectedSectionId],
+    queryFn: () => getSectionConceptMaps(VERSION_ID, selectedSectionId!),
+    enabled: !!VERSION_ID && !!selectedSectionId,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  // Mastery overlay: this student's per-node quiz outcomes for those maps.
+  const { data: conceptMapProgress } = useQuery({
+    queryKey: ['concept-map-progress', VERSION_ID, selectedSectionId],
+    queryFn: () => getSectionConceptMapProgress(VERSION_ID, selectedSectionId!),
+    enabled: !!VERSION_ID && !!selectedSectionId && (sectionConceptMaps?.length ?? 0) > 0,
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+  // Best raw quiz score per node (0-100) accompanies outcomes, keyed by jobId.
+  const { conceptMapOutcomes, conceptMapScores } = useMemo(() => {
+    const outcomesByJob: Record<string, Record<string, 'mastered' | 'weak'>> = {};
+    const scoresByJob: Record<string, Record<string, number>> = {};
+    for (const entry of conceptMapProgress ?? []) {
+      outcomesByJob[entry.jobId] = entry.outcomes;
+      if (entry.scores) scoresByJob[entry.jobId] = entry.scores;
+    }
+    return { conceptMapOutcomes: outcomesByJob, conceptMapScores: scoresByJob };
+  }, [conceptMapProgress]);
+  const [conceptMapOpen, setConceptMapOpen] = useState(false);
+  // Concept-map navigation: when a node with a within-item offset is clicked,
+  // the player lands at that offset once the item loads (subject to the seek
+  // rules enforced in video.tsx). `fromItemId` is where the student was when
+  // the seek was armed — navigation is async, so the selection briefly stays
+  // there; the seek is only discarded once the selection settles somewhere
+  // that is neither the origin nor the target.
+  const [pendingSeek, setPendingSeek] = useState<{ itemId: string; seconds: number; fromItemId: string | null } | null>(null);
+  const queryClient = useQueryClient();
 
-  
+  useEffect(() => {
+    if (
+      pendingSeek &&
+      selectedItemId !== pendingSeek.itemId &&
+      selectedItemId !== pendingSeek.fromItemId
+    ) {
+      setPendingSeek(null);
+    }
+  }, [pendingSeek, selectedItemId]);
+
   const sectionId = activeSectionInfo?.sectionId ?? '';
 
   // ---------------------------------------------
@@ -564,6 +613,14 @@ export default function CoursePage() {
   useEffect(() => {
     if (quizPassed !== 2) setTimeout(() => setQuizPassed(2), 2000);
   }, [quizPassed]);
+
+  // A quiz was just graded (1 = passed, 0 = failed) — refresh the concept-map
+  // mastery overlay so the node states reflect the new outcome.
+  useEffect(() => {
+    if (quizPassed === 0 || quizPassed === 1) {
+      queryClient.invalidateQueries({ queryKey: ['concept-map-progress'] });
+    }
+  }, [quizPassed, queryClient]);
   // Add a flag to track if initial load from progress is complete
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
@@ -1946,6 +2003,7 @@ return false;
                   cohortName={COHORT_NAME}
                   pendingStudentQuestionContext={pendingStudentQuestionContext}
                   clearPendingStudentQuestionContext={() => setPendingStudentQuestionContext(null)}
+                  initialSeekSeconds={pendingSeek && String(currentItem?._id) === pendingSeek.itemId ? pendingSeek.seconds : undefined}
                 />
               </div>
             </div>
@@ -1998,6 +2056,99 @@ return false;
             onHoverChange={setCamHover}
             anomaly={pauseVid || rewindVid}
           />
+        )}
+
+        {/* Concept map — floating toggle (right of the back button) + stage overlay.
+            Mounts only when the selected section has published maps. */}
+        {!conceptMapOpen && (sectionConceptMaps?.length ?? 0) > 0 && (
+          <div className="top-4 sm:top-6 left-16 sm:left-[4.5rem] z-50 absolute">
+            <button
+              onClick={() => { pauseVideoForControl(); setConceptMapOpen((p) => !p); }}
+              aria-label="Concept map"
+              className="inline-flex items-center gap-1.5 bg-glass hover:bg-white/15 shadow-lg backdrop-blur-md px-3.5 rounded-full ring-1 ring-glass-border h-9 font-medium text-stage-foreground text-xs hover:scale-105 transition"
+            >
+              <Network className="w-4 h-4" />
+              <span className="hidden sm:inline">Concept map</span>
+            </button>
+          </div>
+        )}
+        {conceptMapOpen && (sectionConceptMaps?.length ?? 0) > 0 && (
+          <Dialog open={conceptMapOpen} onOpenChange={setConceptMapOpen}>
+            <DialogContent className="flex flex-col gap-0 bg-card p-0 rounded-2xl w-full max-w-[1600px] max-h-[92vh] overflow-hidden text-card-foreground">
+              <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40">
+                <div className="place-items-center grid bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl w-9 h-9">
+                  <Network className="w-[18px] h-[18px] text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <DialogTitle className="block font-semibold text-sm">Concept Map</DialogTitle>
+                  <span className="block text-muted-foreground text-xs truncate">
+                    The ideas of this lecture and how they build on each other — click one to jump to that moment
+                  </span>
+                </div>
+              </div>
+              <div className="flex-1 min-h-0 space-y-3 px-4 py-3 overflow-y-auto">
+                {sectionConceptMaps!.map((map, idx) => {
+                  const mapModuleId = map.moduleId ?? selectedModuleId;
+                  const mapSectionId = map.sectionId ?? selectedSectionId;
+                  const highlightNodeId = map.nodes.find(
+                    n => n.videoItemId && n.videoItemId === selectedItemId
+                  )?.id;
+                  const outcomes = map.jobId ? conceptMapOutcomes[map.jobId] : undefined;
+                  const scores = map.jobId ? conceptMapScores[map.jobId] : undefined;
+                  // Remediation path: weak concepts + their unmastered
+                  // prerequisites, in prerequisite order (see study-plan.ts).
+                  const studySteps = buildStudyPlan(map.nodes, map.edges, outcomes, scores);
+                  const navigateToNode = (node: (typeof map.nodes)[number]) => {
+                    if (!node.videoItemId || !mapModuleId || !mapSectionId) return;
+                    setPendingSeek(
+                      node.offsetSeconds && node.offsetSeconds > 0
+                        ? { itemId: node.videoItemId, seconds: node.offsetSeconds, fromItemId: selectedItemId }
+                        : null
+                    );
+                    handleSelectItem(mapModuleId, mapSectionId, node.videoItemId);
+                    setConceptMapOpen(false);
+                  };
+                  return (
+                    <div key={map.jobId ?? idx} className="border border-border/40 rounded-xl overflow-hidden">
+                      <Suspense
+                        fallback={
+                          <div className="flex justify-center items-center h-[min(64vh,640px)] text-muted-foreground text-sm">
+                            Loading concept map…
+                          </div>
+                        }
+                      >
+                        <ConceptMapPanel
+                          className="w-full h-[min(64vh,640px)]"
+                          nodes={map.nodes}
+                          edges={map.edges}
+                          highlightNodeId={highlightNodeId}
+                          showLegend
+                          nodeState={(node) => {
+                            if (!node.videoItemId || !mapModuleId || !mapSectionId) return 'available';
+                            if (node.videoItemId === selectedItemId) return 'current';
+                            if (isItemLocked(mapModuleId, mapSectionId, node.videoItemId)) return 'locked';
+                            // Mastery overlay: quiz outcome for reachable, non-current nodes.
+                            const outcome = outcomes?.[node.id];
+                            if (outcome) return outcome;
+                            return 'available';
+                          }}
+                          nodeScore={(node) => scores?.[node.id]}
+                          onNodeClick={navigateToNode}
+                        />
+                      </Suspense>
+                      {studySteps.length > 0 && (
+                        <StudyPlan
+                          className="m-3"
+                          steps={studySteps}
+                          onStepClick={navigateToNode}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
 
         {/* Contextual skip / go-to-next (middle-right) */}

@@ -58,7 +58,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, source, assetId, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, pauseSignal, awayPaused = false }: VideoProps) {
+export default function Video({ URL, source, assetId, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, pauseSignal, awayPaused = false, initialSeekSeconds }: VideoProps) {
   /**
    * An uploaded lesson streams HLS instead of embedding YouTube. Everything else
    * in this component — proctoring, seek gating, watch-time, overlays, keyboard
@@ -760,6 +760,25 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
       target.setVolume(volume);
       setMaxTime(startTimeSeconds);
       target.seekTo(startTimeSeconds, true);
+      // Concept-map navigation: land where the concept is explained. This is
+      // a forward jump from the clip start, so it is only applied when the
+      // seek rules allow it (seekForwardEnabled); locked-down players start
+      // at the clip beginning as usual.
+      if (
+        typeof initialSeekSeconds === 'number' &&
+        initialSeekSeconds > 0 &&
+        seekForwardEnabled
+      ) {
+        const clipEnd = endTimeSeconds > 0 ? endTimeSeconds : dur;
+        const seekTarget = Math.min(
+          startTimeSeconds + initialSeekSeconds,
+          Math.max(startTimeSeconds, clipEnd - 1),
+        );
+        // Keep the anti-seek watchdog consistent with the jump.
+        maxTimeRef.current = seekTarget;
+        setMaxTime(seekTarget);
+        target.seekTo(seekTarget, true);
+      }
       onDurationChange?.(dur);
       target.pauseVideo();
     }
@@ -888,7 +907,8 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
               } catch { /* captions module unavailable — non-fatal */ }
             }
             // Shared with the uploaded-video player: duration, volume, seek to
-            // the segment start, then pause and wait for the camera.
+            // the segment start (plus concept-map offset seek), then pause
+            // and wait for the camera.
             handlePlayerReady(event.target);
             console.log('✅ YouTube player ready - waiting for camera to be ready');
 

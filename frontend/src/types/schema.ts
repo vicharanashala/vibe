@@ -2126,6 +2126,100 @@ export interface components {
              */
             readonly message: string;
         };
+        ConceptMapParameters: {
+            /**
+             * Max Concepts
+             * @description Upper bound on extracted concepts (hard cap 25)
+             * @example 15
+             */
+            maxConcepts?: number;
+            /**
+             * Prompt Hint
+             * @description Extra guidance appended to the concept extraction prompt
+             * @example Focus on data-structure concepts
+             */
+            promptHint?: string;
+        };
+        ConceptMapSectionParams: {
+            /** @description Course version ID the section belongs to */
+            versionId: string;
+            /** @description Section ID to fetch published concept maps for */
+            sectionId: string;
+        };
+        ConceptMapJobParams: {
+            /** @description GenAI job ID to preview the in-pipeline concept map of */
+            jobId: string;
+        };
+        ConceptMapNodeResponse: {
+            /** @description Stable node id, unique within the map */
+            id: string;
+            /** @description Concept label shown on the node */
+            label: string;
+            /** @description One-sentence description (hover text) */
+            description?: string;
+            /** @description Segment end-boundary the concept is anchored to */
+            segmentEnd: number;
+            /** @description Video item created from that segment (published maps only) */
+            videoItemId?: string;
+            /** @description Quiz item created from that segment (published maps only; absent when the segment got no questions) */
+            quizItemId?: string;
+            /** @description Seconds into that video item where the concept is explained */
+            offsetSeconds?: number;
+        };
+        ConceptMapEdgeResponse: {
+            /** @description Prerequisite concept id (understand first) */
+            from: string;
+            /** @description Dependent concept id */
+            to: string;
+            /** @description Novak-style linking phrase, read as '<from> <label> <to>' (e.g. 'leads to'). Absent on maps generated before this field existed and on edges bridged by node deletion. */
+            label?: string;
+        };
+        ConceptMapResponse: {
+            /** @description GenAI job (original lecture) this map was generated from */
+            jobId?: string;
+            /** @description Course ID */
+            courseId?: string;
+            /** @description Course version ID */
+            versionId?: string;
+            /** @description Module ID the lecture was published into */
+            moduleId?: string;
+            /** @description Section ID the lecture was published into */
+            sectionId?: string;
+            /** @description Concept nodes */
+            nodes: components["schemas"]["ConceptMapNodeResponse"][];
+            /** @description Prerequisite edges (from must be understood before to) */
+            edges: components["schemas"]["ConceptMapEdgeResponse"][];
+            /** @description True when produced by the deterministic no-LLM fallback */
+            fallback?: boolean;
+        };
+        ConceptMapProgressResponse: {
+            /** @description GenAI job whose published map these outcomes belong to */
+            jobId: string;
+            /** @description The requesting student's per-node quiz outcome: 'mastered' (segment quiz passed) or 'weak' (attempted, not passed). Nodes without attempts are absent. */
+            outcomes: {
+                [key: string]: "mastered" | "weak";
+            };
+            /** @description The requesting student's best raw quiz score per node, as a percentage (0-100). Nodes without a scored attempt are absent. */
+            scores: {
+                [key: string]: number;
+            };
+        };
+        ForbiddenErrorResponse: {
+            /** @description Information of the error. */
+            readonly message: string;
+            /**
+             * @description Name of the error.
+             * @example ForbiddenError
+             */
+            readonly name: string;
+        };
+        GenAINotFoundErrorResponse: {
+            /**
+             * @description The error message.
+             * @example No genAI job found with the specified ID. Please verify the ID and try again.
+             */
+            readonly message: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -3515,6 +3609,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ConceptMapController.getBySection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                sectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Published concept maps for the section (empty array if none) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConceptMapResponse"][];
+                };
+            };
+            /** @description Not enrolled in this course version */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForbiddenErrorResponse"];
+                };
+            };
+        };
+    };
+    "ConceptMapController.previewByJob": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest in-pipeline concept map of the job */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConceptMapResponse"];
+                };
+            };
+            /** @description Job has no generated concept map */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenAINotFoundErrorResponse"];
                 };
             };
         };
