@@ -5,6 +5,7 @@ import {
   Bell,
   BookOpen,
   Bot,
+  ClipboardList,
   Command,
   Frame,
   GalleryVerticalEnd,
@@ -56,6 +57,11 @@ export function AppSidebar() {
           { title: "Create Course", url: "/teacher/courses/create" },
           { title: "All Courses", url: "/teacher" },
         ],
+      },
+      {
+        title: "Examination",
+        url: "/teacher/exam-app",
+        icon: ClipboardList,
       },
       {
         title: "Announcements",
