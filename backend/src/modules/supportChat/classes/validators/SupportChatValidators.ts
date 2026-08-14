@@ -64,9 +64,9 @@ export class SupportChatContextDto {
 export class ChatMessageBody {
   @IsString()
   @IsNotEmpty()
-  @Length(3, 1000)
+  @Length(1, 1000)
   @JSONSchema({
-    description: 'The learner question (3-1000 characters).',
+    description: 'The learner question (1-1000 characters).',
     example: 'Why does my proctoring check keep failing?',
   })
   question!: string;
