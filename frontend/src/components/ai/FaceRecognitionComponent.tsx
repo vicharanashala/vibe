@@ -13,6 +13,7 @@ import type {
 
 const EMBEDDING_LENGTH = 128;
 const VERIFY_INTERVAL_MS = 1000;
+const DEBUG_FACE = false;
 const MATCH_THRESHOLD = 0.55;
 const REQUIRED_MATCHES = 3;
 const REQUIRED_MISMATCHES = 2;
@@ -337,7 +338,9 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
           if (!mismatchReportedRef.current) {
             await reportMismatch();
             mismatchReportedRef.current = true;
-            console.log('[FaceRecognitionDebug] anomaly sent', { distance });
+            if (DEBUG_FACE) {
+              console.log('[FaceRecognitionDebug] anomaly sent', { distance });
+            }
           }
         }
       }
@@ -347,13 +350,15 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
       onRecognitionResult?.([recognition]);
       onMismatchChange?.(hasConfirmedMismatch);
 
-      console.log('[FaceRecognitionDebug] comparison', {
-        distance,
-        rawMatch,
-        matchCount: matchCountRef.current,
-        mismatchCount: mismatchCountRef.current,
-        confirmedMismatch: hasConfirmedMismatch,
-      });
+      if (DEBUG_FACE) {
+        console.log('[FaceRecognitionDebug] comparison', {
+          distance,
+          rawMatch,
+          matchCount: matchCountRef.current,
+          mismatchCount: mismatchCountRef.current,
+          confirmedMismatch: hasConfirmedMismatch,
+        });
+      }
 
       updateDebugInfo({
         currentFrameFaces: 1,

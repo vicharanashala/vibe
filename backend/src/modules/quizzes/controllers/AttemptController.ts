@@ -255,8 +255,6 @@ class AttemptController {
       if (error && typeof error.httpCode === 'number') {
         throw error;
       }
-      // Wrap any unexpected error so the client always gets a structured JSON body
-      // instead of a generic 500 with no message.
       throw new BadRequestError(
         error?.message || 'Failed to submit quiz attempt',
       );

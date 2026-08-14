@@ -20,6 +20,8 @@ import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { FaceRegistrationModal } from './ai/FaceRegistrationModal';
 
+const DEBUG_FACE = false;
+
 // let flag = 0;
 function FloatingVideo({
   isVisible,
@@ -572,7 +574,9 @@ const lastCalledRef = useRef<number>(0);
     
     if (isInGracePeriod) {
       const remainingGrace = gracePeriod - (currentTime - anomalyDetectionStartTime);
-      console.log(`⏳ In grace period: ${Math.ceil(remainingGrace / 1000)}s remaining`);
+      if (DEBUG_FACE) {
+        console.log(`⏳ In grace period: ${Math.ceil(remainingGrace / 1000)}s remaining`);
+      }
       return; // Skip anomaly detection during grace period
     }
 
@@ -806,7 +810,9 @@ const lastCalledRef = useRef<number>(0);
     if (!isHandGestureDetectionEnabled || !isThumbsUpChallenge || !gesture) return;
     
     const gestureText = gesture.toLowerCase();
-    console.log(`[Challenge] Current gesture detected: "${gesture}" (normalized: "${gestureText}")`);
+    if (DEBUG_FACE) {
+      console.log(`[Challenge] Current gesture detected: "${gesture}" (normalized: "${gestureText}")`);
+    }
     
     // Check for various thumbs-up patterns that MediaPipe might return
     const isThumbsUp = gestureText.includes("thumb_up") || gestureText === "thumb_up";
@@ -828,15 +834,17 @@ const lastCalledRef = useRef<number>(0);
                               (isThumbsUpChallenge && isHandGestureDetectionEnabled);
 
   useEffect(() => {
-    console.log('[FaceRecognitionDebug] floating-video state', {
-      hasFaceRecognitionMismatch,
-      isFaceRecognitionEnabled,
-      isAnomaliesDetected,
-      recognizedFaces,
-      readyToDetect,
-      modelReady,
-      isVideoActive,
-    });
+    if (DEBUG_FACE) {
+      console.log('[FaceRecognitionDebug] floating-video state', {
+        hasFaceRecognitionMismatch,
+        isFaceRecognitionEnabled,
+        isAnomaliesDetected,
+        recognizedFaces,
+        readyToDetect,
+        modelReady,
+        isVideoActive,
+      });
+    }
   }, [
     hasFaceRecognitionMismatch,
     isFaceRecognitionEnabled,
@@ -971,10 +979,10 @@ const lastCalledRef = useRef<number>(0);
     // });
 
     // Log actual face data if available
-    if (faces.length > 0) {
+    if (faces.length > 0 && DEBUG_FACE) {
       console.log('👤 TensorFlow Face Details:', faces);
     }
-    if (recognizedFaces.length > 0) {
+    if (recognizedFaces.length > 0 && DEBUG_FACE) {
       console.log('🎭 Face-api Recognition Details:', recognizedFaces);
     }
   }, [faces, facesCount, recognizedFaces, modelReady, isVideoActive, readyToDetect]);

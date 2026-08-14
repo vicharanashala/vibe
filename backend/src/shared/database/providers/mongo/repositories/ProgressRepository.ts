@@ -9,7 +9,7 @@ import { ActiveUserDto, Course, CourseVersion, VideoUserAnalytics, VideoUserAnal
 
 type CurrentProgress = Pick<
   IProgress,
-  'currentModule' | 'currentSection' | 'currentItem' | 'completed'
+  'currentModule' | 'currentSection' | 'currentItem' | 'completed' | 'recoveryState'
 >;
 
 @injectable()
@@ -501,6 +501,43 @@ class ProgressRepository {
     );
   }
 
+  /**
+   * Returns the progress document for the given student that has an active
+   * ACRE recovery state targeting the specified quiz, or `null` if no such
+   * state exists.
+   *
+   * This is the entry-point query for ACRE V2's adaptive selection pipeline.
+   * It is called by {@link AdaptiveSelectionContextBuilder} at the start of
+   * every quiz attempt to determine whether the student is in a recovery loop.
+   *
+   * The `userId` field may be stored as either an ObjectId or a raw string in
+   * older documents, so both forms are queried via `$in` to ensure the correct
+   * progress record is found regardless of how the user was originally enrolled.
+   *
+   * @param userId - The student's user ID (string or ObjectId).
+   * @param quizId - The quiz ID the student is attempting; matched against
+   *   `recoveryState.targetQuizId`.
+   * @param session - Optional MongoDB session for transactional reads.
+   * @returns The progress document with an active recovery state for this quiz,
+   *   or `null` if the student is not currently in an ACRE recovery loop for it.
+   */
+  async findActiveRecoveryProgress(
+    userId: string | ObjectId,
+    quizId: string,
+    session?: ClientSession,
+  ): Promise<IProgress | null> {
+    await this.init();
+    return await this.progressCollection.findOne(
+      {
+        userId: { $in: [new ObjectId(userId), userId] },
+        'recoveryState.isActive': true,
+        'recoveryState.targetQuizId': quizId,
+        isDeleted: { $ne: true },
+      },
+      { session },
+    );
+  }
+
   async deleteProgress(
     userId: string | ObjectId,
     courseId: string,
@@ -564,6 +601,12 @@ class ProgressRepository {
           : progress.currentItem,
     };
 
+    const updatePayload: any = { $set: normalizedProgress };
+    if (progress.hasOwnProperty('recoveryState') && (progress.recoveryState === undefined || progress.recoveryState === null)) {
+      updatePayload.$unset = { recoveryState: '' };
+      delete normalizedProgress.recoveryState;
+    }
+
     const result = await this.progressCollection.findOneAndUpdate(
       {
         userId: { $in: [new ObjectId(userId), userId] },
@@ -572,7 +615,7 @@ class ProgressRepository {
         ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
         isDeleted: { $ne: true },
       },
-      { $set: normalizedProgress },
+      updatePayload,
       { returnDocument: 'after', session },
     );
     return result;

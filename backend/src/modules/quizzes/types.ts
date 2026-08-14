@@ -10,6 +10,8 @@ const TYPES = {
   QuestionBankService: Symbol.for('QuestionBankService'),
   QuizService: Symbol.for('QuizService'),
   ProgressService: Symbol.for('ProgressService'),
+  SelectionContextBuilder: Symbol.for('SelectionContextBuilder'),
+  AdaptiveQuestionSelector: Symbol.for('AdaptiveQuestionSelector'),
 
   //Repositories
   QuestionRepo: Symbol.for('QuestionRepo'),
