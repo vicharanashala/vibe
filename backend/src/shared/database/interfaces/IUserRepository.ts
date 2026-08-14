@@ -85,7 +85,7 @@ export interface IUserRepository {
    * @param ids - Array of user IDs to find.
    * @returns A promise that resolves to an array of users.
    */
-  getUsersByIds(ids: string[]): Promise<IUser[]>;
+  getUsersByIds(ids: string[], projection?: Record<string, number>): Promise<IUser[]>;
   searchUsers(searchTerm: string, session?: ClientSession,): Promise<UserSearchResult[]>;
   deleteDuplicateUsers(): any
 }

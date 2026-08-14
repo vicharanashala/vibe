@@ -11,18 +11,33 @@ import admin from 'firebase-admin';
 import {appConfig} from '#root/config/app.js';
 
 if (!admin.apps.length) {
-  if (appConfig.isDevelopment) {
+  if (appConfig.firebase.projectId) {
+    process.env.GCLOUD_PROJECT = appConfig.firebase.projectId;
+    process.env.FIREBASE_PROJECT_ID = appConfig.firebase.projectId;
+  }
+  if (
+    appConfig.firebase.clientEmail &&
+    appConfig.firebase.privateKey &&
+    appConfig.firebase.projectId
+  ) {
     admin.initializeApp({
       credential: admin.credential.cert({
         clientEmail: appConfig.firebase.clientEmail,
-        privateKey: appConfig.firebase.privateKey.replace(/\\n/g, '\n'),
+        privateKey: appConfig.firebase.privateKey,
         projectId: appConfig.firebase.projectId,
       }),
+      projectId: appConfig.firebase.projectId,
     });
   } else {
-    admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
-    });
+    const options: admin.AppOptions = {
+      projectId: appConfig.firebase.projectId,
+    };
+    try {
+      options.credential = admin.credential.applicationDefault();
+    } catch {
+      // ADC unavailable locally
+    }
+    admin.initializeApp(options);
   }
 }
 @injectable()
@@ -191,12 +206,18 @@ export class UserRepository implements IUserRepository {
     );
   }
 
-  async getUsersByIds(ids: string[]): Promise<IUser[]> {
+  async getUsersByIds(ids: string[], projection?: Record<string, number>): Promise<IUser[]> {
     await this.init();
-    const objectIds = ids.map(id => new ObjectId(id));
+    if (!ids || ids.length === 0) return [];
+    const validObjectIds = ids
+      .filter(id => !!id && ObjectId.isValid(id))
+      .map(id => new ObjectId(id));
+
+    const options = projection ? { projection } : {};
     const users = await this.usersCollection
-      .find({_id: {$in: objectIds}})
+      .find({_id: {$in: validObjectIds}}, options)
       .toArray();
+
     return users.map(user => ({
       ...user,
       _id: user._id?.toString(),
