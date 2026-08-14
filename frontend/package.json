@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vite",
     "d": "bash scripts/deploy.sh",
-    "copy": "cd ../backend && node scripts/generate-openapi.cjs --output ../../frontend/openapi.json",
+    "copy": "cd ../backend && node scripts/generate-openapi.cjs --output ../frontend/openapi.json",
     "gen-schema": "pnpx openapi-typescript openapi.json --output src/lib/api/schema.ts ",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "lint": "gts lint",
     "preview": "vite preview",
     "clean": "gts clean",

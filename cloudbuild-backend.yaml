@@ -1,0 +1,57 @@
+substitutions:
+  _REGION: asia-south1
+  _AR_REPO: vibe-backend
+  _SERVICE_NAME: vibe-backend-production
+  _NODE_ENV: production
+  _VPC_NETWORK: vibe-vpc
+  _VPC_SUBNET: vibe-subnet-as
+
+steps:
+  - id: docker-build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/backend:${SHORT_SHA}
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/backend:latest
+      - -f
+      - backend/Dockerfile
+      - backend
+
+  - id: docker-push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/backend
+
+  - id: deploy-cloud-run
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE_NAME}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/backend:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --command=dumb-init
+      - --args=node,build/index.js
+      - --memory=2Gi
+      - --cpu=2
+      - --network=${_VPC_NETWORK}
+      - --subnet=${_VPC_SUBNET}
+      - --vpc-egress=private-ranges-only
+      - --set-env-vars=NODE_ENV=${_NODE_ENV},APP_MODULE=all,APP_ROUTE_PREFIX=/api,DB_NAME=vibe,IS_RECAPTCHA_ENABLED=false,ENABLE_DB_BACKUP=false,ENABLE_HP_JOB=false,APP_ORIGINS=https://vibecloud.sastra.edu,FRONTEND_URL=https://vibecloud.sastra.edu,APP_URL=https://api.vibecloud.sastra.edu
+      - --set-secrets=ADMIN_PASSWORD=ADMIN_PASSWORD:latest,DB_URL=DB_URL:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/backend:${SHORT_SHA}
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/backend:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1800s
