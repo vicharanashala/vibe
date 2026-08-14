@@ -1,23 +1,22 @@
-import {ContainerModule} from 'inversify';
-import {
-  MongoDatabase,
-  UserRepository,
-  HttpErrorHandler,
-  SettingRepository,
-} from '#shared/index.js';
-import { AuditTrailsHandler } from './shared/middleware/auditTrails.js';
-import {GLOBAL_TYPES} from './types.js';
-import {dbConfig} from './config/db.js';
-import {CourseRepository} from '#shared/database/providers/mongo/repositories/CourseRepository.js';
-import {SlotBookingRepository} from '#shared/database/providers/mongo/repositories/SlotBookingRepository.js';
-import { FirebaseAuthService } from './modules/auth/services/FirebaseAuthService.js';
-import { ProgressService } from './modules/users/services/ProgressService.js';
-import { EnrollmentService } from './modules/users/services/EnrollmentService.js';
-import { CohortScopeService } from './shared/functions/cohortScope.js';
+import { ContainerModule } from 'inversify';
+import { GLOBAL_TYPES } from './types.js';
+import { dbConfig } from './config/db.js';
 
+export const sharedContainerModule = new ContainerModule(async (options) => {
+  const {
+    MongoDatabase,
+    UserRepository,
+    HttpErrorHandler,
+    SettingRepository,
+  } = await import('#shared/index.js');
+  const { AuditTrailsHandler } = await import('./shared/middleware/auditTrails.js');
+  const { CourseRepository } = await import('#shared/database/providers/mongo/repositories/CourseRepository.js');
+  const { SlotBookingRepository } = await import('#shared/database/providers/mongo/repositories/SlotBookingRepository.js');
+  const { FirebaseAuthService } = await import('./modules/auth/services/FirebaseAuthService.js');
+  const { ProgressService } = await import('./modules/users/services/ProgressService.js');
+  const { EnrollmentService } = await import('./modules/users/services/EnrollmentService.js');
+  const { CohortScopeService } = await import('./shared/functions/cohortScope.js');
 
-
-export const sharedContainerModule = new ContainerModule(options => {
   const uri = dbConfig.url;
   const dbName = dbConfig.dbName;
 
@@ -29,23 +28,17 @@ export const sharedContainerModule = new ContainerModule(options => {
   options.bind(ProgressService).toSelf().inSingletonScope();
   options.bind(EnrollmentService).toSelf().inSingletonScope();
   options.bind(CohortScopeService).toSelf().inSingletonScope();
+
   // Database
   options.bind(GLOBAL_TYPES.Database).to(MongoDatabase).inSingletonScope();
 
   // Repositories
   options.bind(GLOBAL_TYPES.UserRepo).to(UserRepository).inSingletonScope();
   options.bind(GLOBAL_TYPES.CourseRepo).to(CourseRepository).inSingletonScope();
-  options
-    .bind(GLOBAL_TYPES.SettingRepo)
-    .to(SettingRepository)
-    .inSingletonScope();
-  options
-    .bind(GLOBAL_TYPES.SlotBookingRepo)
-    .to(SlotBookingRepository)
-    .inSingletonScope();
+  options.bind(GLOBAL_TYPES.SettingRepo).to(SettingRepository).inSingletonScope();
+  options.bind(GLOBAL_TYPES.SlotBookingRepo).to(SlotBookingRepository).inSingletonScope();
 
   // Other
   options.bind(HttpErrorHandler).toSelf().inSingletonScope();
   options.bind(AuditTrailsHandler).toSelf().inSingletonScope();
-}); 
-
+});

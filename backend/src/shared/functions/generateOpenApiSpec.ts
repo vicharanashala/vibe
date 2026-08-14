@@ -337,3 +337,28 @@ export function generateOpenAPISpec(
 
   return cleanedSpec;
 }
+
+import path from 'path';
+
+// CLI execution fallback
+const isCLI = process.argv[1] && process.argv[1].includes('generateOpenApiSpec');
+if (isCLI) {
+  (async () => {
+    try {
+      const { loadAppModules } = await import('../../bootstrap/loadModules.js');
+      const { controllers, validators } = await loadAppModules((appConfig.module || 'all').toLowerCase());
+      const spec = generateOpenAPISpec({ controllers, routePrefix: appConfig.routePrefix }, validators);
+      const outputIdx = process.argv.indexOf('--output');
+      const outputPath = outputIdx !== -1 && process.argv[outputIdx + 1]
+        ? process.argv[outputIdx + 1]
+        : path.resolve(process.cwd(), '../docs/static/openapi/openapi.json');
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+      fs.writeFileSync(outputPath, JSON.stringify(spec, null, 2));
+      console.log(`[OpenAPI] Successfully generated OpenAPI spec at: ${outputPath}`);
+    } catch (err) {
+      console.error('[OpenAPI] Generation failed:', err);
+      process.exit(1);
+    }
+  })();
+}
+

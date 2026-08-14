@@ -51,7 +51,11 @@ export async function loadAppModules(moduleName: string): Promise<LoadedModuleRe
   }
 
   if (isAll) {
-    const uniqueModules = Array.from(new Set(allContainerModules));
+    const { sharedContainerModule } = await import('#root/container.js');
+    if (sharedContainerModule) {
+      allContainerModules.push(sharedContainerModule);
+    }
+    const uniqueModules = Array.from(new Set(allContainerModules.filter(Boolean)));
     container = new Container();
     await container.load(...uniqueModules);
     const inversifyAdapter = new InversifyAdapter(container);

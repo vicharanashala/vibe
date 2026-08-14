@@ -1,3 +1,4 @@
+import MythologyExperience from "@/app/pages/student/mythology/MythologyExperience";
 import { RouteObject } from "react-router-dom";
 import StudentLayout from "@/layouts/student-layout";
 import StudentDashboard from "@/app/pages/student/dashboard";
@@ -33,35 +34,38 @@ const studentRoutes: RouteObject = {
     },
     {
       path: "courseDetails",
-      element: <CourseDetails />
+      element: <CourseDetails />,
     },
     {
       path: "issues",
-      element: <CourseIssueReports />
+      element: <CourseIssueReports />,
     },
     {
       path: "leaderboard",
-      element: <Leaderboard />
+      element: <Leaderboard />,
     },
     {
       path: "hp-system/cohorts",
-      element: <StudentCohorts />
+      element: <StudentCohorts />,
     },
     {
       path: "hp-system/ledger",
-      element: <StudentLedgerPage />
+      element: <StudentLedgerPage />,
+    },
+    {
+      path: "mythology",
+      element: <MythologyExperience />,
     },
     {
       index: true,
-      element: <StudentDashboard />, // Default to Dashboard
-    }
+      element: <StudentDashboard />,
+    },
   ],
 };
 
 const learnRoutes: RouteObject = {
   path: "student/learn",
-  element: <CoursePage />
+  element: <CoursePage />,
 };
-
 
 export default { studentRoutes, learnRoutes };
