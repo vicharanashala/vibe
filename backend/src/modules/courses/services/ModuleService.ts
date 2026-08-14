@@ -139,6 +139,7 @@ export class ModuleService extends BaseService {
 
       if (body.name) module.name = body.name;
       if (body.description) module.description = body.description;
+      if (body.difficulty !== undefined) module.difficulty = body.difficulty;
       module.updatedAt = new Date();
       version.updatedAt = new Date();
 

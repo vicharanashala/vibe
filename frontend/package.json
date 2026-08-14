@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "d": "bash scripts/deploy.sh",
-    "copy": "cd ../backend && node scripts/generate-openapi.cjs --output ../../frontend/openapi.json",
+    "copy": "cd ../backend && node scripts/generate-openapi.cjs --output ../frontend/openapi.json",
     "gen-schema": "pnpx openapi-typescript openapi.json --output src/lib/api/schema.ts ",
     "build": "tsc -b && vite build",
     "lint": "gts lint",
@@ -95,6 +95,7 @@
     "clsx": "^2.1.1",
     "comlink": "^4.4.2",
     "country-state-city": "^3.2.1",
+    "date-fns": "^4.4.0",
     "event-source-polyfill": "^1.0.31",
     "fingerpose": "^0.1.0",
     "firebase": "^11.3.1",

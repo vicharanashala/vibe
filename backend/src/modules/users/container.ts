@@ -1,27 +1,36 @@
-﻿import {ContainerModule} from 'inversify';
-import {USERS_TYPES} from './types.js';
-import {EnrollmentRepository} from '#root/shared/database/providers/mongo/repositories/EnrollmentRepository.js';
-import {ProgressRepository} from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
-import {EnrollmentController} from './controllers/EnrollmentController.js';
-import {ProgressController} from './controllers/ProgressController.js';
-import {UserController} from './controllers/UserController.js';
-import {UserActivityEventController} from './controllers/UserActivityEventController.js';
-import {IntegrationController} from './controllers/IntegrationController.js';
-import {ApiKeyAuthMiddleware} from '#root/shared/middleware/ApiKeyAuthMiddleware.js';
-import {EnrollmentService} from './services/EnrollmentService.js';
-import {ProgressService} from './services/ProgressService.js';
-import {UserService} from './services/UserService.js';
-import {UserActivityEventService} from './services/UserActivityEventService.js';
+import { ContainerModule } from 'inversify';
+import { USERS_TYPES } from './types.js';
+import { EnrollmentRepository } from '#root/shared/database/providers/mongo/repositories/EnrollmentRepository.js';
+import { ProgressRepository } from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
+import { EnrollmentController } from './controllers/EnrollmentController.js';
+import { ProgressController } from './controllers/ProgressController.js';
+import { UserController } from './controllers/UserController.js';
+import { UserActivityEventController } from './controllers/UserActivityEventController.js';
+import { IntegrationController } from './controllers/IntegrationController.js';
+import { PacingController } from './controllers/PacingController.js';
+import { PacingGroupController } from './controllers/PacingGroupController.js';
+import { ApiKeyAuthMiddleware } from '#root/shared/middleware/ApiKeyAuthMiddleware.js';
+import { EnrollmentService } from './services/EnrollmentService.js';
+import { ProgressService } from './services/ProgressService.js';
+import { PacingService } from './services/PacingService.js';
+import { PacingGroupService } from './services/PacingGroupService.js';
+import { PacingGroupRepository } from '#root/shared/database/providers/mongo/repositories/PacingGroupRepository.js';
+import { UserService } from './services/UserService.js';
+import { UserActivityEventService } from './services/UserActivityEventService.js';
 
 export const usersContainerModule = new ContainerModule(options => {
   // Repositories
-  options 
+  options
     .bind(USERS_TYPES.ProgressRepo)
     .to(ProgressRepository)
     .inSingletonScope();
   options
     .bind(USERS_TYPES.EnrollmentRepo)
     .to(EnrollmentRepository)
+    .inSingletonScope();
+  options
+    .bind(USERS_TYPES.PacingGroupRepo)
+    .to(PacingGroupRepository)
     .inSingletonScope();
 
   // Services
@@ -33,6 +42,15 @@ export const usersContainerModule = new ContainerModule(options => {
     .bind(USERS_TYPES.ProgressService)
     .to(ProgressService)
     .inSingletonScope();
+  options
+    .bind(USERS_TYPES.PacingService)
+    .to(PacingService)
+    .inSingletonScope();
+  options
+    .bind(USERS_TYPES.PacingGroupService)
+    .to(PacingGroupService)
+    .inSingletonScope();
+
   options
     .bind(USERS_TYPES.UserService)
     .to(UserService)
@@ -48,7 +66,10 @@ export const usersContainerModule = new ContainerModule(options => {
   options.bind(UserController).toSelf().inSingletonScope();
   options.bind(UserActivityEventController).toSelf().inSingletonScope();
   options.bind(IntegrationController).toSelf().inSingletonScope();
+  options.bind(PacingController).toSelf().inSingletonScope();
+  options.bind(PacingGroupController).toSelf().inSingletonScope();
 
   // Middleware
   options.bind(ApiKeyAuthMiddleware).toSelf().inSingletonScope();
 });
+

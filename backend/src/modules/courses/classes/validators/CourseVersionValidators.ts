@@ -15,10 +15,11 @@ import {
   ArrayUnique,
   Min,
   IsBoolean,
+  IsDate,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 import { Cohort } from '../index.js';
-import {Type} from 'class-transformer';
+import { Type } from 'class-transformer';
 
 class CreateCourseVersionBody implements Partial<ICourseVersion> {
   @JSONSchema({
@@ -258,7 +259,7 @@ class CohortsResponse {
   version: string
 }
 
-class NewCohortBody{
+class NewCohortBody {
 
   @IsOptional()
   @IsString()
@@ -283,7 +284,7 @@ class NewCohortBody{
   safeHp?: number
 }
 
-class CohortUpdatedMessage{
+class CohortUpdatedMessage {
   @IsString()
   @JSONSchema({
     description: 'Success message',
@@ -292,7 +293,7 @@ class CohortUpdatedMessage{
   message!: string;
 }
 
-class CohortCreatedMessage{
+class CohortCreatedMessage {
   @IsString()
   @JSONSchema({
     description: 'Success message',
@@ -301,7 +302,7 @@ class CohortCreatedMessage{
   message!: string;
 }
 
-class CohortDeletedMessage{
+class CohortDeletedMessage {
   @IsString()
   @JSONSchema({
     description: 'Success message',
@@ -324,7 +325,7 @@ class CohortDeletedMessage{
   pendingInviteCount?: number;
 }
 
-class MoveStudentsToCohortBody{
+class MoveStudentsToCohortBody {
   @JSONSchema({
     description: 'Array of enrollment IDs to move to the cohort',
     example: ['66c2b6c9b4e0a3e6c1a93f41', '66c2b72ab4e0a3e6c1a93f8a'],
@@ -348,7 +349,7 @@ class MoveStudentsToCohortBody{
   targetCohortId: string;
 }
 
-class MoveStudentsToCohortResponse{
+class MoveStudentsToCohortResponse {
   @IsString()
   @JSONSchema({
     description: 'Success message',
@@ -426,7 +427,7 @@ class CourseVersionDataResponse {
 
   @IsOptional()
   @IsArray()
-    @JSONSchema({
+  @JSONSchema({
     description: 'Array of cohort names in a course version',
   })
   cohorts: string[];
@@ -435,6 +436,16 @@ class CourseVersionDataResponse {
   @IsArray()
   @JSONSchema({ description: 'Array of cohort details in a course version' })
   cohortDetails: Cohort[];
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  @JSONSchema({
+    description: 'Teacher deadline for the course version',
+    type: 'string',
+    format: 'date-time',
+  })
+  teacherDeadline?: Date;
 }
 
 class CourseVersionNotFoundErrorResponse {
@@ -513,11 +524,11 @@ class UpdateCourseVersionBody implements Partial<ICourseVersion> {
     example: 'v1.0',
     type: 'string',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MinLength(3)
   @MaxLength(255)
-  version: string;
+  version?: string;
 
   @JSONSchema({
     title: 'Version Description',
@@ -525,10 +536,10 @@ class UpdateCourseVersionBody implements Partial<ICourseVersion> {
     example: 'First release of the course',
     type: 'string',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MaxLength(1000)
-  description: string;
+  description?: string;
 
   @JSONSchema({
     title: 'Support Link',
@@ -549,6 +560,16 @@ class UpdateCourseVersionBody implements Partial<ICourseVersion> {
     example: ['cohort1', 'cohort2'],
   })
   cohorts?: string[];
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  @JSONSchema({
+    description: 'Teacher deadline for the course version',
+    type: 'string',
+    format: 'date-time',
+  })
+  teacherDeadline?: Date;
 }
 class CopyCourseVersionParams {
   @IsString()
@@ -621,7 +642,7 @@ class CourseVersionWatchTimeResponse {
   totalHoursRounded!: number;
 }
 
-class UpdateCourseVersionStatusParams{
+class UpdateCourseVersionStatusParams {
   @JSONSchema({
     title: 'Version ID',
     description: 'ID of the course version to update',
@@ -632,7 +653,7 @@ class UpdateCourseVersionStatusParams{
   versionId: string;
 }
 
- class UpdateCourseVersionStatusBody {
+class UpdateCourseVersionStatusBody {
   @IsIn(['active', 'archived'])
   versionStatus: courseVersionStatus;
 }

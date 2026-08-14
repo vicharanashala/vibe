@@ -337,6 +337,33 @@ export class EnrollmentRepository {
       );
     }
   }
+
+  async updateTargetCompletionDate(
+    enrollmentId: string,
+    targetCompletionDate: Date | null,
+    session?: ClientSession,
+  ): Promise<void> {
+    try {
+      await this.init();
+      if (targetCompletionDate === null) {
+        await this.enrollmentCollection.findOneAndUpdate(
+          { _id: new ObjectId(enrollmentId) },
+          { $unset: { targetCompletionDate: "" }, $set: { updatedAt: new Date() } },
+          { session },
+        );
+      } else {
+        await this.enrollmentCollection.findOneAndUpdate(
+          { _id: new ObjectId(enrollmentId) },
+          { $set: { targetCompletionDate, updatedAt: new Date() } },
+          { session },
+        );
+      }
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to update target completion date in enrollment. More/${error}`,
+      );
+    }
+  }
   /**
    * Create a new enrollment record
    */

@@ -56,6 +56,7 @@ export interface ICourseVersion {
   supportLink?: string;
   cohorts?: ID[];
   modules: IModule[];
+  teacherDeadline?: Date;
   totalItems?: number;
   itemCounts?: {
     VIDEO?: number;
@@ -81,6 +82,7 @@ export interface IModule {
   deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+  difficulty?: 'easy' | 'moderate' | 'difficult' | 'hard';
 }
 
 export interface ISection {
@@ -488,8 +490,8 @@ export interface IEnrollment {
     ejectedBy: string | ObjectId;
     policyId?: string | ObjectId;
     reinstatedAt?: Date;
-    reinstatedBy?: string | ObjectId;
   }>;
+  targetCompletionDate?: Date;
 }
 
 export interface IProgress {
@@ -1179,3 +1181,17 @@ export interface IAnnouncement {
 //  itemId: string | ObjectId | null;
 //  action: string;
 // }
+
+export interface IPacingGroup {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  targetCompletionDate: Date;
+  courseSelections: Array<{
+    courseId: string | ObjectId;
+    courseVersionId: string | ObjectId;
+    cohortId?: string | ObjectId;
+  }>;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+

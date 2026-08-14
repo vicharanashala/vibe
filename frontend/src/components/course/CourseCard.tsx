@@ -1,4 +1,4 @@
-import { Clock, Trophy, Medal, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Play, Activity, Shield as LucideShield, MoreHorizontal } from "lucide-react";
+import { Clock, Trophy, Medal, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Play, Activity, Shield as LucideShield, MoreHorizontal, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
+import { PacingWidget } from '@/components/dashboard/PacingWidget';
 
 
 import { EnrollmentDetailsDialog } from "@/components/course/EnrollmentDetailsDialog";
@@ -64,6 +65,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const [isTimeslotModalOpen, setIsTimeslotModalOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isForumOpen, setIsForumOpen] = useState(false);
+  const [isPacingOpen, setIsPacingOpen] = useState(false);
   // const [showPolicies, setShowPolicies] = useState(false);
 
   const progress = Number(Math.min(enrollment.percentCompleted ?? 0, 100).toFixed(2));
@@ -306,18 +308,30 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                         </Button>
                       )}
 
-                      {isTimeslotActive && (
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={(e) => { e.stopPropagation(); setIsTimeslotModalOpen(true); }}
-                          className="border-2 rounded-xl w-10 h-10"
-                          aria-label="Pick Slot"
-                          title="Pick Slot"
-                        >
-                          <Clock className="w-4 h-4 text-green-500" />
-                        </Button>
-                      )}
+{isTimeslotActive && (
+        <>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={(e) => { e.stopPropagation(); setIsTimeslotModalOpen(true); }}
+            className="border-2 rounded-xl w-10 h-10"
+            aria-label="Pick Slot"
+            title="Pick Slot"
+          >
+            <Clock className="w-4 h-4 text-green-500" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={(e) => { e.stopPropagation(); setIsPacingOpen(true); }}
+            className="border-2 rounded-xl w-10 h-10"
+            aria-label="Pacing"
+            title="Pacing"
+          >
+            <Calendar className="w-4 h-4 text-blue-500" />
+          </Button>
+        </>
+      )}
 
                       {variant !== 'available' && isNotGuruSetu && (
                         <div onClick={(e) => e.stopPropagation()}>
@@ -401,7 +415,15 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
             courseVersionId={versionId}
             currentUserId={""}
             hasAssignedTimeslot={!!hasAssignedTimeslot}
-          />
+        />
+        <Dialog open={isPacingOpen} onOpenChange={setIsPacingOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Pacing Planner</DialogTitle>
+            </DialogHeader>
+            <PacingWidget courseId={courseId} versionId={versionId} cohortId={cohortId} />
+          </DialogContent>
+        </Dialog>
         </div>
         <StudentPolicyModal
           open={showPolicies}

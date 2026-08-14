@@ -461,6 +461,8 @@ export class CourseVersionService extends BaseService {
       // Handle supportLink - allow setting, updating, or clearing
       if (body.supportLink !== undefined)
         existingVersion.supportLink = body.supportLink;
+      if (body.teacherDeadline !== undefined)
+        existingVersion.teacherDeadline = body.teacherDeadline;
       existingVersion.updatedAt = new Date();
       if (body.cohorts) {
           const BLOCKED_COHORT_NAMES = ["euclideans", "dijkstrians", "kruskalians", "rsaians", "aksians"];

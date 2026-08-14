@@ -22,6 +22,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MoreVertical, Trash2 } from "lucide-react"
 import CourseBackButton from "./CourseBackButton";
+import { PacingOverviewPanel } from "./components/PacingOverviewPanel";
+import { StudentPaceButton } from "./components/StudentPaceButton";
 
 // Import hooks - including the new quiz hooks
 import {
@@ -658,10 +660,10 @@ function CourseEnrollments() {
   // const studentEnrollments = enrollmentsData?.enrollments || [];
   const studentEnrollments = enrollmentsData?.enrollments || []
   const cohortFilteredEnrollments = cohort
-  ? studentEnrollments.filter((enrollment: any) => {
+    ? studentEnrollments.filter((enrollment: any) => {
       return String(enrollment.cohortId) === String(cohort);
     })
-  : studentEnrollments;
+    : studentEnrollments;
   // Filter out already assigned students if excludeAssigned is true
   const filteredStudentEnrollments = excludeAssigned
     ? cohortFilteredEnrollments.filter((enrollment: any) => {
@@ -1486,6 +1488,8 @@ function CourseEnrollments() {
             ))}
           </div>}
 
+          <PacingOverviewPanel courseId={courseId} versionId={versionId} />
+
           {/* Emotion Analytics Navigation */}
           <Card
             className="border-0 shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/20"
@@ -1641,7 +1645,7 @@ function CourseEnrollments() {
                   version={version}
                   cohort={cohort}
                   setCohort={setCohort}
-                  courseId= {courseId}
+                  courseId={courseId}
                 />
               )}
 
@@ -3083,6 +3087,7 @@ function EnrollmentsTable({
   courseId
 }: EnrollmentsTableProps) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
+  const versionId = version?._id || version?.id || ""
 
   console.log(studentEnrollments)
 
@@ -3342,13 +3347,13 @@ function EnrollmentsTable({
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
-                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
+                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" : "Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
-                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
+                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" : "Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -3429,13 +3434,13 @@ function EnrollmentsTable({
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
-                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
+                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" : "Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
-                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
+                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" : "Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -3640,6 +3645,15 @@ function EnrollmentsTable({
                             <Eye className="h-4 w-4 mr-2" />
                             View Progress
                           </Button>
+
+                          {!isInactiveTab && (
+                            <StudentPaceButton
+                              studentUserId={enrollment.user?._id || enrollment.user?.id}
+                              courseId={courseId}
+                              versionId={versionId}
+                              cohortId={enrollment.cohortId}
+                            />
+                          )}
 
                           {/* Disable button - Active tab only */}
                           {!isInactiveTab && (

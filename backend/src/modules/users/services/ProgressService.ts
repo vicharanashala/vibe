@@ -647,13 +647,44 @@ class ProgressService extends BaseService {
     sectionId: string,
     itemId: string,
     cohort?: string,
+    session?: ClientSession,
   ): Promise<void> {
-    const progress = await this.progressRepository.findProgress(
+    let progress = await this.progressRepository.findProgress(
       userId,
       courseId,
       courseVersionId,
       cohort,
+      session,
     );
+
+    if (!progress) {
+      const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+      if (!courseVersion) {
+        throw new NotFoundError('Course version not found');
+      }
+      const progressData = await this.initializeProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        courseVersion,
+        cohort,
+      );
+      if (progressData) {
+        progress = await this.progressRepository.createProgress(
+          {
+            userId: new ObjectId(userId),
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(courseVersionId),
+            currentModule: new ObjectId(progressData.currentModule.toString()),
+            currentSection: new ObjectId(progressData.currentSection.toString()),
+            currentItem: new ObjectId(progressData.currentItem.toString()),
+            completed: false,
+            ...(cohort ? { cohortId: new ObjectId(cohort) } : {}),
+          },
+          session,
+        );
+      }
+    }
 
     if (!progress) {
       throw new NotFoundError('Progress not found');
@@ -666,6 +697,7 @@ class ProgressService extends BaseService {
       courseVersionId,
       itemId,
       cohort,
+      session,
     );
 
     if (isItemCompleted) {
@@ -1684,7 +1716,7 @@ class ProgressService extends BaseService {
 
       return {
         completed: progress.completed,
-        percentCompleted: Math.min(100, enrollment.percentCompleted ?? 0),
+        percentCompleted: Math.min(100, enrollment.percentCompleted),
         totalItems,
         completedItems: completedItemsSet.size,
       };
@@ -1788,6 +1820,7 @@ class ProgressService extends BaseService {
           sectionId,
           itemId,
           cohortId,
+          session,
         ),
       ]);
 
@@ -2135,7 +2168,7 @@ class ProgressService extends BaseService {
       cohortId,
     );
   }
-  
+
   private async validateProgressPositionOrPreviousCompleted(
     progress: IProgress,
     courseVersion: any,
@@ -2708,7 +2741,7 @@ class ProgressService extends BaseService {
       // lists pending invites), in addition to the completion-screen card and
       // the dashboard banner — so no separate notification record is needed.
       await inviteService.inviteUserToCourse(
-        [{email: user.email, role: (followUp.role as EnrollmentRole) ?? 'STUDENT'}],
+        [{ email: user.email, role: (followUp.role as EnrollmentRole) ?? 'STUDENT' }],
         followUp.courseId.toString(),
         followUp.courseVersionId.toString(),
         followUp.cohortId?.toString(),
@@ -2845,7 +2878,7 @@ class ProgressService extends BaseService {
 
     // InviteService de-dupes pending invites internally, so re-runs are safe.
     await inviteService.inviteUserToCourse(
-      Array.from(emailSet).map(email => ({email, role})),
+      Array.from(emailSet).map(email => ({ email, role })),
       targetCourseId,
       targetVersionId,
       targetCohortId,
@@ -2998,6 +3031,8 @@ class ProgressService extends BaseService {
           moduleId,
           sectionId,
           itemId,
+          cohort,
+          session,
         ),
         this.itemRepo.readItem(courseVersionId, itemId, session),
       ]);
@@ -3212,13 +3247,13 @@ class ProgressService extends BaseService {
       const [progress, courseVersion] = await Promise.all([
         this.progressRepository.findProgress(userId, courseId, courseVersionId, cohortId, session),
         this.courseRepo.readVersion(courseVersionId),
-    ]);
+      ]);
 
-    if (!progress || !courseVersion) {
-      throw new NotFoundError('Progress or Course Version not found');
-    }
+      if (!progress || !courseVersion) {
+        throw new NotFoundError('Progress or Course Version not found');
+      }
 
-    // const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+      // const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
       if (isPassed) {
         // Prefer the quiz's actual module/section over the cursor's current
@@ -3233,121 +3268,121 @@ class ProgressService extends BaseService {
           quizId,
         );
 
-      if (!nextItemDetails) {
-        // Course completed → reset to first item
-        const initialProgress = await this.initializeProgress(
-          userId.toString(),
-          courseId,
-          courseVersionId,
-          courseVersion,
-        );
+        if (!nextItemDetails) {
+          // Course completed → reset to first item
+          const initialProgress = await this.initializeProgress(
+            userId.toString(),
+            courseId,
+            courseVersionId,
+            courseVersion,
+          );
 
-        const newProgress = {
-          completed: true,
-          completedAt: new Date(),
-          currentModule: initialProgress.currentModule,
-          currentSection: initialProgress.currentSection,
-          currentItem: initialProgress.currentItem,
-          skippedBlankQuizIds: [],
-        };
+          const newProgress = {
+            completed: true,
+            completedAt: new Date(),
+            currentModule: initialProgress.currentModule,
+            currentSection: initialProgress.currentSection,
+            currentItem: initialProgress.currentItem,
+            skippedBlankQuizIds: [],
+          };
 
-        await this.progressRepository.updateProgress(
-          userId.toString(),
-          courseId,
-          courseVersionId,
-          newProgress,
-          cohortId,
-          session,
-        );
+          await this.progressRepository.updateProgress(
+            userId.toString(),
+            courseId,
+            courseVersionId,
+            newProgress,
+            cohortId,
+            session,
+          );
+        } else {
+          const newProgress = {
+            currentModule: nextItemDetails.moduleId,
+            currentSection: nextItemDetails.sectionId,
+            currentItem: nextItemDetails.itemId,
+          };
+
+          await this.progressRepository.updateProgress(
+            userId,
+            courseId,
+            courseVersionId,
+            newProgress,
+            cohortId,
+            session,
+          );
+        }
       } else {
-        const newProgress = {
-          currentModule: nextItemDetails.moduleId,
-          currentSection: nextItemDetails.sectionId,
-          currentItem: nextItemDetails.itemId,
-        };
-
-        await this.progressRepository.updateProgress(
-          userId,
-          courseId,
-          courseVersionId,
-          newProgress,
-          cohortId,
-          session,
-        );
-      }
-    } else {
-      const previousDetails = await this.getPreviousItemInSequence(
-        courseVersion,
-        progress.currentModule.toString(),
-        progress.currentSection.toString(),
-        quizId,
-      );
-
-      if (previousDetails) {
-        const previousProgress = {
-          currentModule: previousDetails.moduleId,
-          currentSection: previousDetails.sectionId,
-          currentItem: previousDetails.itemId,
-        };
-
-        await this.progressRepository.updateProgress(
-          userId,
-          courseId,
-          courseVersionId,
-          previousProgress,
-          cohortId,
-          session,
-        );
-      }
-    }
-    // if we refresh the quiz page after passing then the student will land on next item
-    //  and as the stop item is not called for that quiz endtime will never be created
-    // Only mark quiz as completed (set endTime) if it was actually passed
-    if (isPassed) {
-      let resolvedWatchItemId = watchItemId;
-
-      if (!resolvedWatchItemId) {
-        // Look up the most recent active watch time for this user and item
-        const activeWatchTimes = await this.progressRepository.getWatchTime(
-          userId.toString(),
+        const previousDetails = await this.getPreviousItemInSequence(
+          courseVersion,
+          progress.currentModule.toString(),
+          progress.currentSection.toString(),
           quizId,
-          courseId,
-          courseVersionId,
-          cohortId,
-          session,
         );
-        
-        if (activeWatchTimes && activeWatchTimes.length > 0) {
-          // Find one that doesn't have an endTime
-          const active = activeWatchTimes.find(wt => !wt.endTime);
-          if (active) {
-            resolvedWatchItemId = active._id?.toString();
-          } else {
-             // If all are stopped, fallback to the latest one
-            resolvedWatchItemId = activeWatchTimes[activeWatchTimes.length - 1]._id?.toString();
-          }
+
+        if (previousDetails) {
+          const previousProgress = {
+            currentModule: previousDetails.moduleId,
+            currentSection: previousDetails.sectionId,
+            currentItem: previousDetails.itemId,
+          };
+
+          await this.progressRepository.updateProgress(
+            userId,
+            courseId,
+            courseVersionId,
+            previousProgress,
+            cohortId,
+            session,
+          );
         }
       }
+      // if we refresh the quiz page after passing then the student will land on next item
+      //  and as the stop item is not called for that quiz endtime will never be created
+      // Only mark quiz as completed (set endTime) if it was actually passed
+      if (isPassed) {
+        let resolvedWatchItemId = watchItemId;
 
-      if (!resolvedWatchItemId) {
-        console.warn(`[handleQuizeProgressAfterSubmission] Could not resolve watchItemId for user ${userId} and quiz ${quizId}.`);
-        // If we really can't find it, we skip stopping the item.
-        return;
-      }
+        if (!resolvedWatchItemId) {
+          // Look up the most recent active watch time for this user and item
+          const activeWatchTimes = await this.progressRepository.getWatchTime(
+            userId.toString(),
+            quizId,
+            courseId,
+            courseVersionId,
+            cohortId,
+            session,
+          );
 
-      const watchTime = await this.progressRepository.findWatchTimeById(
-        resolvedWatchItemId
-      );
-      if (watchTime && watchTime.itemId.toString() !== quizId) {
-        throw new BadRequestError('Watch item does not correspond to the quiz');
-      }
-      const isItemCompleted = await this.progressRepository.isItemCompleted(
-        userId.toString(),
-        courseId,
-        courseVersionId,
-        quizId,
-        cohortId,
-      )
+          if (activeWatchTimes && activeWatchTimes.length > 0) {
+            // Find one that doesn't have an endTime
+            const active = activeWatchTimes.find(wt => !wt.endTime);
+            if (active) {
+              resolvedWatchItemId = active._id?.toString();
+            } else {
+              // If all are stopped, fallback to the latest one
+              resolvedWatchItemId = activeWatchTimes[activeWatchTimes.length - 1]._id?.toString();
+            }
+          }
+        }
+
+        if (!resolvedWatchItemId) {
+          console.warn(`[handleQuizeProgressAfterSubmission] Could not resolve watchItemId for user ${userId} and quiz ${quizId}.`);
+          // If we really can't find it, we skip stopping the item.
+          return;
+        }
+
+        const watchTime = await this.progressRepository.findWatchTimeById(
+          resolvedWatchItemId
+        );
+        if (watchTime && watchTime.itemId.toString() !== quizId) {
+          throw new BadRequestError('Watch item does not correspond to the quiz');
+        }
+        const isItemCompleted = await this.progressRepository.isItemCompleted(
+          userId.toString(),
+          courseId,
+          courseVersionId,
+          quizId,
+          cohortId,
+        )
 
         if (!isItemCompleted && resolvedWatchItemId) {
           await this.progressRepository.stopItemTracking(
@@ -4094,8 +4129,8 @@ class ProgressService extends BaseService {
     >();
     for (const enrollment of enrollments) {
       enrollmentMap.set(enrollment.userId?.toString(), {
-        completionPercentage: enrollment.percentCompleted ?? 0,
-        enrollmentDate: enrollment.enrollmentDate ?? null,
+        completionPercentage: enrollment.percentCompleted || 0,
+        enrollmentDate: enrollment.enrollmentDate || null,
       });
     }
 
@@ -4161,7 +4196,7 @@ class ProgressService extends BaseService {
       const enrollment = enrollmentMap.get(id);
       const completionPercentage = Math.min(
         100,
-        enrollment?.completionPercentage ?? 0,
+        enrollment?.completionPercentage || 0,
       );
       // Use the finish timestamp regardless of the legacy `completed` flag.
       const completedAt = progress.completedAt ?? null;
@@ -4190,11 +4225,11 @@ class ProgressService extends BaseService {
       const daysToComplete =
         isFinisher && completedAt && startDate
           ? Math.max(
-              0,
-              (new Date(completedAt).getTime() -
-                new Date(startDate).getTime()) /
-                MS_PER_DAY,
-            )
+            0,
+            (new Date(completedAt).getTime() -
+              new Date(startDate).getTime()) /
+            MS_PER_DAY,
+          )
           : null;
 
       const entry: LeaderboardEntry = {
@@ -4792,7 +4827,7 @@ class ProgressService extends BaseService {
     const enrollmentMap = new Map();
     for (const enrollment of enrollments) {
       enrollmentMap.set(enrollment.userId.toString(), {
-        completionPercentage: enrollment.percentCompleted ?? 0,
+        completionPercentage: enrollment.percentCompleted || 0,
         enrolledAt: enrollment.enrollmentDate,
       });
     }
@@ -4841,7 +4876,7 @@ class ProgressService extends BaseService {
         userName: user?.name || 'Unknown User',
         email: user?.email || 'No email',
 
-        completionPercentage: Math.min(100, enrollment?.completionPercentage ?? 0),
+        completionPercentage: Math.min(100, enrollment?.completionPercentage) ?? 0,
 
         completedAt:
           progress.completed && progress.completedAt
