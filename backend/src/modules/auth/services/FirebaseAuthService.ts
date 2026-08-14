@@ -255,6 +255,10 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
           invite.courseVersionId.toString(),
           invite.role,
           true,
+          // The invite's cohort was dropped here, so a user who signed up in
+          // response to an invite landed with no cohort at all — unlike an
+          // existing user accepting the same invite.
+          invite.cohortId?.toString(),
         );
         if (result && (result as any).enrollment) {
           enrolledInvites.push(
@@ -375,6 +379,10 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
           invite.courseVersionId.toString(),
           invite.role,
           true,
+          // The invite's cohort was dropped here, so a user who signed up in
+          // response to an invite landed with no cohort at all — unlike an
+          // existing user accepting the same invite.
+          invite.cohortId?.toString(),
         );
         if (result && (result as any).enrollment) {
           enrolledInvites.push(

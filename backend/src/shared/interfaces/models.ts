@@ -315,6 +315,7 @@ export enum ItemType {
   BLOG = 'BLOG',
   PROJECT = 'PROJECT',
   FEEDBACK = 'FEEDBACK',
+  REFLECTION = 'REFLECTION',
 }
 
 export interface IBaseItem {
@@ -331,8 +332,38 @@ export interface IProjectDetails {
   // Add fields as needed for project items, or leave empty if none
 }
 
+/**
+ * Where a video item's media comes from.
+ *
+ * `YOUTUBE` is the original and only historical source, played through the
+ * YouTube IFrame API. `GCS` is a video uploaded to ViBe and transcoded to HLS.
+ */
+export type VideoSource = 'YOUTUBE' | 'GCS';
+
+/**
+ * Resolve a video item's source, treating an absent value as YOUTUBE.
+ *
+ * Every video item written before uploads existed has no `source` field, so the
+ * absent case *must* mean YouTube — that is what lets the feature ship without
+ * migrating existing course content. Read the source through this helper rather
+ * than testing the field, so the default lives in one place.
+ */
+export function resolveVideoSource(details?: {
+  source?: VideoSource;
+}): VideoSource {
+  return details?.source ?? 'YOUTUBE';
+}
+
 export interface IVideoDetails {
-  URL: string;
+  /**
+   * Public video URL. Required for YOUTUBE, absent for GCS — an uploaded video
+   * has no durable public URL, only time-boxed signed grants.
+   */
+  URL?: string;
+  /** Absent means YOUTUBE; see resolveVideoSource. */
+  source?: VideoSource;
+  /** The uploaded video this item plays. Set only when source is GCS. */
+  assetId?: ID;
   startTime: string;
   endTime: string;
   points: number;
@@ -388,6 +419,22 @@ export interface IBlogDetails {
   estimatedReadTimeInMinutes: number;
 }
 
+/**
+ * A peer-reviewed reflection item: the student writes what they learned, and
+ * peers score it anonymously. Carries no answer key or grading config — the
+ * scoring lives entirely in the peerReviews module.
+ */
+export interface IReflectionDetails {
+  /** Optional instructor prompt shown above the editor. */
+  prompt?: string;
+  /** Cap on how many peers may score one reflection. Defaults to 10. */
+  maxReviewsPerReflection?: number;
+  /** Reviews a student owes before their own score unlocks. Defaults to 10. */
+  requiredReviewsToUnlock?: number;
+  /** Reviews needed before an average is shown at all. Defaults to 3. */
+  minReviewsToReveal?: number;
+}
+
 export interface IFeedBackFormDetails {
   jsonSchema: Record<string, any>;
   uiSchema: Record<string, any>;
@@ -428,6 +475,11 @@ export interface IEnrollment {
   hpPoints?: number;
   hasNewItemsAfterCompletion?: boolean;
   cohortId?: ID;
+  // Staff-only (INSTRUCTOR/STAFF): the cohorts of this version the holder may
+  // read and act on. Absent or empty means no cohort has been assigned yet,
+  // which denies access rather than granting all — see resolveCohortScope.
+  // Never set on a STUDENT row; a student's scope is their own `cohortId`.
+  assignedCohortIds?: ID[];
   policyAcknowledgedAt?: Date;
   policyReacknowledgementRequired?: boolean;
   ethicsConsentSignedAt?: Date; // doubles as the "Date" on the consent form
@@ -877,6 +929,15 @@ export interface AuthenticatedUserEnrollements {
   courseId: string;
   versionId: string;
   role: 'STUDENT' | 'INSTRUCTOR' | 'MANAGER' | 'TA' | 'STAFF';
+  /**
+   * Cohorts this enrollment confines the caller to.
+   *
+   * `null` means the role is not cohort-scoped and may read the whole version
+   * (MANAGER, TA, and legacy students whose enrollment predates cohorts).
+   * An empty array means the role *is* scoped but nothing has been assigned —
+   * that reads as "no cohorts", not "all cohorts".
+   */
+  cohortIds: string[] | null;
 }
 
 export interface AuthenticatedUser {

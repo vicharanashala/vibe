@@ -24,6 +24,9 @@ function makeService(itemRepo: any): StudentQuestionService {
     {} as any, // questionService
     {} as any, // questionBankService
     itemRepo,
+    {} as any, // screeningService
+    {} as any, // segmentContextProvider
+    {} as any, // enrollmentRepo
   );
 }
 

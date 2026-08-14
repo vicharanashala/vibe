@@ -9,6 +9,7 @@ export enum EnrollmentActions {
     Delete = "delete",
     View = "view",
     ViewAll = "viewAll",
+    AssignCohorts = "assignCohorts",
 }
 
 // Subjects
@@ -53,6 +54,9 @@ export function setupEnrollmentAbilities(
                 can(EnrollmentActions.Modify, 'Enrollment', roleBounded);
                 break;
             case 'MANAGER':
+                // `manage` covers AssignCohorts, so a manager can scope the
+                // instructors of their own course. INSTRUCTOR and TA below get
+                // enumerated actions only, so neither can widen its own reach.
                 can('manage', 'Enrollment', courseBounded);
                 break;
             case 'TA':
