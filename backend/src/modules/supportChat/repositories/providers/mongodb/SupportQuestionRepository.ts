@@ -1,11 +1,11 @@
 import { inject, injectable } from 'inversify';
 import { Collection, ObjectId } from 'mongodb';
-import { ISupportQuestion, SUPPORT_CHAT_CONFIG, SupportQuestionStatus } from '../../../types';
-import { TYPES } from '@/shared/container/types';
+import { ISupportQuestion, SUPPORT_CHAT_CONFIG, SupportQuestionStatus, ResolutionRating } from '../../../types.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 
 @injectable()
 export class SupportQuestionRepository {
-  constructor(@inject(TYPES.Database) private db: any) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: any) {}
 
   private getCollection(): Collection<ISupportQuestion> {
     return this.db.collection(SUPPORT_CHAT_CONFIG.collectionsNames.questions);
@@ -79,7 +79,7 @@ export class SupportQuestionRepository {
       { returnDocument: 'after' }
     );
 
-    return result.value as ISupportQuestion | null;
+    return result as ISupportQuestion | null;
   }
 
   async updateStatus(id: ObjectId, status: SupportQuestionStatus): Promise<ISupportQuestion | null> {
@@ -108,7 +108,7 @@ export class SupportQuestionRepository {
       { returnDocument: 'after' }
     );
 
-    return result.value as ISupportQuestion | null;
+    return result as ISupportQuestion | null;
   }
 
   async setFaqMatch(id: ObjectId, faqId: ObjectId, confidence: number): Promise<ISupportQuestion | null> {
@@ -124,7 +124,9 @@ export class SupportQuestionRepository {
   }
 
   async setResolutionRating(id: ObjectId, rating: 'helpful' | 'not_helpful'): Promise<ISupportQuestion | null> {
-    return this.updateById(id, { resolutionRating: rating });
+    const resolutionRating =
+      rating === 'helpful' ? ResolutionRating.HELPFUL : ResolutionRating.NOT_HELPFUL;
+    return this.updateById(id, { resolutionRating });
   }
 
   async markAsSeenByLearner(id: ObjectId): Promise<ISupportQuestion | null> {

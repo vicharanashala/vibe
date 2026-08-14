@@ -2,7 +2,9 @@ import { ObjectId } from 'mongodb';
 
 export const SUPPORT_CHAT_TYPES = {
   FAQRepository: Symbol.for('FAQRepository'),
+  FAQRepo: Symbol.for('FAQRepository'),
   SupportQuestionRepository: Symbol.for('SupportQuestionRepository'),
+  SupportQuestionRepo: Symbol.for('SupportQuestionRepository'),
   FAQRetrievalService: Symbol.for('FAQRetrievalService'),
   ChatService: Symbol.for('ChatService'),
   AdminService: Symbol.for('AdminService'),

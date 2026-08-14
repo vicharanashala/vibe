@@ -1,4 +1,3 @@
-import React from 'react';
 import { ISupportQuestion, SupportQuestionStatus } from '@/modules/supportChat/types';
 import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
 

@@ -1,11 +1,11 @@
 import { inject, injectable } from 'inversify';
 import { Collection, ObjectId } from 'mongodb';
-import { IFAQ, SUPPORT_CHAT_CONFIG, FAQCategory } from '../../../types';
-import { TYPES } from '@/shared/container/types';
+import { IFAQ, SUPPORT_CHAT_CONFIG, FAQCategory } from '../../../types.js';
+import { GLOBAL_TYPES } from '#root/types.js';
 
 @injectable()
 export class FAQRepository {
-  constructor(@inject(TYPES.Database) private db: any) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: any) {}
 
   private getCollection(): Collection<IFAQ> {
     return this.db.collection(SUPPORT_CHAT_CONFIG.collectionsNames.faq);
@@ -60,7 +60,7 @@ export class FAQRepository {
       { returnDocument: 'after' }
     );
 
-    return result.value as IFAQ | null;
+    return result as IFAQ | null;
   }
 
   async incrementUsageCount(id: ObjectId): Promise<void> {

@@ -4,13 +4,10 @@ import {
   FAQRetrievalResult,
   SUPPORT_CHAT_CONFIG,
   SUPPORT_CHAT_TYPES,
-} from '../types';
-import { FAQRepository } from '../repositories/providers/mongodb';
-import { Logger } from '@/shared/logger';
-
+} from '../types.js';
+import { FAQRepository } from '../repositories/providers/mongodb/index.js';
 @injectable()
 export class FAQRetrievalService {
-  private logger = Logger.getLogger('FAQRetrievalService');
   private minimaxApiKey = process.env.MINIMAX_API_KEY;
   private minimaxApiUrl = process.env.MINIMAX_API_URL || 'https://api.minimax.chat/v1';
   private minimaxEmbeddingModel =
@@ -18,7 +15,7 @@ export class FAQRetrievalService {
 
   constructor(@inject(SUPPORT_CHAT_TYPES.FAQRepo) private faqRepo: FAQRepository) {
     if (!this.minimaxApiKey) {
-      this.logger.warn('MINIMAX_API_KEY not set - embedding generation will fail');
+      console.warn('MINIMAX_API_KEY not set - embedding generation will fail');
     }
   }
 
@@ -72,20 +69,20 @@ export class FAQRetrievalService {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(`Minimax API error: ${error.message || response.statusText}`);
+        const error = (await response.json()) as { message?: string };
+        throw new Error(`Minimax API error: ${error?.message || response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { data?: Array<{ embedding: number[] }> };
 
       // Minimax returns embeddings in data.data array
-      if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
+      if (!data?.data || !Array.isArray(data.data) || data.data.length === 0) {
         throw new Error('Invalid embedding response from Minimax');
       }
 
       return data.data[0].embedding;
     } catch (error) {
-      this.logger.error('Error getting embedding from Minimax', error);
+      console.error('Error getting embedding from Minimax', error);
       throw error;
     }
   }
@@ -102,7 +99,7 @@ export class FAQRetrievalService {
       const faqs = await this.faqRepo.findAll({ isActive: true });
 
       if (faqs.length === 0) {
-        this.logger.warn('No active FAQs found');
+        console.warn('No active FAQs found');
         return null;
       }
 
@@ -147,7 +144,7 @@ export class FAQRetrievalService {
 
       return topResult as FAQRetrievalResult;
     } catch (error) {
-      this.logger.error('Error retrieving FAQ', error);
+      console.error('Error retrieving FAQ', error);
       throw error;
     }
   }
@@ -157,7 +154,7 @@ export class FAQRetrievalService {
       const textToEmbed = `${faq.question} ${faq.answer}`;
       return await this.getEmbedding(textToEmbed);
     } catch (error) {
-      this.logger.error('Error generating FAQ embedding', error);
+      console.error('Error generating FAQ embedding', error);
       throw error;
     }
   }

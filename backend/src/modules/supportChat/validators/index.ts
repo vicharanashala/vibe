@@ -1,1 +1,0 @@
-export { SupportChatValidator } from './SupportChatValidator';

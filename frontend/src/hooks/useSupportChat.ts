@@ -1,7 +1,12 @@
 import { useCallback } from 'react';
 import { ChatMessageResponse } from '@/modules/supportChat/types';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_BASE_URL ?? '';
+
+const authHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('firebase-auth-token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 export default function useSupportChat() {
   const sendMessage = useCallback(
@@ -22,7 +27,7 @@ export default function useSupportChat() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+            ...authHeaders(),
           },
           body: JSON.stringify({
             question,
@@ -47,9 +52,7 @@ export default function useSupportChat() {
       const response = await fetch(
         `${API_BASE}/api/support/chat/history?limit=${limit}`,
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-          },
+          headers: authHeaders(),
         }
       );
 
@@ -65,9 +68,7 @@ export default function useSupportChat() {
   const getQuestion = useCallback(
     async (questionId: string) => {
       const response = await fetch(`${API_BASE}/api/support/chat/${questionId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-        },
+        headers: authHeaders(),
       });
 
       if (!response.ok) {
@@ -87,7 +88,7 @@ export default function useSupportChat() {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+            ...authHeaders(),
           },
           body: JSON.stringify({ rating }),
         }
