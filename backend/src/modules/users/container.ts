@@ -10,6 +10,7 @@ import {IntegrationController} from './controllers/IntegrationController.js';
 import {ApiKeyAuthMiddleware} from '#root/shared/middleware/ApiKeyAuthMiddleware.js';
 import {EnrollmentService} from './services/EnrollmentService.js';
 import {ProgressService} from './services/ProgressService.js';
+import {StreakService} from './services/StreakService.js';
 import {UserService} from './services/UserService.js';
 import {UserActivityEventService} from './services/UserActivityEventService.js';
 
@@ -32,6 +33,10 @@ export const usersContainerModule = new ContainerModule(options => {
   options
     .bind(USERS_TYPES.ProgressService)
     .to(ProgressService)
+    .inSingletonScope();
+  options
+    .bind(USERS_TYPES.StreakService)
+    .to(StreakService)
     .inSingletonScope();
   options
     .bind(USERS_TYPES.UserService)

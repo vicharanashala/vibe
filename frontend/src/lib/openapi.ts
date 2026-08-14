@@ -44,9 +44,18 @@ fetchClient.use({
 
   async onResponse({ response, request }) {
     if (response.status === 401) {
-      try {
-        if (refreshTokenFunction) {
-          await refreshTokenFunction();
+      // A 401 means our stored token was rejected. Refresh it (the listener in
+      // AuthProvider keeps it fresh, but this is the safety net for the window
+      // where auth.currentUser isn't restored yet) and retry the request.
+      // Retry a few times so a transient "session not restored yet" race
+      // self-heals instead of surfacing as a user-visible 401.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          if (refreshTokenFunction) {
+            await refreshTokenFunction();
+          }
+        } catch (error) {
+          console.warn(`Token refresh attempt ${attempt} failed:`, error);
         }
         const newToken = getAuthToken();
         if (newToken) {
@@ -54,8 +63,8 @@ fetchClient.use({
           newRequest.headers.set('Authorization', `Bearer ${newToken}`);
           return fetch(newRequest);
         }
-      } catch (error) {
-        console.error('Token refresh failed during API call:', error);
+        // currentUser isn't ready yet - wait briefly and try again.
+        await new Promise(resolve => setTimeout(resolve, 400));
       }
       try {
         const { auth: firebaseAuth } = await import('@/lib/firebase');

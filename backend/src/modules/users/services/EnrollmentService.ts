@@ -2073,7 +2073,13 @@ export class EnrollmentService extends BaseService {
       ? [await this.courseRepo.read(courseId)]
       : await this.courseRepo.getAllCourses();
 
-    if (!courses.length || courses.some(c => !c)) {
+    if (!courses.length) {
+      // Empty database (e.g. fresh in-memory DB in local dev): nothing to
+      // update, so short-circuit instead of failing the progress-update cron.
+      return { totalCount: 0, updatedCount: 0 };
+    }
+
+    if (courses.some(c => !c)) {
       throw new Error('Course not found');
     }
 

@@ -96,3 +96,5 @@ backend/html/
 
 # Firebase hosting cache
 .firebase/
+backend/.localdb/
+

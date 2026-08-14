@@ -11,19 +11,31 @@ import admin from 'firebase-admin';
 import {appConfig} from '#root/config/app.js';
 
 if (!admin.apps.length) {
-  if (appConfig.isDevelopment) {
+  if (
+    appConfig.isDevelopment &&
+    appConfig.firebase.clientEmail &&
+    appConfig.firebase.privateKey &&
+    appConfig.firebase.projectId
+  ) {
     admin.initializeApp({
       credential: admin.credential.cert({
         clientEmail: appConfig.firebase.clientEmail,
-        privateKey: appConfig.firebase.privateKey.replace(/\\n/g, '\n'),
+        privateKey: appConfig.firebase.privateKey?.replace(/\\n/g, '\n'),
         projectId: appConfig.firebase.projectId,
       }),
     });
-  } else {
+  } else if (!appConfig.isDevelopment) {
     admin.initializeApp({
       credential: admin.credential.applicationDefault(),
     });
+  } else if (appConfig.firebase.projectId) {
+    // Local development against the Firebase auth emulator. No real service
+    // account exists, so initialize without a credential; firebase-admin routes
+    // token verification to the emulator via FIREBASE_AUTH_EMULATOR_HOST.
+    admin.initializeApp({projectId: appConfig.firebase.projectId});
   }
+  // In local development without a Firebase project (no emulator) firebase-admin
+  // is intentionally left uninitialized so the server boots at import time.
 }
 @injectable()
 export class UserRepository implements IUserRepository {
@@ -201,6 +213,46 @@ export class UserRepository implements IUserRepository {
       ...user,
       _id: user._id?.toString(),
     }));
+  }
+
+  /**
+   * Reads the streak milestones (day thresholds like 3, 7, 30) already
+   * acknowledged for a user. Reads the raw field so the `User` transformer
+   * (which whitelists exposed fields) does not drop it.
+   */
+  async getAcknowledgedStreakMilestones(
+    userId: string,
+    session?: ClientSession,
+  ): Promise<number[]> {
+    await this.init();
+    const user = await this.usersCollection.findOne(
+      {_id: new ObjectId(userId)},
+      {projection: {acknowledgedStreakMilestones: 1}, session},
+    );
+    return Array.isArray(user?.acknowledgedStreakMilestones)
+      ? user.acknowledgedStreakMilestones
+      : [];
+  }
+
+  /**
+   * Idempotently marks streak milestones as acknowledged using `$addToSet`,
+   * so repeated calls never duplicate entries.
+   */
+  async acknowledgeStreakMilestones(
+    userId: string,
+    milestones: number[],
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    const safeList = Array.isArray(milestones)
+      ? milestones.filter(m => Number.isFinite(m))
+      : [];
+    if (safeList.length === 0) return;
+    await this.usersCollection.updateOne(
+      {_id: new ObjectId(userId)},
+      {$addToSet: {acknowledgedStreakMilestones: {$each: safeList}}},
+      {session},
+    );
   }
 
   /**

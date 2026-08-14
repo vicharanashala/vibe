@@ -872,6 +872,51 @@ class ProgressRepository {
     return map;
   }
 
+  /**
+   * Distinct calendar days (UTC, formatted `YYYY-MM-DD`) on which a learner had
+   * watch activity, sorted ascending. This is the single source of truth for the
+   * student streak feature — the current streak, longest streak, and ring/banner
+   * are all derived from this day-set, so every UI surface stays in sync.
+   *
+   * Days are bucketed in UTC. If local-locale day boundaries are desired later
+   * (a learner's local midnight rather than UTC's), pass a `timezone` to
+   * `$dateToString` — the rest of the pipeline is unaffected.
+   */
+  async getActiveDaySet(
+    userId: string,
+    session?: ClientSession,
+  ): Promise<string[]> {
+    await this.init();
+    const results = await this.watchTimeCollection
+      .aggregate(
+        [
+          {
+            $match: {
+              userId: new ObjectId(userId),
+              isDeleted: { $ne: true },
+              startTime: { $exists: true, $ne: null },
+            },
+          },
+          {
+            $group: {
+              _id: {
+                $dateToString: {
+                  format: '%Y-%m-%d',
+                  date: '$startTime',
+                  timezone: 'UTC',
+                },
+              },
+            },
+          },
+          { $sort: { _id: 1 } },
+        ],
+        { session },
+      )
+      .toArray();
+
+    return results.map(row => row._id as string);
+  }
+
   async deleteProgressByVersionId(versionId: string, session?: ClientSession) {
     await this.init();
     await this.progressCollection.updateMany(
