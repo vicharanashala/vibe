@@ -356,6 +356,49 @@ describe('Anomaly Controller Integration Tests', () => {
         expect(response.body.itemId).toBe(anomalyData.itemId);
         expect(response.body.type).toBe(anomalyData.type);
       }, 60000);
+
+      it('should round-trip metadata when provided in the request body', async () => {
+        const metadata = {
+          reason: 'No eye blink detected for 15 seconds',
+          durationMs: 15000,
+          consecutiveFrames: 8,
+          signalStrength: 0.85,
+          detectedAt: new Date().toISOString(),
+        };
+
+        const response = await request(app)
+          .post('/anomalies/record/image')
+          .set('Authorization', 'Bearer admin')
+          .field('courseId', anomalyData.courseId.toString())
+          .field('versionId', anomalyData.versionId.toString())
+          .field('itemId', anomalyData.itemId.toString())
+          .field('type', anomalyData.type)
+          .field('metadata', JSON.stringify(metadata))
+          .attach('image', validImageBuffer, 'test-image.jpg')
+          .expect(201);
+
+        expect(response.body.metadata).toBeDefined();
+        expect(response.body.metadata.reason).toBe(metadata.reason);
+        expect(response.body.metadata.durationMs).toBe(metadata.durationMs);
+        expect(response.body.metadata.consecutiveFrames).toBe(metadata.consecutiveFrames);
+        expect(response.body.metadata.signalStrength).toBe(metadata.signalStrength);
+        expect(response.body.metadata.detectedAt).toBe(metadata.detectedAt);
+      }, 60000);
+
+      it('should succeed when metadata is omitted (backward compatible)', async () => {
+        const response = await request(app)
+          .post('/anomalies/record/image')
+          .set('Authorization', 'Bearer admin')
+          .field('courseId', anomalyData.courseId.toString())
+          .field('versionId', anomalyData.versionId.toString())
+          .field('itemId', anomalyData.itemId.toString())
+          .field('type', AnomalyType.NO_FACE)
+          .attach('image', validImageBuffer, 'test-image.jpg')
+          .expect(201);
+
+        expect(response.body._id).toBeDefined();
+        expect(response.body.metadata).toBeUndefined();
+      }, 60000);
     });
 
     describe('Error Scenarios', () => {

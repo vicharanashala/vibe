@@ -2004,10 +2004,10 @@ function VersionCard({
 
 
 
-                {/* <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
+                <Button variant="outline" size="sm" onClick={viewAnomalies} className="h-7 text-xs cursor-pointer">
                   <Eye className="h-3 w-3 mr-1" />
                   View Anomalies
-                </Button> */}
+                </Button>
                 <Button variant="outline" size="sm" onClick={viewFlags} className="h-7 text-xs cursor-pointer">
                   <FlagTriangleRight className="h-3 w-3 mr-1" />
                   View Flags

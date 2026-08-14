@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +10,7 @@ import { useAnomalyStore } from "@/store/anomaly-store"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Pagination } from "@/components/ui/Pagination"
 import { Input } from "@/components/ui/input"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import CourseBackButton from "./CourseBackButton";
 import {
   DropdownMenu,
@@ -88,12 +89,142 @@ export default function AnomaliesList() {
     cohort ?? undefined
   );
 
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case 'MULTIPLE_FACES':
-      default:
-        return <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-200">{type}</Badge>
+  // A separate, unfiltered, larger fetch purely to build the "who has the
+  // most violations" summary below — independent of the paginated/filtered
+  // table above so filtering the table doesn't skew the leaderboard.
+  const { data: allAnomaliesForSummary = [] } = useAnomaliesByCourseItem(
+    courseId as string,
+    versionId as string,
+    1,
+    500,
+    'createdAt',
+    'desc',
+    '',
+    undefined,
+    undefined,
+  );
+
+  const studentSummaries = useMemo(() => {
+    const byStudent = new Map<string, {
+      studentName: string; studentEmail: string; count: number; lastSeen: string;
+    }>();
+    for (const a of allAnomaliesForSummary) {
+      const key = a.studentEmail || a.studentName || 'unknown';
+      const existing = byStudent.get(key);
+      if (existing) {
+        existing.count += 1;
+        if (new Date(a.createdAt) > new Date(existing.lastSeen)) existing.lastSeen = String(a.createdAt);
+      } else {
+        byStudent.set(key, {
+          studentName: a.studentName || 'Unknown User',
+          studentEmail: a.studentEmail || '',
+          count: 1,
+          lastSeen: String(a.createdAt),
+        });
+      }
     }
+    return Array.from(byStudent.values()).sort((a, b) => b.count - a.count);
+  }, [allAnomaliesForSummary]);
+
+  const maxCount = studentSummaries[0]?.count ?? 0;
+
+  // Drill down into a specific student: reuses the existing server-side
+  // search filter, so it's the same query path as typing in the search box.
+  const focusStudent = (email: string) => {
+    setSearchQuery(email);
+    setDebouncedSearch(email);
+    setPage(1);
+  };
+
+  const typeLabels: Record<string, string> = {
+    MULTIPLE_FACES: 'Multiple Faces',
+    NO_FACE: 'Face Not Detected',
+    VOICE_DETECTION: 'Noise Detected',
+    FOCUS: 'Focus Issue',
+    FACE_RECOGNITION: 'Face Mismatch',
+    HAND_GESTURE_DETECTION: 'Hand Gesture',
+    BLUR_DETECTION: 'Blur Detected',
+    LIVENESS: 'Liveness Detection',
+    LOOKING_AWAY: 'Looking Away',
+  };
+
+  // Explainable-metadata violations (PR "Liveness & Video Integrity Detection")
+  // are treated as the most severe row-level signal — everything else is a
+  // lighter-weight heuristic flag.
+  const getTypeBadgeClass = (type: string) => {
+    switch (type) {
+      case 'LIVENESS':
+      case 'LOOKING_AWAY':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'MULTIPLE_FACES':
+      case 'NO_FACE':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'VOICE_DETECTION':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'FACE_RECOGNITION':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  }
+
+  const getTypeBadge = (anomaly: Anomaly) => {
+    const badge = (
+      <Badge variant="outline" className={getTypeBadgeClass(anomaly.type)}>
+        {typeLabels[anomaly.type] || anomaly.type}
+      </Badge>
+    );
+
+    // Only LIVENESS/LOOKING_AWAY violations (PR1's "Explainable Violation
+    // Metadata") carry a metadata payload — surface it on hover so instructors
+    // can see *why* the detector fired, not just that it did.
+    if (!anomaly.metadata) return badge;
+
+    const { reason, durationMs, consecutiveFrames, signalStrength, detectedAt } = anomaly.metadata;
+    return (
+      <HoverCard openDelay={100}>
+        <HoverCardTrigger asChild>
+          <button type="button" className="cursor-pointer">{badge}</button>
+        </HoverCardTrigger>
+        <HoverCardContent className="w-72 text-sm">
+          <div className="space-y-2">
+            <div className="font-semibold">Liveness Violation Details</div>
+            {reason && (
+              <div>
+                <div className="text-xs text-muted-foreground">Reason</div>
+                <div>{reason}</div>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              {durationMs !== undefined && (
+                <div>
+                  <div className="text-xs text-muted-foreground">Duration</div>
+                  <div>{durationMs.toLocaleString()} ms</div>
+                </div>
+              )}
+              {consecutiveFrames !== undefined && (
+                <div>
+                  <div className="text-xs text-muted-foreground">Consecutive Frames</div>
+                  <div>{consecutiveFrames}</div>
+                </div>
+              )}
+              {signalStrength !== undefined && (
+                <div>
+                  <div className="text-xs text-muted-foreground">Confidence</div>
+                  <div>{Math.round(signalStrength * 100)}%</div>
+                </div>
+              )}
+              {detectedAt && (
+                <div>
+                  <div className="text-xs text-muted-foreground">Detected At</div>
+                  <div>{new Date(detectedAt).toLocaleTimeString()}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </HoverCardContent>
+      </HoverCard>
+    );
   }
 
   const handleSort = (column: 'createdAt' | 'type' | 'studentName') => {
@@ -137,6 +268,63 @@ export default function AnomaliesList() {
             </div>
           </div>
         </div>
+
+        {/* Top violators — per-student violation counts, tap to drill in */}
+        {studentSummaries.length > 0 && (
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-6 space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold">Students by Violation Count</h2>
+                <p className="text-sm text-muted-foreground">
+                  Tap a student to see all of their flagged activity below.
+                </p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {studentSummaries.map((s, index) => (
+                  <button
+                    key={s.studentEmail || s.studentName}
+                    type="button"
+                    onClick={() => focusStudent(s.studentEmail)}
+                    className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 ${
+                      debouncedSearch && debouncedSearch === s.studentEmail ? 'border-primary bg-muted/40' : 'border-border'
+                    }`}
+                  >
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${s.studentName}`} />
+                      <AvatarFallback>{s.studentName?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{s.studentName}</div>
+                      <div className="text-xs text-muted-foreground truncate">{s.studentEmail}</div>
+                      {index === 0 && (
+                        <Badge variant="destructive" className="mt-1 text-[10px] px-1.5 py-0">Most violations</Badge>
+                      )}
+                      <div className="mt-1.5 h-1 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-red-500"
+                          style={{ width: `${maxCount ? Math.round((s.count / maxCount) * 100) : 0}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-lg font-bold leading-none">{s.count}</div>
+                      <div className="text-[10px] text-muted-foreground">{s.count === 1 ? 'violation' : 'violations'}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {debouncedSearch && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setSearchQuery(''); setDebouncedSearch(''); setPage(1); }}
+                >
+                  Clear student filter
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Search Input */}
         <div className="relative w-full">
@@ -316,7 +504,16 @@ export default function AnomaliesList() {
                                   </div>
                                 </div>
                               </TableCell>
-                              <TableCell>{getTypeBadge(anomaly.type)}</TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  {getTypeBadge(anomaly)}
+                                  {anomaly.metadata?.reason && (
+                                    <div className="text-xs text-muted-foreground max-w-xs">
+                                      {anomaly.metadata.reason}
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
                               <TableCell>
                                 {new Date(anomaly.createdAt).toLocaleDateString('en-GB') + ' ' + 
                                  new Date(anomaly.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}

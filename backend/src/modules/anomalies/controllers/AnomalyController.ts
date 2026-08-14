@@ -30,6 +30,24 @@ import { subject } from '@casl/ability';
 import { PaginatedResponse } from '../classes/transformers/Anomaly.js';
 import { UserNotFoundErrorResponse } from '#root/modules/users/classes/index.js';
 
+const FACE_IMAGE_ANOMALY_TYPES = new Set<AnomalyType>([
+  AnomalyType.FACE_RECOGNITION,
+  AnomalyType.LIVENESS,
+  AnomalyType.LOOKING_AWAY,
+]);
+
+function detectorForImageAnomalyType(type: AnomalyType): ProctoringComponent | null {
+  switch (type) {
+    case AnomalyType.FACE_RECOGNITION:
+      return ProctoringComponent.FACERECOGNITION;
+    case AnomalyType.LIVENESS:
+    case AnomalyType.LOOKING_AWAY:
+      return ProctoringComponent.LIVENESSDETECTION;
+    default:
+      return null;
+  }
+}
+
 @OpenAPI({
   tags: ['Anomalies'],
   description: 'Operations for managing anomaly detection with encrypted image storage',
@@ -73,16 +91,17 @@ export class AnomalyController {
     //   throw new ForbiddenError('You do not have permission to create an anomaly');
     // }
 
-    if (body.type === AnomalyType.FACE_RECOGNITION) {
+    if (FACE_IMAGE_ANOMALY_TYPES.has(body.type)) {
+      const detectorName = detectorForImageAnomalyType(body.type);
       const courseSetting = await this.courseSettingService.readCourseSettings(
         courseId.toString(),
         versionId.toString(),
       );
       const detector = courseSetting?.settings?.proctors?.detectors?.find(
-        d => d.detectorName === ProctoringComponent.FACERECOGNITION,
+        d => d.detectorName === detectorName,
       );
       if (!detector?.settings?.enabled) {
-        throw new ForbiddenError('Face recognition is disabled for this course');
+        throw new ForbiddenError(`${body.type} is disabled for this course`);
       }
     }
 

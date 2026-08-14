@@ -5,7 +5,7 @@ import FaceRecognitionComponent from "./FaceRecognitionComponent";
 import type { FaceDetectorsProps, FaceRecognition, FaceRecognitionDebugInfo } from "@/types/ai.types";
 import { eye } from "@tensorflow/tfjs-core";
 
-const isLookingAway = (face: Face): boolean => {
+export const isLookingAway = (face: Face): boolean => {
   if (!face || face.keypoints.length < 6) return false;
 
   const rightEye = face.keypoints.find((p: Keypoint) => p.name === "rightEye");

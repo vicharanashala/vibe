@@ -10,6 +10,16 @@ export enum AnomalyType {
   FOCUS = 'FOCUS',
   HAND_GESTURE_DETECTION = 'HAND_GESTURE_DETECTION',
   FACE_RECOGNITION = 'FACE_RECOGNITION',
+  LIVENESS = 'LIVENESS',
+  LOOKING_AWAY = 'LOOKING_AWAY',
+}
+
+export interface ViolationMetadata {
+  reason: string;
+  durationMs?: number;
+  consecutiveFrames?: number;
+  signalStrength?: number;
+  detectedAt: string;
 }
 
 export enum FileType {
@@ -57,6 +67,7 @@ export class IAnomalyData {
   createdAt: Date;
   cohortId?: string | ObjectId;
   cohortName?: string;
+  metadata?: ViolationMetadata;
 
   constructor(data: Partial<IAnomalyData>, userId: string) {
     this.userId = new ObjectId(userId);
@@ -67,6 +78,9 @@ export class IAnomalyData {
     this.createdAt = new Date();
     if (data.cohortId) {
       this.cohortId = new ObjectId(data.cohortId);
+    }
+    if (data.metadata) {
+      this.metadata = data.metadata;
     }
   }
 }
@@ -130,6 +144,20 @@ export class AnomalyStats {
   })
   FACE_RECOGNITION: number;
 
+  @IsNumber()
+  @JSONSchema({
+    title: 'Number of liveness anomalies',
+    description: 'Number of liveness anomalies',
+  })
+  LIVENESS: number;
+
+  @IsNumber()
+  @JSONSchema({
+    title: 'Number of looking away anomalies',
+    description: 'Number of looking away anomalies',
+  })
+  LOOKING_AWAY: number;
+
   constructor() {
     this.VOICE_DETECTION = 0;
     this.NO_FACE = 0;
@@ -138,6 +166,8 @@ export class AnomalyStats {
     this.FOCUS = 0;
     this.HAND_GESTURE_DETECTION = 0;
     this.FACE_RECOGNITION = 0;
+    this.LIVENESS = 0;
+    this.LOOKING_AWAY = 0;
   }
 }
 

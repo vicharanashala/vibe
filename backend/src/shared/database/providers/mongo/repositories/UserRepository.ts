@@ -11,7 +11,13 @@ import admin from 'firebase-admin';
 import {appConfig} from '#root/config/app.js';
 
 if (!admin.apps.length) {
-  if (appConfig.isDevelopment) {
+  if (process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+    // Local dev against the Firebase Auth Emulator — see FirebaseAuthService
+    // for the matching branch and rationale.
+    admin.initializeApp({
+      projectId: appConfig.firebase.projectId || 'demo-vibe-local',
+    });
+  } else if (appConfig.isDevelopment) {
     admin.initializeApp({
       credential: admin.credential.cert({
         clientEmail: appConfig.firebase.clientEmail,

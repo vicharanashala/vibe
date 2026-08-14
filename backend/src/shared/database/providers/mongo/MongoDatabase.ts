@@ -40,9 +40,14 @@ export class MongoDatabase implements IDatabase<Db> {
       return;
     }
 
+    // Local dev only: a local/in-memory MongoDB doesn't speak TLS. Atlas
+    // (staging/production) always does — this only turns off when a dev
+    // explicitly opts in, never by inferring it from the URL.
+    const useTls = process.env.DB_DISABLE_TLS !== 'true';
+
     this.client = new MongoClient(uri, {
-      ssl: true,
-      tls: true,
+      ssl: useTls,
+      tls: useTls,
       tlsAllowInvalidCertificates: false,
       tlsAllowInvalidHostnames: false,
 
