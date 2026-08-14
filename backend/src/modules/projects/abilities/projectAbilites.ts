@@ -17,6 +17,7 @@ export enum ProjectActions {
   CreateRubric = 'create_rubric',
   ManageRubric = 'manage_rubric',
   ViewRubric = 'view_rubric',
+  ViewRubricLibrary = 'view_rubric_library',
   Assess = 'assess',
   ViewAssessment = 'view_assessment',
 }
@@ -62,10 +63,11 @@ export const setupProjectAbilities = (
         can(ProjectActions.View, ProjectSubject, userBounded);
         can(ProjectActions.ViewGallery, ProjectSubject, courseVersionBounded);
         can(ProjectActions.FeatureSubmission, ProjectSubject, courseVersionBounded);
-        // Rubric & Assessment abilities — all course/version scoped
+        // Rubric & Assessment abilities
         can(ProjectActions.CreateRubric, ProjectSubject, courseVersionBounded);
         can(ProjectActions.ManageRubric, ProjectSubject, courseVersionBounded);
         can(ProjectActions.ViewRubric, ProjectSubject, courseVersionBounded);
+        can(ProjectActions.ViewRubricLibrary, ProjectSubject);
         can(ProjectActions.Assess, ProjectSubject, courseVersionBounded);
         can(ProjectActions.ViewAssessment, ProjectSubject, courseVersionBounded);
         break;

@@ -78,7 +78,9 @@ const ProjectSubmissionsPDF: React.FC<ProjectSubmissionsPDFProps> = ({ course, c
                 : 'Not assessed'}
             </Text></View>
             <View style={[styles.tableCol, { width: '10%' }]}><Text style={styles.tableCell}>
-              {(u as any).assessmentOverallFeedback || 'Not assessed'}
+              {(u as any).assessmentTotalPoints != null
+                ? ((u as any).assessmentOverallFeedback || '—')
+                : 'Not assessed'}
             </Text></View>
           </View>
         ))}
@@ -307,6 +309,7 @@ const ProjectSubmissionsFetcher: React.FC<{ courseId: string; versionId: string;
         Curate Gallery
       </Button>
       <PDFDownloadLink
+        key={JSON.stringify(projectSubmissions)}
         document={<ProjectSubmissionsPDF {...projectSubmissions} projectName={projectName} />}
         fileName={getFileName()}
       >

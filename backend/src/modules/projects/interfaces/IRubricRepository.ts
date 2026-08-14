@@ -19,6 +19,8 @@ export interface IRubricRepository {
     session?: ClientSession,
   ): Promise<IRubric[]>;
 
+  getAll(session?: ClientSession): Promise<IRubric[]>;
+
   update(
     rubricId: string,
     patch: Pick<Partial<IRubric>, 'title' | 'description' | 'criteria'>,

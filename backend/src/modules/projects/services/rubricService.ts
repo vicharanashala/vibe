@@ -69,6 +69,30 @@ export class RubricService extends BaseService {
     return this._rubricRepository.getByCourseVersion(courseId, courseVersionId);
   }
 
+  async getAllRubrics(): Promise<IRubric[]> {
+    return this._rubricRepository.getAll();
+  }
+
+  async cloneRubricToCourseVersion(
+    rubricId: string,
+    targetCourseId: string,
+    targetVersionId: string,
+  ): Promise<IRubric> {
+    const existing = await this.getRubric(rubricId);
+    const criteriaInput = existing.criteria.map(c => ({
+      name: c.name,
+      description: c.description,
+      maxPoints: c.maxPoints,
+    }));
+    return this.createRubric(
+      targetCourseId,
+      targetVersionId,
+      `${existing.title} (Copy)`,
+      existing.description,
+      criteriaInput,
+    );
+  }
+
   /**
    * Updates a rubric — only if no assessments reference it yet (lock semantics).
    * Criterion IDs are NOT regenerated on update; the client must send back the

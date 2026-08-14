@@ -4234,6 +4234,90 @@ export function useRubricsByCourseVersion(
   };
 }
 
+/** GET /project/rubric/all */
+export function useAllRubrics(): {
+  data: Rubric[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+} {
+  const result = useQuery({
+    queryKey: ['all-rubrics'],
+    queryFn: async () => {
+      const base = import.meta.env.VITE_BASE_URL;
+      const token = localStorage.getItem('firebase-auth-token');
+      const res = await fetch(`${base}/project/rubric/all`, {
+        headers: {Authorization: `Bearer ${token}`},
+      });
+      if (!res.ok) throw new Error('Failed to fetch rubric library');
+      return res.json() as Promise<Rubric[]>;
+    },
+    staleTime: 60_000,
+  });
+  return {
+    data: result.data ?? [],
+    isLoading: result.isLoading,
+    error: result.error ? (result.error as Error).message : null,
+    refetch: result.refetch,
+  };
+}
+
+/** POST /project/rubric/:rubricId/clone/course/:courseId/version/:versionId */
+export function useCloneRubric(): {
+  mutateAsync: (variables: {
+    rubricId: string;
+    courseId: string;
+    versionId: string;
+  }) => Promise<Rubric>;
+  isPending: boolean;
+  error: string | null;
+} {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async ({
+      rubricId,
+      courseId,
+      versionId,
+    }: {
+      rubricId: string;
+      courseId: string;
+      versionId: string;
+    }) => {
+      const base = import.meta.env.VITE_BASE_URL;
+      const token = localStorage.getItem('firebase-auth-token');
+      const res = await fetch(
+        `${base}/project/rubric/${rubricId}/clone/course/${courseId}/version/${versionId}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to clone rubric');
+      }
+      return res.json() as Promise<Rubric>;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({queryKey: ['rubrics', variables.courseId, variables.versionId]});
+      queryClient.invalidateQueries({queryKey: ['all-rubrics']});
+      toast.success('Rubric cloned to course successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to clone rubric');
+    },
+  });
+
+  return {
+    mutateAsync: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    error: mutation.error ? mutation.error.message : null,
+  };
+}
+
 /** POST /project/rubric/course/:courseId/version/:versionId */
 export function useCreateRubric(): {
   mutateAsync: (variables: {
@@ -4462,7 +4546,12 @@ export function useSaveAssessment(): {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({queryKey: ['assessment', variables.submissionId]});
       queryClient.invalidateQueries({queryKey: ['mySubmission']});
-      queryClient.invalidateQueries({queryKey: ['projectSubmissions']});
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const keyStr = JSON.stringify(query.queryKey);
+          return keyStr.includes('projectSubmissions') || keyStr.includes('/project/course/');
+        },
+      });
       toast.success('Assessment saved successfully');
     },
     onError: (error: Error) => {

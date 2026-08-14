@@ -67,6 +67,14 @@ export class RubricRepository implements IRubricRepository {
       .toArray();
   }
 
+  async getAll(session?: ClientSession): Promise<IRubric[]> {
+    await this.init();
+    return await this._rubricCollection
+      .find({}, {session})
+      .sort({createdAt: -1})
+      .toArray();
+  }
+
   async update(
     rubricId: string,
     patch: Pick<Partial<IRubric>, 'title' | 'description' | 'criteria'>,

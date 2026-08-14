@@ -132,6 +132,63 @@ export class RubricController {
     return rubrics.map((r, i) => mapRubric(r, counts[i]));
   }
 
+  // ─── GET /project/rubric/all ───────────────────────────────────────────
+
+  @OpenAPI({
+    summary: 'List all rubrics across all courses (Rubric Library)',
+    description: 'Returns all rubrics stored in the system, each with assessmentCount field. Requires instructor or admin privileges.',
+  })
+  @Authorized()
+  @Get('/rubric/all')
+  @HttpCode(200)
+  @ResponseSchema(RubricResponse, {
+    description: 'List of all rubrics',
+    statusCode: 200,
+    isArray: true,
+  })
+  async getAllRubrics(
+    @Ability(projectAbility) {ability},
+  ): Promise<RubricResponse[]> {
+    if (!ability.can(ProjectActions.ViewRubricLibrary, ProjectSubject)) {
+      throw new ForbiddenError('You do not have permission to view the rubric library.');
+    }
+
+    const rubrics = await this._rubricService.getAllRubrics();
+    const counts = await Promise.all(
+      rubrics.map(r => this._rubricService.getRubricAssessmentCount(r._id!.toString())),
+    );
+    return rubrics.map((r, i) => mapRubric(r, counts[i]));
+  }
+
+  // ─── POST /project/rubric/:rubricId/clone/course/:courseId/version/:versionId ─
+
+  @OpenAPI({
+    summary: 'Clone a rubric into a course version',
+    description: 'Copies an existing rubric into the target course version. Verifies caller has CreateRubric permission for target courseId/versionId.',
+  })
+  @Authorized()
+  @Post('/rubric/:rubricId/clone/course/:courseId/version/:versionId')
+  @HttpCode(201)
+  @ResponseSchema(RubricResponse, {
+    description: 'Cloned rubric',
+    statusCode: 201,
+  })
+  async cloneRubric(
+    @Param('rubricId') rubricId: string,
+    @Params() params: CourseVersionRubricParams,
+    @Ability(projectAbility) {ability},
+  ): Promise<RubricResponse> {
+    const {courseId, versionId} = params;
+    const projectSubject = subject(ProjectSubject, {courseId, versionId});
+
+    if (!ability.can(ProjectActions.CreateRubric, projectSubject)) {
+      throw new ForbiddenError('You do not have permission to create rubrics for this course.');
+    }
+
+    const cloned = await this._rubricService.cloneRubricToCourseVersion(rubricId, courseId, versionId);
+    return mapRubric(cloned, 0);
+  }
+
   // ─── GET /project/rubric/:rubricId ────────────────────────────────────
 
   @OpenAPI({

@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import {
   useRubricsByCourseVersion,
+  useAllRubrics,
+  useCloneRubric,
   useCreateRubric,
   useUpdateRubric,
   useDeleteRubric,
@@ -30,6 +32,13 @@ import {
 } from '@/hooks/hooks';
 import {AlertDialog} from '@/components/ui/alert-dialog';
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // ─── Criterion row editor ─────────────────────────────────────────────────
 
@@ -481,8 +490,26 @@ export default function RubricBuilderPage() {
   const courseId = searchParams.get('courseId') || '';
   const versionId = searchParams.get('versionId') || '';
   const [cloneData, setCloneData] = useState<Rubric | null>(null);
+  const [selectedLibraryRubricId, setSelectedLibraryRubricId] = useState<string>('');
 
   const {data: rubrics = [], isLoading, refetch} = useRubricsByCourseVersion(courseId, versionId);
+  const {data: allRubrics = [], isLoading: isAllLoading} = useAllRubrics();
+  const {mutateAsync: cloneRubric, isPending: isCloning} = useCloneRubric();
+
+  // Rubrics from other courses
+  const otherCourseRubrics = allRubrics.filter(
+    r => r.courseId !== courseId || r.courseVersionId !== versionId
+  );
+
+  const selectedRubricPreview = otherCourseRubrics.find(r => r.id === selectedLibraryRubricId);
+
+  const handleUseInCourse = async (rubricIdToClone?: string) => {
+    const targetId = rubricIdToClone || selectedLibraryRubricId;
+    if (!targetId || !courseId || !versionId) return;
+    await cloneRubric({rubricId: targetId, courseId, versionId});
+    setSelectedLibraryRubricId('');
+    refetch();
+  };
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 my-8 px-4">
@@ -504,11 +531,11 @@ export default function RubricBuilderPage() {
             <BookOpen className="h-6 w-6 text-primary" />
           </div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-            Rubric Builder
+            Rubric Builder & Library
           </h1>
         </div>
         <p className="text-sm md:text-base text-muted-foreground">
-          Create and manage reusable grading rubrics for this course version.
+          Create custom grading rubrics or select and import rubrics created in other courses.
           Once a rubric has been used to assess a submission, it is locked and cannot be edited or deleted.
         </p>
       </header>
@@ -522,10 +549,10 @@ export default function RubricBuilderPage() {
         onClearClone={() => setCloneData(null)}
       />
 
-      {/* Existing rubrics */}
+      {/* Course Rubrics */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          Existing Rubrics ({rubrics.length})
+          Course Rubrics ({rubrics.length})
         </h2>
         {isLoading ? (
           <Card className="border border-border">
@@ -537,8 +564,10 @@ export default function RubricBuilderPage() {
           <Card className="border border-border bg-card/50">
             <CardContent className="flex flex-col items-center justify-center py-12 space-y-2">
               <BookOpen className="h-8 w-8 text-muted-foreground/40" />
-              <p className="text-sm font-medium text-muted-foreground">No rubrics yet</p>
-              <p className="text-xs text-muted-foreground">Create your first rubric above to start assessing submissions.</p>
+              <p className="text-sm font-medium text-muted-foreground">No rubrics in this course yet</p>
+              <p className="text-xs text-muted-foreground">
+                Create a rubric above or choose one from the Rubric Library dropdown below to use in this course.
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -551,6 +580,99 @@ export default function RubricBuilderPage() {
               onClone={targetRubric => setCloneData(targetRubric)}
             />
           ))
+        )}
+      </section>
+
+      {/* Rubric Library Dropdown Section */}
+      <section className="space-y-4 pt-6 border-t border-border">
+        <div>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Rubric Library — Select Existing Rubric
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Choose a rubric created in another course from the dropdown menu to preview and import it into this course.
+          </p>
+        </div>
+
+        {isAllLoading ? (
+          <Card className="border border-border">
+            <CardContent className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
+            </CardContent>
+          </Card>
+        ) : otherCourseRubrics.length === 0 ? (
+          <Card className="border border-border bg-card/30">
+            <CardContent className="py-6 text-center text-xs text-muted-foreground">
+              No rubrics from other courses found yet in the library.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="flex-1">
+                <Select
+                  value={selectedLibraryRubricId}
+                  onValueChange={(val) => setSelectedLibraryRubricId(val)}
+                >
+                  <SelectTrigger className="w-full h-10 text-sm bg-card border-border">
+                    <SelectValue placeholder="-- Choose a rubric from library --" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border max-h-64">
+                    {otherCourseRubrics.map(rubric => (
+                      <SelectItem key={rubric.id} value={rubric.id}>
+                        {rubric.title} ({rubric.criteria.length} criteria • {rubric.criteria.reduce((s, c) => s + c.maxPoints, 0)} pts)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                size="default"
+                className="gap-2 shrink-0"
+                disabled={!selectedLibraryRubricId || isCloning || !courseId || !versionId}
+                onClick={() => handleUseInCourse()}
+              >
+                <Copy className="h-4 w-4" />
+                {isCloning ? 'Importing…' : 'Use / Import in this Course'}
+              </Button>
+            </div>
+
+            {/* Live preview card for selected library rubric */}
+            {selectedRubricPreview && (
+              <Card className="border border-primary/30 bg-primary/5">
+                <CardHeader className="py-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm font-semibold text-primary">
+                        Preview: {selectedRubricPreview.title}
+                      </CardTitle>
+                      {selectedRubricPreview.description && (
+                        <CardDescription className="text-xs mt-0.5">{selectedRubricPreview.description}</CardDescription>
+                      )}
+                    </div>
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/20">
+                      Total: {selectedRubricPreview.criteria.reduce((s, c) => s + c.maxPoints, 0)} pts
+                    </span>
+                  </div>
+                </CardHeader>
+                <CardContent className="py-2 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Criteria Breakdown</p>
+                  <div className="space-y-1.5">
+                    {selectedRubricPreview.criteria.map((c, idx) => (
+                      <div key={c.id || idx} className="flex items-center justify-between text-xs border-b border-border/40 pb-1 last:border-0">
+                        <div>
+                          <span className="font-semibold text-foreground">{c.name}</span>
+                          {c.description && <span className="text-muted-foreground ml-2">— {c.description}</span>}
+                        </div>
+                        <span className="font-semibold text-primary">{c.maxPoints} pts</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
       </section>
     </main>
