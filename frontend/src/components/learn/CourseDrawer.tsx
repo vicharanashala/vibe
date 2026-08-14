@@ -90,6 +90,15 @@ type Props = {
   isItemLocked: (moduleId: string, sectionId: string, itemId: string) => boolean;
 
   emotion?: EmotionConfig;
+
+  /**
+   * Case Studies tab — additive, only rendered when the course setting is on.
+   * Omitting these (existing callers) renders exactly as before: no tab
+   * switcher, module tree as the only content, zero visible change.
+   */
+  caseStudiesEnabled?: boolean;
+  activeDrawerTab?: "content" | "case-studies";
+  onDrawerTabChange?: (tab: "content" | "case-studies") => void;
 };
 
 // Theme-aware row transition (works in light & dark).
@@ -119,6 +128,9 @@ export function CourseDrawer({
   onSelectItem,
   isItemLocked,
   emotion,
+  caseStudiesEnabled = false,
+  activeDrawerTab = "content",
+  onDrawerTabChange,
 }: Props) {
   const supportHref = (() => {
     if (!supportLink) return null;
@@ -190,6 +202,38 @@ export function CourseDrawer({
             </div>
           )}
         </div>
+
+        {/* Case Studies tab switcher — only when the course setting is on. */}
+        {caseStudiesEnabled && (
+          <div className="shrink-0 border-b border-border px-3 pt-2.5" data-testid="drawer-tab-switcher">
+            <div className="flex gap-1 rounded-lg bg-muted p-1 text-sm">
+              <button
+                type="button"
+                data-testid="drawer-tab-content"
+                onClick={() => onDrawerTabChange?.("content")}
+                className={`flex-1 rounded-md px-3 py-1.5 font-medium transition-colors ${
+                  activeDrawerTab === "content"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Course Content
+              </button>
+              <button
+                type="button"
+                data-testid="drawer-tab-case-studies"
+                onClick={() => onDrawerTabChange?.("case-studies")}
+                className={`flex-1 rounded-md px-3 py-1.5 font-medium transition-colors ${
+                  activeDrawerTab === "case-studies"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Case Studies
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Emotion check-in for the current item — compact */}
         {emotion && (

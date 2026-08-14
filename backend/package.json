@@ -14,6 +14,7 @@
     "test": "vitest --ui",
     "test:watch": "vitest run --watch",
     "test:ci": "vitest run --coverage --reporter=html",
+    "seed:case-studies": "node build/modules/caseStudies/scripts/seedCaseStudies.js",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org vicharana-shala --project vibe-server ./build && sentry-cli sourcemaps upload --org vicharana-shala --project vibe-server ./build"
   },
   "imports": {

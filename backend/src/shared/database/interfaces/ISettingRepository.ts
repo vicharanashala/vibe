@@ -68,6 +68,9 @@ export interface ISettingRepository {
     audit: AuditingDto,
     session?: ClientSession,
     crowdsourcedQuestionSubmissionEnabled?: boolean,
+    caseStudiesEnabled?: boolean,
+    caseStudyStrictUnlockEnabled?: boolean,
+    caseStudyWeakStreakThreshold?: number,
   ): Promise<UpdateResult | null>;
 
   updateRegistrationSchemas(

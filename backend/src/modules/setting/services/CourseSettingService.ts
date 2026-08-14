@@ -133,6 +133,9 @@ class CourseSettingService extends BaseService {
         settings.timeslots = {isActive: false, slots: []};
         settings.baseHp = 0;
         settings.randomizeItems = false;
+        settings.caseStudiesEnabled = false;
+        settings.caseStudyStrictUnlockEnabled = true;
+        settings.caseStudyWeakStreakThreshold = 3;
 
         const created = await this.createCourseSettings(
           new CourseSetting({
@@ -166,6 +169,9 @@ class CourseSettingService extends BaseService {
     randomizeItems: boolean,
     userId: string,
     crowdsourcedQuestionSubmissionEnabled: boolean = false,
+    caseStudiesEnabled: boolean = false,
+    caseStudyStrictUnlockEnabled: boolean = true,
+    caseStudyWeakStreakThreshold: number = 3,
   ): Promise<boolean> {
     return this._withTransaction(async session => {
       const versionStatus =
@@ -195,6 +201,9 @@ class CourseSettingService extends BaseService {
         settings.randomizeItems = randomizeItems;
         settings.crowdsourcedQuestionSubmissionEnabled =
           crowdsourcedQuestionSubmissionEnabled;
+        settings.caseStudiesEnabled = caseStudiesEnabled;
+        settings.caseStudyStrictUnlockEnabled = caseStudyStrictUnlockEnabled;
+        settings.caseStudyWeakStreakThreshold = caseStudyWeakStreakThreshold;
 
         settings.audit = [
           {
@@ -212,6 +221,9 @@ class CourseSettingService extends BaseService {
                 baseHp,
                 randomizeItems,
                 crowdsourcedQuestionSubmissionEnabled,
+                caseStudiesEnabled,
+                caseStudyStrictUnlockEnabled,
+                caseStudyWeakStreakThreshold,
               },
             },
           },
@@ -248,6 +260,11 @@ class CourseSettingService extends BaseService {
         randomizeItems: courseSettings.settings?.randomizeItems,
         crowdsourcedQuestionSubmissionEnabled:
           courseSettings.settings?.crowdsourcedQuestionSubmissionEnabled,
+        caseStudiesEnabled: courseSettings.settings?.caseStudiesEnabled,
+        caseStudyStrictUnlockEnabled:
+          courseSettings.settings?.caseStudyStrictUnlockEnabled,
+        caseStudyWeakStreakThreshold:
+          courseSettings.settings?.caseStudyWeakStreakThreshold,
       };
 
       const afterState = {
@@ -259,6 +276,9 @@ class CourseSettingService extends BaseService {
         baseHp,
         randomizeItems,
         crowdsourcedQuestionSubmissionEnabled,
+        caseStudiesEnabled,
+        caseStudyStrictUnlockEnabled,
+        caseStudyWeakStreakThreshold,
       };
 
       const audit: AuditingDto = {
@@ -284,6 +304,9 @@ class CourseSettingService extends BaseService {
         audit,
         session,
         crowdsourcedQuestionSubmissionEnabled,
+        caseStudiesEnabled,
+        caseStudyStrictUnlockEnabled,
+        caseStudyWeakStreakThreshold,
       );
 
       if (!result) {
