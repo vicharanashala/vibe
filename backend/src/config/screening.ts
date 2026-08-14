@@ -3,12 +3,12 @@ import {env} from '#root/utils/env.js';
 /**
  * Config for the crowd-question screening filter (studentQuestions module).
  *
- * Provider-agnostic: the demo runs on Groq's free tier; production can switch to
- * Anthropic by flipping SCREENING_PROVIDER, with no code change to the checks.
+ * Provider-agnostic: switch providers by flipping SCREENING_PROVIDER, with no
+ * code change to the checks themselves.
  */
 export const screeningConfig = {
-  /** 'groq' (demo/free) | 'anthropic' (prod). */
-  provider: (env('SCREENING_PROVIDER') || 'groq') as 'groq' | 'anthropic',
+  /** 'minimax' (default) | 'groq' | 'anthropic'. */
+  provider: (env('SCREENING_PROVIDER') || 'minimax') as 'minimax' | 'groq' | 'anthropic',
 
   /** Master switch — when off, submissions skip screening (fail-open, dev only). */
   enabled: (env('SCREENING_ENABLED') || 'true') !== 'false',
@@ -21,6 +21,12 @@ export const screeningConfig = {
    * (as a grounding hint) the answer-correctness check. Flip to true to enable.
    */
   contextCheckEnabled: (env('SCREENING_CONTEXT_ENABLED') || 'false') === 'true',
+
+  minimax: {
+    apiKey: env('MINIMAX_API_KEY'),
+    model: env('MINIMAX_MODEL') || 'MiniMax-M3',
+    url: env('MINIMAX_URL') || 'https://api.minimax.io/v1/chat/completions',
+  },
 
   groq: {
     apiKey: env('GROQ_API_KEY'),

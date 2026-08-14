@@ -2,10 +2,16 @@ import {screeningConfig} from '#root/config/screening.js';
 import {ScreeningLlm} from './ScreeningLlm.js';
 import {GroqScreeningLlm} from './GroqScreeningLlm.js';
 import {AnthropicScreeningLlm} from './AnthropicScreeningLlm.js';
+import {MinimaxScreeningLlm} from './MinimaxScreeningLlm.js';
 
-/** Pick the screening LLM implementation from config (demo: groq, prod: anthropic). */
+/** Pick the screening LLM implementation from config (default: minimax). */
 export function createScreeningLlm(): ScreeningLlm {
-  return screeningConfig.provider === 'anthropic'
-    ? new AnthropicScreeningLlm()
-    : new GroqScreeningLlm();
+  switch (screeningConfig.provider) {
+    case 'anthropic':
+      return new AnthropicScreeningLlm();
+    case 'groq':
+      return new GroqScreeningLlm();
+    default:
+      return new MinimaxScreeningLlm();
+  }
 }

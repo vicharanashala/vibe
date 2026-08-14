@@ -11,7 +11,7 @@
 import {describe, it, expect} from 'vitest';
 import {ScreeningService, ScreeningInput} from '../services/screening/ScreeningService.js';
 
-const hasKey = !!process.env.GROQ_API_KEY || !!process.env.ANTHROPIC_CRED;
+const hasKey = !!process.env.MINIMAX_API_KEY || !!process.env.GROQ_API_KEY || !!process.env.ANTHROPIC_CRED;
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 interface Attack {
