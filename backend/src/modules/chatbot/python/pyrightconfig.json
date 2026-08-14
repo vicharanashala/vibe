@@ -1,0 +1,11 @@
+{
+  "venvPath": "d:\\Vibe",
+  "venv": ".venv",
+  "extraPaths": [
+    "d:\\Vibe\\.venv\\Lib\\site-packages"
+  ],
+  "exclude": [
+    "**/__pyrefly_virtual__/**",
+    "**/inmemory/**"
+  ]
+}

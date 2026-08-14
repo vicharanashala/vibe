@@ -31,6 +31,12 @@ export abstract class BaseService {
       } catch (error: any) {
         if (session.inTransaction()) await session.abortTransaction();
         await session.endSession();
+        const isNotReplicaSet =
+          error?.message?.includes('replica set') ||
+          error?.message?.includes('Transaction numbers');
+        if (isNotReplicaSet) {
+          return await operation(undefined as any);
+        }
         const isTransient =
           Array.isArray(error?.errorLabels) &&
           error.errorLabels.includes('TransientTransactionError');

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { LogOut, Settings, Sun, Moon } from "lucide-react"
+import { LogOut, Settings, Sun, Moon, MessageSquare } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useAuthStore } from "@/store/auth-store"
 import { useUserEnrollments } from "@/hooks/hooks"
@@ -11,6 +11,7 @@ import { logout } from "@/utils/auth"
 import { AuroraText } from "@/components/magicui/aurora-text"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal"
+import { ChatbotDrawer } from "@/components/chatbot/ChatbotDrawer"
 import {
   Sidebar,
   SidebarContent,
@@ -34,6 +35,7 @@ export function StudentSidebar() {
   const { pathname } = useLocation()
   const { theme, setTheme } = useTheme()
   const [confirmLogout, setConfirmLogout] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
 
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator()
 
@@ -71,6 +73,11 @@ export function StudentSidebar() {
         onConfirm={handleLogout}
         title="Confirm Logout"
         description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
+      />
+
+      <ChatbotDrawer
+        open={chatOpen}
+        onOpenChange={setChatOpen}
       />
 
       <Sidebar collapsible="icon" variant="sidebar" className="border-r bg-white dark:bg-[#17171a] [&_[data-sidebar=sidebar]]:bg-white dark:[&_[data-sidebar=sidebar]]:bg-[#17171a]">
@@ -163,6 +170,15 @@ export function StudentSidebar() {
 
                 <div className="ml-auto flex items-center gap-1 group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:flex-col">
                   <StudentNotifications compact />
+                  <button
+                    type="button"
+                    onClick={() => setChatOpen(true)}
+                    aria-label="Chat with AI"
+                    title="Chat with AI"
+                    className={`flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground ${yellowItem}`}
+                  >
+                    <MessageSquare className="size-4" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

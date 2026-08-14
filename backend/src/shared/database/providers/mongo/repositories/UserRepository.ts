@@ -11,11 +11,15 @@ import admin from 'firebase-admin';
 import {appConfig} from '#root/config/app.js';
 
 if (!admin.apps.length) {
-  if (appConfig.isDevelopment) {
+  if (process.env.FIREBASE_AUTH_EMULATOR_HOST || !appConfig.firebase.clientEmail || !appConfig.firebase.privateKey) {
+    admin.initializeApp({
+      projectId: appConfig.firebase.projectId || process.env.GCLOUD_PROJECT || 'vibe-5b35a',
+    });
+  } else if (appConfig.isDevelopment) {
     admin.initializeApp({
       credential: admin.credential.cert({
         clientEmail: appConfig.firebase.clientEmail,
-        privateKey: appConfig.firebase.privateKey.replace(/\\n/g, '\n'),
+        privateKey: appConfig.firebase.privateKey,
         projectId: appConfig.firebase.projectId,
       }),
     });

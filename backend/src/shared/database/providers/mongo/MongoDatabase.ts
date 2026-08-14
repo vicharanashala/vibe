@@ -141,9 +141,9 @@ public async connect(): Promise<Db> {
   public async getCollection<T extends Document>(
     name: string,
   ): Promise<Collection<T>> {
-    // if (!this.database) {
-    //   await this.connect();
-    // }
+    if (!this.database) {
+      await this.connect();
+    }
     if (!this.database) {
       throw new Error('Database is not connected');
     }
