@@ -73,6 +73,7 @@ import StudentActivities from '@/app/pages/student/hp-system/activities'
 import StudentSubmissions from '@/app/pages/student/hp-system/submissions'
 import StudentMyLedgerPage from '@/app/pages/student/hp-system/student-ledger'
 import StudentActivityDetail from '@/app/pages/student/hp-system/activity-detail'
+import { StudentHpGuard } from '@/components/hp-system/StudentHpGuard'
 import NotificationsPage from '@/app/pages/shared/NotificationsPage'
 import SupportDashboard from '@/app/pages/teacher/support-dashboard'
 
@@ -569,36 +570,44 @@ const studentMySubmissionsRoute = new Route({
   component: StudentMySubmissions,
 });
 
+// Every learner HP page sits behind the per-course opt-in, so each one is
+// wrapped rather than relying on the sidebar to keep learners away.
+const guardStudentHp = (Page: () => JSX.Element) => () => (
+  <StudentHpGuard>
+    <Page />
+  </StudentHpGuard>
+);
+
 // Student cohorts route
 const studentHpSystemCohortsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/hp-system/cohorts',
-  component: StudentCohorts,
+  component: guardStudentHp(StudentCohorts),
 });
 
 // Student activities route
 const studentHpSystemActivitiesRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/hp-system/$courseVersionId/$cohortId/activities',
-  component: StudentActivities,
+  component: guardStudentHp(StudentActivities),
 });
 
 const studentHpSystemSubmissionsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/hp-system/$courseVersionId/$cohortId/submissions',
-  component: StudentSubmissions,
+  component: guardStudentHp(StudentSubmissions),
 });
 
 const studentHpSystemLedgerRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/hp-system/ledger',
-  component: StudentMyLedgerPage,
+  component: guardStudentHp(StudentMyLedgerPage),
 });
 
 const studentHpSystemActivitiesDetailRoute = new Route({
   getParentRoute: () =>studentLayoutRoute,
   path: '/hp-system/$courseVersionId/$cohortId/activities/$activityId',
-  component: StudentActivityDetail,
+  component: guardStudentHp(StudentActivityDetail),
 });
 // export const studentCourseInviteRegistration = new Route({
 //   getParentRoute: () => studentLayoutRoute,

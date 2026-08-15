@@ -32,11 +32,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useAuthStore } from "@/store/auth-store"
+import { useInstructorHasHpCourses } from "@/hooks/hooks"
 
 export function AppSidebar() {
   // Set default state to "expanded"
   const { state } = useSidebar()
   const { user } = useAuthStore.getState()
+  const { hasHpCourses } = useInstructorHasHpCourses()
 
   const data = {
     user: {
@@ -63,11 +65,15 @@ export function AppSidebar() {
         url: "/teacher/announcements",
         icon: Megaphone,
       },
-      {
-        title: "HP System",
-        url: "/teacher/hp-system",
-        icon: SquareTerminal,
-      },
+      // The HP System is opt-in per course, so this only appears once the
+      // instructor has a course that uses it.
+      ...(hasHpCourses
+        ? [{
+          title: "HP System",
+          url: "/teacher/hp-system",
+          icon: SquareTerminal,
+        }]
+        : []),
       {
         title: "Support Queue",
         url: "/teacher/support",
