@@ -64,12 +64,43 @@ export class FAQRetrievalService {
     return dotProduct / (magnitudeA * magnitudeB);
   }
 
+  /**
+   * Conservative suffix stripping, applied to questions and FAQs alike so both
+   * sides land on the same form. Without it a learner asking about "completing"
+   * videos misses an FAQ that says "completed", which is exactly the kind of
+   * near-miss that pushes a real match below the threshold.
+   */
+  private stem(word: string): string {
+    let stemmed = word;
+
+    if (stemmed.length > 4 && stemmed.endsWith('ies')) {
+      stemmed = `${stemmed.slice(0, -3)}i`;
+    } else if (stemmed.length > 4 && stemmed.endsWith('ses')) {
+      stemmed = stemmed.slice(0, -2);
+    } else if (stemmed.length > 3 && stemmed.endsWith('s') && !stemmed.endsWith('ss')) {
+      stemmed = stemmed.slice(0, -1);
+    }
+
+    if (stemmed.length > 5 && stemmed.endsWith('ing')) {
+      stemmed = stemmed.slice(0, -3);
+    } else if (stemmed.length > 4 && stemmed.endsWith('ed')) {
+      stemmed = stemmed.slice(0, -2);
+    }
+
+    // Collapses "update"/"updating" onto one form once 'ing' has gone.
+    if (stemmed.length > 4 && stemmed.endsWith('e')) {
+      stemmed = stemmed.slice(0, -1);
+    }
+
+    return stemmed;
+  }
+
   private tokenize(text: string): string[] {
     return text
       .toLowerCase()
       .split(/[^a-z0-9]+/)
-      .map((word) => (word.length > 3 && word.endsWith('s') ? word.slice(0, -1) : word))
-      .filter((word) => word.length > 1 && !STOP_WORDS.has(word));
+      .filter((word) => word.length > 1 && !STOP_WORDS.has(word))
+      .map((word) => this.stem(word));
   }
 
   /**
