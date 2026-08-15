@@ -73,6 +73,7 @@ import StudentSubmissions from '@/app/pages/student/hp-system/submissions'
 import StudentMyLedgerPage from '@/app/pages/student/hp-system/student-ledger'
 import StudentActivityDetail from '@/app/pages/student/hp-system/activity-detail'
 import NotificationsPage from '@/app/pages/shared/NotificationsPage'
+import SupportDashboard from '@/app/pages/teacher/support-dashboard'
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -447,6 +448,14 @@ const teacherAIWorkflowSectionRoute = new Route({
   component: AiWorkflow,
 });
 
+// The support assistant's escalation queue. Server-side scoping decides what
+// this shows: every course for an admin, only their own for an instructor.
+const teacherSupportRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/support',
+  component: SupportDashboard,
+})
+
 const teacherAuditRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/audit',
@@ -723,6 +732,7 @@ const routeTree = rootRoute.addChildren([
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
     teacherAuditRoute,
+    teacherSupportRoute,
     teacherConfigureCohortsRoute,
       teacherEjectionPoliciesRoute, 
     teacherHpSystemVersionsRoute,

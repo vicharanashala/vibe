@@ -54,6 +54,18 @@ export interface IFAQ {
   relatedFaqIds?: ObjectId[];
 }
 
+/**
+ * Filled in when the learner follows up an unanswered question with the
+ * technical-issue form. The question row already exists at that point — this
+ * only adds the detail the bot could not extract from a one-line question.
+ */
+export interface ISupportEscalation {
+  category: FAQCategory;
+  details: string;
+  contactEmail?: string;
+  submittedAt: Date;
+}
+
 export interface ISupportQuestion {
   _id?: ObjectId;
   userId: ObjectId;
@@ -74,6 +86,7 @@ export interface ISupportQuestion {
     response: string;
     responseAt: Date;
   };
+  escalation?: ISupportEscalation;
   faqCreatedFromThis?: ObjectId;
   learnersSeenResponse: boolean;
   resolutionRating?: ResolutionRating;
@@ -124,6 +137,22 @@ export interface ChatMessageResponse {
   questionId: ObjectId;
   source?: string;
 }
+
+export interface EscalateQuestionRequest {
+  category: FAQCategory;
+  details: string;
+  contactEmail?: string;
+}
+
+/**
+ * The statuses an admin still has to act on. A question the bot answered from
+ * the FAQ bank is ANSWERED and needs nothing; PENDING only survives when a
+ * chat turn failed midway, so it stays in the queue alongside ESCALATED.
+ */
+export const OPEN_SUPPORT_QUESTION_STATUSES = [
+  SupportQuestionStatus.ESCALATED,
+  SupportQuestionStatus.PENDING,
+] as const;
 
 export interface AdminResponseRequest {
   response: string;

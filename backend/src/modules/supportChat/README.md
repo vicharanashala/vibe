@@ -109,6 +109,14 @@ Body: { rating: 'helpful' | 'not_helpful' }
 Response: ISupportQuestion
 ```
 
+**Report a Technical Issue** (the escalation form the widget shows when the
+assistant has no answer; resubmitting replaces the earlier report)
+```
+POST /api/support/chat/:questionId/escalate
+Body: { category: FAQCategory, details: string, contactEmail?: string }
+Response: ISupportQuestion (status ESCALATED, with `escalation` populated)
+```
+
 ### Admin Endpoints
 
 **Get Dashboard Stats**
@@ -118,12 +126,15 @@ Query: ?courseId=xxx&startDate=xxx&endDate=xxx
 Response: { stats: {...}, recentPending: ISupportQuestion[] }
 ```
 
-**Get Pending Questions**
+**Get the Queue**
 ```
 GET /api/admin/support/questions
-Query: ?status=PENDING&page=1&limit=50&courseId=xxx
+Query: ?status=ESCALATED&page=1&limit=50&courseId=xxx
 Response: { questions: ISupportQuestion[], total: number }
 ```
+Omit `status` for the open queue — ESCALATED plus anything left PENDING by an
+interrupted chat turn. Results are scoped to the caller: admins see every
+course, INSTRUCTOR/MANAGER see the courses they staff, everyone else gets 403.
 
 **Respond to Question**
 ```

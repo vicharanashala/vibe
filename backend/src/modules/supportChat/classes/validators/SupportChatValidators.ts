@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
+  IsEmail,
   IsEnum,
   IsIn,
   IsInt,
@@ -123,6 +124,31 @@ export class RateQuestionBody {
     enum: [...RESOLUTION_RATINGS],
   })
   rating!: ResolutionRatingLiteral;
+}
+
+export class EscalateQuestionBody {
+  @IsEnum(FAQCategory)
+  @JSONSchema({
+    description: 'What kind of issue the learner is reporting.',
+    enum: Object.values(FAQCategory),
+  })
+  category!: FAQCategory;
+
+  @IsString()
+  @IsNotEmpty()
+  @Length(10, 2000)
+  @JSONSchema({
+    description: 'What went wrong, in the learner own words (10-2000 characters).',
+    example: 'The video player stops at 3:12 and the page freezes on Chrome.',
+  })
+  details!: string;
+
+  @IsOptional()
+  @IsEmail()
+  @JSONSchema({
+    description: 'Where to reach the learner, when it differs from their account email.',
+  })
+  contactEmail?: string;
 }
 
 export class FAQSearchQuery {

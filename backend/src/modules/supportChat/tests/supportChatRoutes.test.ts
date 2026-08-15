@@ -33,6 +33,10 @@ describe('support chat route mounting', () => {
     expect(mountedPaths()).toContain('/api/admin/support/dashboard');
   });
 
+  it('serves the learner escalation form under /api/support/chat', () => {
+    expect(mountedPaths()).toContain('/api/support/chat/:questionId/escalate');
+  });
+
   it('never doubles the api prefix', () => {
     expect(mountedPaths().filter((path) => path.startsWith('/api/api'))).toEqual([]);
   });

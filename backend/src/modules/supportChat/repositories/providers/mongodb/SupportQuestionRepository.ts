@@ -1,6 +1,23 @@
 import { inject, injectable } from 'inversify';
 import { Collection, ObjectId } from 'mongodb';
-import { ISupportQuestion, SUPPORT_CHAT_CONFIG, SupportQuestionStatus, ResolutionRating } from '../../../types.js';
+import {
+  ISupportEscalation,
+  ISupportQuestion,
+  SUPPORT_CHAT_CONFIG,
+  SupportQuestionStatus,
+  ResolutionRating,
+} from '../../../types.js';
+
+/**
+ * Scope for the admin-facing queries. `courseIds` of `undefined` means
+ * unrestricted (admins); an empty array means "no courses in reach", which must
+ * match nothing rather than everything.
+ */
+export interface SupportQuestionQuery {
+  statuses?: SupportQuestionStatus[];
+  courseIds?: ObjectId[];
+  limit?: number;
+}
 import { GLOBAL_TYPES } from '#root/types.js';
 import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 
@@ -45,28 +62,33 @@ export class SupportQuestionRepository {
       .toArray();
   }
 
-  async findByCourseId(courseId: ObjectId, filters?: { status?: SupportQuestionStatus }): Promise<ISupportQuestion[]> {
+  /**
+   * The one query the admin dashboard runs. Statuses and course scope are both
+   * optional, but an empty `courseIds` is honoured as a real restriction — an
+   * instructor who teaches nothing must not fall through to every question.
+   */
+  async findForAdmin(query: SupportQuestionQuery = {}): Promise<ISupportQuestion[]> {
     const collection = await this.getCollection();
-    const query: any = { courseId };
+    const filter = this.buildAdminFilter(query);
 
-    if (filters?.status) {
-      query.status = filters.status;
-    }
-
-    return collection.find(query).sort({ createdAt: -1 }).toArray();
-  }
-
-  async findByStatus(status: SupportQuestionStatus, limit: number = 50): Promise<ISupportQuestion[]> {
-    const collection = await this.getCollection();
     return collection
-      .find({ status })
+      .find(filter)
       .sort({ createdAt: -1 })
-      .limit(limit)
+      .limit(query.limit ?? 50)
       .toArray();
   }
 
-  async findPending(limit: number = 50): Promise<ISupportQuestion[]> {
-    return this.findByStatus(SupportQuestionStatus.PENDING, limit);
+  private buildAdminFilter(query: Pick<SupportQuestionQuery, 'statuses' | 'courseIds'>) {
+    const filter: Record<string, unknown> = {};
+
+    if (query.statuses?.length) {
+      filter.status = { $in: query.statuses };
+    }
+    if (query.courseIds) {
+      filter.courseId = { $in: query.courseIds };
+    }
+
+    return filter;
   }
 
   async updateById(id: ObjectId, updates: Partial<ISupportQuestion>): Promise<ISupportQuestion | null> {
@@ -122,6 +144,16 @@ export class SupportQuestionRepository {
     });
   }
 
+  async setEscalation(
+    id: ObjectId,
+    escalation: ISupportEscalation
+  ): Promise<ISupportQuestion | null> {
+    return this.updateById(id, {
+      escalation,
+      status: SupportQuestionStatus.ESCALATED,
+    });
+  }
+
   async linkFaqCreated(id: ObjectId, faqId: ObjectId): Promise<ISupportQuestion | null> {
     return this.updateById(id, { faqCreatedFromThis: faqId });
   }
@@ -136,17 +168,17 @@ export class SupportQuestionRepository {
     return this.updateById(id, { learnersSeenResponse: true });
   }
 
-  async getStats(courseId?: ObjectId, startDate?: Date, endDate?: Date): Promise<{
+  async getStats(
+    query: { courseIds?: ObjectId[]; startDate?: Date; endDate?: Date } = {}
+  ): Promise<{
     total: number;
     byStatus: Record<string, number>;
     avgResolutionTime: number;
   }> {
     const collection = await this.getCollection();
+    const { courseIds, startDate, endDate } = query;
 
-    const matchStage: any = {};
-    if (courseId) {
-      matchStage.courseId = courseId;
-    }
+    const matchStage: any = this.buildAdminFilter({ courseIds });
     if (startDate || endDate) {
       matchStage.createdAt = {};
       if (startDate) matchStage.createdAt.$gte = startDate;
@@ -168,6 +200,9 @@ export class SupportQuestionRepository {
             },
             resolved: {
               $sum: { $cond: [{ $eq: ['$status', SupportQuestionStatus.RESOLVED] }, 1, 0] },
+            },
+            escalated: {
+              $sum: { $cond: [{ $eq: ['$status', SupportQuestionStatus.ESCALATED] }, 1, 0] },
             },
             avgResolutionTime: {
               $avg: {
@@ -192,6 +227,7 @@ export class SupportQuestionRepository {
           [SupportQuestionStatus.PENDING]: 0,
           [SupportQuestionStatus.ANSWERED]: 0,
           [SupportQuestionStatus.RESOLVED]: 0,
+          [SupportQuestionStatus.ESCALATED]: 0,
         },
         avgResolutionTime: 0,
       };
@@ -204,6 +240,7 @@ export class SupportQuestionRepository {
         [SupportQuestionStatus.PENDING]: result.pending,
         [SupportQuestionStatus.ANSWERED]: result.answered,
         [SupportQuestionStatus.RESOLVED]: result.resolved,
+        [SupportQuestionStatus.ESCALATED]: result.escalated,
       },
       avgResolutionTime: Math.floor(result.avgResolutionTime / (1000 * 60)) || 0,
     };

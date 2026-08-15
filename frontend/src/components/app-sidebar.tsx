@@ -8,6 +8,7 @@ import {
   Command,
   Frame,
   GalleryVerticalEnd,
+  LifeBuoy,
   Map,
   Megaphone,
   PieChart,
@@ -66,6 +67,11 @@ export function AppSidebar() {
         title: "HP System",
         url: "/teacher/hp-system",
         icon: SquareTerminal,
+      },
+      {
+        title: "Support Queue",
+        url: "/teacher/support",
+        icon: LifeBuoy,
       },
       // {
       //   title: "Notifications",
