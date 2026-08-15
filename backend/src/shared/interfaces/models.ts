@@ -638,6 +638,13 @@ export enum ShareLinkViewingMode {
   PROCTORED = 'PROCTORED',
 }
 
+export enum ShareLinkEmailStatus {
+  /** The sharer chose to hand the link over themselves. */
+  NOT_SENT = 'NOT_SENT',
+  SENT = 'SENT',
+  FAILED = 'FAILED',
+}
+
 export enum ShareLinkStatus {
   ACTIVE = 'ACTIVE',
   OPENED = 'OPENED',
@@ -667,6 +674,8 @@ export interface IShareLink {
   guestUserId?: string | ObjectId;
   viewingMode: ShareLinkViewingMode;
   status: ShareLinkStatus;
+  emailStatus: ShareLinkEmailStatus;
+  emailedAt?: Date;
   openCount: number;
   createdAt: Date;
   expiresAt: Date;

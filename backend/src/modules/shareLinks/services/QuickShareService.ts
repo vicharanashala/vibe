@@ -100,6 +100,7 @@ export class QuickShareService {
     viewingMode: ShareLinkViewingMode = ShareLinkViewingMode.PLAIN,
     endTime = '23:59:59',
     expiresInDays?: number,
+    sendEmail = false,
   ): Promise<QuickShareResult> {
     const check = await this.youTubeEmbedService.check(url);
     if (!check.embeddable) {
@@ -140,6 +141,10 @@ export class QuickShareService {
       itemId,
       expiresInDays,
       viewingMode,
+      sendEmail,
+      // Recipients recognise the video by its title, not by the holder it was
+      // filed into — which they never see.
+      videoTitle,
     );
 
     return {itemId, videoTitle, links};

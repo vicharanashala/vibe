@@ -148,6 +148,8 @@ describe('QuickShareService.shareVideo', () => {
       ITEM_ID.toString(),
       undefined,
       ShareLinkViewingMode.PLAIN,
+      false,
+      'A lecture',
     );
     expect(result.videoTitle).toBe('A lecture');
     expect(result.links).toHaveLength(1);
@@ -232,6 +234,27 @@ describe('QuickShareService.shareVideo', () => {
     await service.shareVideo(INSTRUCTOR_ID, URL, recipients);
 
     expect(itemService.createItem.mock.calls[0][3].name).toBe('Shared video');
+  });
+});
+
+describe('QuickShareService email delivery', () => {
+  it('passes the send-email choice and the video title through', async () => {
+    const {service, shareLinkService} = buildService();
+
+    await service.shareVideo(
+      INSTRUCTOR_ID,
+      URL,
+      recipients,
+      ShareLinkViewingMode.PLAIN,
+      undefined,
+      undefined,
+      true,
+    );
+
+    const call = shareLinkService.createShareLinks.mock.calls[0];
+    expect(call[8]).toBe(true);
+    // Recipients recognise the video by its title, never by the hidden holder.
+    expect(call[9]).toBe('A lecture');
   });
 });
 

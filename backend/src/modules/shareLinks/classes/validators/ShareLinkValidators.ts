@@ -20,6 +20,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import {
+  ShareLinkEmailStatus,
   ShareLinkStatus,
   ShareLinkViewingMode,
 } from '#shared/interfaces/models.js';
@@ -130,6 +131,16 @@ export class CreateShareLinksBody {
   @IsOptional()
   @IsEnum(ShareLinkViewingMode)
   viewingMode?: ShareLinkViewingMode;
+
+  @JSONSchema({
+    description:
+      'Email each recipient their own link. Off by default — the sharer may '
+      + 'prefer to hand the links over themselves.',
+    type: 'boolean',
+  })
+  @IsOptional()
+  @IsBoolean()
+  sendEmail?: boolean;
 }
 
 export class ValidateYouTubeUrlBody {
@@ -208,6 +219,13 @@ export class ShareLinkResponse {
   @Expose()
   @IsEnum(ShareLinkViewingMode)
   viewingMode: ShareLinkViewingMode;
+
+  @Expose()
+  @IsEnum(ShareLinkEmailStatus)
+  @JSONSchema({
+    description: 'Whether the link was mailed to this recipient',
+  })
+  emailStatus: ShareLinkEmailStatus;
 
   @Expose()
   @Type(() => Date)
@@ -369,6 +387,14 @@ export class QuickShareBody {
   @IsOptional()
   @IsEnum(ShareLinkViewingMode)
   viewingMode?: ShareLinkViewingMode;
+
+  @JSONSchema({
+    description: 'Email each recipient their own link.',
+    type: 'boolean',
+  })
+  @IsOptional()
+  @IsBoolean()
+  sendEmail?: boolean;
 }
 
 @Expose()

@@ -3,6 +3,7 @@ import {ObjectId} from 'mongodb';
 import {
   ID,
   IShareLink,
+  ShareLinkEmailStatus,
   ShareLinkStatus,
   ShareLinkViewingMode,
 } from '#shared/interfaces/models.js';
@@ -27,6 +28,8 @@ export class ShareLink implements IShareLink {
   guestUserId?: ID;
   viewingMode: ShareLinkViewingMode = ShareLinkViewingMode.PLAIN;
   status: ShareLinkStatus = ShareLinkStatus.ACTIVE;
+  emailStatus: ShareLinkEmailStatus = ShareLinkEmailStatus.NOT_SENT;
+  emailedAt?: Date;
   openCount = 0;
   createdAt: Date;
   expiresAt: Date;

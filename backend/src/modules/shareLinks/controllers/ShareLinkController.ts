@@ -112,6 +112,7 @@ export class ShareLinkController {
       body.viewingMode,
       body.endTime,
       body.expiresInDays,
+      body.sendEmail,
     )) as QuickShareResponse;
   }
 
@@ -188,6 +189,7 @@ export class ShareLinkController {
       body.itemId,
       body.expiresInDays,
       body.viewingMode,
+      body.sendEmail,
     );
 
     return {links} as CreateShareLinksResponse;

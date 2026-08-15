@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import {
   Table,
   TableBody,
@@ -75,6 +77,7 @@ export default function ShareCoursePanel({
   ])
   const [viewingMode, setViewingMode] = useState<ShareLinkViewingMode>("PLAIN")
   const [generated, setGenerated] = useState<ShareLink[]>([])
+  const [sendEmail, setSendEmail] = useState(true)
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const createLinks = useCreateShareLinks(courseId, versionId)
@@ -99,6 +102,7 @@ export default function ShareCoursePanel({
         })),
         cohortId,
         viewingMode,
+        sendEmail,
       })
       setGenerated(links)
       setRecipients([emptyRecipient()])
@@ -217,6 +221,17 @@ export default function ShareCoursePanel({
               </Select>
             </div>
 
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="send-email"
+                checked={sendEmail}
+                onCheckedChange={checked => setSendEmail(checked === true)}
+              />
+              <Label htmlFor="send-email" className="text-sm font-normal">
+                Email the links
+              </Label>
+            </div>
+
             <Button
               className="ml-auto"
               onClick={handleGenerate}
@@ -265,6 +280,17 @@ export default function ShareCoursePanel({
                   <div className="text-xs text-muted-foreground truncate">
                     {link.url}
                   </div>
+                  {link.emailStatus === "SENT" && (
+                    <div className="text-xs text-muted-foreground">
+                      Emailed to {link.recipientEmail}
+                    </div>
+                  )}
+                  {link.emailStatus === "FAILED" && (
+                    <div className="text-xs text-orange-600 dark:text-orange-400">
+                      Could not email {link.recipientEmail} — copy the link and
+                      send it yourself.
+                    </div>
+                  )}
                 </div>
                 <Button
                   variant="outline"

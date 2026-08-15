@@ -69,6 +69,11 @@ function buildService(overrides: Record<string, any> = {}) {
     ...overrides.authService,
   };
 
+  const mailService = {
+    sendShareLink: vi.fn(async () => true),
+    ...overrides.mailService,
+  };
+
   const service = new ShareLinkService(
     shareLinkRepo as any,
     userRepo as any,
@@ -77,6 +82,7 @@ function buildService(overrides: Record<string, any> = {}) {
     enrollmentService as any,
     enrollmentRepo as any,
     authService as any,
+    mailService as any,
     {} as any,
   );
 
@@ -93,6 +99,7 @@ function buildService(overrides: Record<string, any> = {}) {
     enrollmentService,
     enrollmentRepo,
     authService,
+    mailService,
   };
 }
 
@@ -478,5 +485,75 @@ describe('ShareLinkService.revokeShareLink', () => {
 
     expect(result.message).toMatch(/already revoked/i);
     expect(shareLinkRepo.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('ShareLinkService email delivery', () => {
+  it('does not mail anyone unless the sharer asked for it', async () => {
+    const {service, mailService} = buildService();
+
+    await service.createShareLinks(
+      COURSE_ID,
+      VERSION_ID,
+      [{name: 'Ananya Rao', email: 'ananya@example.com'}],
+      SHARER_ID,
+    );
+
+    expect(mailService.sendShareLink).not.toHaveBeenCalled();
+  });
+
+  it('mails each recipient their own link and records the send', async () => {
+    const {service, mailService, shareLinkRepo} = buildService();
+
+    const links = await service.createShareLinks(
+      COURSE_ID,
+      VERSION_ID,
+      [
+        {name: 'Ananya Rao', email: 'ananya@example.com'},
+        {name: 'Bhavna Iyer', email: 'bhavna@example.com'},
+      ],
+      SHARER_ID,
+      undefined,
+      undefined,
+      30,
+      ShareLinkViewingMode.PLAIN,
+      true,
+      'Intro to graphs',
+    );
+
+    expect(mailService.sendShareLink).toHaveBeenCalledTimes(2);
+    // Each person is mailed their own URL, never a shared one.
+    const [firstCall, secondCall] = mailService.sendShareLink.mock.calls;
+    expect(firstCall[1]).not.toBe(secondCall[1]);
+    expect(firstCall[2]).toBe('Intro to graphs');
+    expect(links.every(l => l.emailStatus === 'SENT')).toBe(true);
+    expect(shareLinkRepo.update).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the links when the mail fails, and says who was not reached', async () => {
+    const {service, shareLinkRepo} = buildService({
+      mailService: {sendShareLink: vi.fn(async () => false)},
+    });
+
+    const links = await service.createShareLinks(
+      COURSE_ID,
+      VERSION_ID,
+      [{name: 'Ananya Rao', email: 'ananya@example.com'}],
+      SHARER_ID,
+      undefined,
+      undefined,
+      30,
+      ShareLinkViewingMode.PLAIN,
+      true,
+    );
+
+    // The link still exists and is copyable — a bounced address must not sink
+    // the whole share.
+    expect(links).toHaveLength(1);
+    expect(links[0].url).toContain('/share/');
+    expect(links[0].emailStatus).toBe('FAILED');
+    const [, changes] = shareLinkRepo.update.mock.calls[0];
+    expect(changes.emailStatus).toBe('FAILED');
+    expect(changes.emailedAt).toBeUndefined();
   });
 });
