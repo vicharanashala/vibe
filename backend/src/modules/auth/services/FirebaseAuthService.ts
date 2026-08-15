@@ -450,8 +450,12 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       });
       return userRecord.uid;
     } catch (error) {
+      // The detail goes to the log, not to the response: this one surfaces on
+      // a share-link recipient's screen, and they are an outsider who must
+      // not be shown credential paths or other internals.
+      console.error('Failed to create guest user in Firebase:', error);
       throw new InternalServerError(
-        `Failed to create guest user in Firebase: ${error.message}`,
+        'Could not open this video right now. Ask whoever shared it to try again.',
       );
     }
   }
@@ -464,8 +468,9 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     try {
       return await this.auth.createCustomToken(firebaseUID);
     } catch (error) {
+      console.error('Failed to create custom token:', error);
       throw new InternalServerError(
-        `Failed to create custom token: ${error.message}`,
+        'Could not open this video right now. Ask whoever shared it to try again.',
       );
     }
   }
