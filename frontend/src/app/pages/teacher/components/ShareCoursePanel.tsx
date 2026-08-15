@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import {
-  AlertTriangle,
   BarChart3,
   Check,
   Copy,
@@ -37,12 +36,10 @@ import {
   useCreateShareLinks,
   useRevokeShareLink,
   useShareLinkAnalytics,
-  useValidateYouTubeUrl,
 } from "@/hooks/share-link-hooks"
 import type {
   ShareLink,
   ShareLinkViewingMode,
-  YouTubeValidation,
 } from "@/types/share-link.types"
 import { formatWatchDuration } from "@/utils/time"
 
@@ -77,12 +74,9 @@ export default function ShareCoursePanel({
     emptyRecipient(),
   ])
   const [viewingMode, setViewingMode] = useState<ShareLinkViewingMode>("PLAIN")
-  const [youtubeUrl, setYoutubeUrl] = useState("")
-  const [validation, setValidation] = useState<YouTubeValidation | null>(null)
   const [generated, setGenerated] = useState<ShareLink[]>([])
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
-  const validateUrl = useValidateYouTubeUrl()
   const createLinks = useCreateShareLinks(courseId, versionId)
   const revoke = useRevokeShareLink(courseId, versionId)
   const { data: analytics, isLoading: analyticsLoading } = useShareLinkAnalytics(
@@ -94,15 +88,6 @@ export default function ShareCoursePanel({
   const validRecipients = recipients.filter(
     r => r.name.trim() !== "" && isValidEmail(r.email.trim()),
   )
-
-  const handleCheckUrl = async () => {
-    if (!youtubeUrl.trim()) return
-    try {
-      setValidation(await validateUrl.mutateAsync(youtubeUrl.trim()))
-    } catch {
-      toast.error("Could not check that link. Try again.")
-    }
-  }
 
   const handleGenerate = async () => {
     if (validRecipients.length === 0) return
@@ -140,61 +125,6 @@ export default function ShareCoursePanel({
 
   return (
     <div className="space-y-6">
-      {/* Optional: check a video before sharing */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Link2 className="w-5 h-5" />
-            <span>Check a YouTube video</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Recipients watch inside ViBe, which is what makes their watching
-            trackable. A video YouTube refuses to embed cannot be played or
-            tracked here — check it before you send anything out.
-          </p>
-          <div className="flex gap-2">
-            <Input
-              placeholder="https://www.youtube.com/watch?v=…"
-              value={youtubeUrl}
-              onChange={e => {
-                setYoutubeUrl(e.target.value)
-                setValidation(null)
-              }}
-            />
-            <Button
-              variant="outline"
-              onClick={handleCheckUrl}
-              disabled={!youtubeUrl.trim() || validateUrl.isPending}
-            >
-              {validateUrl.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                "Check"
-              )}
-            </Button>
-          </div>
-
-          {validation && validation.embeddable && (
-            <div className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950/20 dark:text-green-200">
-              <Check className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>
-                This video can be played and tracked in ViBe
-                {validation.title ? ` — “${validation.title}”` : ""}.
-              </span>
-            </div>
-          )}
-
-          {validation && !validation.embeddable && (
-            <div className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-200">
-              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>{validation.message}</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Recipients */}
       <Card>
         <CardHeader>
@@ -210,8 +140,10 @@ export default function ShareCoursePanel({
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Each person gets their own link. They open it and watch straight
-            away — no sign-up — and you see who watched and how much.
+            Shares this course's own content. Each person gets their own link,
+            opens it and watches straight away — no sign-up — and you see who
+            watched and how much. To share a video that isn't in a course yet,
+            add it to the course first.
           </p>
 
           <div className="space-y-3">
