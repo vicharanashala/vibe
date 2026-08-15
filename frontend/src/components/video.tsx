@@ -190,6 +190,66 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
   const [isFullscreen, setIsFullscreen] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * Auto-hiding control bar.
+   *
+   * Only applies where the bar floats over the picture. Docked below the video it
+   * occupies layout, so hiding it would reflow the stage and shift the video —
+   * worse than leaving it. Overlaid, it covers the picture, which is what makes
+   * getting out of the way worth doing.
+   */
+  const controlsOverlaid = focusMode || isFullscreen;
+  /** How far up from the bottom edge the cursor reveals the bar. */
+  const CONTROLS_REVEAL_ZONE_PX = 140;
+  const CONTROLS_IDLE_MS = 2200;
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const controlsHideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  /** Set while the cursor rests on the bar, which suspends the hide timer. */
+  const pointerOverControlsRef = useRef(false);
+
+  const clearControlsHideTimer = () => {
+    if (controlsHideTimerRef.current) {
+      clearTimeout(controlsHideTimerRef.current);
+      controlsHideTimerRef.current = null;
+    }
+  };
+
+  /**
+   * Hides the bar after a spell without interaction — but never while paused (a
+   * paused player with no controls reads as broken rather than clean) and never
+   * while the cursor is resting on the bar itself.
+   */
+  const scheduleControlsHide = () => {
+    clearControlsHideTimer();
+    if (!controlsOverlaid || !playing || pointerOverControlsRef.current) return;
+    controlsHideTimerRef.current = setTimeout(() => setControlsVisible(false), CONTROLS_IDLE_MS);
+  };
+
+  const revealControls = () => {
+    setControlsVisible(true);
+    scheduleControlsHide();
+  };
+
+  /** Reveals the bar when the cursor comes down into the strip above it. */
+  const handleStageMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!controlsOverlaid) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.bottom - event.clientY <= CONTROLS_REVEAL_ZONE_PX) revealControls();
+  };
+
+  // Pausing brings the bar back; playing starts it counting down again.
+  useEffect(() => {
+    if (!controlsOverlaid || !playing) {
+      clearControlsHideTimer();
+      setControlsVisible(true);
+      return;
+    }
+    scheduleControlsHide();
+    return clearControlsHideTimer;
+  }, [playing, controlsOverlaid]);
+
+  useEffect(() => clearControlsHideTimer, []);
+
   // Watch time tracking state
   const [watchTimeTrack, setWatchTimeTrack] = useState<WatchTimeTrackData>({
     rewinds: 0,
@@ -1325,9 +1385,12 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
         overflow: 'hidden',
         padding: focusMode ? '0px' : '16px',
         boxSizing: 'border-box',
-        cursor: 'pointer',
+        // Take the cursor away with the bar, so nothing floats over the picture.
+        cursor: controlsOverlaid && !controlsVisible ? 'none' : 'pointer',
       }}
       onClick={handlePlayPause}
+      onMouseMove={handleStageMouseMove}
+      onMouseLeave={() => { pointerOverControlsRef.current = false; scheduleControlsHide(); }}
     >
 
       <ConfirmOverlay
@@ -1967,9 +2030,10 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
             alignItems: 'center',
             gap: 10,
             flexWrap: 'wrap',
-            ...((focusMode || isFullscreen)
+            ...(controlsOverlaid
               ? {
-                  // Float the bar over the bottom of the video; auto-hide while playing.
+                  // Float the bar over the bottom of the video, and let it slide
+                  // away while playing until the cursor comes looking for it.
                   position: 'absolute',
                   left: 0,
                   right: 0,
@@ -1979,10 +2043,10 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
                   backdropFilter: 'blur(10px)',
                   WebkitBackdropFilter: 'blur(10px)',
                   borderRadius: 0,
-                  // Keep the control bar visible over the video at all times.
-                  opacity: 1,
-                  pointerEvents: 'auto',
-                  transition: 'opacity 250ms ease',
+                  opacity: controlsVisible ? 1 : 0,
+                  transform: controlsVisible ? 'translateY(0)' : 'translateY(100%)',
+                  pointerEvents: controlsVisible ? 'auto' : 'none',
+                  transition: 'opacity 200ms ease, transform 220ms ease',
                 }
               : {
                   background: 'hsl(var(--card))',
@@ -1990,6 +2054,10 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
                 }),
           }}
           onClick={(e) => e.stopPropagation()}
+          // Resting on the bar holds it open; leaving it starts the countdown, so
+          // the bar clears itself once you are done using it.
+          onMouseEnter={() => { pointerOverControlsRef.current = true; clearControlsHideTimer(); setControlsVisible(true); }}
+          onMouseLeave={() => { pointerOverControlsRef.current = false; scheduleControlsHide(); }}
         >
           {/* Progress Bar - Seeking controlled by seekForwardEnabled (fills the row middle) */}
           <div style={{ order: 2, flex: 1, minWidth: 140 }}>
