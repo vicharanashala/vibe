@@ -1,11 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createShareLinks,
+  getQuickShares,
   getShareLinkAnalytics,
+  quickShare,
   revokeShareLink,
   validateYouTubeUrl,
 } from '@/lib/api/share-links';
-import type { CreateShareLinksInput } from '@/types/share-link.types';
+import type {
+  CreateShareLinksInput,
+  QuickShareInput,
+} from '@/types/share-link.types';
 
 const shareLinkKeys = {
   analytics: (courseId: string, versionId: string, cohortId?: string) =>
@@ -47,6 +52,24 @@ export function useRevokeShareLink(courseId: string, versionId: string) {
       queryClient.invalidateQueries({
         queryKey: ['share-links', courseId, versionId],
       });
+    },
+  });
+}
+
+/** Videos shared outside any course, and who watched them. */
+export function useQuickShares() {
+  return useQuery({
+    queryKey: ['share-links', 'quick'],
+    queryFn: getQuickShares,
+  });
+}
+
+export function useQuickShare() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: QuickShareInput) => quickShare(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['share-links', 'quick'] });
     },
   });
 }
