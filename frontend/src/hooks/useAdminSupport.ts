@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { AdminResponseRequest, IFAQ, FAQCategory } from '@/modules/supportChat/types';
 
+// VITE_BASE_URL already ends in the API prefix (e.g. http://localhost:4001/api),
+// which is why paths below start at the resource, not at /api.
 const API_BASE = import.meta.env.VITE_BASE_URL ?? '';
 
 export default function useAdminSupport() {
@@ -13,7 +15,7 @@ export default function useAdminSupport() {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
-      const response = await fetch(`${API_BASE}/api/admin/support/dashboard?${params}`, {
+      const response = await fetch(`${API_BASE}/admin/support/dashboard?${params}`, {
         headers: {
           Authorization: `Bearer ${getToken()}`,
         },
@@ -33,7 +35,7 @@ export default function useAdminSupport() {
       params.append('limit', limit.toString());
       if (courseId) params.append('courseId', courseId);
 
-      const response = await fetch(`${API_BASE}/api/admin/support/questions?${params}`, {
+      const response = await fetch(`${API_BASE}/admin/support/questions?${params}`, {
         headers: {
           Authorization: `Bearer ${getToken()}`,
         },
@@ -48,7 +50,7 @@ export default function useAdminSupport() {
   const respondToQuestion = useCallback(
     async (questionId: string, request: AdminResponseRequest) => {
       const response = await fetch(
-        `${API_BASE}/api/admin/support/questions/${questionId}/respond`,
+        `${API_BASE}/admin/support/questions/${questionId}/respond`,
         {
           method: 'POST',
           headers: {
@@ -68,7 +70,7 @@ export default function useAdminSupport() {
   const resolveQuestion = useCallback(
     async (questionId: string) => {
       const response = await fetch(
-        `${API_BASE}/api/admin/support/questions/${questionId}/resolve`,
+        `${API_BASE}/admin/support/questions/${questionId}/resolve`,
         {
           method: 'PUT',
           headers: {
@@ -88,7 +90,7 @@ export default function useAdminSupport() {
       const params = new URLSearchParams();
       if (category) params.append('category', category);
 
-      const response = await fetch(`${API_BASE}/api/admin/support/faqs?${params}`, {
+      const response = await fetch(`${API_BASE}/admin/support/faqs?${params}`, {
         headers: {
           Authorization: `Bearer ${getToken()}`,
         },
@@ -102,7 +104,7 @@ export default function useAdminSupport() {
 
   const createFAQ = useCallback(
     async (faq: Omit<IFAQ, '_id' | 'createdAt' | 'updatedAt' | 'embedding' | 'createdBy'>) => {
-      const response = await fetch(`${API_BASE}/api/admin/support/faqs`, {
+      const response = await fetch(`${API_BASE}/admin/support/faqs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -119,7 +121,7 @@ export default function useAdminSupport() {
 
   const updateFAQ = useCallback(
     async (faqId: string, updates: Partial<IFAQ>) => {
-      const response = await fetch(`${API_BASE}/api/admin/support/faqs/${faqId}`, {
+      const response = await fetch(`${API_BASE}/admin/support/faqs/${faqId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -136,7 +138,7 @@ export default function useAdminSupport() {
 
   const deleteFAQ = useCallback(
     async (faqId: string) => {
-      const response = await fetch(`${API_BASE}/api/admin/support/faqs/${faqId}`, {
+      const response = await fetch(`${API_BASE}/admin/support/faqs/${faqId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${getToken()}`,

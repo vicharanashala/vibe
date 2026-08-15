@@ -1,5 +1,6 @@
 import { MongoClient, ObjectId } from 'mongodb';
 import * as dotenv from 'dotenv';
+import { FAQCategory, FAQSource } from '../types.js';
 
 dotenv.config({ path: '.env' });
 
@@ -296,6 +297,25 @@ This is the fastest way to get a ViBe issue resolved. Please attempt the self-tr
   },
 ];
 
+/**
+ * The copy above is grouped by the headings used on the internship FAQ page;
+ * the collection stores the module's own `FAQCategory` values, so map on the
+ * way in rather than writing categories nothing else in the module understands.
+ */
+const CATEGORY_MAP: Record<string, FAQCategory> = {
+  'getting-started': FAQCategory.LOGIN,
+  troubleshooting: FAQCategory.TECHNICAL,
+  setup: FAQCategory.TECHNICAL,
+  proctoring: FAQCategory.PROCTORING,
+  privacy: FAQCategory.PROCTORING,
+  progress: FAQCategory.FEATURES,
+  evaluation: FAQCategory.FEATURES,
+  learning: FAQCategory.FEATURES,
+  quiz: FAQCategory.FEATURES,
+  scoring: FAQCategory.FEATURES,
+  support: FAQCategory.OTHER,
+};
+
 async function seedFAQs() {
   // Use the same connection string as the app
   const uri = process.env.DB_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017';
@@ -313,14 +333,18 @@ async function seedFAQs() {
     const db = client.db(dbName);
     const collection = db.collection(FAQ_COLLECTION_NAME);
 
-    // Clear existing FAQs
-    await collection.deleteMany({});
-    console.log('Cleared existing FAQs');
+    // Only clear previously seeded FAQs — FAQs an admin wrote from a learner
+    // question live in the same collection and must survive a re-seed.
+    const cleared = await collection.deleteMany({ source: FAQSource.IMPORTED });
+    console.log(`Cleared ${cleared.deletedCount} previously seeded FAQs`);
 
-    // Insert FAQs without embeddings (they will be generated on first use)
+    // Inserted without embeddings: FAQRetrievalService matches these lexically
+    // and backfills the vectors once an embedding provider is reachable.
     const result = await collection.insertMany(
       FAQS.map((faq) => ({
         ...faq,
+        category: CATEGORY_MAP[faq.category] ?? FAQCategory.OTHER,
+        source: FAQSource.IMPORTED,
         isActive: true,
         upvotes: 0,
         downvotes: 0,

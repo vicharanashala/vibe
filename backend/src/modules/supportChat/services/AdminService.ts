@@ -58,7 +58,7 @@ export class AdminService {
           embedding: await this.faqRetrieval.generateEmbeddingForFAQ({
             question: question.question,
             answer: request.response,
-          } as IFAQ),
+          }),
           upvotes: 0,
           downvotes: 0,
           usageCount: 0,
@@ -134,7 +134,9 @@ export class AdminService {
     adminUserId: ObjectId
   ): Promise<IFAQ> {
     try {
-      const embedding = await this.faqRetrieval.generateEmbeddingForFAQ(faq as IFAQ);
+      // undefined when the embedding provider is down; retrieval still matches
+      // the FAQ lexically and backfills the vector on a later chat turn.
+      const embedding = await this.faqRetrieval.generateEmbeddingForFAQ(faq);
 
       return await this.faqRepo.create({
         ...faq,
