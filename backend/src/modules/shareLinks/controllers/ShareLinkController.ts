@@ -129,6 +129,7 @@ export class ShareLinkController {
       body.cohortId,
       body.itemId,
       body.expiresInDays,
+      body.viewingMode,
     );
 
     return {links} as CreateShareLinksResponse;

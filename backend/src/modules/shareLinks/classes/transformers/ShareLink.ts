@@ -1,6 +1,11 @@
 import 'reflect-metadata';
 import {ObjectId} from 'mongodb';
-import {ID, IShareLink, ShareLinkStatus} from '#shared/interfaces/models.js';
+import {
+  ID,
+  IShareLink,
+  ShareLinkStatus,
+  ShareLinkViewingMode,
+} from '#shared/interfaces/models.js';
 
 /**
  * A share link as persisted. The token is generated here so that no caller can
@@ -20,6 +25,7 @@ export class ShareLink implements IShareLink {
   recipientEmail: string;
   createdBy: ID;
   guestUserId?: ID;
+  viewingMode: ShareLinkViewingMode = ShareLinkViewingMode.PLAIN;
   status: ShareLinkStatus = ShareLinkStatus.ACTIVE;
   openCount = 0;
   createdAt: Date;
@@ -38,6 +44,7 @@ export class ShareLink implements IShareLink {
     recipientEmail: string;
     createdBy: ObjectId;
     expiresAt: Date;
+    viewingMode?: ShareLinkViewingMode;
   }) {
     this.token = opts.token;
     this.courseId = opts.courseId;
@@ -46,6 +53,7 @@ export class ShareLink implements IShareLink {
     this.recipientEmail = opts.recipientEmail;
     this.createdBy = opts.createdBy;
     this.expiresAt = opts.expiresAt;
+    this.viewingMode = opts.viewingMode ?? ShareLinkViewingMode.PLAIN;
     this.createdAt = new Date();
 
     if (opts.cohortId) {

@@ -20,7 +20,12 @@ import {UserRepository} from '#shared/database/providers/mongo/repositories/User
 import {ShareLinkRepository} from '#shared/database/providers/mongo/repositories/ShareLinkRepository.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {BaseService, MongoDatabase} from '#root/shared/index.js';
-import {IShareLink, ShareLinkStatus} from '#shared/interfaces/models.js';
+import {
+  IShareLink,
+  ShareLinkStatus,
+  ShareLinkViewingMode,
+} from '#shared/interfaces/models.js';
+import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
 import {User} from '#auth/classes/transformers/User.js';
 import {ShareLink} from '../classes/transformers/ShareLink.js';
 import {SHARE_LINKS_TYPES} from '../types.js';
@@ -36,6 +41,7 @@ export interface CreatedShareLink {
   recipientEmail: string;
   url: string;
   status: ShareLinkStatus;
+  viewingMode: ShareLinkViewingMode;
   expiresAt: Date;
 }
 
@@ -81,6 +87,8 @@ export class ShareLinkService extends BaseService {
     private readonly itemRepo: IItemRepository,
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(USERS_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo: EnrollmentRepository,
     @inject(AUTH_TYPES.AuthService)
     private readonly authService: IAuthService,
     @inject(GLOBAL_TYPES.Database)
@@ -97,6 +105,7 @@ export class ShareLinkService extends BaseService {
     cohortId?: string,
     itemId?: string,
     expiresInDays: number = DEFAULT_EXPIRY_DAYS,
+    viewingMode: ShareLinkViewingMode = ShareLinkViewingMode.PLAIN,
   ): Promise<CreatedShareLink[]> {
     const versionStatus =
       await this.courseRepo.getCourseVersionStatus(courseVersionId);
@@ -157,6 +166,7 @@ export class ShareLinkService extends BaseService {
             recipientEmail,
             createdBy: new ObjectId(createdBy),
             expiresAt,
+            viewingMode,
           }),
         );
       }
@@ -250,6 +260,7 @@ export class ShareLinkService extends BaseService {
     cohortId?: string;
     itemId?: string;
     recipientName: string;
+    viewingMode: ShareLinkViewingMode;
   }> {
     const link = await this.shareLinkRepo.findByToken(token);
     if (!link) {
@@ -289,6 +300,9 @@ export class ShareLinkService extends BaseService {
       cohortId: link.cohortId?.toString(),
       itemId: link.itemId?.toString(),
       recipientName: link.recipientName,
+      // A link minted before viewing modes existed reads as PLAIN, which is
+      // the safe default: it never starts proctoring for a guest.
+      viewingMode: link.viewingMode ?? ShareLinkViewingMode.PLAIN,
     };
   }
 
@@ -346,13 +360,18 @@ export class ShareLinkService extends BaseService {
       );
       const [firstName, ...rest] = displayName.split(' ');
       guestUserId = await this.userRepo.create(
-        new User({
-          firebaseUID,
-          email: guestEmail,
-          firstName,
-          lastName: rest.join(' '),
-          roles: 'user',
-        }),
+        Object.assign(
+          new User({
+            firebaseUID,
+            email: guestEmail,
+            firstName,
+            lastName: rest.join(' '),
+            roles: 'user',
+          }),
+          // Marks them as never having signed up, which is what keeps them out
+          // of the course's own analytics.
+          {isShareLinkGuest: true},
+        ),
       );
       if (!guestUserId) {
         throw new InternalServerError('Failed to create the share link viewer.');
@@ -372,6 +391,15 @@ export class ShareLinkService extends BaseService {
         'Failed to give the share link viewer access to the course.',
       );
     }
+
+    // The enrollment exists only to grant access. Flagging it keeps the roster
+    // and the version's enrollment statistics about enrolled learners, so
+    // sharing a course with fifty people does not move its completion rate.
+    await this.enrollmentRepo.markShareLinkGuestEnrollment(
+      guestUserId,
+      link.courseId.toString(),
+      link.courseVersionId.toString(),
+    );
 
     return guestUserId;
   }
@@ -401,6 +429,7 @@ export class ShareLinkService extends BaseService {
       recipientEmail: link.recipientEmail,
       url: `${appConfig.origins[0]}/share/${link.token}`,
       status: this.effectiveStatus(link),
+      viewingMode: link.viewingMode ?? ShareLinkViewingMode.PLAIN,
       expiresAt: link.expiresAt,
     };
   }

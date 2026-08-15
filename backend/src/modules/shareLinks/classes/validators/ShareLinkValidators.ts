@@ -19,7 +19,10 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import {ShareLinkStatus} from '#shared/interfaces/models.js';
+import {
+  ShareLinkStatus,
+  ShareLinkViewingMode,
+} from '#shared/interfaces/models.js';
 
 export class CourseAndVersionParams {
   @JSONSchema({
@@ -116,6 +119,17 @@ export class CreateShareLinksBody {
   @IsInt()
   @Min(1)
   expiresInDays?: number;
+
+  @JSONSchema({
+    description:
+      'Whether recipients get plain playback or the full proctored ViBe '
+      + 'experience. Defaults to PLAIN — someone who was simply sent a video '
+      + 'is not a learner working through a course.',
+    enum: Object.values(ShareLinkViewingMode),
+  })
+  @IsOptional()
+  @IsEnum(ShareLinkViewingMode)
+  viewingMode?: ShareLinkViewingMode;
 }
 
 export class ValidateYouTubeUrlBody {
@@ -190,6 +204,10 @@ export class ShareLinkResponse {
   @Expose()
   @IsEnum(ShareLinkStatus)
   status: ShareLinkStatus;
+
+  @Expose()
+  @IsEnum(ShareLinkViewingMode)
+  viewingMode: ShareLinkViewingMode;
 
   @Expose()
   @Type(() => Date)
@@ -304,6 +322,15 @@ export class OpenShareLinkResponse {
   @Expose()
   @IsString()
   recipientName: string;
+
+  @Expose()
+  @IsEnum(ShareLinkViewingMode)
+  @JSONSchema({
+    description:
+      'PLAIN means the client must not start proctoring, rollback or linear '
+      + 'gating for this viewer.',
+  })
+  viewingMode: ShareLinkViewingMode;
 }
 
 @Expose()

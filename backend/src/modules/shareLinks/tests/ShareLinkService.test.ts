@@ -3,7 +3,10 @@
 import 'reflect-metadata';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {ObjectId} from 'mongodb';
-import {ShareLinkStatus} from '#shared/interfaces/models.js';
+import {
+  ShareLinkStatus,
+  ShareLinkViewingMode,
+} from '#shared/interfaces/models.js';
 import {ShareLinkService} from '../services/ShareLinkService.js';
 
 const COURSE_ID = new ObjectId().toString();
@@ -55,6 +58,11 @@ function buildService(overrides: Record<string, any> = {}) {
     ...overrides.enrollmentService,
   };
 
+  const enrollmentRepo = {
+    markShareLinkGuestEnrollment: vi.fn(async () => undefined),
+    ...overrides.enrollmentRepo,
+  };
+
   const authService = {
     createGuestFirebaseUser: vi.fn(async () => 'guest-uid'),
     createCustomToken: vi.fn(async () => 'custom-token'),
@@ -67,6 +75,7 @@ function buildService(overrides: Record<string, any> = {}) {
     courseRepo as any,
     itemRepo as any,
     enrollmentService as any,
+    enrollmentRepo as any,
     authService as any,
     {} as any,
   );
@@ -82,6 +91,7 @@ function buildService(overrides: Record<string, any> = {}) {
     courseRepo,
     itemRepo,
     enrollmentService,
+    enrollmentRepo,
     authService,
   };
 }
@@ -153,6 +163,39 @@ describe('ShareLinkService.createShareLinks', () => {
     ).rejects.toThrow(/cohort/i);
   });
 
+  it('defaults to plain viewing rather than proctoring a guest', async () => {
+    const {service, shareLinkRepo} = buildService();
+
+    await service.createShareLinks(
+      COURSE_ID,
+      VERSION_ID,
+      [{name: 'Ananya Rao', email: 'ananya@example.com'}],
+      SHARER_ID,
+    );
+
+    // Someone who was simply sent a video should not meet a camera prompt.
+    const [created] = shareLinkRepo.createMany.mock.calls[0][0];
+    expect(created.viewingMode).toBe(ShareLinkViewingMode.PLAIN);
+  });
+
+  it('honours a proctored link when the sharer asks for one', async () => {
+    const {service, shareLinkRepo} = buildService();
+
+    await service.createShareLinks(
+      COURSE_ID,
+      VERSION_ID,
+      [{name: 'Ananya Rao', email: 'ananya@example.com'}],
+      SHARER_ID,
+      undefined,
+      undefined,
+      30,
+      ShareLinkViewingMode.PROCTORED,
+    );
+
+    const [created] = shareLinkRepo.createMany.mock.calls[0][0];
+    expect(created.viewingMode).toBe(ShareLinkViewingMode.PROCTORED);
+  });
+
   it('refuses to share an archived version', async () => {
     const {service} = buildService({
       courseRepo: {getCourseVersionStatus: vi.fn(async () => 'archived')},
@@ -204,6 +247,51 @@ describe('ShareLinkService.openShareLink', () => {
     expect(shareLinkRepo.recordOpen).toHaveBeenCalled();
     expect(result.customToken).toBe('custom-token');
     expect(result.recipientName).toBe('Ananya Rao');
+  });
+
+  it('flags the guest so they stay out of the course own analytics', async () => {
+    const link = activeLink();
+    const {service, userRepo, enrollmentRepo} = buildService({
+      shareLinkRepo: {findByToken: vi.fn(async () => link)},
+    });
+
+    await service.openShareLink(link.token);
+
+    const [createdUser] = userRepo.create.mock.calls[0];
+    expect(createdUser.isShareLinkGuest).toBe(true);
+    // The enrollment is flagged too — rosters and enrollment statistics read
+    // from there, not from the user.
+    expect(enrollmentRepo.markShareLinkGuestEnrollment).toHaveBeenCalledWith(
+      expect.any(String),
+      COURSE_ID,
+      VERSION_ID,
+    );
+  });
+
+  it('tells the client which viewing mode the link carries', async () => {
+    const link = {...activeLink(), viewingMode: ShareLinkViewingMode.PROCTORED};
+    const {service} = buildService({
+      shareLinkRepo: {findByToken: vi.fn(async () => link)},
+    });
+
+    const result = await service.openShareLink(link.token);
+
+    expect(result.viewingMode).toBe(ShareLinkViewingMode.PROCTORED);
+  });
+
+  it('reads a link minted before viewing modes existed as plain', async () => {
+    const {viewingMode, ...legacyLink} = {
+      ...activeLink(),
+      viewingMode: undefined,
+    };
+    const {service} = buildService({
+      shareLinkRepo: {findByToken: vi.fn(async () => legacyLink)},
+    });
+
+    const result = await service.openShareLink(legacyLink.token);
+
+    // Defaulting the other way would start proctoring for a guest.
+    expect(result.viewingMode).toBe(ShareLinkViewingMode.PLAIN);
   });
 
   it('does not ask for the recipient email when creating the guest identity', async () => {

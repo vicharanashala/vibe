@@ -27,6 +27,11 @@ export interface IUser {
   profileImage?: string;
   faceEmbedding?: number[];
   roles: 'admin' | 'user';
+  /**
+   * A passwordless identity created for a share-link recipient. They never
+   * signed up, so they are excluded from the course's own analytics.
+   */
+  isShareLinkGuest?: boolean;
 }
 
 export type Versions = {
@@ -453,6 +458,12 @@ export interface IEnrollment {
   enrollmentDate: Date;
   percentCompleted: number;
   completedItemsCount?: number;
+  /**
+   * This enrollment exists only to give a share-link recipient access. It is
+   * excluded from rosters and from the course's enrollment statistics, so
+   * sharing a course never moves the numbers that describe enrolled learners.
+   */
+  isShareLinkGuest?: boolean;
   assignedTimeSlots?: Array<{
     from: string; // HH:MM format in IST
     to: string; // HH:MM format in IST
@@ -601,6 +612,20 @@ export interface IInvite {
   createdAt: Date;
   expiresAt: Date;
 }
+/**
+ * How a share-link recipient watches.
+ *
+ * A person who was simply sent a video is not a learner working through a
+ * course, so the sharer chooses per link whether ViBe's learner behaviours
+ * apply. This never changes anything for enrolled learners.
+ */
+export enum ShareLinkViewingMode {
+  /** Plain playback: no proctoring, no rollback, no linear gating. */
+  PLAIN = 'PLAIN',
+  /** The full ViBe experience, same as an enrolled learner. */
+  PROCTORED = 'PROCTORED',
+}
+
 export enum ShareLinkStatus {
   ACTIVE = 'ACTIVE',
   OPENED = 'OPENED',
@@ -628,6 +653,7 @@ export interface IShareLink {
   createdBy: string | ObjectId;
   /** Guest user the token was bound to on first open. */
   guestUserId?: string | ObjectId;
+  viewingMode: ShareLinkViewingMode;
   status: ShareLinkStatus;
   openCount: number;
   createdAt: Date;
