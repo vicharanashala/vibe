@@ -87,8 +87,8 @@ export default function ShareVideoPage() {
     }
     try {
       setValidation(await validateUrl.mutateAsync(value.trim()))
-    } catch {
-      toast.error("Could not check that link. Try again.")
+    } catch (err: any) {
+      toast.error(err?.message || "Could not check that link. Try again.")
     }
   }
 

@@ -26,14 +26,32 @@ function getAuthHeaders(): HeadersInit {
 }
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-    const res = await fetch(url, {
-        ...options,
-        headers: { ...getAuthHeaders(), ...(options?.headers || {}) },
-        credentials: 'include',
-    });
+    let res: Response;
+    try {
+        res = await fetch(url, {
+            ...options,
+            headers: { ...getAuthHeaders(), ...(options?.headers || {}) },
+            credentials: 'include',
+        });
+    } catch {
+        // A failed fetch is the backend being unreachable, not a bad video —
+        // saying so beats a generic "try again" that sends people hunting
+        // through their YouTube link.
+        throw new Error(
+            `Could not reach the ViBe server at ${import.meta.env.VITE_BASE_URL}. Check that it is running.`,
+        );
+    }
+
     if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        const err: any = new Error(errData.message || `Request failed (${res.status})`);
+        // 404 here means the server is up but has no share-links endpoints —
+        // it is running a build without the feature.
+        const fallback =
+            res.status === 404
+                ? 'This ViBe server does not have the share-link feature yet.'
+                : `Request failed (${res.status})`;
+        const err: any = new Error(errData.message || fallback);
+        err.status = res.status;
         err.data = errData;
         throw err;
     }
