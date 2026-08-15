@@ -601,6 +601,42 @@ export interface IInvite {
   createdAt: Date;
   expiresAt: Date;
 }
+export enum ShareLinkStatus {
+  ACTIVE = 'ACTIVE',
+  OPENED = 'OPENED',
+  EXPIRED = 'EXPIRED',
+  REVOKED = 'REVOKED',
+}
+
+/**
+ * A per-recipient link to an existing course version.
+ *
+ * Unlike an invite, opening one never asks the recipient to sign up: the token
+ * itself carries their identity, and the first open binds it to a guest user so
+ * every watch-time, progress and activity record lands under a real userId.
+ */
+export interface IShareLink {
+  _id?: string | ObjectId | null;
+  token: string;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  cohortId?: string | ObjectId;
+  /** The video the link was generated for, when it was shared from one. */
+  itemId?: string | ObjectId;
+  recipientName: string;
+  recipientEmail: string;
+  createdBy: string | ObjectId;
+  /** Guest user the token was bound to on first open. */
+  guestUserId?: string | ObjectId;
+  status: ShareLinkStatus;
+  openCount: number;
+  createdAt: Date;
+  expiresAt: Date;
+  firstOpenedAt?: Date;
+  lastOpenedAt?: Date;
+  revokedAt?: Date;
+}
+
 // Interface for proctoring settings.
 /*export interface IProctoringSettings {
   components: ProctoringComponent[];

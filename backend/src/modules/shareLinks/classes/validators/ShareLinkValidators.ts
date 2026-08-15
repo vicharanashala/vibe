@@ -1,0 +1,314 @@
+import 'reflect-metadata';
+import {Expose, Type} from 'class-transformer';
+import {JSONSchema} from 'class-validator-jsonschema';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsInt,
+  IsMongoId,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Length,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import {ShareLinkStatus} from '#shared/interfaces/models.js';
+
+export class CourseAndVersionParams {
+  @JSONSchema({
+    description: 'Course the share links point to',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  courseId: string;
+
+  @JSONSchema({
+    description: 'Course version the share links point to',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsNotEmpty()
+  versionId: string;
+}
+
+export class ShareLinkIdParams {
+  @IsMongoId()
+  @IsNotEmpty()
+  shareLinkId: string;
+}
+
+export class ShareLinkTokenParams {
+  @JSONSchema({
+    description: 'Opaque token carried by the share link',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Length(32, 128)
+  token: string;
+}
+
+export class ShareLinkRecipient {
+  @JSONSchema({
+    description: 'Name shown to the sharer in the analytics dashboard',
+    example: 'Ananya Rao',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 120)
+  name: string;
+
+  @JSONSchema({
+    description: 'Recipient email. Never used to make them sign in — it is the '
+      + 'identity the link carries, and where the link can be mailed.',
+    example: 'ananya@example.com',
+    type: 'string',
+  })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+}
+
+export class CreateShareLinksBody {
+  @JSONSchema({
+    description: 'Recipients to mint one link each for',
+    type: 'array',
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  @ValidateNested({each: true})
+  @Type(() => ShareLinkRecipient)
+  recipients: ShareLinkRecipient[];
+
+  @JSONSchema({
+    description: 'Cohort the links resolve into',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  cohortId?: string;
+
+  @JSONSchema({
+    description:
+      'Video item the link was generated from. Optional — the link still opens '
+      + 'the course, this only records what the sharer was looking at.',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  itemId?: string;
+
+  @JSONSchema({
+    description: 'Days until the links expire. Defaults to 30.',
+    type: 'number',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  expiresInDays?: number;
+}
+
+export class ValidateYouTubeUrlBody {
+  @JSONSchema({
+    description: 'The YouTube URL the instructor pasted',
+    example: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsUrl()
+  url: string;
+}
+
+@Expose()
+export class YouTubeValidationResponse {
+  @Expose()
+  @IsBoolean()
+  @JSONSchema({
+    description:
+      'Whether the video can be played inside ViBe. False means it cannot be '
+      + 'tracked either, and no share link should be generated for it.',
+  })
+  embeddable: boolean;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  videoId?: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Machine-readable reason the video cannot be embedded',
+  })
+  reason?: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  @JSONSchema({
+    description: 'Message to show the instructor, saying what to do about it',
+  })
+  message?: string;
+}
+
+@Expose()
+export class ShareLinkResponse {
+  @Expose()
+  @IsString()
+  shareLinkId: string;
+
+  @Expose()
+  @IsString()
+  recipientName: string;
+
+  @Expose()
+  @IsString()
+  recipientEmail: string;
+
+  @Expose()
+  @IsString()
+  @JSONSchema({description: 'The URL to send to this recipient'})
+  url: string;
+
+  @Expose()
+  @IsEnum(ShareLinkStatus)
+  status: ShareLinkStatus;
+
+  @Expose()
+  @Type(() => Date)
+  expiresAt: Date;
+}
+
+@Expose()
+export class CreateShareLinksResponse {
+  @Expose()
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => ShareLinkResponse)
+  links: ShareLinkResponse[];
+}
+
+@Expose()
+export class ShareLinkAnalyticsResponse {
+  @Expose()
+  @IsString()
+  shareLinkId: string;
+
+  @Expose()
+  @IsString()
+  recipientName: string;
+
+  @Expose()
+  @IsString()
+  recipientEmail: string;
+
+  @Expose()
+  @IsEnum(ShareLinkStatus)
+  status: ShareLinkStatus;
+
+  @Expose()
+  @IsNumber()
+  @JSONSchema({description: 'Times the link was opened'})
+  openCount: number;
+
+  @Expose()
+  @IsNumber()
+  @JSONSchema({description: 'Seconds of video actually watched'})
+  totalWatchTimeSeconds: number;
+
+  @Expose()
+  @IsNumber()
+  @JSONSchema({description: 'Items completed out of the version total'})
+  completedItems: number;
+
+  @Expose()
+  @IsNumber()
+  totalItems: number;
+
+  @Expose()
+  @IsNumber()
+  @JSONSchema({description: 'completedItems / totalItems, 0-100'})
+  watchedPercent: number;
+
+  @Expose()
+  @IsNumber()
+  @JSONSchema({description: 'Rewinds recorded across the shared course'})
+  rewinds: number;
+
+  @Expose()
+  @IsNumber()
+  @JSONSchema({description: 'Fast-forwards recorded across the shared course'})
+  fastForwards: number;
+
+  @Expose()
+  @IsOptional()
+  @Type(() => Date)
+  lastSeenAt?: Date;
+}
+
+@Expose()
+export class ShareLinkAnalyticsListResponse {
+  @Expose()
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => ShareLinkAnalyticsResponse)
+  recipients: ShareLinkAnalyticsResponse[];
+}
+
+@Expose()
+export class OpenShareLinkResponse {
+  @Expose()
+  @IsString()
+  @JSONSchema({
+    description:
+      'Firebase custom token for the guest identity behind this link. The '
+      + 'client exchanges it for an ID token and then calls the normal APIs.',
+  })
+  customToken: string;
+
+  @Expose()
+  @IsString()
+  courseId: string;
+
+  @Expose()
+  @IsString()
+  courseVersionId: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  cohortId?: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  itemId?: string;
+
+  @Expose()
+  @IsString()
+  recipientName: string;
+}
+
+@Expose()
+export class ShareLinkMessageResponse {
+  @Expose()
+  @IsString()
+  message: string;
+}

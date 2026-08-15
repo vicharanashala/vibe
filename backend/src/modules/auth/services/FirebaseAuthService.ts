@@ -428,4 +428,45 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       displayName: `${firstName} ${lastName}`.trim(),
     });
   }
+
+  /**
+   * Creates a passwordless Firebase identity for a share-link recipient.
+   *
+   * The recipient never signs in themselves — the link's token is what
+   * identifies them — so the account exists purely to give their watching a
+   * real uid. It carries no password and cannot be signed into directly; the
+   * only way in is a custom token minted for a valid share link.
+   */
+  async createGuestFirebaseUser(
+    email: string,
+    displayName: string,
+  ): Promise<string> {
+    try {
+      const userRecord = await this.auth.createUser({
+        email,
+        emailVerified: false,
+        displayName,
+        disabled: false,
+      });
+      return userRecord.uid;
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to create guest user in Firebase: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Mints a Firebase custom token the client exchanges for an ID token, so a
+   * share-link viewer can call the normal APIs without ever signing up.
+   */
+  async createCustomToken(firebaseUID: string): Promise<string> {
+    try {
+      return await this.auth.createCustomToken(firebaseUID);
+    } catch (error) {
+      throw new InternalServerError(
+        `Failed to create custom token: ${error.message}`,
+      );
+    }
+  }
 }
