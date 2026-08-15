@@ -24,7 +24,9 @@ import {
   SupportQuestionPathParams,
 } from '../classes/validators/SupportChatValidators.js';
 
-@JsonController('/api/support/chat')
+// The app mounts routing-controllers with routePrefix '/api', so the prefix is
+// omitted here — declaring it would serve the routes at /api/api/support/chat.
+@JsonController('/support/chat')
 @injectable()
 export class ChatController {
   constructor(@inject(SUPPORT_CHAT_TYPES.ChatService) private chatService: ChatService) {}

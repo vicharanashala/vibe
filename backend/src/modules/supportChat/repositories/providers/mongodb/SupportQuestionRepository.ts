@@ -2,17 +2,20 @@ import { inject, injectable } from 'inversify';
 import { Collection, ObjectId } from 'mongodb';
 import { ISupportQuestion, SUPPORT_CHAT_CONFIG, SupportQuestionStatus, ResolutionRating } from '../../../types.js';
 import { GLOBAL_TYPES } from '#root/types.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 
 @injectable()
 export class SupportQuestionRepository {
-  constructor(@inject(GLOBAL_TYPES.Database) private db: any) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
 
-  private getCollection(): Collection<ISupportQuestion> {
-    return this.db.collection(SUPPORT_CHAT_CONFIG.collectionsNames.questions);
+  private async getCollection(): Promise<Collection<ISupportQuestion>> {
+    return this.db.getCollection<ISupportQuestion>(
+      SUPPORT_CHAT_CONFIG.collectionsNames.questions,
+    );
   }
 
   async create(question: Omit<ISupportQuestion, '_id' | 'createdAt' | 'updatedAt'>): Promise<ISupportQuestion> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     const now = new Date();
     const document = {
       ...question,
@@ -29,12 +32,12 @@ export class SupportQuestionRepository {
   }
 
   async findById(id: ObjectId): Promise<ISupportQuestion | null> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     return collection.findOne({ _id: id });
   }
 
   async findByUserId(userId: ObjectId, limit: number = 50): Promise<ISupportQuestion[]> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     return collection
       .find({ userId })
       .sort({ createdAt: -1 })
@@ -43,7 +46,7 @@ export class SupportQuestionRepository {
   }
 
   async findByCourseId(courseId: ObjectId, filters?: { status?: SupportQuestionStatus }): Promise<ISupportQuestion[]> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     const query: any = { courseId };
 
     if (filters?.status) {
@@ -54,7 +57,7 @@ export class SupportQuestionRepository {
   }
 
   async findByStatus(status: SupportQuestionStatus, limit: number = 50): Promise<ISupportQuestion[]> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     return collection
       .find({ status })
       .sort({ createdAt: -1 })
@@ -67,7 +70,7 @@ export class SupportQuestionRepository {
   }
 
   async updateById(id: ObjectId, updates: Partial<ISupportQuestion>): Promise<ISupportQuestion | null> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     const result = await collection.findOneAndUpdate(
       { _id: id },
       {
@@ -91,7 +94,7 @@ export class SupportQuestionRepository {
     response: string,
     respondedByUserId: ObjectId
   ): Promise<ISupportQuestion | null> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     const result = await collection.findOneAndUpdate(
       { _id: id },
       {
@@ -138,7 +141,7 @@ export class SupportQuestionRepository {
     byStatus: Record<string, number>;
     avgResolutionTime: number;
   }> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
 
     const matchStage: any = {};
     if (courseId) {
@@ -207,7 +210,7 @@ export class SupportQuestionRepository {
   }
 
   async createIndex(): Promise<void> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     await collection.createIndex({ userId: 1, createdAt: -1 });
     await collection.createIndex({ status: 1, createdAt: -1 });
     await collection.createIndex({ courseId: 1, status: 1 });

@@ -136,11 +136,33 @@ export const FAQ_CONFIDENCE_THRESHOLD = parseFloat(
   process.env.FAQ_CONFIDENCE_THRESHOLD || '0.75'
 );
 
+/**
+ * Lexical matching is a weaker signal than embeddings, so it gets its own,
+ * lower bar. Retrieval falls back to it whenever the embedding provider is
+ * unconfigured or failing, which is the only way the bot answers at all when
+ * no FAQ has an embedding yet.
+ */
+export const FAQ_LEXICAL_CONFIDENCE_THRESHOLD = parseFloat(
+  process.env.FAQ_LEXICAL_CONFIDENCE_THRESHOLD || '0.45'
+);
+
 export const SUPPORT_CHAT_CONFIG = {
   confidenceThreshold: FAQ_CONFIDENCE_THRESHOLD,
+  lexicalConfidenceThreshold: FAQ_LEXICAL_CONFIDENCE_THRESHOLD,
   maxSearchResults: 5,
   embeddingModel: process.env.MINIMAX_EMBEDDING_MODEL || 'embo-01',
-  minimaxApiUrl: process.env.MINIMAX_API_URL || 'https://api.minimax.chat/v1',
+  minimaxApiUrl: process.env.MINIMAX_API_URL || 'https://api.minimax.io/v1',
+  minimaxGroupId: process.env.MINIMAX_GROUP_ID,
+  /** Hard deadline per embedding call — a slow provider must not hang a chat turn. */
+  embeddingTimeoutMs: Number(process.env.SUPPORT_CHAT_EMBEDDING_TIMEOUT_MS || '8000'),
+  /** FAQs whose embedding is generated and stored per chat turn, best-matching first. */
+  maxEmbeddingBackfillPerRequest: Number(
+    process.env.SUPPORT_CHAT_EMBEDDING_BACKFILL_LIMIT || '5'
+  ),
+  /** How long to stop calling the embedding provider after it fails. */
+  embeddingCooldownMs: Number(
+    process.env.SUPPORT_CHAT_EMBEDDING_COOLDOWN_MS || String(10 * 60 * 1000)
+  ),
   collectionsNames: {
     faq: process.env.MONGODB_FAQ_COLLECTION || 'supportFaqs',
     questions: process.env.MONGODB_QUESTIONS_COLLECTION || 'supportQuestions',

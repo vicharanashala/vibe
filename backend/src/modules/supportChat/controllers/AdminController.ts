@@ -25,7 +25,8 @@ import {
   UpdateFAQBody,
 } from '../classes/validators/SupportChatValidators.js';
 
-@JsonController('/api/admin/support')
+// '/api' comes from the app-level routePrefix; see ChatController.
+@JsonController('/admin/support')
 @injectable()
 export class AdminController {
   constructor(@inject(SUPPORT_CHAT_TYPES.AdminService) private adminService: AdminService) {}
