@@ -9,6 +9,8 @@
     "copy": "cd ../backend && node scripts/generate-openapi.cjs --output ../../frontend/openapi.json",
     "gen-schema": "pnpx openapi-typescript openapi.json --output src/lib/api/schema.ts ",
     "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "gts lint",
     "preview": "vite preview",
     "clean": "gts clean",
