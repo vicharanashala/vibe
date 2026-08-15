@@ -57,6 +57,7 @@ import ResetPasswordPage from '../pages/ResetPasswordPage'
 import StudentLogin from '../pages/student/StudentLogin'
 import TeacherLogin from '../pages/teacher/TeacherLogin'
 import SelectRolePage from '../pages/SelectRolePage'
+import ShareLinkLanding from '../pages/shared/ShareLinkLanding'
 import AuditPage from '../pages/teacher/AuditPage'
 import ConfigureCohorts from '../pages/teacher/configure-cohorts'
 
@@ -697,10 +698,19 @@ export const selectRoleRoute = new Route({
   component: SelectRolePage
 })
 
+// Share link landing — public on purpose. The token in the URL is the
+// credential, and the whole point is that a recipient never has to sign in.
+export const shareLinkRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/share/$token',
+  component: ShareLinkLanding
+})
+
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
+  shareLinkRoute,
   //   loginRoute,
   forgotPasswordRoute,
   resetPasswordRoute,

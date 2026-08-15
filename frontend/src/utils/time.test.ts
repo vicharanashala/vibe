@@ -6,6 +6,7 @@ import {
   groupDigits,
   digitsToSeconds,
   parsePastedTime,
+  formatWatchDuration,
 } from './time';
 
 describe('formatTime', () => {
@@ -156,5 +157,26 @@ describe('parsePastedTime', () => {
     expect(parsePastedTime('')).toBeNull();
     expect(parsePastedTime('lecture notes')).toBeNull();
     expect(parsePastedTime('https://youtu.be/dQw4w9WgXcQ')).toBeNull();
+  });
+});
+
+describe('formatWatchDuration', () => {
+  it('reads a total as hours and minutes, not as a position', () => {
+    expect(formatWatchDuration(8100)).toBe('2h 15m');
+    expect(formatWatchDuration(900)).toBe('15m');
+    expect(formatWatchDuration(45)).toBe('45s');
+  });
+
+  it('drops a zero minutes component on a whole hour', () => {
+    expect(formatWatchDuration(3600)).toBe('1h');
+    expect(formatWatchDuration(7200)).toBe('2h');
+  });
+
+  it('shows nothing watched as 0m rather than a blank cell', () => {
+    // Never opened is the answer a sharer most wants to see, so it has to read
+    // as a real zero.
+    expect(formatWatchDuration(0)).toBe('0m');
+    expect(formatWatchDuration(-5)).toBe('0m');
+    expect(formatWatchDuration(NaN)).toBe('0m');
   });
 });

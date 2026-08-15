@@ -21,6 +21,7 @@ import {
   Trash2,
   Layers,
   RefreshCw,
+  Link2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -30,6 +31,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import ShareCoursePanel from "./components/ShareCoursePanel"
 
 // Import hooks and types
 import {
@@ -58,6 +61,8 @@ const isValidEmail = (email: string) => {
  */
 const ALL_COHORTS = "__ALL__"
 
+type AccessMode = "invite" | "share"
+
 export default function InvitePage() {
   const navigate = useNavigate()
 
@@ -70,6 +75,9 @@ export default function InvitePage() {
     navigate({ to: '/teacher' });
     return null
   }
+
+  // Enrol someone, or share a link they can open without signing up.
+  const [accessMode, setAccessMode] = useState<AccessMode>("invite")
 
   // State to track which invite operations are in progress
   const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
@@ -668,6 +676,28 @@ const hasInvalidEmail = inviteEmails.some(
         )}
       </div>
 
+      {/* Enrol or share — the same question ("how do I get this in front of
+          this person?") with two answers, so they sit side by side rather than
+          on screens you have to already know about to find. */}
+      <Tabs value={accessMode} onValueChange={value => setAccessMode(value as AccessMode)}>
+        <TabsList>
+          <TabsTrigger value="invite" className="cursor-pointer">
+            <UserPlus className="w-4 h-4 mr-2" />
+            Invite to enrol
+          </TabsTrigger>
+          <TabsTrigger value="share" className="cursor-pointer">
+            <Link2 className="w-4 h-4 mr-2" />
+            Share a link
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {accessMode === "share" && (
+        <ShareCoursePanel courseId={courseId} versionId={versionId} />
+      )}
+
+      {accessMode === "invite" && (
+        <>
       {/* Course Structure Warning */}
       {courseVersion && !canSendInvites && (
         <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20">
@@ -1367,6 +1397,8 @@ const hasInvalidEmail = inviteEmails.some(
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   )
