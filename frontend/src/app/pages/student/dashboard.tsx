@@ -23,6 +23,8 @@ import { NewAnnouncementsPopup } from "@/components/announcements/NewAnnouncemen
 import { LayoutGrid, List, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMyCertificates, type MyCertificate } from "@/hooks/hooks";
+import { DownloadCertificateButton } from "@/app/pages/student/components/DownloadCertificateButton";
 
 /**
  * Cards / List view switcher. Extracted so the three course tabs share one
@@ -187,6 +189,21 @@ function DashboardContent() {
   const completedEnrollments = useMemo(() => {
     return enrollments.filter(enrollment => (enrollment.percentCompleted ?? 0) === 100);
   }, [enrollments]);
+
+  // Only bother fetching certificates once there's at least one completed
+  // course to show one for — avoids an empty-handed request on every
+  // dashboard load for students who haven't finished anything yet.
+  const { data: certificates } = useMyCertificates(completedEnrollments.length > 0);
+
+  // Keyed by "courseId:courseVersionId" (hex) so each completed card can
+  // look up its own certificate in O(1) without re-scanning the list.
+  const certificateByEnrollment = useMemo(() => {
+    const map = new Map<string, MyCertificate>();
+    (certificates || []).forEach(cert => {
+      map.set(`${cert.courseId}:${cert.courseVersionId}`, cert);
+    });
+    return map;
+  }, [certificates]);
 
   // Tab State
   const [activeTab, setActiveTab] = useState("available");
@@ -408,25 +425,48 @@ function DashboardContent() {
                       "grid gap-6",
                       viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"
                     )}>
-                      {completedEnrollments.map((enrollment, index) => (
-                        viewMode === 'grid' ? (
-                          <CourseCard
-                            key={enrollment._id || index}
-                            enrollment={enrollment}
-                            index={index}
-                            isLoading={false}
-                            variant="dashboard"
-                          />
-                        ) : (
-                          <CourseListCard
-                            key={enrollment._id || index}
-                            enrollment={enrollment}
-                            index={index}
-                            isLoading={false}
-                            variant="dashboard"
-                          />
-                        )
-                      ))}
+                      {completedEnrollments.map((enrollment, index) => {
+                        const courseIdHex = bufferToHex(enrollment.courseId as string);
+                        const versionIdHex = bufferToHex(enrollment.courseVersionId as string);
+                        const certificate = certificateByEnrollment.get(`${courseIdHex}:${versionIdHex}`);
+
+                        return (
+                          <div key={enrollment._id || index} className="space-y-2">
+                            {viewMode === 'grid' ? (
+                              <CourseCard
+                                enrollment={enrollment}
+                                index={index}
+                                isLoading={false}
+                                variant="dashboard"
+                              />
+                            ) : (
+                              <CourseListCard
+                                enrollment={enrollment}
+                                index={index}
+                                isLoading={false}
+                                variant="dashboard"
+                              />
+                            )}
+                            {/* Certificate issuance is async (fired from the
+                                backend's progress hook) — if it hasn't landed
+                                yet for a just-completed course, we simply
+                                don't show the button rather than a broken
+                                state; it'll appear next time data refetches. */}
+                            {certificate && (
+                              <div className="flex justify-end">
+                                <DownloadCertificateButton
+                                  certificateId={certificate.certificateId}
+                                  studentName={certificate.studentName}
+                                  courseName={certificate.courseName}
+                                  issuedAt={new Date(certificate.issuedAt).toLocaleDateString('en-US', {
+                                    year: 'numeric', month: 'long', day: 'numeric',
+                                  })}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <EmptyState
