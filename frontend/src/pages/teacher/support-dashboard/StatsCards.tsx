@@ -1,4 +1,3 @@
-import React from 'react';
 import { MessageSquare, AlertCircle, CheckCircle2, Clock, Smile } from 'lucide-react';
 
 interface Stats {

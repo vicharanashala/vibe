@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { MessageSquare, AlertCircle, CheckCircle2, Clock, TrendingUp } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { MessageSquare, AlertCircle } from 'lucide-react';
 import QuestionsTable from './QuestionsTable';
 import ResponsePanel from './ResponsePanel';
 import StatsCards from './StatsCards';
@@ -11,7 +11,7 @@ export default function SupportDashboard() {
   const [stats, setStats] = useState(null);
   const [questions, setQuestions] = useState<ISupportQuestion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [courseFilter, setCourseFilter] = useState<string>('all');
+  const [courseFilter] = useState<string>('all');
 
   const { getDashboard, getQuestions } = useAdminSupport();
 

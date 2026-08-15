@@ -6,19 +6,24 @@ import {
   Put,
   Delete,
   Body,
-  Param,
+  Params,
   QueryParams,
   Authorized,
   CurrentUser,
 } from 'routing-controllers';
 import { ObjectId } from 'mongodb';
-import {
-  AdminResponseRequest,
-  FAQCategory,
-  IFAQ,
-  SUPPORT_CHAT_TYPES,
-} from '../types.js';
+import { SUPPORT_CHAT_TYPES } from '../types.js';
 import { AdminService } from '../services/index.js';
+import {
+  AdminDashboardQuery,
+  AdminFAQListQuery,
+  AdminQuestionsQuery,
+  AdminResponseBody,
+  CreateFAQBody,
+  FAQPathParams,
+  SupportQuestionPathParams,
+  UpdateFAQBody,
+} from '../classes/validators/SupportChatValidators.js';
 
 @JsonController('/api/admin/support')
 @injectable()
@@ -27,9 +32,7 @@ export class AdminController {
 
   @Get('/dashboard')
   @Authorized()
-  async getDashboard(
-    @QueryParams() query: { courseId?: string; startDate?: string; endDate?: string }
-  ) {
+  async getDashboard(@QueryParams() query: AdminDashboardQuery) {
     const courseId = query.courseId ? new ObjectId(query.courseId) : undefined;
     const startDate = query.startDate ? new Date(query.startDate) : undefined;
     const endDate = query.endDate ? new Date(query.endDate) : undefined;
@@ -45,10 +48,8 @@ export class AdminController {
 
   @Get('/questions')
   @Authorized()
-  async getQuestions(
-    @QueryParams() query: { status?: string; page?: string; limit?: string; courseId?: string }
-  ) {
-    const limit = query.limit ? parseInt(query.limit, 10) : 50;
+  async getQuestions(@QueryParams() query: AdminQuestionsQuery) {
+    const limit = query.limit ?? 50;
     const courseId = query.courseId ? new ObjectId(query.courseId) : undefined;
 
     const questions = await this.adminService.getPendingQuestions(courseId, limit);
@@ -63,10 +64,10 @@ export class AdminController {
   @Authorized()
   async respondToQuestion(
     @CurrentUser() user: any,
-    @Param('questionId') questionId: string,
-    @Body() request: AdminResponseRequest
+    @Params() params: SupportQuestionPathParams,
+    @Body() request: AdminResponseBody
   ) {
-    const qId = new ObjectId(questionId);
+    const qId = new ObjectId(params.questionId);
     const adminUserId = new ObjectId(user.id);
 
     return await this.adminService.respondToQuestion(qId, adminUserId, request);
@@ -74,16 +75,15 @@ export class AdminController {
 
   @Put('/questions/:questionId/resolve')
   @Authorized()
-  async resolveQuestion(@Param('questionId') questionId: string) {
-    const qId = new ObjectId(questionId);
+  async resolveQuestion(@Params() params: SupportQuestionPathParams) {
+    const qId = new ObjectId(params.questionId);
     return await this.adminService.markQuestionResolved(qId);
   }
 
   @Get('/faqs')
   @Authorized()
-  async getFAQs(@QueryParams() query: { category?: string }) {
-    const category = query.category ? (query.category as FAQCategory) : undefined;
-    const faqs = await this.adminService.getAllFAQs(category);
+  async getFAQs(@QueryParams() query: AdminFAQListQuery) {
+    const faqs = await this.adminService.getAllFAQs(query.category);
 
     return {
       faqs,
@@ -93,18 +93,14 @@ export class AdminController {
 
   @Post('/faqs')
   @Authorized()
-  async createFAQ(
-    @CurrentUser() user: any,
-    @Body()
-    faq: Omit<IFAQ, '_id' | 'createdAt' | 'updatedAt' | 'embedding' | 'createdBy'>
-  ) {
+  async createFAQ(@CurrentUser() user: any, @Body() faq: CreateFAQBody) {
     const adminUserId = new ObjectId(user.id);
     return await this.adminService.createFAQ(
       {
         ...faq,
-        upvotes: faq.upvotes || 0,
-        downvotes: faq.downvotes || 0,
-        usageCount: faq.usageCount || 0,
+        upvotes: 0,
+        downvotes: 0,
+        usageCount: 0,
         isActive: faq.isActive !== false,
       },
       adminUserId
@@ -114,17 +110,17 @@ export class AdminController {
   @Put('/faqs/:faqId')
   @Authorized()
   async updateFAQ(
-    @Param('faqId') faqId: string,
-    @Body() updates: Partial<IFAQ>
+    @Params() params: FAQPathParams,
+    @Body() updates: UpdateFAQBody
   ) {
-    const id = new ObjectId(faqId);
+    const id = new ObjectId(params.faqId);
     return await this.adminService.updateFAQ(id, updates);
   }
 
   @Delete('/faqs/:faqId')
   @Authorized()
-  async deleteFAQ(@Param('faqId') faqId: string) {
-    const id = new ObjectId(faqId);
+  async deleteFAQ(@Params() params: FAQPathParams) {
+    const id = new ObjectId(params.faqId);
     const deleted = await this.adminService.deleteFAQ(id);
 
     return {

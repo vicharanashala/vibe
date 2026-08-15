@@ -1,7 +1,7 @@
 /**
  * Live demo runner for the screening filter — for showing it works, by hand.
  *
- * Runs the REAL provider (Groq). Two modes:
+ * Runs the REAL provider (MiniMax by default). Two modes:
  *   1. Your own question via env vars (SCREEN_Q, …) — screens just that one.
  *   2. No env → a curated "demo reel" covering every outcome.
  *
@@ -12,12 +12,12 @@
  *   # or just the reel:
  *   npx vitest run src/modules/studentQuestions/tests/screening.demo.test.ts
  *
- * (Requires GROQ_API_KEY in backend/.env.)
+ * (Requires MINIMAX_API_KEY in backend/.env.)
  */
 import {describe, it} from 'vitest';
 import {ScreeningService, ScreeningInput} from '../services/screening/ScreeningService.js';
 
-const hasKey = !!process.env.GROQ_API_KEY || !!process.env.ANTHROPIC_CRED;
+const hasKey = !!process.env.MINIMAX_API_KEY || !!process.env.GROQ_API_KEY || !!process.env.ANTHROPIC_CRED;
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 function fromEnv(): ScreeningInput | null {

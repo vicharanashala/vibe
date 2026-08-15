@@ -121,8 +121,16 @@ export function createHlsPlayerInstance(options: {
           const level = hls.levels[hls.currentLevel];
           return level ? labelForLevel(level) : 'auto';
         },
+        /**
+         * Captions are a YouTube-module concept with no HLS equivalent here:
+         * nothing upstream produces a WebVTT track for uploaded video, so there
+         * is nothing for these to act on. They stay as no-ops to satisfy the
+         * shared interface, and video.tsx hides the subtitle control for this
+         * player rather than offering a button that cannot do anything.
+         */
         loadModule: () => undefined,
         setOption: () => undefined,
+        getOption: () => undefined,
         destroy: () => {
             destroyed = true;
             hls?.destroy();
