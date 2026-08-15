@@ -1,5 +1,7 @@
 import type {
   CreateShareLinksInput,
+  QuickShareInput,
+  QuickShareResult,
   OpenedShareLink,
   ShareLink,
   ShareLinkAnalytics,
@@ -74,6 +76,23 @@ export async function getShareLinkAnalytics(
     const res = await apiFetch<{ recipients: ShareLinkAnalytics[] }>(
         `${BASE_URL}/courses/${courseId}/versions/${versionId}${query}`,
     );
+    return res.recipients;
+}
+
+/**
+ * Shares a pasted video with no course involved. The backend rejects a video
+ * it cannot embed, so an unplayable link never becomes share links.
+ */
+export async function quickShare(input: QuickShareInput): Promise<QuickShareResult> {
+    return apiFetch<QuickShareResult>(`${BASE_URL}/quick`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+    });
+}
+
+/** Every video this instructor has shared outside a course, and who watched. */
+export async function getQuickShares(): Promise<ShareLinkAnalytics[]> {
+    const res = await apiFetch<{ recipients: ShareLinkAnalytics[] }>(`${BASE_URL}/quick`);
     return res.recipients;
 }
 

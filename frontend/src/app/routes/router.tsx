@@ -58,6 +58,7 @@ import StudentLogin from '../pages/student/StudentLogin'
 import TeacherLogin from '../pages/teacher/TeacherLogin'
 import SelectRolePage from '../pages/SelectRolePage'
 import ShareLinkLanding from '../pages/shared/ShareLinkLanding'
+import ShareVideoPage from '../pages/teacher/share-video'
 import AuditPage from '../pages/teacher/AuditPage'
 import ConfigureCohorts from '../pages/teacher/configure-cohorts'
 
@@ -698,6 +699,14 @@ export const selectRoleRoute = new Route({
   component: SelectRolePage
 })
 
+// Sharing a video that is not in a course — no course picker, so it belongs
+// beside the course builder rather than inside a course.
+const teacherShareVideoRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/share-video',
+  component: ShareVideoPage
+})
+
 // Share link landing — public on purpose. The token in the URL is the
 // credential, and the whole point is that a recipient never has to sign in.
 export const shareLinkRoute = new Route({
@@ -753,6 +762,7 @@ const routeTree = rootRoute.addChildren([
     teacherStudentSubmissionsRoute,
     teacherSubmissionDetailsRoute,
     teacherNotificationsRoute,
+    teacherShareVideoRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

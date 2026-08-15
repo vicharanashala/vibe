@@ -2,6 +2,7 @@ const TYPES = {
   // Services
   ShareLinkService: Symbol.for('ShareLinkService'),
   YouTubeEmbedService: Symbol.for('YouTubeEmbedService'),
+  QuickShareService: Symbol.for('QuickShareService'),
 
   // Repositories
   ShareLinkRepo: Symbol.for('ShareLinkRepo'),

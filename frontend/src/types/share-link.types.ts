@@ -71,3 +71,18 @@ export interface OpenedShareLink {
   recipientName: string;
   viewingMode: ShareLinkViewingMode;
 }
+
+export interface QuickShareInput {
+  url: string;
+  recipients: ShareLinkRecipientInput[];
+  /** Where the video ends, HH:MM:SS. Without it only watch time is meaningful. */
+  endTime?: string;
+  expiresInDays?: number;
+  viewingMode?: ShareLinkViewingMode;
+}
+
+export interface QuickShareResult {
+  itemId: string;
+  videoTitle: string;
+  links: ShareLink[];
+}

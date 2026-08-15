@@ -17,6 +17,7 @@ import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {BadRequestErrorResponse} from '#shared/middleware/errorHandler.js';
 import {CohortScopeService} from '#root/shared/functions/cohortScope.js';
 import {ShareLinkService} from '../services/ShareLinkService.js';
+import {QuickShareService} from '../services/QuickShareService.js';
 import {YouTubeEmbedService} from '../services/YouTubeEmbedService.js';
 import {
   CourseAndVersionParams,
@@ -27,6 +28,8 @@ import {
   ShareLinkIdParams,
   ShareLinkMessageResponse,
   ShareLinkTokenParams,
+  QuickShareBody,
+  QuickShareResponse,
   ValidateYouTubeUrlBody,
   YouTubeValidationResponse,
 } from '../classes/validators/ShareLinkValidators.js';
@@ -52,6 +55,8 @@ export class ShareLinkController {
     private readonly shareLinkService: ShareLinkService,
     @inject(SHARE_LINKS_TYPES.YouTubeEmbedService)
     private readonly youTubeEmbedService: YouTubeEmbedService,
+    @inject(SHARE_LINKS_TYPES.QuickShareService)
+    private readonly quickShareService: QuickShareService,
     @inject(CohortScopeService)
     private readonly cohortScopeService: CohortScopeService,
   ) {}
@@ -75,6 +80,59 @@ export class ShareLinkController {
     return (await this.youTubeEmbedService.check(
       body.url,
     )) as YouTubeValidationResponse;
+  }
+
+  @Authorized()
+  @Post('/quick')
+  @HttpCode(200)
+  @ResponseSchema(QuickShareResponse, {
+    description: 'The shared video and one link per recipient',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'The video cannot be played inside ViBe, or bad input',
+    statusCode: 400,
+  })
+  @OpenAPI({
+    summary: 'Share a video outside any course',
+    description:
+      'Paste a YouTube URL and name recipients. The video is filed into a '
+      + 'hidden holder so watch time has somewhere to record; the instructor '
+      + 'never picks a course. An unplayable video is rejected here rather '
+      + 'than becoming links that lead to a dead player.',
+  })
+  async quickShare(
+    @Body() body: QuickShareBody,
+    @Ability(getShareLinkAbility) {authenticatedUser},
+  ): Promise<QuickShareResponse> {
+    return (await this.quickShareService.shareVideo(
+      authenticatedUser.userId,
+      body.url,
+      body.recipients,
+      body.viewingMode,
+      body.endTime,
+      body.expiresInDays,
+    )) as QuickShareResponse;
+  }
+
+  @Authorized()
+  @Get('/quick')
+  @HttpCode(200)
+  @ResponseSchema(ShareLinkAnalyticsListResponse, {
+    description: 'Every quick share this instructor has made',
+    statusCode: 200,
+  })
+  @OpenAPI({
+    summary: 'Quick share analytics',
+    description: 'Who each quick-shared video went to, and what they watched.',
+  })
+  async getQuickShares(
+    @Ability(getShareLinkAbility) {authenticatedUser},
+  ): Promise<ShareLinkAnalyticsListResponse> {
+    const recipients = await this.quickShareService.listQuickShares(
+      authenticatedUser.userId,
+    );
+    return {recipients} as ShareLinkAnalyticsListResponse;
   }
 
   @Authorized()

@@ -48,6 +48,12 @@ export interface ICourse {
   createdAt?: Date;
   updatedAt?: Date;
   isDeleted?: boolean;
+  /**
+   * A hidden holder for videos shared outside any course — one per instructor.
+   * It exists only so a quick-shared video has somewhere to record watching;
+   * it is never shown as a course of theirs.
+   */
+  isQuickShareContainer?: boolean;
 }
 
 export type ID = string | ObjectId | null;
@@ -464,6 +470,12 @@ export interface IEnrollment {
    * sharing a course never moves the numbers that describe enrolled learners.
    */
   isShareLinkGuest?: boolean;
+  /**
+   * The instructor's own enrollment into their hidden quick-share holder. It
+   * is filtered out of their course lists and counts — the holder is not a
+   * course they teach.
+   */
+  isQuickShareContainer?: boolean;
   assignedTimeSlots?: Array<{
     from: string; // HH:MM format in IST
     to: string; // HH:MM format in IST
