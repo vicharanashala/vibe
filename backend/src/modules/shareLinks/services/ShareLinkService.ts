@@ -22,12 +22,14 @@ import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.
 import {BaseService, MongoDatabase} from '#root/shared/index.js';
 import {
   IShareLink,
+  ShareLinkEmailStatus,
   ShareLinkStatus,
   ShareLinkViewingMode,
 } from '#shared/interfaces/models.js';
 import {EnrollmentRepository} from '#shared/database/providers/mongo/repositories/EnrollmentRepository.js';
 import {User} from '#auth/classes/transformers/User.js';
 import {ShareLink} from '../classes/transformers/ShareLink.js';
+import {ShareLinkMailService} from './ShareLinkMailService.js';
 import {SHARE_LINKS_TYPES} from '../types.js';
 
 export interface ShareLinkRecipientInput {
@@ -42,6 +44,7 @@ export interface CreatedShareLink {
   url: string;
   status: ShareLinkStatus;
   viewingMode: ShareLinkViewingMode;
+  emailStatus: ShareLinkEmailStatus;
   expiresAt: Date;
 }
 
@@ -91,6 +94,8 @@ export class ShareLinkService extends BaseService {
     private readonly enrollmentRepo: EnrollmentRepository,
     @inject(AUTH_TYPES.AuthService)
     private readonly authService: IAuthService,
+    @inject(SHARE_LINKS_TYPES.ShareLinkMailService)
+    private readonly mailService: ShareLinkMailService,
     @inject(GLOBAL_TYPES.Database)
     database: MongoDatabase,
   ) {
@@ -106,6 +111,8 @@ export class ShareLinkService extends BaseService {
     itemId?: string,
     expiresInDays: number = DEFAULT_EXPIRY_DAYS,
     viewingMode: ShareLinkViewingMode = ShareLinkViewingMode.PLAIN,
+    sendEmail = false,
+    emailSubjectTitle = 'a video on ViBe',
   ): Promise<CreatedShareLink[]> {
     const versionStatus =
       await this.courseRepo.getCourseVersionStatus(courseVersionId);
@@ -180,7 +187,43 @@ export class ShareLinkService extends BaseService {
       return created;
     });
 
+    if (sendEmail) {
+      await this.emailLinks(links, emailSubjectTitle);
+    }
+
     return links.map(link => this.toCreatedShareLink(link));
+  }
+
+  /**
+   * Mails each recipient their own link.
+   *
+   * Failures are recorded rather than thrown: the links already exist and the
+   * sharer can still copy them, so losing the whole share because one address
+   * bounced would be the worse outcome. The dashboard shows who was not
+   * reached.
+   */
+  private async emailLinks(
+    links: ShareLink[],
+    subjectTitle: string,
+  ): Promise<void> {
+    await Promise.all(
+      links.map(async link => {
+        const sent = await this.mailService.sendShareLink(
+          link,
+          this.urlFor(link),
+          subjectTitle,
+        );
+        link.emailStatus = sent
+          ? ShareLinkEmailStatus.SENT
+          : ShareLinkEmailStatus.FAILED;
+        link.emailedAt = sent ? new Date() : undefined;
+
+        await this.shareLinkRepo.update(link._id.toString(), {
+          emailStatus: link.emailStatus,
+          ...(link.emailedAt ? {emailedAt: link.emailedAt} : {}),
+        });
+      }),
+    );
   }
 
   async listShareLinks(
@@ -408,6 +451,10 @@ export class ShareLinkService extends BaseService {
     return `share-${token.slice(0, 24)}@guests.vibe.local`;
   }
 
+  private urlFor(link: IShareLink): string {
+    return `${appConfig.origins[0]}/share/${link.token}`;
+  }
+
   private generateToken(): string {
     return crypto.randomBytes(24).toString('hex');
   }
@@ -427,9 +474,10 @@ export class ShareLinkService extends BaseService {
       shareLinkId: link._id.toString(),
       recipientName: link.recipientName,
       recipientEmail: link.recipientEmail,
-      url: `${appConfig.origins[0]}/share/${link.token}`,
+      url: this.urlFor(link),
       status: this.effectiveStatus(link),
       viewingMode: link.viewingMode ?? ShareLinkViewingMode.PLAIN,
+      emailStatus: link.emailStatus ?? ShareLinkEmailStatus.NOT_SENT,
       expiresAt: link.expiresAt,
     };
   }

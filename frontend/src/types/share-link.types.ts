@@ -3,6 +3,9 @@ export type ShareLinkViewingMode = 'PLAIN' | 'PROCTORED';
 
 export type ShareLinkStatus = 'ACTIVE' | 'OPENED' | 'EXPIRED' | 'REVOKED';
 
+/** Whether the link was mailed to its recipient. */
+export type ShareLinkEmailStatus = 'NOT_SENT' | 'SENT' | 'FAILED';
+
 /** Why a pasted YouTube URL cannot be played inside ViBe. */
 export type YouTubeEmbedFailure =
   | 'INVALID_URL'
@@ -32,6 +35,8 @@ export interface CreateShareLinksInput {
   itemId?: string;
   expiresInDays?: number;
   viewingMode?: ShareLinkViewingMode;
+  /** Email each recipient their own link. */
+  sendEmail?: boolean;
 }
 
 export interface ShareLink {
@@ -42,6 +47,7 @@ export interface ShareLink {
   url: string;
   status: ShareLinkStatus;
   viewingMode: ShareLinkViewingMode;
+  emailStatus: ShareLinkEmailStatus;
   expiresAt: string;
 }
 
@@ -70,4 +76,20 @@ export interface OpenedShareLink {
   itemId?: string;
   recipientName: string;
   viewingMode: ShareLinkViewingMode;
+}
+
+export interface QuickShareInput {
+  url: string;
+  recipients: ShareLinkRecipientInput[];
+  /** Where the video ends, HH:MM:SS. Without it only watch time is meaningful. */
+  endTime?: string;
+  expiresInDays?: number;
+  viewingMode?: ShareLinkViewingMode;
+  sendEmail?: boolean;
+}
+
+export interface QuickShareResult {
+  itemId: string;
+  videoTitle: string;
+  links: ShareLink[];
 }

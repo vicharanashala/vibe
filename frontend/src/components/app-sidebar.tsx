@@ -56,6 +56,9 @@ export function AppSidebar() {
         items: [
           { title: "Create Course", url: "/teacher/courses/create" },
           { title: "All Courses", url: "/teacher" },
+          // Sharing a video needs no course, so it sits beside the builder
+          // rather than inside a course.
+          { title: "Share a video", url: "/teacher/share-video" },
         ],
       },
       {

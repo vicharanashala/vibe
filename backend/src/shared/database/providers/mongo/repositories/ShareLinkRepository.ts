@@ -5,6 +5,7 @@ import {MongoDatabase} from '../MongoDatabase.js';
 import {InternalServerError} from 'routing-controllers';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {
+  ICourse,
   IShareLink,
   IUserActivityEvent,
   IWatchTime,
@@ -27,6 +28,7 @@ export class ShareLinkRepository {
   private shareLinkCollection: Collection<IShareLink>;
   private watchTimeCollection: Collection<IWatchTime>;
   private activityEventCollection: Collection<IUserActivityEvent>;
+  private courseCollection: Collection<ICourse>;
   private initialized = false;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
@@ -41,6 +43,7 @@ export class ShareLinkRepository {
       await this.db.getCollection<IWatchTime>('watchTime');
     this.activityEventCollection =
       await this.db.getCollection<IUserActivityEvent>('user_activity_events');
+    this.courseCollection = await this.db.getCollection<ICourse>('newCourse');
 
     // The token is the only lookup key on the public open path, so it has to be
     // unique and indexed; the rest serve the instructor's dashboard listing.
@@ -183,6 +186,38 @@ export class ShareLinkRepository {
     await this.shareLinkCollection.updateOne(
       {_id: new ObjectId(id), guestUserId: {$exists: false}} as any,
       {$set: {guestUserId}},
+      {session},
+    );
+  }
+
+  /**
+   * The instructor's hidden holder for videos shared outside any course, if
+   * they have one. There is at most one per instructor.
+   */
+  async findQuickShareContainerCourse(
+    instructorId: string,
+    session?: ClientSession,
+  ): Promise<ICourse | null> {
+    await this.init();
+    return this.courseCollection.findOne(
+      {
+        instructors: new ObjectId(instructorId),
+        isQuickShareContainer: true,
+        isDeleted: {$ne: true},
+      } as any,
+      {session},
+    );
+  }
+
+  /** Flags a freshly created course as a quick-share holder. */
+  async markCourseAsQuickShareContainer(
+    courseId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.courseCollection.updateOne(
+      {_id: new ObjectId(courseId)} as any,
+      {$set: {isQuickShareContainer: true}},
       {session},
     );
   }

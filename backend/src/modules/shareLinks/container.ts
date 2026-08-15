@@ -3,6 +3,8 @@ import {SHARE_LINKS_TYPES} from './types.js';
 import {ShareLinkRepository} from '#shared/database/providers/mongo/repositories/ShareLinkRepository.js';
 import {ShareLinkService} from './services/ShareLinkService.js';
 import {YouTubeEmbedService} from './services/YouTubeEmbedService.js';
+import {QuickShareService} from './services/QuickShareService.js';
+import {ShareLinkMailService} from './services/ShareLinkMailService.js';
 import {ShareLinkController} from './controllers/ShareLinkController.js';
 
 export const shareLinksContainerModule = new ContainerModule(options => {
@@ -20,6 +22,14 @@ export const shareLinksContainerModule = new ContainerModule(options => {
   options
     .bind(SHARE_LINKS_TYPES.YouTubeEmbedService)
     .to(YouTubeEmbedService)
+    .inSingletonScope();
+  options
+    .bind(SHARE_LINKS_TYPES.QuickShareService)
+    .to(QuickShareService)
+    .inSingletonScope();
+  options
+    .bind(SHARE_LINKS_TYPES.ShareLinkMailService)
+    .to(ShareLinkMailService)
     .inSingletonScope();
 
   // Controllers

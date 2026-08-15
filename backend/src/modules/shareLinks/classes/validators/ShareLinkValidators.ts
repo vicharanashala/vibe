@@ -20,6 +20,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import {
+  ShareLinkEmailStatus,
   ShareLinkStatus,
   ShareLinkViewingMode,
 } from '#shared/interfaces/models.js';
@@ -130,6 +131,16 @@ export class CreateShareLinksBody {
   @IsOptional()
   @IsEnum(ShareLinkViewingMode)
   viewingMode?: ShareLinkViewingMode;
+
+  @JSONSchema({
+    description:
+      'Email each recipient their own link. Off by default — the sharer may '
+      + 'prefer to hand the links over themselves.',
+    type: 'boolean',
+  })
+  @IsOptional()
+  @IsBoolean()
+  sendEmail?: boolean;
 }
 
 export class ValidateYouTubeUrlBody {
@@ -208,6 +219,13 @@ export class ShareLinkResponse {
   @Expose()
   @IsEnum(ShareLinkViewingMode)
   viewingMode: ShareLinkViewingMode;
+
+  @Expose()
+  @IsEnum(ShareLinkEmailStatus)
+  @JSONSchema({
+    description: 'Whether the link was mailed to this recipient',
+  })
+  emailStatus: ShareLinkEmailStatus;
 
   @Expose()
   @Type(() => Date)
@@ -331,6 +349,69 @@ export class OpenShareLinkResponse {
       + 'gating for this viewer.',
   })
   viewingMode: ShareLinkViewingMode;
+}
+
+export class QuickShareBody {
+  @JSONSchema({
+    description: 'The YouTube URL to share. No course is involved.',
+    example: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsUrl()
+  url: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  @ValidateNested({each: true})
+  @Type(() => ShareLinkRecipient)
+  recipients: ShareLinkRecipient[];
+
+  @JSONSchema({
+    description:
+      'Where the video ends, HH:MM:SS. Supply it so completion can be '
+      + 'detected; without it only watch time is meaningful.',
+    example: '00:12:30',
+  })
+  @IsOptional()
+  @IsString()
+  endTime?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  expiresInDays?: number;
+
+  @IsOptional()
+  @IsEnum(ShareLinkViewingMode)
+  viewingMode?: ShareLinkViewingMode;
+
+  @JSONSchema({
+    description: 'Email each recipient their own link.',
+    type: 'boolean',
+  })
+  @IsOptional()
+  @IsBoolean()
+  sendEmail?: boolean;
+}
+
+@Expose()
+export class QuickShareResponse {
+  @Expose()
+  @IsString()
+  itemId: string;
+
+  @Expose()
+  @IsString()
+  videoTitle: string;
+
+  @Expose()
+  @IsArray()
+  @ValidateNested({each: true})
+  @Type(() => ShareLinkResponse)
+  links: ShareLinkResponse[];
 }
 
 @Expose()

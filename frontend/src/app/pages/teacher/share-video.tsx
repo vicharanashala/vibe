@@ -3,13 +3,13 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import {
+  AlertTriangle,
   BarChart3,
   Check,
   Copy,
   Link2,
   Loader2,
   Plus,
-  Trash2,
   X,
 } from "lucide-react"
 
@@ -35,21 +35,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  useCreateShareLinks,
-  useRevokeShareLink,
-  useShareLinkAnalytics,
+  useQuickShare,
+  useQuickShares,
+  useValidateYouTubeUrl,
 } from "@/hooks/share-link-hooks"
 import type {
   ShareLink,
   ShareLinkViewingMode,
+  YouTubeValidation,
 } from "@/types/share-link.types"
 import { formatWatchDuration } from "@/utils/time"
-
-interface ShareCoursePanelProps {
-  courseId: string
-  versionId: string
-  cohortId?: string
-}
 
 interface RecipientDraft {
   name: string
@@ -61,17 +56,15 @@ const emptyRecipient = (): RecipientDraft => ({ name: "", email: "" })
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
 /**
- * Sharing a course with named people, and what they watched.
+ * Share a video that isn't in a course.
  *
- * Sits beside the invite flow because the instructor's real question is "how do
- * I get this in front of this person" — enrol them, or share a link they can
- * open without signing up.
+ * Paste a link, name who it goes to, send it — no course, version or cohort in
+ * sight. ViBe files the video away out of view so the watching has somewhere
+ * to record.
  */
-export default function ShareCoursePanel({
-  courseId,
-  versionId,
-  cohortId,
-}: ShareCoursePanelProps) {
+export default function ShareVideoPage() {
+  const [url, setUrl] = useState("")
+  const [validation, setValidation] = useState<YouTubeValidation | null>(null)
   const [recipients, setRecipients] = useState<RecipientDraft[]>([
     emptyRecipient(),
   ])
@@ -80,35 +73,46 @@ export default function ShareCoursePanel({
   const [sendEmail, setSendEmail] = useState(true)
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
-  const createLinks = useCreateShareLinks(courseId, versionId)
-  const revoke = useRevokeShareLink(courseId, versionId)
-  const { data: analytics, isLoading: analyticsLoading } = useShareLinkAnalytics(
-    courseId,
-    versionId,
-    cohortId,
-  )
+  const validateUrl = useValidateYouTubeUrl()
+  const quickShare = useQuickShare()
+  const { data: shares, isLoading: sharesLoading } = useQuickShares()
 
   const validRecipients = recipients.filter(
     r => r.name.trim() !== "" && isValidEmail(r.email.trim()),
   )
+  const canShare =
+    validRecipients.length > 0 && validation?.embeddable === true
 
-  const handleGenerate = async () => {
-    if (validRecipients.length === 0) return
+  const handleCheck = async (value: string) => {
+    if (!value.trim()) {
+      setValidation(null)
+      return
+    }
     try {
-      const links = await createLinks.mutateAsync({
+      setValidation(await validateUrl.mutateAsync(value.trim()))
+    } catch (err: any) {
+      toast.error(err?.message || "Could not check that link. Try again.")
+    }
+  }
+
+  const handleShare = async () => {
+    try {
+      const result = await quickShare.mutateAsync({
+        url: url.trim(),
         recipients: validRecipients.map(r => ({
           name: r.name.trim(),
           email: r.email.trim(),
         })),
-        cohortId,
         viewingMode,
         sendEmail,
       })
-      setGenerated(links)
+      setGenerated(result.links)
       setRecipients([emptyRecipient()])
-      toast.success(`Generated ${links.length} link(s)`)
+      setUrl("")
+      setValidation(null)
+      toast.success(`Shared “${result.videoTitle}” with ${result.links.length} person(s)`)
     } catch (err: any) {
-      toast.error(err?.message || "Could not generate the links")
+      toast.error(err?.message || "Could not share that video")
     }
   }
 
@@ -118,38 +122,68 @@ export default function ShareCoursePanel({
     setTimeout(() => setCopiedId(null), 1500)
   }
 
-  const handleRevoke = async (shareLinkId: string) => {
-    try {
-      await revoke.mutateAsync(shareLinkId)
-      toast.success("Link revoked. The watching it recorded is kept.")
-    } catch (err: any) {
-      toast.error(err?.message || "Could not revoke that link")
-    }
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Recipients */}
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center space-x-2">
+        <Link2 className="w-6 h-6" />
+        <h1 className="text-xl md:text-2xl font-bold">Share a video</h1>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Link2 className="w-5 h-5" />
-              <span>Share with</span>
+          <CardTitle className="text-base">The video</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Paste a YouTube link. Recipients watch it inside ViBe — that is what
+            lets you see who watched and how much. No course needed.
+          </p>
+          <Input
+            placeholder="https://www.youtube.com/watch?v=…"
+            value={url}
+            onChange={e => {
+              setUrl(e.target.value)
+              setValidation(null)
+            }}
+            onBlur={e => handleCheck(e.target.value)}
+          />
+
+          {validateUrl.isPending && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Checking the video…
             </div>
+          )}
+
+          {validation?.embeddable && (
+            <div className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950/20 dark:text-green-200">
+              <Check className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>
+                Ready to share
+                {validation.title ? ` — “${validation.title}”` : ""}.
+              </span>
+            </div>
+          )}
+
+          {validation && !validation.embeddable && (
+            <div className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-200">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{validation.message}</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between text-base">
+            <span>Share with</span>
             <Badge variant="secondary" className="text-xs">
               {validRecipients.length} recipient(s)
             </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Shares this course's own content. Each person gets their own link,
-            opens it and watches straight away — no sign-up — and you see who
-            watched and how much. To share a video that isn't in a course yet,
-            add it to the course first.
-          </p>
-
           <div className="space-y-3">
             {recipients.map((recipient, index) => (
               <div
@@ -234,38 +268,36 @@ export default function ShareCoursePanel({
 
             <Button
               className="ml-auto"
-              onClick={handleGenerate}
-              disabled={validRecipients.length === 0 || createLinks.isPending}
+              onClick={handleShare}
+              disabled={!canShare || quickShare.isPending}
             >
-              {createLinks.isPending ? (
+              {quickShare.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating…
+                  Sharing…
                 </>
               ) : (
                 <>
                   <Link2 className="w-4 h-4 mr-2" />
-                  Generate links
+                  Share
                 </>
               )}
             </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            {viewingMode === "PLAIN"
-              ? "Plain viewing: no proctoring, rollback or gating for these recipients. Their watching is still tracked."
-              : "Full ViBe experience: proctoring, rollback and linear progression apply, exactly as for enrolled learners."}
-          </p>
+          {!validation?.embeddable && url.trim() !== "" && (
+            <p className="text-xs text-muted-foreground">
+              Check the video first — a video ViBe cannot play cannot be tracked
+              either.
+            </p>
+          )}
         </CardContent>
       </Card>
 
-      {/* Freshly generated links, ready to copy */}
       {generated.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
-              Links ready to send
-            </CardTitle>
+            <CardTitle className="text-base">Links ready to send</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {generated.map(link => (
@@ -309,22 +341,21 @@ export default function ShareCoursePanel({
         </Card>
       )}
 
-      {/* Who watched */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
+          <CardTitle className="flex items-center space-x-2 text-base">
             <BarChart3 className="w-5 h-5" />
             <span>Who watched</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {analyticsLoading ? (
+          {sharesLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
-          ) : !analytics || analytics.length === 0 ? (
+          ) : !shares || shares.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              You haven't shared this course with anyone yet.
+              You haven't shared any videos yet.
             </p>
           ) : (
             <Table>
@@ -332,16 +363,14 @@ export default function ShareCoursePanel({
                 <TableRow>
                   <TableHead>Recipient</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Watched</TableHead>
                   <TableHead className="text-right">Watch time</TableHead>
                   <TableHead className="text-right">Opens</TableHead>
                   <TableHead className="text-right">Rewinds</TableHead>
                   <TableHead>Last seen</TableHead>
-                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {analytics.map(row => (
+                {shares.map(row => (
                   <TableRow key={row.shareLinkId}>
                     <TableCell>
                       <div className="font-medium">{row.recipientName}</div>
@@ -361,12 +390,6 @@ export default function ShareCoursePanel({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      {row.watchedPercent}%
-                      <span className="ml-1 text-xs text-muted-foreground">
-                        ({row.completedItems}/{row.totalItems})
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
                       {formatWatchDuration(row.totalWatchTimeSeconds)}
                     </TableCell>
                     <TableCell className="text-right">
@@ -377,18 +400,6 @@ export default function ShareCoursePanel({
                       {row.lastSeenAt
                         ? new Date(row.lastSeenAt).toLocaleDateString()
                         : "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {row.status !== "REVOKED" && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Revoke this link"
-                          onClick={() => handleRevoke(row.shareLinkId)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
                     </TableCell>
                   </TableRow>
                 ))}
