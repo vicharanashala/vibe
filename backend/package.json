@@ -6,15 +6,17 @@
   "scripts": {
     "postinstall": "node scripts/class-transformer-0.5.1.patch.js",
     "start": "tsc && node build/index.js",
-    "dev": "concurrently \"pnpm run watch:compile\" \"pnpm run watch:build\"",
+    "build": "tsc",
+    "dev": "npm run build && concurrently \"pnpm run watch:compile\" \"pnpm run watch:build\"",
     "watch:compile": "tsc --watch",
     "watch:build": "nodemon --watch build --ext js --exec \"node build/index.js\"",
-    "build": "tsc",
     "generate": "plop",
     "test": "vitest --ui",
     "test:watch": "vitest run --watch",
     "test:ci": "vitest run --coverage --reporter=html",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org vicharana-shala --project vibe-server ./build && sentry-cli sourcemaps upload --org vicharana-shala --project vibe-server ./build"
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org vicharana-shala --project vibe-server ./build && sentry-cli sourcemaps upload --org vicharana-shala --project vibe-server ./build",
+    "seed:user": "node --loader ts-node/esm --env-file=.env src/modules/users/scripts/seedTestUser.ts",
+    "seed:fastapi": "node --loader ts-node/esm --env-file=.env src/modules/notes/scripts/seedFastAPICourse.ts"
   },
   "imports": {
     "#root/*.js": "./build/*.js",
@@ -91,6 +93,7 @@
     "@anthropic-ai/sdk": "^0.71.2",
     "@casl/ability": "^6.7.3",
     "@google-cloud/storage": "^7.17.1",
+    "@google/generative-ai": "^0.24.1",
     "@inversifyjs/container": "^1.15.0",
     "@inversifyjs/core": "^1.3.5",
     "@microsoft/kiota-bundle": "1.0.0-preview.96",
@@ -120,6 +123,7 @@
     "firebase-admin": "^13.2.0",
     "fluent-ffmpeg": "^2.1.3",
     "graphql": "~16.10.0",
+    "groq-sdk": "^1.4.0",
     "inversify": "^7.10.4",
     "json5": "^2.2.3",
     "lexorank": "^1.0.5",
@@ -128,11 +132,13 @@
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.3",
+    "openai": "^4.86.0",
     "reflect-metadata": "^0.2.2",
     "routing-controllers": "^0.11.2",
     "routing-controllers-openapi": "github:adityabmv/routing-controllers-openapi",
     "socks-proxy-agent": "^8.0.5",
     "typedi": "^0.10.0",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "youtube-transcript": "^1.3.1"
   }
 }

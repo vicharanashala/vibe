@@ -114,6 +114,15 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
   @IsNotEmpty()
   @IsNumber()
   points: number;
+
+  @JSONSchema({
+    title: 'Transcript',
+    description: 'Video audio transcript text',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  transcript?: string;
 }
 
 class QuizDetailsPayloadValidator
