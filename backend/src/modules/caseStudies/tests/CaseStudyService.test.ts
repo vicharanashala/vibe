@@ -20,7 +20,7 @@ import type {
   CaseComparisonOutcome,
   ICaseComparison,
 } from '../classes/transformers/CaseComparison.js';
-import {WINS_REQUIRED, UNJUDGEABLE_FLAG_THRESHOLD} from '../constants.js';
+import {WINS_REQUIRED} from '../constants.js';
 
 /** Stands in for CourseSettingService — case studies enabled, strict (WON-gated) unlock by default. */
 class FakeCourseSettingService {
@@ -250,9 +250,7 @@ class FakeRepo {
       for (const r of [a, b]) {
         if (r) {
           r.flagCount++;
-          const withdrawn = r.status === 'OPEN' && r.flagCount >= UNJUDGEABLE_FLAG_THRESHOLD;
-          if (withdrawn) r.status = 'WITHDRAWN' as CaseResponseStatus;
-          withdrawals.push({responseId: r._id!, userId: r.userId, withdrawn});
+          withdrawals.push({responseId: r._id!, userId: r.userId, withdrawn: false});
         }
       }
     } else {
@@ -616,27 +614,6 @@ describe('win / flag thresholds', () => {
     if (response.winCount >= WINS_REQUIRED) {
       expect(response.status).toBe('WON');
     }
-  });
-
-  it(`withdraws a response once its flag count reaches UNJUDGEABLE_FLAG_THRESHOLD`, async () => {
-    const caseId = seedCase(1);
-    const author = new ObjectId().toString();
-    const {responseId} = await submit(caseId, author, 'garbled text');
-    await submit(caseId, new ObjectId().toString(), 'a clean response');
-
-    // Flag from UNJUDGEABLE_FLAG_THRESHOLD independent reviewers — should trigger withdrawal.
-    for (let i = 0; i < UNJUDGEABLE_FLAG_THRESHOLD; i++) {
-      const reviewer = new ObjectId().toString();
-      const pair = await service.getNextPair({reviewerId: reviewer, caseStudyId: caseId});
-      if (!pair) break;
-      const comparison = repo.comparisons.find(c => c._id!.toString() === pair!.comparisonId)!;
-      comparison.servedAt = new Date(Date.now() - 999_000);
-      await service.submitPick({reviewerId: reviewer, comparisonId: pair!.comparisonId, outcome: 'FLAGGED'});
-    }
-
-    const response = repo.responses.find(r => r._id!.toString() === responseId)!;
-    expect(response.flagCount).toBeGreaterThanOrEqual(UNJUDGEABLE_FLAG_THRESHOLD);
-    expect(response.status).toBe('WITHDRAWN');
   });
 
   it('does not count a FLAGGED verdict toward the reviewer quota, but counts BOTH_WEAK', async () => {

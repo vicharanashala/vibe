@@ -12,7 +12,7 @@ import {
   CaseComparisonOutcome,
   ICaseComparison,
 } from '../../../classes/transformers/CaseComparison.js';
-import {WINS_REQUIRED, UNJUDGEABLE_FLAG_THRESHOLD} from '../../../constants.js';
+import {WINS_REQUIRED} from '../../../constants.js';
 
 /**
  * One counter per (reviewer, case): substantive verdicts (A/B/BOTH_WEAK) this
@@ -582,29 +582,16 @@ export class CaseStudyRepository {
     }
   }
 
-  /**
-   * Increments the flag counter and withdraws the response if it crosses
-   * UNJUDGEABLE_FLAG_THRESHOLD. The status flip and the $inc are a single
-   * atomic findOneAndUpdate — no second write, no TOCTOU gap.
-   * Only OPEN responses can be withdrawn; WON ones are left alone.
-   */
+  /** Increments the flag counter for analytics. Flags never change a response's status. */
   private async incrementFlag(
     responseId: ObjectId,
   ): Promise<{responseId: ObjectId; userId: ObjectId; withdrawn: boolean}> {
     const updated = await this.caseResponses.findOneAndUpdate(
-      {_id: responseId, status: 'OPEN'},
+      {_id: responseId},
       {$inc: {flagCount: 1}, $set: {updatedAt: new Date()}},
       {returnDocument: 'after'},
     );
     if (!updated) return {responseId, userId: new ObjectId(), withdrawn: false};
-    if (updated.flagCount >= UNJUDGEABLE_FLAG_THRESHOLD) {
-      // Atomic: only flips if still OPEN (guard prevents double-withdraw on concurrent flags).
-      await this.caseResponses.updateOne(
-        {_id: responseId, status: 'OPEN'},
-        {$set: {status: 'WITHDRAWN', updatedAt: new Date()}},
-      );
-      return {responseId, userId: updated.userId, withdrawn: true};
-    }
     return {responseId, userId: updated.userId, withdrawn: false};
   }
 

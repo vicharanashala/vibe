@@ -148,30 +148,6 @@ export class CaseStudyService {
     }
   }
 
-  private async notifyWithdrawnResponse(
-    userId: ObjectId,
-    caseStudy: ICaseStudy,
-  ): Promise<void> {
-    try {
-      await this.notificationService.createNotification({
-        userId,
-        type: 'case_response_withdrawn',
-        title: 'Your case study response was withdrawn',
-        message:
-          `Your response to "${caseStudy.title}" was flagged as unjudgeable by multiple reviewers. ` +
-          `Please revise and resubmit a clear, substantive response.`,
-        courseId: caseStudy.courseId,
-        courseVersionId: caseStudy.courseVersionId,
-        read: false,
-        createdAt: new Date(),
-        extra: {caseStudyId: caseStudy._id?.toString()},
-      });
-    } catch (err) {
-      // Best-effort: don't fail the pick submission if the notification fails.
-      console.error('Failed to emit case-study withdrawn notification', err);
-    }
-  }
-
   async getCaseStudyOrThrow(caseStudyId: string): Promise<ICaseStudy> {
     const caseStudy = await this.repository.findById(caseStudyId);
     if (!caseStudy) {
@@ -566,13 +542,6 @@ export class CaseStudyService {
         if (streak.weakStreak === settings.weakStreakThreshold) {
           await this.notifyWeakResponseStreak(streak.userId, caseStudy, streak.weakStreak);
         }
-      }
-    }
-
-    // Notify authors whose responses just crossed the flag threshold.
-    for (const w of withdrawals) {
-      if (w.withdrawn) {
-        await this.notifyWithdrawnResponse(w.userId, caseStudy);
       }
     }
 
