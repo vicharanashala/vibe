@@ -12,6 +12,7 @@ import {
   useMarkAllSystemNotificationsAsRead,
 } from "@/hooks/system-notification-hooks";
 import { LogOut, Bell } from "lucide-react";
+import { useBreadcrumbStore } from "@/store/breadcrumb-store";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -47,6 +48,7 @@ export default function TeacherLayout() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const [pendingRegistrationsList, setPendingRegistrationsList] = useState<any[]>([]);
+  const { dynamicLabels } = useBreadcrumbStore();
 
   const [showSystemNotifications, setShowSystemNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
@@ -97,9 +99,15 @@ const { mutate: markAllSystemRead } = useMarkAllSystemNotificationsAsRead();
         const match = matches[i];
         const path = match.pathname;
         const segments = path.split("/");
-        let label = segments[segments.length - 1] || "";
-        label = label.replace(/-/g, " ");
+        let originalSegment = segments[segments.length - 1] || "";
+        let label = originalSegment.replace(/-/g, " ");
         label = label.charAt(0).toUpperCase() + label.slice(1);
+        
+        if (dynamicLabels[originalSegment]) {
+          label = dynamicLabels[originalSegment];
+        } else if (originalSegment.length === 24 && /^[0-9a-fA-F]{24}$/.test(originalSegment)) {
+          label = "Details";
+        }
 
         items.push({
           label,

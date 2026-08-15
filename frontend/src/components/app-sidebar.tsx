@@ -67,6 +67,16 @@ export function AppSidebar() {
         url: "/teacher/hp-system",
         icon: SquareTerminal,
       },
+      {
+        title: "VibeCode",
+        url: "#",
+        icon: SquareTerminal,
+        items: [
+          { title: "All Problems", url: "/teacher/vibecode/problems" },
+          { title: "Create Problem", url: "/teacher/vibecode/create" },
+          { title: "Submissions", url: "/teacher/vibecode/submissions" },
+        ],
+      },
       // {
       //   title: "Notifications",
       //   url: "/teacher/notifications",
