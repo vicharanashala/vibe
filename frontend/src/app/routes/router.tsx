@@ -573,7 +573,7 @@ const studentMySubmissionsRoute = new Route({
 
 // Every learner HP page sits behind the per-course opt-in, so each one is
 // wrapped rather than relying on the sidebar to keep learners away.
-const guardStudentHp = (Page: () => JSX.Element) => () => (
+const guardStudentHp = (Page: () => React.JSX.Element) => () => (
   <StudentHpGuard>
     <Page />
   </StudentHpGuard>
