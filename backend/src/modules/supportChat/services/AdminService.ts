@@ -4,6 +4,7 @@ import {
   AdminResponseRequest,
   IFAQ,
   ISupportQuestion,
+  OPEN_SUPPORT_QUESTION_STATUSES,
   SupportQuestionStatus,
   SUPPORT_CHAT_TYPES,
   FAQCategory,
@@ -12,6 +13,18 @@ import {
 import { FAQRepository } from '../repositories/providers/mongodb/index.js';
 import { SupportQuestionRepository } from '../repositories/providers/mongodb/index.js';
 import { FAQRetrievalService } from './FAQRetrievalService.js';
+
+/**
+ * How far the caller can see. `courseIds` undefined means every course, which
+ * only an admin is ever granted; an empty array means nothing is in reach.
+ */
+export interface SupportQueueScope {
+  courseIds?: ObjectId[];
+}
+
+/** Cap on the sample the satisfaction rate is averaged over. */
+const RATING_SAMPLE_LIMIT = 500;
+
 @injectable()
 export class AdminService {
 
@@ -21,16 +34,33 @@ export class AdminService {
     @inject(SUPPORT_CHAT_TYPES.FAQRetrievalService) private faqRetrieval: FAQRetrievalService
   ) {}
 
-  async getPendingQuestions(courseId?: ObjectId, limit: number = 50): Promise<ISupportQuestion[]> {
+  /**
+   * The admin queue. `scope.courseIds` is the caller's reach as resolved by the
+   * controller: undefined for admins, the instructor's own courses otherwise.
+   * With no status filter it returns the open queue — escalated first-class,
+   * plus anything left PENDING by an interrupted chat turn.
+   */
+  async getQuestions(
+    scope: SupportQueueScope,
+    options: { status?: SupportQuestionStatus; limit?: number } = {}
+  ): Promise<ISupportQuestion[]> {
     try {
-      if (courseId) {
-        return await this.questionRepo.findByCourseId(courseId, {
-          status: SupportQuestionStatus.PENDING,
-        });
-      }
-      return await this.questionRepo.findPending(limit);
+      return await this.questionRepo.findForAdmin({
+        statuses: options.status ? [options.status] : [...OPEN_SUPPORT_QUESTION_STATUSES],
+        courseIds: scope.courseIds,
+        limit: options.limit ?? 50,
+      });
     } catch (error) {
-      console.error('Error fetching pending questions', error);
+      console.error('Error fetching support questions', error);
+      throw error;
+    }
+  }
+
+  async getQuestionById(questionId: ObjectId): Promise<ISupportQuestion | null> {
+    try {
+      return await this.questionRepo.findById(questionId);
+    } catch (error) {
+      console.error('Error fetching support question', error);
       throw error;
     }
   }
@@ -58,7 +88,7 @@ export class AdminService {
           embedding: await this.faqRetrieval.generateEmbeddingForFAQ({
             question: question.question,
             answer: request.response,
-          } as IFAQ),
+          }),
           upvotes: 0,
           downvotes: 0,
           usageCount: 0,
@@ -91,16 +121,22 @@ export class AdminService {
     }
   }
 
-  async getDashboardStats(courseId?: ObjectId, startDate?: Date, endDate?: Date) {
+  async getDashboardStats(scope: SupportQueueScope, startDate?: Date, endDate?: Date) {
     try {
-      const stats = await this.questionRepo.getStats(courseId, startDate, endDate);
+      const stats = await this.questionRepo.getStats({
+        courseIds: scope.courseIds,
+        startDate,
+        endDate,
+      });
 
-      const allQuestions = courseId
-        ? await this.questionRepo.findByCourseId(courseId)
-        : await this.questionRepo.findByStatus(SupportQuestionStatus.ANSWERED);
+      const ratedQuestions = await this.questionRepo.findForAdmin({
+        statuses: [SupportQuestionStatus.ANSWERED, SupportQuestionStatus.RESOLVED],
+        courseIds: scope.courseIds,
+        limit: RATING_SAMPLE_LIMIT,
+      });
 
-      const helpfulCount = allQuestions.filter((q) => q.resolutionRating === 'helpful').length;
-      const totalRated = allQuestions.filter((q) => q.resolutionRating).length;
+      const helpfulCount = ratedQuestions.filter((q) => q.resolutionRating === 'helpful').length;
+      const totalRated = ratedQuestions.filter((q) => q.resolutionRating).length;
       const satisfactionRate = totalRated > 0 ? (helpfulCount / totalRated) * 100 : 0;
 
       return {
@@ -108,6 +144,7 @@ export class AdminService {
         pending: stats.byStatus[SupportQuestionStatus.PENDING],
         answered: stats.byStatus[SupportQuestionStatus.ANSWERED],
         resolved: stats.byStatus[SupportQuestionStatus.RESOLVED],
+        escalated: stats.byStatus[SupportQuestionStatus.ESCALATED],
         avgResolutionTime: stats.avgResolutionTime,
         satisfactionRate,
       };
@@ -134,7 +171,9 @@ export class AdminService {
     adminUserId: ObjectId
   ): Promise<IFAQ> {
     try {
-      const embedding = await this.faqRetrieval.generateEmbeddingForFAQ(faq as IFAQ);
+      // undefined when the embedding provider is down; retrieval still matches
+      // the FAQ lexically and backfills the vector on a later chat turn.
+      const embedding = await this.faqRetrieval.generateEmbeddingForFAQ(faq);
 
       return await this.faqRepo.create({
         ...faq,

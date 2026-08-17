@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import {
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import { CreateHpActivityPayload, HpRuleConfig, CourseWithVersions, CourseVersionStats, SubmissionField, getEffectiveIds } from "@/lib/api/hp-system";
-import { useCreateActivityWithRule, useCreateHpActivity, useCreateHpRuleConfig, useHpCourseVersions } from "@/hooks/hooks";
+import { useCreateActivityWithRule, useCreateHpActivity, useCreateHpRuleConfig, useHpCourseVersions, useHpVersionAccess } from "@/hooks/hooks";
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 
 export default function CreateHpActivityPage() {
@@ -38,6 +38,19 @@ export default function CreateHpActivityPage() {
 
     const router = useRouterState();
     let from = router.location.state?.from;
+
+    // Authoring is closed once the course's HP System is switched off; the
+    // cohort's existing activities stay readable on the dashboard.
+    const { readOnly } = useHpVersionAccess(courseVersionId);
+
+    useEffect(() => {
+        if (readOnly) {
+            navigate({
+                to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId || "")}/activities`,
+                replace: true,
+            });
+        }
+    }, [readOnly, courseVersionId, cohortId, navigate]);
 
     // Find the correct courseId for the given courseVersionId
     const course = courses.find((c: CourseWithVersions) =>
