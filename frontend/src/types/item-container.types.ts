@@ -1,5 +1,6 @@
 import type { questionBankRef } from './quiz.types';
 import type { PendingStudentQuestionContext } from './student-question.types';
+import type { VideoSource } from './media.types';
 
 export interface Item {
   _id: string;
@@ -15,6 +16,13 @@ export interface Item {
     URL?: string;
     startTime?: string;
     endTime?: string;
+    /**
+     * Where the video comes from. Absent means YOUTUBE — every item created
+     * before uploads existed has no source. Read it via resolveVideoSource.
+     */
+    source?: VideoSource;
+    /** The uploaded video this item plays. Set only when source is GCS. */
+    assetId?: string;
 
     // For Article or Blog
     tags?: string[];
@@ -41,6 +49,9 @@ export interface Item {
     // For Project
     title?: string;
     description?: string;
+
+    // For Reflection
+    prompt?: string;
   };
   isAlreadyWatched?: boolean;
 }

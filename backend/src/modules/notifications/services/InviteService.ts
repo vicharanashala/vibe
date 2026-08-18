@@ -383,6 +383,7 @@ export class InviteService extends BaseService {
     courseId: string,
     courseVersionId: string,
     cohortId?: string,
+    courseWideStaffAllowed = false,
   ): Promise<InviteResult[]> {
     // Get Course Details (outside transaction)
     const course = await this.courseRepo.read(courseId.toString());
@@ -438,20 +439,33 @@ export class InviteService extends BaseService {
         );
       }
 
-      if (courseVersion.cohorts && courseVersion.cohorts.length > 0) {
-        if (!cohortId) {
-          throw new BadRequestError(
-            'Course version contains cohorts, student must choose a cohort',
-          );
-        }
-        const validCohort = courseVersion.cohorts.find(
-          c => c.toString() === cohortId,
+      // A learner joins exactly one cohort, so the choice is mandatory.
+      if (courseVersion.cohorts?.length > 0 && !cohortId) {
+        throw new BadRequestError(
+          'Course version contains cohorts, student must choose a cohort',
         );
-        if (!validCohort) {
-          throw new BadRequestError(
-            'Invalid cohort. Cohort does not exist in course version.',
-          );
-        }
+      }
+    }
+
+    // Staff may be invited course-wide, but reach over every cohort is a
+    // decision the caller must already have authorized — otherwise an
+    // instructor confined to one cohort could mint a colleague confined to
+    // none. Controllers grant it to admins; system-initiated invites, which
+    // have no sender to check, grant it at their own call site.
+    if (courseVersion.cohorts?.length > 0 && !cohortId && !courseWideStaffAllowed) {
+      throw new ForbiddenError(
+        'Only an administrator can invite staff across all cohorts. Select a cohort.',
+      );
+    }
+
+    if (cohortId) {
+      const validCohort = courseVersion.cohorts?.find(
+        c => c.toString() === cohortId,
+      );
+      if (!validCohort) {
+        throw new BadRequestError(
+          'Invalid cohort. Cohort does not exist in course version.',
+        );
       }
     }
 
@@ -514,7 +528,10 @@ export class InviteService extends BaseService {
           isNewUser: !user,
           expiresAt: oneWeekFromNow,
           type: InviteType.SINGLE,
-          cohortId: role === "STUDENT" && ObjectId.isValid(cohortId) ? new ObjectId(cohortId) : undefined,
+          // Kept for staff too: the cohort becomes their assigned scope on
+          // acceptance. An absent cohortId means course-wide, which is the
+          // "All cohorts" choice.
+          cohortId: ObjectId.isValid(cohortId) ? new ObjectId(cohortId) : undefined,
         });
 
         const id = await this.inviteRepo.create(invite, session);
@@ -560,6 +577,7 @@ export class InviteService extends BaseService {
     courseVersionId: string,
     role: EnrollmentRole,
     cohortId?: string,
+    courseWideStaffAllowed = false,
   ): Promise<string> {
     const versionStatus =
       await this.courseRepo.getCourseVersionStatus(courseVersionId);
@@ -568,6 +586,22 @@ export class InviteService extends BaseService {
       throw new ForbiddenError(
         'This enrollment is invalid. Because course version is archived.',
       );
+    }
+
+    // A link enrolls whoever opens it, so it carries the same cohort rules as
+    // a direct invite — a learner needs one, and only an admin may omit it.
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (courseVersion?.cohorts?.length > 0 && !cohortId) {
+      if (role === 'STUDENT') {
+        throw new BadRequestError(
+          'Course version contains cohorts, student must choose a cohort',
+        );
+      }
+      if (!courseWideStaffAllowed) {
+        throw new ForbiddenError(
+          'Only an administrator can invite staff across all cohorts. Select a cohort.',
+        );
+      }
     }
     const token = crypto.randomBytes(24).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -702,10 +736,17 @@ export class InviteService extends BaseService {
     }
   }
   async cancelPendingInvites(
-    filter: {courseId?: string; courseVersionId?: string},
+    filter: {courseId?: string; courseVersionId?: string; cohortId?: string},
     session?: ClientSession,
   ): Promise<void> {
     await this.inviteRepo.cancelPendingInvites(filter, session);
+  }
+
+  async countPendingInvitesForCohort(
+    cohortId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    return await this.inviteRepo.countPendingInvitesByCohort(cohortId, session);
   }
 
   async cancelInvite(inviteId: string): Promise<{message: string}> {

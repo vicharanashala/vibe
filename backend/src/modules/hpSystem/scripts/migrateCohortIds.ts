@@ -61,7 +61,10 @@ async function migrate() {
                     name: cohort.name,
                     courseId: new ObjectId(cohort.courseId),
                     courseVersionId: new ObjectId(cohort.versionId),
-                    isPublic: true,
+                    // Never publish by default: these rows sit on restricted versions
+                    // and are not editable from Manage Cohorts, so a `true` here
+                    // silently lists the parent course in the student catalog.
+                    isPublic: false,
                     isDeleted: false,
                     isLegacy: true, // marker to identify migration-inserted cohorts
                     createdAt: new Date(),
