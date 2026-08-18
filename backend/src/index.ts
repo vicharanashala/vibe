@@ -1,9 +1,10 @@
 import 'reflect-metadata';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 console.log(`Loading Sentry for ${NODE_ENV} environment`);
-await import('./instrument.js');
 
-import * as Sentry from '@sentry/node';
+// Ensure Sentry is initialized early. instrument.ts exports the initialized Sentry instance.
+const { Sentry } = await import('./instrument.js');
+
 import express from 'express';
 // import session from 'express-session'
 import { useExpressServer, RoutingControllersOptions } from 'routing-controllers';
@@ -28,6 +29,23 @@ app.use(loggingHandler);
 
 app.set('trust proxy', 1);
 
+// --- Register Sentry request handler early (before controllers/routes)
+if (NODE_ENV === 'production' || NODE_ENV === 'staging') {
+  console.log('Setting up Sentry request handler for Express');
+  try {
+    // Some Sentry versions export Handlers under Sentry.Handlers
+    if ((Sentry as any)?.Handlers?.requestHandler) {
+      app.use((Sentry as any).Handlers.requestHandler());
+    } else if ((Sentry as any).requestHandler) {
+      // fallback if handlers are exported at top level
+      app.use((Sentry as any).requestHandler());
+    } else {
+      console.warn('Sentry request handler not available; skipping');
+    }
+  } catch (err) {
+    console.warn('Failed to register Sentry request handler:', err);
+  }
+}
 
 const { controllers, validators } = await loadAppModules(
   appConfig.module.toLowerCase(),
@@ -71,18 +89,27 @@ app.get('/health', (req, res) => {
   });
 });
 
-if (NODE_ENV === 'production' || NODE_ENV === 'staging') {
-  console.log(
-    'Setting up Sentry error handling - test for production and staging environment',
-  );
-  Sentry.setupExpressErrorHandler(app);
-}
-
 const database = getContainer().get<MongoDatabase>(GLOBAL_TYPES.Database);
 await database.connect();
 
-// Start server
+// Start server (register controllers/routes)
 useExpressServer(app, moduleOptions);
+
+// --- Register Sentry error handler after routes and other error handlers
+if (NODE_ENV === 'production' || NODE_ENV === 'staging') {
+  console.log('Setting up Sentry error handler for Express');
+  try {
+    if ((Sentry as any)?.Handlers?.errorHandler) {
+      app.use((Sentry as any).Handlers.errorHandler());
+    } else if ((Sentry as any).errorHandler) {
+      app.use((Sentry as any).errorHandler());
+    } else {
+      console.warn('Sentry error handler not available; skipping');
+    }
+  } catch (err) {
+    console.warn('Failed to register Sentry error handler:', err);
+  }
+}
 
 app.listen(appConfig.port, () => {
   printStartupSummary();
