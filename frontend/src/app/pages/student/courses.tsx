@@ -10,6 +10,7 @@ import { CourseCard, CourseCardSkeleton } from "@/components/course/CourseCard";
 import { CourseListCard } from "@/components/course/CourseListCard";
 import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Input } from "@/components/ui/input";
 import { stopAllStreams } from "@/lib/MediaRegistry";
 import { LayoutGrid, List } from "lucide-react";
@@ -29,14 +30,14 @@ export default function StudentCourses() {
   // View Mode State (Persisted)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('student_dashboard_view_mode');
-      return (saved === 'list' ? 'list' : 'grid') as 'grid' | 'list';
+      const saved = localStorage.getItem('student_courses_view_mode');
+      return (saved === 'grid' ? 'grid' : 'list') as 'grid' | 'list';
     }
-    return 'grid';
+    return 'list';
   });
 
   useEffect(() => {
-    localStorage.setItem('student_dashboard_view_mode', viewMode);
+    localStorage.setItem('student_courses_view_mode', viewMode);
   }, [viewMode]);
 
   useEffect(() => {
@@ -119,7 +120,7 @@ export default function StudentCourses() {
   // Add authentication check at the beginning of the render
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+      <div className="flex flex-1 flex-col gap-4">
         <EmptyState
           title="Authentication Required"
           description="Please log in to view your courses"
@@ -132,7 +133,7 @@ export default function StudentCourses() {
 
   if (error) {
     return (
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+      <div className="flex flex-1 flex-col gap-4">
         <EmptyState
           title="Error loading courses"
           description={typeof error === 'string' ? error : "Failed to load your courses"}
@@ -145,35 +146,34 @@ export default function StudentCourses() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4 md:px-4 px-0 p-4 pt-0">
+    <div className="flex flex-1 flex-col gap-4">
       <div className="flex flex-col space-y-6">
-        <section className="flex items-start justify-between gap-4">
-          <div className="flex flex-col space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">My Courses</h1>
-            <p className="text-muted-foreground">Manage your learning journey</p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => activeTab === "available" ? refetchPublic() : refetch()}
-            disabled={activeTab === "available" ? isRefetchingPublic : isRefetching}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${(activeTab === "available" ? isRefetchingPublic : isRefetching) ? "animate-spin" : ""}`} />
-            {(activeTab === "available" ? isRefetchingPublic : isRefetching) ? "Refreshing..." : "Refresh"}
-          </Button>
-        </section>
+        <PageHeader
+          title="My Courses"
+          description="Manage your learning journey"
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => activeTab === "available" ? refetchPublic() : refetch()}
+              disabled={activeTab === "available" ? isRefetchingPublic : isRefetching}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${(activeTab === "available" ? isRefetchingPublic : isRefetching) ? "animate-spin" : ""}`} />
+              {(activeTab === "available" ? isRefetchingPublic : isRefetching) ? "Refreshing..." : "Refresh"}
+            </Button>
+          }
+        />
          
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <div className="flex md:flex-row flex-col items-center justify-between gap-2">
             <div className="relative flex-1 md:max-w-md w-full">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg blur-sm"></div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search courses..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-background border-border focus:border-primary focus:ring-primary/20 transition-all duration-300"
+                  className="pl-10 h-11 bg-background border-border dark:bg-white/[0.05] dark:border-white/15 dark:hover:border-white/25 dark:placeholder:text-white/40 focus:border-primary focus:ring-primary/20 transition-all duration-300"
                 />
               </div>
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground">
@@ -236,7 +236,7 @@ export default function StudentCourses() {
             {isLoading || isSearching ? (
               <div className={cn(
                 "grid gap-6",
-                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"
               )}>
                 {Array.from({ length: 6 }, (_, i) => (
                   <CourseCardSkeleton key={i} variant="dashboard" />
@@ -246,7 +246,7 @@ export default function StudentCourses() {
               <>
                 <div className={cn(
                   "grid gap-6",
-                  viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                  viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"
                 )}>
                   {activeEnrollments.map((enrollment, index) =>
                     renderEnrollmentCard(enrollment, index, isLoading)
@@ -272,7 +272,7 @@ export default function StudentCourses() {
             {loadingPublic || isSearching ? (
               <div className={cn(
                 "grid gap-6",
-                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"
               )}>
                 {Array.from({ length: 6 }, (_, i) => (
                   <CourseCardSkeleton key={i} variant="available" />
@@ -282,7 +282,7 @@ export default function StudentCourses() {
               <>
                 <div className={cn(
                   "grid gap-6",
-                  viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                  viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"
                 )}>
                   {publicCoursesData.courses.map((course: any, index: number) => (
                     renderEnrollmentCard({
@@ -317,7 +317,7 @@ export default function StudentCourses() {
 
           <TabsContent value="completed" className="space-y-4">
             {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {Array.from({ length: 6 }, (_, i) => (
                   <CourseCardSkeleton key={i} variant="dashboard" />
                 ))}
@@ -325,7 +325,7 @@ export default function StudentCourses() {
             ) : completedEnrollments.length > 0 ? (
               <div className={cn(
                 "grid gap-6",
-                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"
               )}>
                 {completedEnrollments.map((enrollment, index) =>
                   renderEnrollmentCard(enrollment, index, isLoading)

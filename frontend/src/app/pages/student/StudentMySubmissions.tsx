@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useState} from 'react';
 import {toast} from 'sonner';
-import {Loader2, MessageSquareQuote, RefreshCw} from 'lucide-react';
+import {Loader2, RefreshCw} from 'lucide-react';
+import { PageHeader } from "@/components/layout/PageHeader";
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent} from '@/components/ui/card';
@@ -114,44 +115,39 @@ export default function StudentMySubmissions() {
   }, [fetchSubmissions]);
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <MessageSquareQuote className="h-6 w-6 text-primary" />
-          <div>
-            <h1 className="text-xl font-semibold">My Submissions</h1>
-            <p className="text-xs text-muted-foreground">
-              MCQs you've submitted and their review status.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select
-            value={statusFilter}
-            onValueChange={value => setStatusFilter(value as StudentQuestionStatusFilter)}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_FILTER_OPTIONS.map(option => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => void fetchSubmissions()}
-            disabled={isFetching}
-            title="Refresh"
-          >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="My Submissions"
+        description="MCQs you've submitted and their review status."
+        actions={
+          <>
+            <Select
+              value={statusFilter}
+              onValueChange={value => setStatusFilter(value as StudentQuestionStatusFilter)}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTER_OPTIONS.map(option => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => void fetchSubmissions()}
+              disabled={isFetching}
+              title="Refresh"
+            >
+              <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            </Button>
+          </>
+        }
+      />
 
       {isFetching && !hasFetched ? (
         <div className="flex items-center justify-center py-12">

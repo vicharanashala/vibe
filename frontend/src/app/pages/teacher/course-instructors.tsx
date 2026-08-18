@@ -8,7 +8,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import { useCourseById, useCourseVersionById, useCourseVersionEnrollments, useUnenrollUser } from "@/hooks/hooks"
+import { useCourseById, useCourseVersionById, useCourseVersionEnrollments, useUnenrollUser, useAssignInstructorCohorts } from "@/hooks/hooks"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useCourseStore } from "@/store/course-store"
 import { useAuthStore } from "@/store/auth-store" 
 import type { EnrolledUser } from "@/types/course.types"
@@ -27,6 +36,62 @@ export default function CourseInstructors() {
   const [userToRemove, setUserToRemove] = useState<EnrolledUser | null>(null)
   const unenrollMutation = useUnenrollUser()
   const navigate = useNavigate()
+
+  // Cohort assignment editing
+  const [instructorBeingScoped, setInstructorBeingScoped] = useState<any | null>(null)
+  const [draftCohortIds, setDraftCohortIds] = useState<string[]>([])
+  const { assignCohorts, loading: isAssigning } = useAssignInstructorCohorts()
+
+  /**
+   * Whether a cohort assignment would actually bind this person.
+   *
+   * An admin is unrestricted by global role, and MANAGER/TA are cohort-agnostic
+   * by design — storing cohorts against any of them changes nothing, so offering
+   * the edit would display a scope that is not in force. The backend refuses
+   * the non-staff roles outright.
+   */
+  const isCohortScopable = (instructor: any) => {
+    const globalRoles = instructor.user?.roles
+    const roleList = Array.isArray(globalRoles) ? globalRoles : [globalRoles]
+    const isAdmin = roleList.some(
+      (r: unknown) => typeof r === "string" && r.toLowerCase() === "admin"
+    )
+    return !isAdmin && ["INSTRUCTOR", "STAFF"].includes(instructor.role)
+  }
+
+  const openCohortDialog = (instructor: any) => {
+    setInstructorBeingScoped(instructor)
+    setDraftCohortIds(instructor.assignedCohortIds ?? [])
+  }
+
+  const toggleDraftCohort = (cohortId: string) => {
+    setDraftCohortIds(prev =>
+      prev.includes(cohortId)
+        ? prev.filter(id => id !== cohortId)
+        : [...prev, cohortId]
+    )
+  }
+
+  const saveCohortAssignment = async () => {
+    if (!instructorBeingScoped || !courseId || !versionId) return
+    try {
+      await assignCohorts(
+        instructorBeingScoped.user?._id,
+        courseId,
+        versionId,
+        draftCohortIds,
+      )
+      toast.success(
+        draftCohortIds.length === 0
+          ? "Instructor now has access to all cohorts"
+          : `Assigned ${draftCohortIds.length} cohort(s)`
+      )
+      setInstructorBeingScoped(null)
+      refetchInstructors()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to assign cohorts")
+    }
+  }
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const handleSort = (key: 'name' | 'enrollmentDate' | 'progress') => {
@@ -138,6 +203,13 @@ export default function CourseInstructors() {
   // Fetch course and version data
   const { data: course, error: courseError } = useCourseById(courseId || "")
   const { data: version, error: versionError } = useCourseVersionById(versionId || "")
+
+  // Only cohorts the viewer is scoped to reach the client, so an assignment can
+  // never be widened past what the person editing it can see themselves.
+  const cohortDetails: Array<{ id: string; name: string }> =
+    (version as any)?.cohortDetails ?? []
+  const hasCohorts = cohortDetails.length > 0
+  const cohortNameById = new Map(cohortDetails.map(c => [c.id, c.name]))
 
   const totalDocuments = enrollmentsData?.totalDocuments || 0
   const totalPages = enrollmentsData?.totalPages || 1
@@ -251,6 +323,9 @@ export default function CourseInstructors() {
                         </span>
                       </TableHead>
                     ))}
+                    <TableHead className="font-bold text-foreground w-[280px]">
+                      Cohorts
+                    </TableHead>
                     <TableHead className="font-bold text-foreground pr-6 w-[200px]">
                       Actions
                     </TableHead>
@@ -311,6 +386,41 @@ export default function CourseInstructors() {
                             })}
                           </div>
                         </TableCell>
+                        <TableCell className="py-6">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {(instructor.assignedCohortIds?.length ?? 0) === 0 ? (
+                              <span
+                                className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground font-medium"
+                                title={
+                                  isCohortScopable(instructor)
+                                    ? "No cohorts assigned — sees the whole course version"
+                                    : "This role is not confined to cohorts"
+                                }
+                              >
+                                All cohorts
+                              </span>
+                            ) : (
+                              instructor.assignedCohortIds.map((cohortId: string) => (
+                                <span
+                                  key={cohortId}
+                                  className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium"
+                                >
+                                  {cohortNameById.get(cohortId) ?? "Unknown cohort"}
+                                </span>
+                              ))
+                            )}
+                            {hasCohorts && isCohortScopable(instructor) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openCohortDialog(instructor)}
+                                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                              >
+                                Edit
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="py-6 pr-6">
                           <div className="flex items-center gap-3">
                             <Button
@@ -355,6 +465,68 @@ export default function CourseInstructors() {
           </CardContent>
 
         </Card>
+        {/* Cohort assignment */}
+        <Dialog
+          open={!!instructorBeingScoped}
+          onOpenChange={(open) => !open && setInstructorBeingScoped(null)}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Assign cohorts</DialogTitle>
+              <DialogDescription>
+                {`${instructorBeingScoped?.user?.firstName ?? ""} ${instructorBeingScoped?.user?.lastName ?? ""}`.trim()}
+                {" will see only the cohorts selected here. Select none to give access to all cohorts."}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-1 max-h-72 overflow-y-auto py-2">
+              {cohortDetails.map((cohort) => (
+                <label
+                  key={cohort.id}
+                  className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted/50 cursor-pointer"
+                >
+                  <Checkbox
+                    checked={draftCohortIds.includes(cohort.id)}
+                    onCheckedChange={() => toggleDraftCohort(cohort.id)}
+                  />
+                  <span className="text-sm">{cohort.name}</span>
+                </label>
+              ))}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              {draftCohortIds.length === 0
+                ? "No cohorts selected — this instructor will have access to all cohorts."
+                : `${draftCohortIds.length} of ${cohortDetails.length} cohorts selected.`}
+            </p>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setInstructorBeingScoped(null)}
+                disabled={isAssigning}
+                className="cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={saveCohortAssignment}
+                disabled={isAssigning}
+                className="min-w-[100px] cursor-pointer"
+              >
+                {isAssigning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Enhanced Remove Instructor Confirmation Modal */}
         {isRemoveDialogOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">

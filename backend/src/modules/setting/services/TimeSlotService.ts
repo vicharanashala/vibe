@@ -767,6 +767,31 @@ export class TimeSlotService extends BaseService {
   }
 
   /**
+   * Award a student extra bookings (instructor action) by adding to their
+   * consumable pool, letting them book beyond their daily allowance. Returns
+   * the new pool total.
+   */
+  async grantExtraBookings(
+    courseId: string,
+    courseVersionId: string,
+    studentId: string,
+    extraBookings: number,
+    _userId: string,
+  ): Promise<{ commitmentExtraBookings: number }> {
+    if (!extraBookings || extraBookings <= 0) {
+      throw new BadRequestError('extraBookings must be greater than 0.');
+    }
+    const commitmentExtraBookings =
+      await this.enrollmentService.grantCommitmentExtraBookings(
+        studentId,
+        courseId,
+        courseVersionId,
+        extraBookings,
+      );
+    return { commitmentExtraBookings };
+  }
+
+  /**
    * Update existing time slot
    */
   async updateTimeSlot(

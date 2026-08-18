@@ -38,10 +38,11 @@ export interface CourseCardProps {
     moduleNumber?: string;
     sectionNumber?: string;
     itemType?: string;
-    assignedTimeSlot?: {
-      from: string;
-      to: string;
-    };
+    // Backend may send a single slot object or an array of slots; the UI
+    // normalizes both (see CourseCard timeSlot handling).
+    assignedTimeSlot?:
+      | { from: string; to: string }
+      | Array<{ from: string; to: string }>;
     _id?: string;
     cohortId?: string;
     cohortName?: string;

@@ -46,6 +46,45 @@ class QuestionBankRepository {
     throw new Error('Failed to create question bank');
   }
 
+  /**
+   * Find the crowd "Submitted – Pending Validation" bank for a given graded
+   * bank (keyed by sourceGradedBankId). Returns null if none exists yet.
+   */
+  async findCrowdSubmittedBankByGradedBankId(
+    gradedBankId: string,
+    session?: ClientSession,
+  ): Promise<IQuestionBank | null> {
+    await this.init();
+    return this.questionBankCollection.findOne(
+      {
+        crowdSubmitted: true,
+        sourceGradedBankId: new ObjectId(gradedBankId),
+        isDeleted: {$ne: true},
+      },
+      {session},
+    );
+  }
+
+  /**
+   * Find the crowd "Submitted – Pending Validation" bank staged for a given
+   * quiz (keyed by sourceQuizId). Returns null if this quiz has no crowd
+   * submissions yet — the bank is created lazily on first submission.
+   */
+  async findCrowdSubmittedBankByQuizId(
+    quizId: string,
+    session?: ClientSession,
+  ): Promise<IQuestionBank | null> {
+    await this.init();
+    return this.questionBankCollection.findOne(
+      {
+        crowdSubmitted: true,
+        sourceQuizId: new ObjectId(quizId),
+        isDeleted: {$ne: true},
+      },
+      {session},
+    );
+  }
+
   async getById(
     questionBankId: string,
     session?: ClientSession,
@@ -92,6 +131,28 @@ class QuestionBankRepository {
     );
 
     return result.modifiedCount; // number of banks updated
+  }
+
+  /**
+   * Detach a question from ONE bank, leaving the question document itself
+   * untouched. Distinct from QuestionBankService.removeQuestion, which soft
+   * deletes the underlying question — that is the right behaviour for "delete
+   * this question", but wrong when a question is merely moving between banks.
+   */
+  async pullQuestionFromBank(
+    questionBankId: string,
+    questionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+
+    const result = await this.questionBankCollection.updateOne(
+      {_id: new ObjectId(questionBankId)},
+      {$pull: {questions: new ObjectId(questionId)}},
+      {session},
+    );
+
+    return result.modifiedCount === 1;
   }
 
   async update(

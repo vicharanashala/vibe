@@ -11,9 +11,19 @@ import {
 } from '#shared/interfaces/models.js';
 import {IWatchSession} from '#shared/database/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
+import {EnrollmentService} from '#users/services/EnrollmentService.js';
+import {USERS_TYPES} from '#users/types.js';
 
 /** Default share of a window a student must be active to FULFILL it. */
 const DEFAULT_THRESHOLD_PCT = 90;
+/**
+ * Floor for the "finished early" credit: a student who engaged DENSELY (active
+ * >= threshold of the time they were present) but left before the booked window
+ * ended still fulfills, provided they put in at least this many minutes — or the
+ * whole window if it is shorter. Stops a token 5-minute appearance from passing
+ * while not punishing someone who did their work and left.
+ */
+const EARLY_FINISH_MIN_MINUTES = 45;
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
 export interface FulfillmentRunSummary {
@@ -40,6 +50,9 @@ export class FulfillmentService extends BaseService {
 
     @inject(GLOBAL_TYPES.SettingRepo)
     private readonly settingsRepo: ISettingRepository,
+
+    @inject(USERS_TYPES.EnrollmentService)
+    private readonly enrollmentService: EnrollmentService,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly mongoDatabase: MongoDatabase,
@@ -103,6 +116,27 @@ export class FulfillmentService extends BaseService {
   }
 
   /**
+   * The latest instant (ms) the student was active within [startUTC, endUTC), or
+   * null if never active. Used to measure engagement DENSITY up to when they
+   * stopped, so finishing early isn't read as idleness.
+   */
+  private lastActiveWithin(
+    sessions: IWatchSession[],
+    startUTC: Date,
+    endUTC: Date,
+  ): number | null {
+    const winStart = startUTC.getTime();
+    const winEnd = endUTC.getTime();
+    let last: number | null = null;
+    for (const s of sessions) {
+      const endSource = s.endTime ?? s.lastSeenAt ?? s.startTime;
+      const end = Math.min(endSource.getTime(), winEnd);
+      if (end > winStart) last = last === null ? end : Math.max(last, end);
+    }
+    return last;
+  }
+
+  /**
    * Evaluate every still-BOOKED booking whose window has ended as of `now`.
    * Settings are read once per course version. Returns a run summary.
    */
@@ -118,6 +152,9 @@ export class FulfillmentService extends BaseService {
       skipped: 0,
     };
     const thresholdCache = new Map<string, number | null>();
+    // "Has the student finished the course?" cached per student+version — a
+    // completed student has no remaining work, so an unused slot isn't wasted.
+    const noRemainingWorkCache = new Map<string, boolean>();
 
     for (const booking of due) {
       const {startUTC, endUTC, minutes} = this.windowBoundsUTC(booking);
@@ -156,10 +193,57 @@ export class FulfillmentService extends BaseService {
       const active = this.activeMinutes(sessions, startUTC, endUTC);
       const activePct =
         minutes > 0 ? Math.min(100, Math.round((active / minutes) * 100)) : 0;
-      const status =
-        activePct >= threshold
-          ? SlotBookingStatus.FULFILLED
-          : SlotBookingStatus.UNFULFILLED;
+
+      // (1) Engaged across the full booked window — the original rule.
+      let fulfilled = activePct >= threshold;
+
+      // (2) Finished early: engaged DENSELY (>= threshold of the time present)
+      // and put in a real session, then left before the window closed. A booked
+      // window longer than the work shouldn't read as wasted.
+      if (!fulfilled && active > 0) {
+        const lastActive = this.lastActiveWithin(sessions, startUTC, endUTC);
+        const engagedMin = lastActive
+          ? (lastActive - startUTC.getTime()) / 60000
+          : 0;
+        const densityPct =
+          engagedMin > 0
+            ? Math.min(100, Math.round((active / engagedMin) * 100))
+            : 0;
+        const minActive = Math.min(minutes, EARLY_FINISH_MIN_MINUTES);
+        if (active >= minActive && densityPct >= threshold) fulfilled = true;
+      }
+
+      // (3) No remaining work: a student who has completed the course has
+      // nothing left to do in the slot, so don't mark it unfulfilled.
+      if (!fulfilled) {
+        const userId = String(booking.userId);
+        const cohortId = booking.cohortId ? String(booking.cohortId) : '';
+        const workKey = `${userId}:${versionId}:${cohortId}`;
+        let noWork = noRemainingWorkCache.get(workKey);
+        if (noWork === undefined) {
+          try {
+            const enrollment = await this.enrollmentService.findEnrollment(
+              userId,
+              courseId,
+              versionId,
+              cohortId || undefined,
+            );
+            noWork =
+              ((enrollment as {percentCompleted?: number} | null)
+                ?.percentCompleted ?? 0) >= 100;
+          } catch {
+            // Lookup failed (e.g. archived version) — assume work remains rather
+            // than crash the run; the slot stays evaluated on engagement alone.
+            noWork = false;
+          }
+          noRemainingWorkCache.set(workKey, noWork);
+        }
+        if (noWork) fulfilled = true;
+      }
+
+      const status = fulfilled
+        ? SlotBookingStatus.FULFILLED
+        : SlotBookingStatus.UNFULFILLED;
 
       await this.slotBookingRepo.setFulfillment(
         String((booking as ISlotBooking)._id),

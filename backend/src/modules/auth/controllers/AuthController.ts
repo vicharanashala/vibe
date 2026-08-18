@@ -64,8 +64,9 @@ export class AuthController {
   async signup(@Body({ options: { limit: '10mb' } }) body: SignUpBody, @Req() req: any) {
     const { recaptchaToken, ...signUpData } = body;
 
-    // Verify reCAPTCHA token
-    if (!recaptchaToken) {
+    // Verify reCAPTCHA token (only enforced when reCAPTCHA is actually enabled,
+    // matching verifyRecaptcha's own bypass for IS_RECAPTCHA_ENABLED !== 'true').
+    if (process.env.IS_RECAPTCHA_ENABLED === 'true' && !recaptchaToken) {
       throw new HttpError(400, 'reCAPTCHA verification is required');
     }
 

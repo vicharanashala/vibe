@@ -1,5 +1,6 @@
 import { useCourseDetails, useHpStudentCohorts } from "@/hooks/hooks";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -64,39 +65,36 @@ export default function StudentCohorts() {
 
     return (
         <TooltipProvider>
-            <div className="container mx-auto p-6 max-w-6xl space-y-6">
-                <div className="flex items-start justify-between gap-4">
-                    <div className="flex flex-col gap-2">
-                        <h1 className="text-3xl font-bold tracking-tight">My Cohorts</h1>
-                        <p className="text-muted-foreground">
-                            Select a cohort to view your activities, submissions, and current House Points (HP) standing.
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
-                                setIsRefetching(true);
-                                await refetch();
-                                setIsRefetching(false);
-                            }
-                            }
-                            disabled={isRefetching}
-                        >
-                            <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
-                            {isRefetching ? "Refreshing..." : "Refresh"}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            className="gap-2 shrink-0"
-                            onClick={() => navigate({ to: '/student/hp-system/ledger' as any })}
-                        >
-                            <History className="h-4 w-4" />
-                            HP History
-                        </Button>
-                    </div>
-                </div>
+            <div className="w-full space-y-6">
+                <PageHeader
+                    title="My Cohorts"
+                    description="Select a cohort to view your activities, submissions, and current House Points (HP) standing."
+                    actions={
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                    setIsRefetching(true);
+                                    await refetch();
+                                    setIsRefetching(false);
+                                }}
+                                disabled={isRefetching}
+                            >
+                                <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                                {isRefetching ? "Refreshing..." : "Refresh"}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="gap-2 shrink-0"
+                                onClick={() => navigate({ to: '/student/hp-system/ledger' as any })}
+                            >
+                                <History className="h-4 w-4" />
+                                HP History
+                            </Button>
+                        </>
+                    }
+                />
 
                 {/* Mock Analytics Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

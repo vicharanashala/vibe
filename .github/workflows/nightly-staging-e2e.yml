@@ -22,9 +22,10 @@ jobs:
           node-version: 22
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+        uses: pnpm/action-setup@v4
+        # No version pin: action-setup reads the repo's `packageManager`
+        # (pnpm 10), which keeps the lockfile compatible and gates dependency
+        # postinstall scripts (avoids the broken postman-code-generators script).
 
       - name: Install Dependencies
         run: pnpm install

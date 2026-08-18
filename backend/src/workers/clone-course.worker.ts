@@ -14,7 +14,7 @@ import {
 } from "#root/shared/index.js";
 
 import { GLOBAL_TYPES } from "#root/types.js";
-import { AttemptRepository, QuestionBankRepository, QuestionRepository, SubmissionRepository, UserQuizMetricsRepository } from "#root/modules/quizzes/repositories/index.js";
+import { QuestionBankRepository, QuestionRepository, SubmissionRepository, UserQuizMetricsRepository } from "#root/modules/quizzes/repositories/index.js";
 import { AnomalyRepository } from "#root/modules/anomalies/index.js";
 import { CourseRegistrationRepository } from "#root/modules/courseRegistration/repositories/index.js";
 import { ProjectSubmissionRepository } from "#root/modules/projects/repositories/index.js";
@@ -63,8 +63,7 @@ await database.connect();
 
 // Initialize repositories
 const progressRepo = new ProgressRepository(database);
-const attemptRepo = new AttemptRepository(database);
-const enrollmentRepo = new EnrollmentRepository(attemptRepo, database);
+const enrollmentRepo = new EnrollmentRepository(database);
 const anomalyRepo = new AnomalyRepository(database);
 const settingsRepo = new SettingRepository(database);
 const courseRegistrationRepo = new CourseRegistrationRepository(database);

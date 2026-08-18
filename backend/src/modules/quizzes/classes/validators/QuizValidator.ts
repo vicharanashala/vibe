@@ -387,6 +387,18 @@ class QuestionAnswer implements IQuestionAnswer {
   })
   @IsNotEmpty()
   answer: Answer;
+
+  @IsOptional()
+  @IsIn(['UP', 'DOWN'])
+  @JSONSchema({
+    description:
+      "Stage-2 crowd questions only: the student's thumbs up/down on the " +
+      'ungraded peer question. Ignored for graded questions.',
+    type: 'string',
+    enum: ['UP', 'DOWN'],
+    example: 'UP',
+  })
+  thumb?: 'UP' | 'DOWN';
 }
 
 class QuestionDetails implements IQuestionDetails {
