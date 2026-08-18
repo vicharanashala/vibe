@@ -47,6 +47,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setToken(token);
           setAuthReady(true);
 
+          // Fire-and-forget: fetch the latest user profile from the backend and
+          // merge into the store.  This ensures profile edits (firstName, lastName,
+          // gender, etc.) survive page refreshes even when the localStorage cache
+          // is stale.
+          fetch(`${import.meta.env.VITE_BASE_URL}/users/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((profile) => {
+              if (!profile) return;
+              const prev = useAuthStore.getState().user;
+              setUser({
+                uid: firebaseUser.uid,
+                email: profile.email || firebaseUser.email || '',
+                name: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || firebaseUser.displayName || '',
+                firstName: profile.firstName || '',
+                lastName: profile.lastName || '',
+                role: prev?.role || null,
+                avatar: profile.avatar || firebaseUser.photoURL || '',
+                gender: profile.gender || '',
+                country: profile.country || '',
+                state: profile.state || '',
+                city: profile.city || '',
+              });
+            })
+            .catch((profileError) => {
+              console.error('[Auth] Failed to fetch backend profile:', profileError);
+            });
+
           // Set up automatic token refresh every 50 minutes (tokens expire in 1 hour)
           if (tokenRefreshIntervalRef.current) {
             clearInterval(tokenRefreshIntervalRef.current);

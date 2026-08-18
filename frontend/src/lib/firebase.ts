@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth, 
+  connectAuthEmulator,
   GoogleAuthProvider, 
   signInWithPopup, 
   signInWithEmailAndPassword, 
@@ -33,6 +34,11 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+if (import.meta.env.VITE_USE_FIREBASE_EMULATOR === "true") {
+  connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
+}
+
 export const provider = new GoogleAuthProvider();
 
 // Firebase authentication functions
@@ -168,4 +174,9 @@ export const logout = () => {
   useAuthStore.getState().clearUser();
 };
 
-export const analytics = getAnalytics(app);
+let analytics;
+try {
+  analytics = getAnalytics(app);
+} catch {
+  // Analytics unavailable in emulator mode
+}

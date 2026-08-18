@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useCallback, useRef, useState } from "react"
-import { Mail, User, Shield, Pencil, BookOpen, Award, Camera } from "lucide-react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Mail, User, Shield, Pencil, BookOpen, Award, Camera, Trash2, Loader2, ImagePlus, X, BookOpenCheck } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -34,8 +34,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Slider } from "@/components/ui/slider"
+import { motion } from "motion/react"
+import ProfileActivityTimeline, { buildActivityFromEnrollment } from "@/components/profile-activity-timeline"
+import ProfileCompletionCard from "@/components/profile-completion-card"
 
 const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Other", "Prefer not to say"]
+
+const NAME_MIN_LENGTH = 2
+const NAME_MAX_LENGTH = 50
 
 const createImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
@@ -94,17 +100,15 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   const totalProgress = React.useMemo(() => {
     if (enrollments.length === 0) return 0;
 
-    // Calculate total completed items and total items across all enrollments
     const { totalCompleted, totalItems } = enrollments.reduce((acc, enrollment) => {
       const completed = typeof enrollment.completedItems === 'number' ? enrollment.completedItems : 0;
       const total = enrollment.contentCounts?.totalItems || 0;
       return {
         totalCompleted: acc.totalCompleted + completed,
-        totalItems: acc.totalItems + (total > 0 ? total : 1) // Avoid division by zero
+        totalItems: acc.totalItems + (total > 0 ? total : 1)
       };
     }, { totalCompleted: 0, totalItems: 0 });
 
-    // Calculate overall progress percentage
     return Number(((totalCompleted / totalItems) * 100).toFixed(2)) || 0;
   }, [enrollments]);
 
@@ -130,8 +134,21 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false)
   const [isImageSaving, setIsImageSaving] = useState(false)
+  const [isRemovingAvatar, setIsRemovingAvatar] = useState(false)
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmRemoveAvatar, setConfirmRemoveAvatar] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+    setNewFirstName(user.firstName || user.name?.split(" ")[0] || "")
+    setNewLastName(user.lastName || user.name?.split(" ")[1] || "")
+    setNewGender(user.gender || "")
+    setNewCountry(user.country || "")
+    setNewState(user.state || "")
+    setNewCity(user.city || "")
+  }, [user])
 
   const countries = Country.getAllCountries()
   const selectedCountry = countries.find((country) => country.name === newCountry)
@@ -143,9 +160,54 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
 
   const { mutateAsync: editUser } = useEditUser();
 
+  const validateField = (name: string, value: string): string => {
+    if (name === "firstName" || name === "lastName") {
+      const trimmed = value.trim()
+      if (trimmed.length === 0) return `${name === "firstName" ? "First name" : "Last name"} is required`
+      if (trimmed.length < NAME_MIN_LENGTH) return `Must be at least ${NAME_MIN_LENGTH} characters`
+      if (trimmed.length > NAME_MAX_LENGTH) return `Must be at most ${NAME_MAX_LENGTH} characters`
+    } else if (name === "country" || name === "state" || name === "city") {
+      if (!value || value.trim() === "") {
+        return `${name.charAt(0).toUpperCase() + name.slice(1)} is required`
+      }
+    }
+    return ""
+  }
+
+  const handleFieldChange = (name: string, value: string) => {
+    if (name === "firstName") setNewFirstName(value)
+    else if (name === "lastName") setNewLastName(value)
+    const error = validateField(name, value)
+    setValidationErrors((prev) => ({ ...prev, [name]: error }))
+  }
+
   const onCropComplete = useCallback((_croppedArea: Area, croppedPixels: Area) => {
     setCroppedAreaPixels(croppedPixels)
   }, [])
+
+  const recentActivities = useMemo(() => {
+    return enrollments
+      .map((enrollment) => buildActivityFromEnrollment({
+        courseTitle: enrollment.course?.name || "Unknown Course",
+        enrolledAt: enrollment.enrollmentDate || enrollment.createdAt || new Date().toISOString(),
+        progress: enrollment.contentCounts?.totalItems
+          ? Math.round(((enrollment.completedItems || 0) / enrollment.contentCounts.totalItems) * 100)
+          : 0,
+      }))
+      .slice(0, 10)
+  }, [enrollments])
+
+  const handleCancel = () => {
+    // Restore original values
+    setNewFirstName(firstName || "")
+    setNewLastName(lastName || "")
+    setNewGender(user?.gender || "")
+    setNewCountry(user?.country || "")
+    setNewState(user?.state || "")
+    setNewCity(user?.city || "")
+    setValidationErrors({})
+    setEditField(null)
+  }
 
   const handleProfileImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -205,7 +267,48 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
     }
   }
 
+  const handleRemoveAvatar = async () => {
+    if (!user?.uid) return
+
+    try {
+      setIsRemovingAvatar(true)
+      await editUser({ body: { avatar: "" } })
+
+      setUser({
+        ...user,
+        avatar: undefined,
+        uid: user.uid,
+      })
+
+      toast.success("Profile picture removed")
+      setConfirmRemoveAvatar(false)
+    } catch (error) {
+      toast.error("Failed to remove profile picture")
+    } finally {
+      setIsRemovingAvatar(false)
+    }
+  }
+
   const handleSave = async () => {
+    const errors: Record<string, string> = {}
+    const firstNameError = validateField("firstName", newFirstName)
+    const lastNameError = validateField("lastName", newLastName)
+    const countryError = validateField("country", newCountry)
+    const stateError = validateField("state", newState)
+    const cityError = validateField("city", newCity)
+
+    if (firstNameError) errors.firstName = firstNameError
+    if (lastNameError) errors.lastName = lastNameError
+    if (countryError) errors.country = countryError
+    if (stateError) errors.state = stateError
+    if (cityError) errors.city = cityError
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors)
+      return
+    }
+
+    setValidationErrors({})
     setIsSaving(true)
     try {
       const payload: {
@@ -216,12 +319,12 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
         state: string;
         city: string;
       } = {
-        firstName: newFirstName,
-        lastName: newLastName,
+        firstName: newFirstName.trim(),
+        lastName: newLastName.trim(),
         gender: newGender,
-        country: newCountry,
-        state: newState,
-        city: newCity,
+        country: newCountry.trim(),
+        state: newState.trim(),
+        city: newCity.trim(),
       }
 
       await editUser({ body: payload })
@@ -236,6 +339,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
       }
 
       toast.success("Profile updated successfully")
+      setValidationErrors({})
       setEditField(null)
     } catch (error) {
       toast.error("Failed to update profile")
@@ -249,15 +353,26 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
   return (
     <div className="flex flex-1 flex-col gap-4 md:p-4 pt-0">
       <div className="flex flex-col space-y-6">
-        <section className="flex flex-col space-y-2">
+        <motion.section
+          className="flex flex-col space-y-2"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">Profile</h1>
           <p className="text-muted-foreground text-sm md:text-base">Your personal information and details</p>
-        </section>
+        </motion.section>
         <ConfirmationModal isOpen={confirmLogout}
           onClose={() => setConfirmLogout(false)}
           onConfirm={handleLogout}
           title={"Confirm Logout"}
           description="Are you sure you want to log out? You will need to sign in again to access your dashboard."
+        />
+        <ConfirmationModal isOpen={confirmRemoveAvatar}
+          onClose={() => setConfirmRemoveAvatar(false)}
+          onConfirm={handleRemoveAvatar}
+          title="Remove Profile Picture"
+          description="Are you sure you want to remove your profile picture? You can upload a new one at any time."
         />
         <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
           <DialogContent className="max-w-2xl">
@@ -303,38 +418,55 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                 Cancel
               </Button>
               <Button onClick={handleProfileImageSave} disabled={isImageSaving}>
-                {isImageSaving ? "Saving..." : "Save Photo"}
+                {isImageSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Photo"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        <div className="grid lg:gap-6 lg:gap-y-0 gap-y-6 lg:grid-cols-3 md:grid-cols-1">
+
+        <motion.div
+          className="grid lg:gap-6 lg:gap-y-0 gap-y-6 lg:grid-cols-3 md:grid-cols-1"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.1 }}
+        >
           {/* Profile Picture & Basic Info */}
-          <Card className="relative overflow-hidden">
+          <Card className="relative overflow-hidden transition-shadow duration-200 hover:shadow-md">
             <div className="absolute inset-0 bg-card text-card-foreground" />
             <CardContent className="relative xl:p-6 lg:p-2 p-6">
               <div className="flex flex-col items-center space-y-6">
-                <div className="relative">
-                  <Avatar className="h-28 w-28 ring-4 ring-white dark:ring-gray-800 shadow-xl">
+                <div className="relative group">
+                  <Avatar className="h-28 w-28 ring-4 ring-white dark:ring-gray-800 shadow-xl transition-transform duration-200 group-hover:scale-105">
                     <AvatarImage src={user?.avatar || "/placeholder.svg"} alt="Profile" />
                     <AvatarFallback className="text-lg md:text-xl font-semibold bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
                       {avatarFallback.toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <Button
-                    size="icon"
-                    className="absolute -bottom-2 -left-2 h-8 w-8 rounded-full"
+
+                  {/* Loading spinner overlay */}
+                  {(isImageSaving || isRemovingAvatar) && (
+                    <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center z-20">
+                      <Loader2 className="h-8 w-8 text-white animate-spin" />
+                    </div>
+                  )}
+
+                  {/* Hover overlay */}
+                  <button
+                    type="button"
+                    className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer z-10"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={isImageSaving || isRemovingAvatar}
                   >
-                    <Camera className="h-4 w-4" />
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleProfileImageSelect}
-                  />
+                    <Camera className="h-6 w-6 text-white" />
+                  </button>
+
                   <div className="absolute -bottom-2 right-4">
                     <Badge variant="secondary" className="text-xs px-3 py-1 bg-white dark:bg-gray-800 shadow-lg border">
                       {displayRole}
@@ -342,10 +474,44 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                   </div>
                 </div>
 
+                {/* Change Photo & Remove buttons */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isImageSaving || isRemovingAvatar}
+                  >
+                    <ImagePlus className="h-3.5 w-3.5 mr-1.5" />
+                    Change Photo
+                  </Button>
+                  {user?.avatar && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setConfirmRemoveAvatar(true)}
+                      disabled={isImageSaving || isRemovingAvatar}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      Remove
+                    </Button>
+                  )}
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleProfileImageSelect}
+                />
+
                 <div className="text-center space-y-2">
                   <h3 className="font-bold text-xl">{displayName}</h3>
                   <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-                    <div className="xl:flex lg:hidden flex"><Mail className="h-4 w-4" /></div>
+                    <Mail className="h-4 w-4" />
                     {displayEmail}
                   </p>
                 </div>
@@ -373,27 +539,16 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                       variant="default"
                       className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-4 py-2"
                     >
-                      ✓ Active Member
+                      Active Member
                     </Badge>
                   </div>
 
-                  {/* <div className="text-center pt-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleLogout}
-                      className="relative h-9 px-4 text-sm font-medium transition-all duration-300 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:text-red-600 dark:hover:text-red-400 hover:shadow-lg hover:shadow-red-500/10"
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Logout
-                    </Button>
-                  </div> */}
                   <div className="text-center pt-4">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setConfirmLogout(true)}
-                      className="relative  h-10 px-4 text-sm font-medium transition-all duration-300  hover:text-red-600 hover:bg-gradient-to-r hover:from-red-500/10 hover:to-red-400/5 hover:shadow-red-500/10 dark:hover:text-red-400  dark:hover:bg-gradient-to-r dark:over:from-red-500/10 dark:hover:to-red-400/5"
+                      className="h-10 px-4 text-sm font-medium transition-all duration-200 hover:text-red-600 hover:bg-red-50 active:scale-95 dark:hover:text-red-400 dark:hover:bg-red-950"
                     >
                       <LogOut className="h-4 w-4 mr-2" />
                       Logout
@@ -405,7 +560,7 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
           </Card>
 
           {/* Personal Information */}
-          <Card className="md:col-span-2">
+          <Card className="md:col-span-2 transition-shadow duration-200 hover:shadow-md">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg md:text-xl lg:text-2xl font-bold">
                 <User className="h-6 w-6" />
@@ -419,48 +574,106 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                   {/* First Name */}
                   <div className="flex items-center gap-3">
                     <label className="text-sm font-medium text-muted-foreground">First Name</label>
-                    <Button variant={"ghost"} size={"icon"} onClick={() => setEditField("firstName")}>
-                      <Pencil className="h-4 w-4" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 transition-all duration-150 hover:bg-accent hover:scale-110 active:scale-95"
+                      onClick={() => setEditField("firstName")}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   {editField === "firstName" ? (
-                    <div className="flex gap-2 items-center">
-                      <Input value={newFirstName} onChange={(e) => setNewFirstName(e.target.value)} />
-                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? "Saving..." : "Save"}
-                      </Button>
-                    </div>
+                    <motion.div
+                      className="space-y-1"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          value={newFirstName}
+                          onChange={(e) => handleFieldChange("firstName", e.target.value)}
+                          aria-invalid={!!validationErrors.firstName}
+                          autoFocus
+                          className={validationErrors.firstName ? "border-red-500" : ""}
+                        />
+                        <Button size="sm" onClick={handleSave} disabled={isSaving} className="transition-transform duration-100 active:scale-95">
+                          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleCancel} disabled={isSaving}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {validationErrors.firstName && (
+                        <p className="text-xs text-red-500">{validationErrors.firstName}</p>
+                      )}
+                    </motion.div>
                   ) : (
-                    <p className="text-base font-medium mt-1">{newFirstName || "Not provided"}</p>
+                    <p className="text-base font-medium mt-1">{newFirstName || "—"}</p>
                   )}
 
                   {/* Last Name */}
                   <div className="flex items-center gap-3">
                     <label className="text-sm font-medium text-muted-foreground">Last Name</label>
-                    <Button variant={"ghost"} size={"icon"} onClick={() => setEditField("lastName")}>
-                      <Pencil className="h-4 w-4" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 transition-all duration-150 hover:bg-accent hover:scale-110 active:scale-95"
+                      onClick={() => setEditField("lastName")}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   {editField === "lastName" ? (
-                    <div className="flex gap-2 items-center">
-                      <Input value={newLastName} onChange={(e) => setNewLastName(e.target.value)} />
-                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? "Saving..." : "Save"}
-                      </Button>
-                    </div>
+                    <motion.div
+                      className="space-y-1"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          value={newLastName}
+                          onChange={(e) => handleFieldChange("lastName", e.target.value)}
+                          aria-invalid={!!validationErrors.lastName}
+                          autoFocus
+                          className={validationErrors.lastName ? "border-red-500" : ""}
+                        />
+                        <Button size="sm" onClick={handleSave} disabled={isSaving} className="transition-transform duration-100 active:scale-95">
+                          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleCancel} disabled={isSaving}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {validationErrors.lastName && (
+                        <p className="text-xs text-red-500">{validationErrors.lastName}</p>
+                      )}
+                    </motion.div>
                   ) : (
-                    <p className="text-base font-medium mt-1">{newLastName || "Not provided"}</p>
+                    <p className="text-base font-medium mt-1">{newLastName || "—"}</p>
                   )}
 
                   {/* Gender */}
                   <div className="flex items-center gap-3">
                     <label className="text-sm font-medium text-muted-foreground">Gender</label>
-                    <Button variant={"ghost"} size={"icon"} onClick={() => setEditField("gender")}>
-                      <Pencil className="h-4 w-4" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 transition-all duration-150 hover:bg-accent hover:scale-110 active:scale-95"
+                      onClick={() => setEditField("gender")}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   {editField === "gender" ? (
-                    <div className="flex gap-2 items-center">
+                    <motion.div
+                      className="flex gap-2 items-center"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      transition={{ duration: 0.15 }}
+                    >
                       <Select value={newGender} onValueChange={setNewGender}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select gender" />
@@ -473,12 +686,15 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? "Saving..." : "Save"}
+                      <Button size="sm" onClick={handleSave} disabled={isSaving} className="transition-transform duration-100 active:scale-95">
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
                       </Button>
-                    </div>
+                      <Button variant="outline" size="sm" onClick={handleCancel} disabled={isSaving}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </motion.div>
                   ) : (
-                    <p className="text-base font-medium mt-1">{newGender || "Not provided"}</p>
+                    <p className="text-base font-medium mt-1">{newGender || "—"}</p>
                   )}
                 </div>
 
@@ -494,186 +710,266 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
                   {/* Country */}
                   <div className="flex items-center gap-3">
                     <label className="text-sm font-medium text-muted-foreground">Country</label>
-                    <Button variant={"ghost"} size={"icon"} onClick={() => setEditField("country")}>
-                      <Pencil className="h-4 w-4" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 transition-all duration-150 hover:bg-accent hover:scale-110 active:scale-95"
+                      onClick={() => setEditField("country")}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   {editField === "country" ? (
-                    <div className="flex gap-2 items-center">
-                      <Select
-                        value={newCountry}
-                        onValueChange={(value) => {
-                          setNewCountry(value)
-                          setNewState("")
-                          setNewCity("")
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select country" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {countries.map((country) => (
-                            <SelectItem key={country.isoCode} value={country.name}>
-                              {country.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? "Saving..." : "Save"}
-                      </Button>
-                    </div>
+                    <motion.div
+                      className="space-y-1"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <div className="flex gap-2 items-center">
+                        <Select
+                          value={newCountry}
+                          onValueChange={(value) => {
+                            setNewCountry(value)
+                            setNewState("")
+                            setNewCity("")
+                            if (validationErrors.country) {
+                              setValidationErrors(prev => ({ ...prev, country: "" }))
+                            }
+                          }}
+                        >
+                          <SelectTrigger className={`w-full ${validationErrors.country ? "border-red-500" : ""}`}>
+                            <SelectValue placeholder="Select country" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {countries.map((country) => (
+                              <SelectItem key={country.isoCode} value={country.name}>
+                                {country.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" onClick={handleSave} disabled={isSaving} className="transition-transform duration-100 active:scale-95">
+                          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleCancel} disabled={isSaving}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {validationErrors.country && (
+                        <p className="text-xs text-red-500">{validationErrors.country}</p>
+                      )}
+                    </motion.div>
                   ) : (
-                    <p className="text-base font-medium mt-1">{newCountry || "Not provided"}</p>
+                    <p className="text-base font-medium mt-1">{newCountry || "—"}</p>
                   )}
 
                   {/* State */}
                   <div className="flex items-center gap-3">
                     <label className="text-sm font-medium text-muted-foreground">State</label>
-                    <Button variant={"ghost"} size={"icon"} onClick={() => setEditField("state")}>
-                      <Pencil className="h-4 w-4" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 transition-all duration-150 hover:bg-accent hover:scale-110 active:scale-95"
+                      onClick={() => setEditField("state")}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   {editField === "state" ? (
-                    <div className="flex gap-2 items-center">
-                      <Select
-                        value={newState}
-                        onValueChange={(value) => {
-                          setNewState(value)
-                          setNewCity("")
-                        }}
-                        disabled={!newCountry || states.length === 0}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder={newCountry ? "Select state" : "Select country first"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {states.map((stateItem) => (
-                            <SelectItem key={stateItem.isoCode} value={stateItem.name}>
-                              {stateItem.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? "Saving..." : "Save"}
-                      </Button>
-                    </div>
+                    <motion.div
+                      className="space-y-1"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <div className="flex gap-2 items-center">
+                        <Select
+                          value={newState}
+                          onValueChange={(value) => {
+                            setNewState(value)
+                            setNewCity("")
+                            if (validationErrors.state) {
+                              setValidationErrors(prev => ({ ...prev, state: "" }))
+                            }
+                          }}
+                          disabled={!newCountry || states.length === 0}
+                        >
+                          <SelectTrigger className={`w-full ${validationErrors.state ? "border-red-500" : ""}`}>
+                            <SelectValue placeholder={newCountry ? "Select state" : "Select country first"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {states.map((stateItem) => (
+                              <SelectItem key={stateItem.isoCode} value={stateItem.name}>
+                                {stateItem.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" onClick={handleSave} disabled={isSaving} className="transition-transform duration-100 active:scale-95">
+                          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleCancel} disabled={isSaving}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {validationErrors.state && (
+                        <p className="text-xs text-red-500">{validationErrors.state}</p>
+                      )}
+                    </motion.div>
                   ) : (
-                    <p className="text-base font-medium mt-1">{newState || "Not provided"}</p>
+                    <p className="text-base font-medium mt-1">{newState || "—"}</p>
                   )}
 
                   {/* City */}
                   <div className="flex items-center gap-3">
                     <label className="text-sm font-medium text-muted-foreground">City</label>
-                    <Button variant={"ghost"} size={"icon"} onClick={() => setEditField("city")}>
-                      <Pencil className="h-4 w-4" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 transition-all duration-150 hover:bg-accent hover:scale-110 active:scale-95"
+                      onClick={() => setEditField("city")}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   {editField === "city" ? (
-                    <div className="flex gap-2 items-center">
-                      <Select
-                        value={newCity}
-                        onValueChange={setNewCity}
-                        disabled={!newState || cities.length === 0}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder={newState ? "Select city" : "Select state first"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {cities.map((cityItem, index) => (
-                            <SelectItem key={`${cityItem.name}-${index}`} value={cityItem.name}>
-                              {cityItem.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button size={"sm"} onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? "Saving..." : "Save"}
-                      </Button>
-                    </div>
+                    <motion.div
+                      className="space-y-1"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <div className="flex gap-2 items-center">
+                        <Select
+                          value={newCity}
+                          onValueChange={(value) => {
+                            setNewCity(value)
+                            if (validationErrors.city) {
+                              setValidationErrors(prev => ({ ...prev, city: "" }))
+                            }
+                          }}
+                          disabled={!newState || cities.length === 0}
+                        >
+                          <SelectTrigger className={`w-full ${validationErrors.city ? "border-red-500" : ""}`}>
+                            <SelectValue placeholder={newState ? "Select city" : "Select state first"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {cities.map((cityItem, index) => (
+                              <SelectItem key={`${cityItem.name}-${index}`} value={cityItem.name}>
+                                {cityItem.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" onClick={handleSave} disabled={isSaving} className="transition-transform duration-100 active:scale-95">
+                          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleCancel} disabled={isSaving}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {validationErrors.city && (
+                        <p className="text-xs text-red-500">{validationErrors.city}</p>
+                      )}
+                    </motion.div>
                   ) : (
-                    <p className="text-base font-medium mt-1">{newCity || "Not provided"}</p>
+                    <p className="text-base font-medium mt-1">{newCity || "—"}</p>
                   )}
                 </div>
               </div>
             </CardContent>
           </Card>
-        </div>
+        </motion.div>
+
+        {/* Profile Completion */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.15 }}
+        >
+          <ProfileCompletionCard
+            user={user}
+            onFieldClick={(field) => {
+              if (field === "avatar") {
+                fileInputRef.current?.click()
+              } else {
+                setEditField(field as typeof editField)
+              }
+            }}
+            currentEditField={editField}
+          />
+        </motion.div>
 
         {/* Learning Stats */}
+        {role === "student" && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.2 }}
+          >
+            <Card className="transition-shadow duration-200 hover:shadow-md">
+              <CardHeader>
+                <CardTitle>Learning Statistics</CardTitle>
+                <CardDescription>Your progress and achievements</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {enrollmentsLoading ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="flex items-center gap-4 rounded-lg border p-4">
+                        <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                        <div className="space-y-2 flex-1">
+                          <Skeleton className="h-7 w-16" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : totalEnrollments === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3">
+                      <BookOpenCheck className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">No courses yet</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">Enroll in a course to start tracking your progress.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="flex items-center gap-4 rounded-lg border p-4 transition-colors duration-200 hover:bg-accent/50">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400">
+                        <BookOpen className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold tracking-tight">{totalEnrollments}</p>
+                        <p className="text-xs text-muted-foreground">Enrolled Courses</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 rounded-lg border p-4 transition-colors duration-200 hover:bg-accent/50">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+                        <Award className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold tracking-tight">{totalProgress}%</p>
+                        <p className="text-xs text-muted-foreground">Overall Progress</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {role === "student" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Learning Statistics</CardTitle>
-              <CardDescription>Your progress and achievements</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="text-center">
-                  {/* Enrolled Courses */}
-                  {enrollmentsLoading ? (
-                    <Skeleton className="h-8 w-12 mx-auto mb-1" />
-                  ) : (
-                    <div className="text-2xl font-bold text-primary flex items-center justify-center gap-1">
-                      <BookOpen className="h-4 w-4" />
-                      {totalEnrollments}
-                    </div>
-                  )}
-                  <p className="text-sm text-muted-foreground">Enrolled Courses</p>
-                </div>
-
-                {/* Overall Progress */}
-                <div className="text-center">
-                  {enrollmentsLoading ? (
-                    <Skeleton className="h-8 w-16 mx-auto mb-1" />
-                  ) : (
-                    <div className="text-2xl font-bold text-primary flex items-center justify-center gap-1">
-                      <Award className="h-4 w-4" />
-                      {totalProgress}%
-                    </div>
-                  )}
-                  <p className="text-sm text-muted-foreground">Overall Progress</p>
-                </div>
-                {/* <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">7</div>
-                  <p className="text-sm text-muted-foreground">Day Streak</p>
-                </div> */}
-              </div>
-            </CardContent>
-          </Card>
-        )
-        }
-        {/* : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Teaching Statistics</CardTitle>
-              <CardDescription>Your contributions and activities</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">3</div>
-                  <p className="text-sm text-muted-foreground">Courses Created</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">10</div>
-                  <p className="text-sm text-muted-foreground">Articles</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">19</div>
-                  <p className="text-sm text-muted-foreground">Blogs</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">100</div>
-                  <p className="text-sm text-muted-foreground">Assignments Given</p>
-                </div>
-                
-              </div>
-            </CardContent>
-          </Card> */}
-
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.3 }}
+          >
+            <ProfileActivityTimeline activities={recentActivities} />
+          </motion.div>
+        )}
       </div>
     </div>
   )
