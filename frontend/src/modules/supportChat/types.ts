@@ -55,6 +55,13 @@ export interface ISupportQuestionContext {
   module?: string;
 }
 
+export interface ISupportEscalation {
+  category: FAQCategory;
+  details: string;
+  contactEmail?: string;
+  submittedAt: string;
+}
+
 export interface ISupportQuestion {
   _id?: string;
   userId: string;
@@ -71,6 +78,7 @@ export interface ISupportQuestion {
     response: string;
     responseAt: string;
   };
+  escalation?: ISupportEscalation;
   faqCreatedFromThis?: string;
   learnersSeenResponse: boolean;
   resolutionRating?: ResolutionRating;
@@ -100,12 +108,30 @@ export interface AdminResponseRequest {
   faqTags?: string[];
 }
 
+export interface EscalateQuestionRequest {
+  category: FAQCategory;
+  details: string;
+  contactEmail?: string;
+}
+
+/** Shape returned by GET /admin/support/dashboard. */
 export interface SupportDashboardStats {
   totalQuestions: number;
-  resolvedByFaq: number;
-  escalatedToAdmin: number;
+  pending: number;
+  answered: number;
+  resolved: number;
+  escalated: number;
+  /** Minutes between a question being asked and an admin answering it. */
   avgResolutionTime: number;
-  topCategories: Array<{ category: string; count: number }>;
-  adminResponseTime: number;
-  learnerSatisfactionRate: number;
+  satisfactionRate: number;
+}
+
+export interface SupportDashboardResponse {
+  stats: SupportDashboardStats;
+  recentPending: ISupportQuestion[];
+}
+
+export interface SupportQuestionsResponse {
+  questions: ISupportQuestion[];
+  total: number;
 }

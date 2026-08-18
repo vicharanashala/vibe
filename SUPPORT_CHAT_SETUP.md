@@ -169,34 +169,17 @@ export default function StudentLayout() {
 }
 ```
 
-### Step 7: Add Admin Dashboard Route
+### Step 7: Admin Dashboard Route (already wired)
 
-In your admin routes (e.g., `frontend/src/pages/teacher/routes.tsx`):
+The support queue ships routed — no manual step. It lives at **`/teacher/support`**,
+registered as `teacherSupportRoute` in `frontend/src/app/routes/router.tsx` and linked
+from the sidebar ("Support Queue") in `frontend/src/components/app-sidebar.tsx`.
 
-```typescript
-import { SupportDashboard } from '@/pages/teacher/support-dashboard';
-
-export const teacherRoutes = [
-  // ... other routes
-  {
-    path: '/support',
-    element: <SupportDashboard />,
-    requiredRole: ['admin', 'staff'],
-  },
-];
-```
-
-And add to sidebar navigation:
-
-```typescript
-<nav>
-  {/* Other menu items */}
-  <a href="/teacher/support" className="nav-item">
-    <MessageSquare className="w-4 h-4" />
-    Support Center
-  </a>
-</nav>
-```
+Who sees what is decided by the backend, not the route: `GET /admin/support/questions`
+scopes results with `resolveSupportQueueCourseIds()` — an admin (`globalRole: 'admin'`)
+sees every course, an INSTRUCTOR/MANAGER sees only the courses they staff, and anyone
+else gets a 403. The page surfaces that 403 as a permission message rather than an
+empty queue.
 
 ## Database Collections
 

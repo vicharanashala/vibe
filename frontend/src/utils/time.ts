@@ -33,6 +33,25 @@ export function formatTime(seconds: number): string {
 }
 
 /**
+ * Seconds to a coarse duration — `2h 15m`, `15m`, `45s`.
+ *
+ * For totals rather than positions: how long someone watched reads better as
+ * "2h 15m" than as the stopwatch shape `formatTime` produces, which invites
+ * being misread as a point in the video.
+ */
+export function formatWatchDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0m';
+
+  const total = Math.floor(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+
+  if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${total}s`;
+}
+
+/**
  * A stored or pasted timestamp to seconds.
  *
  * Accepts `H:MM:SS`, `MM:SS`, and a bare number of seconds. Components are not

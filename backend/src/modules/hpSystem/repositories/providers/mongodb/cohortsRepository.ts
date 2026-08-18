@@ -808,11 +808,23 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
     async getDynamicCoursesWithVersions(session?: ClientSession): Promise<CourseWithVersionsDto[]> {
         await this.init();
 
+        // Versions that already accumulated HP data. They stay listed even after an
+        // instructor switches the HP System off, so the work students did remains
+        // reachable — read-only, which the hpEnabled flag below signals.
+        const versionIdsWithHpData = await this.hpActivityCollection.distinct(
+            "courseVersionId",
+            { isDeleted: { $ne: true } },
+        );
+
         const pipeline: any[] = [
-            // 1. Get all active & public course versions that have hpSystem enabled
+            // 1. Get all active & public course versions that have hpSystem enabled,
+            //    plus the switched-off ones that still hold HP data
             {
                 $match: {
-                    "settings.hpSystem": true,
+                    $or: [
+                        { "settings.hpSystem": true },
+                        { courseVersionId: { $in: versionIdsWithHpData } },
+                    ],
                     //"settings.isPublic": true, // We might need this if we shouldn't show private courses, ask later if needed.
                 }
             },
@@ -878,7 +890,8 @@ async getCourseDetailsByVersionId(courseVersionId: string) {
                             courseVersionId: { $toString: "$versionDetails._id" },
                             versionName: "$versionDetails.version",
                             totalCohorts: { $size: "$versionCohorts" },
-                            createdAt: "$versionDetails.createdAt"
+                            createdAt: "$versionDetails.createdAt",
+                            hpEnabled: { $eq: ["$settings.hpSystem", true] }
                         }
                     }
                 }

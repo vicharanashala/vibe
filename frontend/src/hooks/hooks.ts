@@ -85,6 +85,7 @@ import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.type
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
 import { PendingRegistrationNotification, ApprovedRegistrationNotification, PendingStudentRegistrationNotification, RejectedStudentRegistrationNotification } from '@/types/notification.types';
 import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
+import { useAuthStore } from '@/store/auth-store';
 import { VersionWithCourse } from '@/app/pages/student/CourseRegistration';
 import { Registration, RegistrationStatus } from '@/app/pages/teacher/CourseRegistrationRequests';
 // import { Field } from '@/app/pages/teacher/components/course-registration-modal';
@@ -6522,6 +6523,63 @@ export function useHpCourseVersions() {
     isLoading: query.isLoading,
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
+  };
+}
+
+/**
+ * The HP System is opt-in per course version, so the instructor nav entry only
+ * earns its place once at least one of their courses uses it.
+ */
+export function useInstructorHasHpCourses() {
+  const { data, isLoading } = useHpCourseVersions();
+
+  return {
+    hasHpCourses: data.some(course => course.versions.length > 0),
+    isLoading,
+  };
+}
+
+/**
+ * Whether the instructor may still write to a version's HP data. A version whose
+ * HP System was switched off stays listed — and readable — but turns read-only.
+ */
+export function useHpVersionAccess(courseVersionId?: string) {
+  const { data, isLoading } = useHpCourseVersions();
+
+  const version = courseVersionId
+    ? data.flatMap(course => course.versions).find(v => v.courseVersionId === courseVersionId)
+    : undefined;
+
+  return {
+    isLoading,
+    // Unknown versions stay writable here; the backend is the authority and
+    // rejects the write if HP is in fact off.
+    readOnly: !isLoading && version?.hpEnabled === false,
+  };
+}
+
+/**
+ * Learner-side counterpart: HP surfaces exist for a student only while the
+ * course version they are enrolled in has the HP System switched on.
+ */
+export function useStudentHpEnabled(courseVersionId?: string) {
+  const { user, token } = useAuthStore();
+  const { data, isLoading } = useUserEnrollments(1, 100, !!token && !!user?.uid);
+
+  const enrollments = data?.enrollments ?? [];
+  const hpEnrollments = enrollments.filter(
+    e => e.hpSystem === true && e.status === 'ACTIVE',
+  );
+
+  return {
+    isLoading,
+    // Access to HP pages, including for a course the student has finished —
+    // their HP history stays theirs to read.
+    hpEnabled: courseVersionId
+      ? hpEnrollments.some(e => String(e.courseVersionId) === courseVersionId)
+      : hpEnrollments.length > 0,
+    // Narrower: worth a nav entry only while a course is still in progress.
+    hasCourseInProgress: hpEnrollments.some(e => e.percentCompleted !== 100),
   };
 }
 

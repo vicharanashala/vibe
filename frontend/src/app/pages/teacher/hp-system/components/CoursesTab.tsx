@@ -91,6 +91,12 @@ export default function CourseTab() {
                                                                     <Badge variant="outline" className="text-xs">
                                                                         Version
                                                                     </Badge>
+                                                                    {/* Listed only because it still holds HP data. */}
+                                                                    {v.hpEnabled === false && (
+                                                                        <Badge variant="secondary" className="text-xs">
+                                                                            HP off — read only
+                                                                        </Badge>
+                                                                    )}
                                                                 </div>
 
                                                                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">

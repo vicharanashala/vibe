@@ -19,6 +19,7 @@ import {
   ChatHistoryQuery,
   ChatMessageBody,
   ChatMessageQuery,
+  EscalateQuestionBody,
   FAQSearchQuery,
   RateQuestionBody,
   SupportQuestionPathParams,
@@ -119,17 +120,41 @@ export class ChatController {
     @Body() body: RateQuestionBody
   ) {
     const qId2 = new ObjectId(params.questionId);
-    const question = await this.chatService.getQuestion(qId2);
+    await this.getOwnQuestion(qId2, user.id);
+
+    return await this.chatService.rateResolution(qId2, body.rating);
+  }
+
+  /**
+   * Files a technical-issue report against a question the bot could not
+   * answer. The question row already exists — this attaches the detail the
+   * learner had no way to give in a single chat turn.
+   */
+  @Post('/:questionId/escalate')
+  @Authorized()
+  async escalateQuestion(
+    @CurrentUser() user: any,
+    @Params() params: SupportQuestionPathParams,
+    @Body() body: EscalateQuestionBody
+  ) {
+    const qId = new ObjectId(params.questionId);
+    await this.getOwnQuestion(qId, user.id);
+
+    return await this.chatService.escalateQuestion(qId, body);
+  }
+
+  /** Loads a question, refusing anything that is not the caller's own. */
+  private async getOwnQuestion(questionId: ObjectId, userId: string) {
+    const question = await this.chatService.getQuestion(questionId);
 
     if (!question) {
       throw new NotFoundError('Question not found');
     }
 
-    // Verify ownership
-    if (question.userId.toString() !== user.id) {
+    if (question.userId.toString() !== userId) {
       throw new ForbiddenError('Unauthorized');
     }
 
-    return await this.chatService.rateResolution(qId2, body.rating);
+    return question;
   }
 }
