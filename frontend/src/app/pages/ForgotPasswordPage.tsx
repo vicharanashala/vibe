@@ -96,7 +96,7 @@ export default function ForgotPasswordPage() {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => navigate({ to: "/login" })}
+                onClick={() => navigate({ to: "/student/login" })}
               >
                 Back to Login
               </Button>
@@ -143,7 +143,7 @@ export default function ForgotPasswordPage() {
               variant="ghost" 
               size="sm" 
               className="absolute top-4 left-4 text-muted-foreground"
-              onClick={() => navigate({ to: "/login" })}
+              onClick={() => navigate({ to: "/student/login" })}
             >
               ← Back
             </Button>
@@ -196,7 +196,7 @@ export default function ForgotPasswordPage() {
               <Button
                 variant="link"
                 className="p-0 h-auto font-medium"
-                onClick={() => navigate({ to: "/login" })}
+                onClick={() => navigate({ to: "/student/login" })}
               >
                 Sign in
               </Button>

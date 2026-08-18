@@ -4,6 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Video } from "@/types/video.types";
 import Loader from "@/components/Loader";
 import ConfirmationModal from "./confirmation-modal";
+import VideoAssetPicker from "./VideoAssetPicker";
+import HlsVideoPlayer from "@/components/HlsVideoPlayer";
+import { resolveVideoSource, type VideoSource } from "@/types/media.types";
+import TimeRangePicker from "./TimeRangePicker";
+import { formatTime, parseTimeToSeconds } from "@/utils/time";
 
 function getYouTubeId(url: string): string | null {
     const match = url.match(/(?:v=|youtu\.be\/?)([\w-]{11})/);
@@ -21,59 +26,13 @@ interface VideoModalProps {
     action: "add" | "edit" | "view";
     selectedItemName: string;
     isLoading: boolean;
-}
-
-function formatTime(seconds: number): string {
-    if (isNaN(seconds) || seconds < 0) {
-        return "00:00";
-    }
-
-    const totalSeconds = Math.floor(seconds);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-
-    const formattedMins = mins.toString().padStart(2, "0");
-    const formattedSecs = secs.toString().padStart(2, "0");
-
-    return `${formattedMins}:${formattedSecs}`;
-}
-
-function parseTimeToSeconds(time: string | undefined): number {
-    if (!time || time.trim() === "") {
-        return 0;
-    }
-
-    const normalizedTime = time.trim();
-
-    const timeParts = normalizedTime.split(":");
-
-    if (timeParts.length === 3) {
-        const [hours, minutes, seconds] = timeParts;
-
-        const h = Math.max(0, parseInt(hours, 10) || 0);
-        const m = Math.min(59, Math.max(0, parseInt(minutes, 10) || 0));
-        const s = Math.min(59, Math.max(0, parseInt(seconds, 10) || 0));
-
-        return (h * 60 + m) * 60 + s;
-    }
-
-    if (timeParts.length === 2) {
-        // Format: MM:SS
-        const [minutes, seconds] = timeParts;
-
-        const m = Math.max(0, parseInt(minutes, 10) || 0);
-        const s = Math.min(59, Math.max(0, parseInt(seconds, 10) || 0));
-
-        return m * 60 + s;
-    }
-
-    // Handle plain number (assume it's seconds)
-    if (!normalizedTime.includes(":")) {
-        const seconds = parseInt(normalizedTime, 10);
-        return isNaN(seconds) ? 0 : Math.max(0, seconds);
-    }
-
-    return 0;
+    /**
+     * Course scope for uploads. Optional so existing call sites keep working —
+     * without them the Upload option is offered but disabled, rather than
+     * letting a teacher start an upload that has nowhere to go.
+     */
+    courseId?: string | null;
+    courseVersionId?: string | null;
 }
 
 const VideoModal: React.FC<VideoModalProps> = ({
@@ -85,31 +44,46 @@ const VideoModal: React.FC<VideoModalProps> = ({
     onEdit,
     item,
     action,
+    courseId,
+    courseVersionId,
 }) => {
     // State for fields
     const [name, setName] = useState(item?.name || "");
     const [description, setDescription] = useState(item?.description || "");
     const [url, setUrl] = useState(item?.details?.URL || "");
+    /**
+     * Where this item's video comes from. Existing items have no `source`, so
+     * resolveVideoSource reads them as YOUTUBE and the link flow below is
+     * unchanged for them.
+     */
+    const [source, setSource] = useState<VideoSource>(
+        resolveVideoSource(item?.details),
+    );
+    const [assetId, setAssetId] = useState<string | undefined>(
+        item?.details?.assetId,
+    );
+    const canUpload = Boolean(courseId && courseVersionId);
+    /** This item plays an uploaded video rather than a YouTube link. */
+    const isUpload = source === "GCS";
     const [duration, setDuration] = useState(0);
     const [playerReady, setPlayerReady] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [showOverlay, setShowOverlay] = useState(false);
     const [showDeleteVideoModal, setShowDeleteVideoModal] = useState(false)
-    const [errors, setErrors] = useState({
-        startTime: "",
-        endTime: ""
-    });
 
+    /**
+     * The segment bounds, in seconds — the single source of truth for both
+     * timestamps. Display strings are derived where they are shown and built
+     * once more on save, rather than being kept as a parallel copy of state.
+     */
     const [range, setRange] = useState<[number, number]>([
         item?.details?.startTime ? parseTimeToSeconds(String(item.details?.startTime)) : 0,
         item?.details?.endTime ? parseTimeToSeconds(String(item.details?.endTime)) : 0,
     ]);
+    /** Reported by TimeRangePicker, which owns timestamp validation. */
+    const [timeRangeInvalid, setTimeRangeInvalid] = useState(false);
     const [videoId, setVideoId] = useState<string | null>(getYouTubeId(item?.details?.URL + "?rel=0" || ""));
     const [points, setPoints] = useState<number>(item?.details?.points ?? 0);
-    const [timeInputs, setTimeInputs] = useState({
-        start: formatTime(item?.details?.startTime ? parseTimeToSeconds(String(item.details?.startTime)) : 0),
-        end: formatTime(item?.details?.endTime ? parseTimeToSeconds(String(item.details?.endTime)) : 0),
-    });
 
     const playerRef = useRef<any>(null);
     const iframeRef = useRef<HTMLDivElement>(null);
@@ -129,7 +103,6 @@ const VideoModal: React.FC<VideoModalProps> = ({
         setVideoId(id);
         if (!id) {
             setRange([0, 0]);
-            setTimeInputs({ start: "0:00", end: "0:00" });
         }
     }, [url]);
 
@@ -137,6 +110,12 @@ const VideoModal: React.FC<VideoModalProps> = ({
         setName(item?.name || "");
         setDescription(item?.description || "");
         setUrl(item?.details?.URL || "");
+        // `item` arrives asynchronously, so the initial useState values were
+        // computed while it was still undefined — i.e. as a YouTube video. These
+        // two must be re-synced here alongside the rest, or opening a saved
+        // upload shows an empty "Paste YouTube video URL" field.
+        setSource(resolveVideoSource(item?.details));
+        setAssetId(item?.details?.assetId);
         setPoints(item?.details?.points ?? 0);
 
         const startTime = item?.details?.startTime || "0:00";
@@ -146,11 +125,6 @@ const VideoModal: React.FC<VideoModalProps> = ({
             parseTimeToSeconds(startTime),
             parseTimeToSeconds(endTime),
         ]);
-
-        setTimeInputs({
-            start: formatTime(parseTimeToSeconds(startTime)),
-            end: formatTime(parseTimeToSeconds(endTime)),
-        });
 
         setVideoId(getYouTubeId((item?.details.URL ?? "") + "?rel=0"));
         setPlayerReady(false);
@@ -181,25 +155,13 @@ const VideoModal: React.FC<VideoModalProps> = ({
                     const dur = event.target.getDuration();
                     setDuration(dur);
 
-                    const currentEnd = parseTimeToSeconds(timeInputs.end);
-                    const newEnd = currentEnd > 0 ? Math.min(currentEnd, dur) : dur;
-
-                    const startSeconds = parseTimeToSeconds(timeInputs.start);
-
-                    setRange([startSeconds, newEnd]);
-
-                    const formattedEnd = formatTime(newEnd);
-
-                    setTimeInputs(prev => {
-                        const updated = {
-                            ...prev,
-                            end: formattedEnd
-                        };
-                        return updated;
-                    });
-
-                    validateTimeAgainstDuration(timeInputs.start, 'startTime', dur);
-                    validateTimeAgainstDuration(timeInputs.end, 'endTime', dur);
+                    // An end of 0 means "not set yet" — default it to the whole
+                    // video. Anything already set is only pulled back if it
+                    // overruns the real length.
+                    setRange(prev => [
+                        Math.min(prev[0], dur),
+                        prev[1] > 0 ? Math.min(prev[1], dur) : dur,
+                    ]);
 
                     setPlayerReady(true);
                     setShowOverlay(false);
@@ -234,135 +196,18 @@ const VideoModal: React.FC<VideoModalProps> = ({
         return () => clearInterval(interval);
     }, [playerReady]);
 
-    const validateTimeAgainstDuration = (timeValue: string, field: 'startTime' | 'endTime', maxDuration: number) => {
-        const seconds = parseTimeToSeconds(timeValue);
-
-        if (seconds > maxDuration) {
-            setErrors(prev => ({
-                ...prev,
-                [field]: `Time exceeds video duration (${formatTime(maxDuration)})`
-            }));
-            return false;
-        } else {
-            setErrors(prev => ({
-                ...prev,
-                [field]: ""
-            }));
-            return true;
-        }
-    };
-
-    const validateTimeRange = (startTime: string, endTime: string) => {
-        const startSeconds = parseTimeToSeconds(startTime);
-        const endSeconds = parseTimeToSeconds(endTime);
-
-        if (endSeconds <= startSeconds) {
-            setErrors(prev => ({
-                ...prev,
-                endTime: "End time must be greater than start time"
-            }));
-            return false;
-        } else {
-            setErrors(prev => ({
-                ...prev,
-                endTime: ""
-            }));
-            return true;
-        }
-    };
-
-    const formatTimeInput = (value: string): string => {
-        const digits = value.replace(/\D/g, '');
-
-        if (digits.length > 4) return value;
-
-        if (digits.length <= 2) {
-            return digits;
-        } else {
-            const minutes = digits.slice(0, -2);
-            const seconds = digits.slice(-2);
-            return `${minutes}:${seconds}`;
-        }
-    };
-
-    const validateTimeInput = (value: string, maxSeconds: number): number => {
-        if (!value) return 0;
-        const formattedValue = formatTimeInput(value);
-        let seconds = parseTimeToSeconds(formattedValue);
-        seconds = Math.min(seconds, maxSeconds);
-        return seconds;
-    };
-
-    const handleTimeInputChange = (type: 'start' | 'end', value: string) => {
-        const numericOnly = value.replace(/\D/g, '');
-
-        // Limit to 6 digits total (HHMMSS)
-        if (numericOnly.length > 6) return;
-
-
-
-        setTimeInputs(prev => ({
-            ...prev,
-            [type]: value
-        }));
-    };
-
-    const handleTimeInputBlur = (type: 'start' | 'end') => {
-        const rawValue = timeInputs[type];
-
-        // Only format if the value is not empty
-        if (rawValue.trim() === "") {
-            setTimeInputs(prev => ({
-                ...prev,
-                [type]: "0:00"
-            }));
-            // Validate after setting to 0:00
-            const otherType = type === 'start' ? 'end' : 'start';
-            validateTimeRange(
-                type === 'start' ? "0:00" : timeInputs[otherType],
-                type === 'start' ? timeInputs[otherType] : "0:00"
-            );
-            return;
-        }
-
-        const formattedValue = formatTimeInput(rawValue);
-        const seconds = validateTimeInput(formattedValue, duration);
-        const field = type === 'start' ? 'startTime' : 'endTime';
-
-        // Update state with clean formatted value
-        setTimeInputs(prev => ({
-            ...prev,
-            [type]: formattedValue
-        }));
-
-        // Only validate against duration if video has loaded properly
-        if (duration > 0) {
-            validateTimeAgainstDuration(formattedValue, field, duration);
-        }
-
-        // Validate time range (end > start) - use updated state
-        setTimeout(() => {
-            const otherType = type === 'start' ? 'end' : 'start';
-            const currentStart = type === 'start' ? formattedValue : timeInputs[otherType];
-            const currentEnd = type === 'start' ? timeInputs[otherType] : formattedValue;
-            validateTimeRange(currentStart, currentEnd);
-        }, 0);
-
-        // Update player range
-        if (type === 'start') {
-            setRange(prev => {
-                const newStart = Math.min(seconds, prev[1] - 1);
-                if (playerRef.current && playerReady) {
-                    playerRef.current.seekTo(newStart, true);
-                }
-                return [newStart, prev[1]];
-            });
-        } else {
-            setRange(prev => {
-                const newEnd = Math.max(seconds, prev[0] + 1);
-                return [prev[0], newEnd];
-            });
-        }
+    /**
+     * Timestamp edits arrive from TimeRangePicker already parsed and bounded.
+     * Moving the start also seeks the player, so the teacher sees the frame
+     * they just chose.
+     */
+    const handleRangeChange = ({start, end}: {start: number; end: number}) => {
+        setRange(prev => {
+            if (start !== prev[0] && playerRef.current && playerReady) {
+                playerRef.current.seekTo(start, true);
+            }
+            return [start, end];
+        });
     };
 
     // Store original values for cancel functionality
@@ -402,9 +247,20 @@ const VideoModal: React.FC<VideoModalProps> = ({
         }
     }, [currentTime, range, playerReady]);
 
-    const hasErrors = () => {
-        return errors.startTime !== "" || errors.endTime !== "";
-    };
+
+    /**
+     * Default an uploaded video's segment to its full length.
+     *
+     * The YouTube flow gets its range from the IFrame player as it loads. The
+     * upload flow has no such player, so start and end would both stay at 0:00 —
+     * which handleSave rejects as an invalid range, silently refusing to save.
+     * A whole uploaded video is the sensible default; the teacher can still trim
+     * it afterwards.
+     */
+    useEffect(() => {
+        if (source !== "GCS" || duration <= 0) return;
+        setRange(prev => (prev[1] > 0 ? prev : [0, duration]));
+    }, [source, duration]);
     const [errorList, setErrorList] = useState({ name: "", description: "", url: "" })
     const errorMessages = {
         name: "Video name is required",
@@ -429,15 +285,11 @@ const VideoModal: React.FC<VideoModalProps> = ({
         setDescription(originalValues.description);
         setUrl(originalValues.url);
         setPoints(originalValues.points);
-        setTimeInputs({
-            start: originalValues.startTime,
-            end: originalValues.endTime
-        });
         setRange([
             parseTimeToSeconds(originalValues.startTime),
             parseTimeToSeconds(originalValues.endTime)
         ]);
-        setErrors({ startTime: "", endTime: "" });
+        setTimeRangeInvalid(false);
         setErrorList({ name: "", description: "", url: "" });
 
         onClose();
@@ -448,30 +300,29 @@ const VideoModal: React.FC<VideoModalProps> = ({
         const newErrors = {
             name: name ? "" : errorMessages.name,
             description: description ? "" : errorMessages.description,
-            url: url ? "" : errorMessages.url,
+            // An uploaded video has no URL to validate — it needs an asset instead.
+            url:
+                source === "GCS"
+                    ? assetId
+                        ? ""
+                        : "Upload a video before saving"
+                    : url
+                        ? ""
+                        : errorMessages.url,
         };
 
         setErrorList(newErrors);
         const isValid = Object.values(newErrors).every((err) => err === "");
         if (!isValid) return;
-        let finalStartTime = timeInputs.start;
-        let finalEndTime = timeInputs.end;
 
-        if (action === "add" && duration === 0) {
-            finalStartTime = "0:00";
-            finalEndTime = "0:00";
-        }
+        // A brand new item whose player has not reported a length yet has no
+        // meaningful segment to save; the bounds are filled in on first open.
+        const isUnmeasured = action === "add" && duration === 0;
+        const [startSeconds, endSeconds] = isUnmeasured ? [0, 0] : range;
 
-
-        const startSeconds = validateTimeInput(timeInputs.start, duration);
-        const endSeconds = validateTimeInput(timeInputs.end, duration);
-
-        if (duration > 0) {
-            const startValid = validateTimeAgainstDuration(finalStartTime, "startTime", duration);
-            const endValid = validateTimeAgainstDuration(finalEndTime, "endTime", duration);
-            const rangeValid = validateTimeRange(finalStartTime, finalEndTime);
-            if (!startValid || !endValid || !rangeValid) return;
-        }
+        // TimeRangePicker keeps this current, and Save is disabled while it is
+        // set — this is the backstop for a programmatic call.
+        if (timeRangeInvalid) return;
 
         const video: Video = {
             _id: item?._id || "",
@@ -479,7 +330,13 @@ const VideoModal: React.FC<VideoModalProps> = ({
             description,
             type: "VIDEO",
             details: {
-                URL: url,
+                // The two sources are mutually exclusive: the backend validator
+                // rejects a URL alongside an assetId, so send only the relevant
+                // one. `source` is omitted for YouTube so items written here look
+                // exactly like every item written before uploads existed.
+                ...(source === "GCS"
+                    ? { source: "GCS" as VideoSource, assetId }
+                    : { URL: url }),
                 startTime: formatTime(startSeconds),
                 endTime: formatTime(endSeconds),
                 points,
@@ -516,9 +373,19 @@ const VideoModal: React.FC<VideoModalProps> = ({
             {isLoading ? <Loader /> :
                 <div
                     ref={modalRef}
-                    className="bg-card text-foreground rounded-lg p-6 
-                    overflow-y-auto
-                    min-w-4xl shadow-lg"
+                    /**
+                     * Height is capped to the viewport so the modal scrolls inside
+                     * itself. Without a cap it grew taller than the screen, and
+                     * because the overlay centres it with flex, the overflow was
+                     * clipped off the top where it cannot be scrolled to — the
+                     * video name field became unreachable.
+                     *
+                     * Width is a max rather than a min for the same reason: min-w
+                     * forced the modal wider than a narrow window.
+                     */
+                    className="bg-card text-foreground rounded-lg p-6
+                    overflow-y-auto max-h-[90vh]
+                    w-full max-w-4xl mx-4 shadow-lg"
                 >
 
 
@@ -551,15 +418,87 @@ const VideoModal: React.FC<VideoModalProps> = ({
                         {errorList.name && (
                             <p className="text-xs text-red-500 mt-1">{errorList.name}</p>
                         )}
-                        <Input
-                            placeholder="Paste YouTube video URL *"
-                            value={url}
-                            onChange={e => setUrl(e.target.value)}
-                            disabled={action === "view"}
-                            className="bg-background border-border"
-                        />
-                        {errorList.url && (
-                            <p className="text-xs text-red-500 mt-1">{errorList.url}</p>
+                        {/*
+                          * Source picker. Hidden in view mode and for existing
+                          * items — switching an item's source after learners have
+                          * progress against it would orphan their watch history,
+                          * so it is a create-time choice only.
+                          */}
+                        {action === "add" && (
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={source === "YOUTUBE" ? "default" : "outline"}
+                                    onClick={() => setSource("YOUTUBE")}
+                                >
+                                    YouTube link
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={source === "GCS" ? "default" : "outline"}
+                                    disabled={!canUpload}
+                                    title={
+                                        canUpload
+                                            ? undefined
+                                            : 'Open this from a course to choose a video'
+                                    }
+                                    onClick={() => setSource("GCS")}
+                                >
+                                    Course video
+                                </Button>
+                            </div>
+                        )}
+
+                        {source === "GCS" ? (
+                            <>
+                                {courseId && courseVersionId ? (
+                                    <>
+                                        <VideoAssetPicker
+                                            courseId={courseId}
+                                            courseVersionId={courseVersionId}
+                                            assetId={assetId}
+                                            disabled={action === "view"}
+                                            onSelect={asset => {
+                                                setAssetId(asset.assetId);
+                                                // A known duration lets the range
+                                                // default to the whole video before
+                                                // the preview has even loaded.
+                                                if (asset.durationSeconds) {
+                                                    setDuration(asset.durationSeconds);
+                                                }
+                                            }}
+                                        />
+                                        {/*
+                                          * The preview itself renders below, in the same
+                                          * container as the timestamp controls, so an
+                                          * uploaded video is edited exactly like a YouTube
+                                          * one.
+                                          */}
+                                    </>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        Open this from a course to choose a video.
+                                    </p>
+                                )}
+                                {errorList.url && (
+                                    <p className="text-xs text-red-500 mt-1">{errorList.url}</p>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <Input
+                                    placeholder="Paste YouTube video URL *"
+                                    value={url}
+                                    onChange={e => setUrl(e.target.value)}
+                                    disabled={action === "view"}
+                                    className="bg-background border-border"
+                                />
+                                {errorList.url && (
+                                    <p className="text-xs text-red-500 mt-1">{errorList.url}</p>
+                                )}
+                            </>
                         )}
                         <textarea
                             placeholder="Description *"
@@ -573,7 +512,13 @@ const VideoModal: React.FC<VideoModalProps> = ({
                         {errorList.description && (
                             <p className="text-xs text-red-500 mt-1">{errorList.description}</p>
                         )}
-                        {videoId && (
+                        {/*
+                          * Gated on "a video is loaded", not on a YouTube id — the
+                          * timestamp controls live inside this block, and keying it to
+                          * videoId meant an uploaded video had no way to set start and
+                          * end at all.
+                          */}
+                        {(videoId || (isUpload && assetId)) && (
                             <div
                                 style={{
                                     width: "100%",
@@ -589,17 +534,41 @@ const VideoModal: React.FC<VideoModalProps> = ({
                             >
                                 {/* Video Container */}
                                 <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000" }}>
-                                    <div
-                                        ref={iframeRef}
-                                        style={{
-                                            width: "100%",
-                                            height: "100%",
-                                            background: "#000",
-                                            borderRadius: "12px 12px 0 0",
-                                            overflow: "hidden",
-                                            position: "relative",
-                                        }}
-                                    />
+                                    {isUpload && assetId ? (
+                                        <HlsVideoPlayer
+                                            key={assetId}
+                                            /**
+                                             * Shares the YouTube player's ref. HlsPlayerHandle
+                                             * exposes the same seekTo/getCurrentTime/play/pause
+                                             * surface, so the timestamp inputs, the Go to
+                                             * Start/End buttons and the segment-bound
+                                             * enforcement all work unchanged.
+                                             */
+                                            ref={playerRef}
+                                            assetId={assetId}
+                                            startTime={formatTime(range[0])}
+                                            endTime={formatTime(range[1])}
+                                            className="h-full w-full"
+                                            onReady={seconds => {
+                                                setDuration(seconds);
+                                                // Unlocks the timestamp controls, which are
+                                                // gated on a ready player.
+                                                setPlayerReady(true);
+                                            }}
+                                        />
+                                    ) : (
+                                        <div
+                                            ref={iframeRef}
+                                            style={{
+                                                width: "100%",
+                                                height: "100%",
+                                                background: "#000",
+                                                borderRadius: "12px 12px 0 0",
+                                                overflow: "hidden",
+                                                position: "relative",
+                                            }}
+                                        />
+                                    )}
                                     {/* Overlay */}
                                     {showOverlay && (
                                         <div
@@ -636,99 +605,42 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                         fontSize: 15,
                                         zIndex: 11,
                                     }}>
-                                        Start: {timeInputs.start} &nbsp; End: {timeInputs.end} &nbsp; Current: {formatTime(currentTime)}
+                                        Start: {formatTime(range[0])} &nbsp; End: {formatTime(range[1])} &nbsp; Current: {formatTime(currentTime)}
                                     </div>
                                 </div>
                                 {/* Start/End Time Inputs Below Video */}
                                 <div
+                                    /*
+                                      * No `user-select: none` here. It used to sit on this
+                                      * container and, because it inherits, it was what stopped
+                                      * a teacher selecting the text inside the timestamp
+                                      * fields to overwrite it — the whole of issue #499.
+                                      */
                                     style={{
                                         borderRadius: '0 0 12px 12px',
-                                        userSelect: 'none',
-                                        WebkitUserSelect: 'none',
-                                        MozUserSelect: 'none',
-                                        msUserSelect: 'none',
                                         flexShrink: 0,
                                     }}
-                                    className="bg-muted border-t border-border p-4 xl:flex items-center justify-start relative gap-2"
+                                    className="bg-muted border-t border-border p-4"
                                 >
-                                    <div className="flex flex-col gap-2">
-                                        <div className="flex items-center lg:gap-2 gap-6 lg:flex-row flex-col">
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <label className="font-medium mr-2">Start Time (mm:ss):</label>
-                                                    <div className="flex flex-col">
-                                                        <Input
-                                                            type="text"
-                                                            value={timeInputs.start}
-                                                            onChange={e => handleTimeInputChange('start', e.target.value)}
-                                                            onBlur={() => handleTimeInputBlur('start')}
-                                                            disabled={action === "view"}
-                                                            style={{ width: 100 }}
-                                                            placeholder="0:00"
-                                                            maxLength={5}
-                                                            className={errors.startTime ? "border-red-500" : "bg-white border-gray-200"}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                {errors.startTime && (
-                                                    <span className="text-red-500 text-xs mt-1 absolute">{errors.startTime}</span>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <label className="font-medium ml-4 mr-2">End Time (mm:ss):</label>
-                                                    <div className="flex flex-col">
-                                                        <Input
-                                                            type="text"
-                                                            value={timeInputs.end}
-                                                            onChange={e => handleTimeInputChange('end', e.target.value)}
-                                                            onBlur={() => handleTimeInputBlur('end')}
-                                                            disabled={action === "view"}
-                                                            style={{ width: 100 }}
-                                                            placeholder="0:00"
-                                                            maxLength={5}
-                                                            className={errors.endTime ? "border-red-500" : "bg-white border-gray-200"}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                {errors.endTime && (
-                                                    <span className="text-red-500 text-xs mt-1">{errors.endTime}</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {/* Go to Start/End Buttons */}
-                                    <div className="mt-4 xl:mt-0 justify-center" style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={() => {
-                                                if (playerRef.current && playerReady) {
-                                                    playerRef.current.seekTo(range[0], true);
-                                                }
-                                            }}
-                                            disabled={!playerReady}
-                                        >
-                                            Go to Start
-                                        </Button>
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={() => {
-                                                if (playerRef.current && playerReady) {
-                                                    playerRef.current.seekTo(range[1], true);
-                                                }
-                                            }}
-                                            disabled={!playerReady}
-                                        >
-                                            Go to End
-                                        </Button>
-                                    </div>
+                                    <TimeRangePicker
+                                        startSeconds={range[0]}
+                                        endSeconds={range[1]}
+                                        duration={duration}
+                                        disabled={action === "view"}
+                                        playerReady={playerReady}
+                                        onChange={handleRangeChange}
+                                        onValidityChange={setTimeRangeInvalid}
+                                        onSeek={seconds => {
+                                            if (playerRef.current && playerReady) {
+                                                playerRef.current.seekTo(seconds, true);
+                                            }
+                                        }}
+                                    />
                                 </div>
                             </div>
                         )}
                         <div className="mt-4 p-4 bg-card border border-border rounded-lg">
-                            <label className="block mb-2 font-medium text-sm text-gray-700">Points</label>
+                            <label className="block mb-2 font-medium text-sm text-foreground">Points</label>
                             <Input
                                 type="number"
                                 min={0}
@@ -757,24 +669,16 @@ const VideoModal: React.FC<VideoModalProps> = ({
                                     </Button>
                                 )}
                                 {(() => {
-                                    const hasTimeRangeError = () => {
-                                        if (duration === 0) {
-                                            return false;
-                                        }
-                                        const startSeconds = parseTimeToSeconds(timeInputs.start);
-                                        const endSeconds = parseTimeToSeconds(timeInputs.end);
-                                        if (startSeconds === 0 && endSeconds === 0) {
-                                            return false;
-                                        }
-                                        return endSeconds <= startSeconds;
-                                    };
-                                    const isDisabled = 
-                                    (action !== "add" && !playerReady) || 
-                                    !url || 
-                                    !name || 
-                                    !description || 
-                                    hasErrors() || 
-                                    hasTimeRangeError();
+                                    // An uploaded video has no URL and no YouTube
+                                    // player, so those two gates only apply to the
+                                    // link flow. It needs a ready asset instead.
+                                    const isDisabled =
+                                    (action !== "add" && !playerReady && !isUpload) ||
+                                    (isUpload ? !assetId : !url) ||
+                                    !name ||
+                                    !description ||
+                                    // Timestamp validity is TimeRangePicker's to judge.
+                                    timeRangeInvalid;
 
                                     return (
                                         <Button

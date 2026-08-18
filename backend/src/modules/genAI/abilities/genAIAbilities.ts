@@ -36,8 +36,8 @@ export function setupGenAIAbilities(
                 can('manage', 'GenAI', courseBounded);
                 break;
             case 'INSTRUCTOR':
-                can(GenAIActions.Create, 'GenAI', courseBounded);
-                can(GenAIActions.Modify, 'GenAI', courseBounded);
+                // Instructor == admin, scoped to their own courses.
+                can('manage', 'GenAI', courseBounded);
                 break;
             case 'TA':
                 can(GenAIActions.Create, 'GenAI', versionBounded);

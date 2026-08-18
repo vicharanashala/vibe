@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress, useInvites, useAcceptInvite } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
+import { useShareLinkStore } from "@/store/share-link-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
 import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
@@ -493,7 +494,14 @@ export default function CoursePage() {
         data.settings.proctors.detectors.every(
           (detector: any) => detector.settings.enabled === false
         );
-      if (allProctorsDisabled) {
+      // A guest who opened a PLAIN share link is watching a video someone sent
+      // them, not working through a proctored course — they take the same path
+      // as a course with every detector switched off. Enrolled learners never
+      // match this, so proctoring is unchanged for them.
+      const isPlainShareViewer = useShareLinkStore
+        .getState()
+        .isPlainViewerFor(COURSE_ID, VERSION_ID);
+      if (allProctorsDisabled || isPlainShareViewer) {
         setShowProctorDialog(false);
         setAllProctorsDisabled(true);
         setReadyToDetect(true);
