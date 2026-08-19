@@ -1,30 +1,30 @@
 import {useState} from 'react';
 import {AlertCircle, AlertTriangle, Ban, Loader2, PenLine} from 'lucide-react';
 import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
 import {Textarea} from '@/components/ui/textarea';
 import {cn} from '@/utils/utils';
 import {countWords} from '@/utils/wordCount';
 import {reportCaseStudyAnomaly} from '@/lib/api/anomaly-events';
+import type {CaseResponseInput} from '@/lib/api/case-studies';
 
-const MAX_WORDS = 150;
+const STEELMAN_MIN_WORDS = 25;
+const TOTAL_GUIDANCE_MAX = 200;
 
 interface CaseComposerProps {
   title: string;
   bodyMarkdown: string;
-  onSubmit: (text: string) => Promise<unknown>;
+  onSubmit: (response: CaseResponseInput) => Promise<unknown>;
   isSubmitting?: boolean;
   anomalyContext: {courseId: string; versionId: string; itemId: string};
   mode?: 'write' | 'revise' | 'withdrawn';
-  existingText?: string;
+  existingResponse?: Partial<CaseResponseInput>;
 }
 
 /**
- * The flashcard-style write UI. Word counter mirrors the server's exact
- * counting logic (`countWords`) so the displayed number never disagrees with
- * what the server will accept. No paste allowed while composing
- * (PLANNING.md §4.6) — blocked visibly, not as a silent no-op, so a
- * participant who tried to paste notices and retypes by hand instead of
- * assuming it worked.
+ * Four-section write UI (FR-12). Word counter mirrors the server's exact
+ * counting logic (`countWords`). No paste/copy on any field — blocked
+ * visibly so participants notice and retype instead of assuming it worked.
  */
 export default function CaseComposer({
   title,
@@ -33,18 +33,41 @@ export default function CaseComposer({
   isSubmitting = false,
   anomalyContext,
   mode = 'write',
-  existingText = '',
+  existingResponse,
 }: CaseComposerProps) {
-  const [text, setText] = useState(existingText);
+  const [beat1a, setBeat1a] = useState(existingResponse?.beat1a ?? '');
+  const [beat1b, setBeat1b] = useState(existingResponse?.beat1b ?? '');
+  const [beat1c, setBeat1c] = useState(existingResponse?.beat1c ?? '');
+  const [steelman, setSteelman] = useState(existingResponse?.steelman ?? '');
+  const [roomPerspective, setRoomPerspective] = useState(existingResponse?.roomPerspective ?? '');
+  const [changeCommitment, setChangeCommitment] = useState(existingResponse?.changeCommitment ?? '');
   const [blockedNotice, setBlockedNotice] = useState(false);
 
-  const wordCount = countWords(text);
-  const overLimit = wordCount > MAX_WORDS;
-  const canSubmit = wordCount > 0 && !overLimit && !isSubmitting;
+  const steelmanWords = countWords(steelman);
+  const totalWords =
+    countWords(beat1a) +
+    countWords(beat1b) +
+    countWords(beat1c) +
+    steelmanWords +
+    countWords(roomPerspective) +
+    countWords(changeCommitment);
+
+  const steelmanTooShort = steelmanWords > 0 && steelmanWords < STEELMAN_MIN_WORDS;
+  const allFilled =
+    beat1a.trim() && beat1b.trim() && beat1c.trim() &&
+    steelman.trim() && roomPerspective.trim() && changeCommitment.trim();
+  const canSubmit = allFilled && steelmanWords >= STEELMAN_MIN_WORDS && !isSubmitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
-    await onSubmit(text.trim());
+    await onSubmit({
+      beat1a: beat1a.trim(),
+      beat1b: beat1b.trim(),
+      beat1c: beat1c.trim(),
+      steelman: steelman.trim(),
+      roomPerspective: roomPerspective.trim(),
+      changeCommitment: changeCommitment.trim(),
+    });
   };
 
   const handleBlockedAttempt = (e: React.ClipboardEvent | React.MouseEvent) => {
@@ -58,6 +81,14 @@ export default function CaseComposer({
     });
     window.setTimeout(() => setBlockedNotice(false), 4000);
   };
+
+  const blockProps = {
+    onPaste: handleBlockedAttempt,
+    onCopy: handleBlockedAttempt,
+    onCut: handleBlockedAttempt,
+    onContextMenu: handleBlockedAttempt,
+    disabled: isSubmitting,
+  } as const;
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
@@ -77,6 +108,7 @@ export default function CaseComposer({
           </p>
         </div>
       ) : null}
+
       <div className="flex items-start gap-3 border-b bg-muted/40 p-5">
         <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <PenLine className="h-4.5 w-4.5" />
@@ -87,39 +119,117 @@ export default function CaseComposer({
         </div>
       </div>
 
-      <div className="space-y-4 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold">Your response</span>
-          <span
+      <div className="divide-y">
+        {/* Element 1 — Where I landed */}
+        <section className="space-y-3 p-5">
+          <p className="text-sm font-semibold text-foreground">Element 1 — Where I landed</p>
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground">a) What I thought going in</label>
+            <Input
+              data-testid="beat1a"
+              value={beat1a}
+              onChange={e => setBeat1a(e.target.value)}
+              placeholder="~1 sentence"
+              aria-label="What I thought going in"
+              {...blockProps}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground">b) What challenged it — or what gave most pause if nothing did</label>
+            <Input
+              data-testid="beat1b"
+              value={beat1b}
+              onChange={e => setBeat1b(e.target.value)}
+              placeholder="~1 sentence"
+              aria-label="What challenged my initial view"
+              {...blockProps}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground">c) Where I ended up</label>
+            <Input
+              data-testid="beat1c"
+              value={beat1c}
+              onChange={e => setBeat1c(e.target.value)}
+              placeholder="~1 sentence"
+              aria-label="Where I ended up"
+              {...blockProps}
+            />
+          </div>
+        </section>
+
+        {/* Element 2a — Steelman */}
+        <section className="space-y-3 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-foreground">2a — The strongest case against my view</p>
+            <span
+              className={cn(
+                'shrink-0 text-xs tabular-nums',
+                steelmanTooShort ? 'font-medium text-destructive' : 'text-muted-foreground',
+              )}
+            >
+              {steelmanWords} / {STEELMAN_MIN_WORDS}+ words
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            The case's turn names what each choice costs — use that framing, not what was said in the breakout.
+          </p>
+          <Textarea
+            data-testid="steelman"
+            value={steelman}
+            onChange={e => setSteelman(e.target.value)}
+            placeholder="Argue the other side as forcefully as you can…"
+            rows={5}
+            aria-label="Steelman — strongest case against my view"
             className={cn(
-              'shrink-0 text-xs tabular-nums',
-              overLimit ? 'font-medium text-destructive' : 'text-muted-foreground',
+              'resize-y bg-background text-base leading-relaxed',
+              'min-h-28 rounded-lg border-2 shadow-inner',
+              'focus-visible:ring-2 focus-visible:ring-primary/40',
+              steelmanTooShort && 'border-destructive/60',
             )}
-          >
-            {wordCount} / {MAX_WORDS} words
-          </span>
-        </div>
+            {...blockProps}
+          />
+          {steelmanTooShort ? (
+            <p className="text-xs font-medium text-destructive">
+              Steelman needs at least {STEELMAN_MIN_WORDS} words ({STEELMAN_MIN_WORDS - steelmanWords} more to go).
+            </p>
+          ) : null}
+        </section>
 
-        <Textarea
-          data-testid="case-composer-textarea"
-          value={text}
-          onChange={e => setText(e.target.value)}
-          onPaste={handleBlockedAttempt}
-          onCopy={handleBlockedAttempt}
-          onCut={handleBlockedAttempt}
-          onContextMenu={handleBlockedAttempt}
-          placeholder="Write your response here…"
-          rows={8}
-          disabled={isSubmitting}
-          aria-label="Your case study response"
-          className={cn(
-            'resize-y bg-background text-base leading-relaxed',
-            'min-h-40 rounded-lg border-2 shadow-inner',
-            'focus-visible:ring-2 focus-visible:ring-primary/40',
-            overLimit && 'border-destructive/60',
-          )}
-        />
+        {/* Element 2b — Room perspective */}
+        <section className="space-y-3 p-5">
+          <p className="text-sm font-semibold text-foreground">2b — One perspective from the room</p>
+          <p className="text-xs text-muted-foreground">
+            "Room broadly agreed with me" is a valid answer. This is not shown to reviewers.
+          </p>
+          <Input
+            data-testid="roomPerspective"
+            value={roomPerspective}
+            onChange={e => setRoomPerspective(e.target.value)}
+            placeholder="~1 sentence"
+            aria-label="One perspective from the room"
+            {...blockProps}
+          />
+        </section>
 
+        {/* Element 3 — Change commitment */}
+        <section className="space-y-3 p-5">
+          <p className="text-sm font-semibold text-foreground">3 — One thing I'll change</p>
+          <p className="text-xs text-muted-foreground">
+            Answer the cost you named in your steelman above.
+          </p>
+          <Input
+            data-testid="changeCommitment"
+            value={changeCommitment}
+            onChange={e => setChangeCommitment(e.target.value)}
+            placeholder="~1 sentence"
+            aria-label="One thing I will change"
+            {...blockProps}
+          />
+        </section>
+      </div>
+
+      <div className="space-y-3 border-t bg-muted/20 p-5">
         {blockedNotice ? (
           <p
             data-testid="case-composer-paste-blocked-notice"
@@ -130,15 +240,21 @@ export default function CaseComposer({
           </p>
         ) : null}
 
-        {overLimit ? (
-          <p className="text-xs font-medium text-destructive">
-            Your response is {wordCount - MAX_WORDS} word{wordCount - MAX_WORDS === 1 ? '' : 's'} over the{' '}
-            {MAX_WORDS}-word limit.
-          </p>
-        ) : null}
-
-        <div className="flex justify-end border-t pt-4">
-          <Button data-testid="case-composer-submit" onClick={handleSubmit} disabled={!canSubmit} size="lg">
+        <div className="flex items-center justify-between gap-4">
+          <span
+            className={cn(
+              'text-xs tabular-nums',
+              totalWords > TOTAL_GUIDANCE_MAX ? 'font-medium text-amber-600' : 'text-muted-foreground',
+            )}
+          >
+            total: {totalWords} / {TOTAL_GUIDANCE_MAX} words{totalWords > TOTAL_GUIDANCE_MAX ? ' (over guidance)' : ''}
+          </span>
+          <Button
+            data-testid="case-composer-submit"
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            size="lg"
+          >
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -1,12 +1,12 @@
 /**
  * Unit tests for CaseStudyService against an in-memory fake repository.
  *
- * These cover the policy the feature lives or dies by — the word cap, the
- * derived sequence-unlock rule, the server-anchored timer, the self-review
- * guard, and the win/flag thresholds. Mongo-level concurrency (the unique
- * indexes, the capped findOneAndUpdate) is the repository's contract and is
- * faked here rather than re-tested — see CaseStudy.integration.test.ts for
- * that under a real MongoDB.
+ * These cover the policy the feature lives or dies by — the steelman min-
+ * word check, the video-based unlock, the server-anchored timer, the self-
+ * review guard, and the win/flag thresholds. Mongo-level concurrency (the
+ * unique indexes, the capped findOneAndUpdate) is the repository's contract
+ * and is faked here rather than re-tested — see CaseStudy.integration.test.ts
+ * for that under a real MongoDB.
  */
 import {beforeEach, describe, expect, it} from 'vitest';
 import {ObjectId} from 'mongodb';
@@ -20,19 +20,17 @@ import type {
   CaseComparisonOutcome,
   ICaseComparison,
 } from '../classes/transformers/CaseComparison.js';
-import {WINS_REQUIRED} from '../constants.js';
+import {ELEMENT_2A_MIN_WORDS, WINS_REQUIRED} from '../constants.js';
 
-/** Stands in for CourseSettingService — case studies enabled, strict (WON-gated) unlock by default. */
+/** Stands in for CourseSettingService — case studies enabled by default. */
 class FakeCourseSettingService {
   caseStudiesEnabled = true;
-  caseStudyStrictUnlockEnabled = true;
   caseStudyWeakStreakThreshold = 3;
 
   async readCourseSettings() {
     return {
       settings: {
         caseStudiesEnabled: this.caseStudiesEnabled,
-        caseStudyStrictUnlockEnabled: this.caseStudyStrictUnlockEnabled,
         caseStudyWeakStreakThreshold: this.caseStudyWeakStreakThreshold,
       },
     };
@@ -45,6 +43,20 @@ class FakeNotificationService {
 
   async createNotification(notification: {userId: any; type: string; extra?: Record<string, any>}) {
     this.sent.push({userId: notification.userId.toString(), type: notification.type, extra: notification.extra});
+  }
+}
+
+/** Stands in for ProgressService — tracks which video item IDs are "completed". */
+class FakeProgressService {
+  completedItems = new Set<string>();
+
+  async isItemCompleted(
+    _userId: string,
+    _courseId: string,
+    _courseVersionId: string,
+    itemId: string,
+  ): Promise<boolean> {
+    return this.completedItems.has(itemId);
   }
 }
 
@@ -111,11 +123,6 @@ class FakeRepo {
     return _id.toString();
   }
 
-  async reviseWithdrawnResponse() {
-    // No-op: withdrawal is removed; this method no longer exists on the real
-    // repository but is kept here as a stub so old call sites don't crash.
-  }
-
   async findByVersionAndSequenceIndex(courseVersionId: string, sequenceIndex: number) {
     return (
       this.caseStudies.find(
@@ -125,6 +132,19 @@ class FakeRepo {
           !c.isDeleted,
       ) ?? null
     );
+  }
+
+  async reviseResponse(
+    userId: string,
+    caseStudyId: string,
+    fields: {beat1a: string; beat1b: string; beat1c: string; steelman: string; roomPerspective: string; changeCommitment: string},
+  ) {
+    const r = this.responses.find(
+      r => r.userId.toString() === userId && r.caseStudyId.toString() === caseStudyId,
+    );
+    if (!r || r.status === 'WON') return false;
+    Object.assign(r, fields, {status: 'OPEN', winCount: 0, weakStreak: 0, comparisonsSeenCount: 0, flagCount: 0});
+    return true;
   }
 
   async findPendingComparison(reviewerId: string, caseStudyId: string) {
@@ -366,16 +386,38 @@ class FakeRepo {
 let repo: FakeRepo;
 let courseSettings: FakeCourseSettingService;
 let notifications: FakeNotificationService;
+let progressService: FakeProgressService;
 let service: CaseStudyService;
 
+/** Seeds a case with a linked video; auto-marks the video as completed. */
 function seedCase(sequenceIndex: number): string {
   const _id = new ObjectId();
+  const videoId = new ObjectId();
   repo.caseStudies.push({
     _id,
     courseId: new ObjectId(COURSE),
     courseVersionId: new ObjectId(VERSION),
     sequenceIndex,
     title: `Case ${sequenceIndex}`,
+    bodyMarkdown: 'A prompt.',
+    linkedItemId: videoId,
+    isDeleted: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  progressService.completedItems.add(videoId.toString());
+  return _id.toString();
+}
+
+/** Seeds a case without any linked video (always locked). */
+function seedCaseUnlinked(sequenceIndex: number): string {
+  const _id = new ObjectId();
+  repo.caseStudies.push({
+    _id,
+    courseId: new ObjectId(COURSE),
+    courseVersionId: new ObjectId(VERSION),
+    sequenceIndex,
+    title: `Case ${sequenceIndex} (unlinked)`,
     bodyMarkdown: 'A prompt.',
     isDeleted: false,
     createdAt: new Date(),
@@ -384,85 +426,82 @@ function seedCase(sequenceIndex: number): string {
   return _id.toString();
 }
 
-async function submit(caseStudyId: string, userId = new ObjectId().toString(), text = 'x'.repeat(20)) {
-  return service.submitResponse({userId, caseStudyId, text});
+const VALID_STEELMAN = Array.from({length: ELEMENT_2A_MIN_WORDS}, (_, i) => `word${i}`).join(' ');
+
+function makeFields(overrides: Partial<{
+  beat1a: string; beat1b: string; beat1c: string;
+  steelman: string; roomPerspective: string; changeCommitment: string;
+}> = {}) {
+  return {
+    beat1a: 'What I thought going in.',
+    beat1b: 'What challenged me.',
+    beat1c: 'Where I ended up.',
+    steelman: VALID_STEELMAN,
+    roomPerspective: 'One perspective from the room.',
+    changeCommitment: 'One thing I will change.',
+    ...overrides,
+  };
+}
+
+async function submit(caseStudyId: string, userId = new ObjectId().toString(), overrides = {}) {
+  return service.submitResponse({userId, caseStudyId, ...makeFields(overrides)});
 }
 
 beforeEach(() => {
   repo = new FakeRepo();
   courseSettings = new FakeCourseSettingService();
   notifications = new FakeNotificationService();
-  service = new CaseStudyService(repo as never, courseSettings as never, notifications as never);
+  progressService = new FakeProgressService();
+  service = new CaseStudyService(
+    repo as never,
+    courseSettings as never,
+    notifications as never,
+    progressService as never,
+  );
 });
 
-describe('submitResponse — word cap (Unicode-aware)', () => {
-  it('accepts exactly 150 words', async () => {
+describe('submitResponse — steelman word count', () => {
+  it(`accepts steelman with exactly ${ELEMENT_2A_MIN_WORDS} words`, async () => {
     const caseId = seedCase(1);
-    const text = Array.from({length: 150}, (_, i) => `word${i}`).join(' ');
-    await expect(submit(caseId, undefined, text)).resolves.toHaveProperty('responseId');
+    await expect(submit(caseId)).resolves.toHaveProperty('responseId');
   });
 
-  it('rejects 151 words with a message naming the limit', async () => {
+  it(`rejects steelman with fewer than ${ELEMENT_2A_MIN_WORDS} words`, async () => {
     const caseId = seedCase(1);
-    const text = Array.from({length: 151}, (_, i) => `word${i}`).join(' ');
-    await expect(submit(caseId, undefined, text)).rejects.toThrow(/150 words/);
+    await expect(submit(caseId, undefined, {steelman: 'too short'})).rejects.toThrow(/25 words/);
   });
 
-  it('counts a mixed Hindi-English response by word, not by character or byte', async () => {
+  it('rejects an empty steelman', async () => {
     const caseId = seedCase(1);
-    // "मैं सबसे पहले पूछूंगा" (5 Devanagari words) + 3 English words = 8.
-    const text = 'मैं सबसे पहले पूछूंगा the student directly';
-    const {responseId} = await submit(caseId, undefined, text);
+    await expect(submit(caseId, undefined, {steelman: '   '})).rejects.toThrow(/empty/i);
+  });
+
+  it('counts a mixed Hindi-English steelman by word, not by character or byte', async () => {
+    const caseId = seedCase(1);
+    // 5 Devanagari words + 20 English words = 25 words total
+    const steelman = 'मैं सबसे पहले पूछूंगा छात्र ' +
+      Array.from({length: 20}, (_, i) => `word${i}`).join(' ');
+    const {responseId} = await submit(caseId, undefined, {steelman});
     expect(responseId).toBeTruthy();
   });
-
-  it('rejects an empty response', async () => {
-    const caseId = seedCase(1);
-    await expect(submit(caseId, undefined, '   ')).rejects.toThrow(/empty/i);
-  });
 });
 
-describe('submitResponse — sequence unlock (win-based)', () => {
-  it('allows case 1 for a user with no prior submissions', async () => {
-    const case1 = seedCase(1);
-    await expect(submit(case1)).resolves.toHaveProperty('responseId');
+describe('submitResponse — video-based unlock', () => {
+  it('allows submission when the linked video is completed', async () => {
+    const caseId = seedCase(1);
+    await expect(submit(caseId)).resolves.toHaveProperty('responseId');
   });
 
-  it('rejects case 2 when case 1 is submitted but not yet WON', async () => {
-    const case1 = seedCase(1);
-    const case2 = seedCase(2);
-    const user = new ObjectId().toString();
-    await submit(case1, user);
-    // case1 response is OPEN (not WON) — case2 should be locked.
-    await expect(submit(case2, user)).rejects.toThrow(/not yet unlocked/i);
+  it('rejects submission when the linked video is not completed', async () => {
+    const caseId = seedCase(1);
+    const caseDoc = repo.caseStudies.find(c => c._id!.toString() === caseId)!;
+    progressService.completedItems.delete(caseDoc.linkedItemId!.toString());
+    await expect(submit(caseId)).rejects.toThrow(/linked video/i);
   });
 
-  it('unlocks case 2 after case 1 response reaches WON status', async () => {
-    const case1 = seedCase(1);
-    const case2 = seedCase(2);
-    const user = new ObjectId().toString();
-    await submit(case1, user);
-    // Manually flip case1's response to WON.
-    const response = repo.responses.find(
-      r => r.userId.toString() === user && r.caseStudyId.toString() === case1,
-    )!;
-    response.status = 'WON';
-    response.winCount = WINS_REQUIRED;
-    await expect(submit(case2, user)).resolves.toHaveProperty('responseId');
-  });
-
-  it('rejects case 3 when only case 1 is WON but case 2 is still OPEN', async () => {
-    const case1 = seedCase(1);
-    const case2 = seedCase(2);
-    const case3 = seedCase(3);
-    const user = new ObjectId().toString();
-    await submit(case1, user);
-    repo.responses.find(
-      r => r.userId.toString() === user && r.caseStudyId.toString() === case1,
-    )!.status = 'WON';
-    await submit(case2, user);
-    // case2 is OPEN — case3 should still be locked.
-    await expect(submit(case3, user)).rejects.toThrow(/not yet unlocked/i);
+  it('rejects submission when the case has no linked video', async () => {
+    const caseId = seedCaseUnlinked(1);
+    await expect(submit(caseId)).rejects.toThrow(/not yet linked/i);
   });
 });
 
@@ -491,8 +530,8 @@ describe('getNextPair / submitPick — timer and self-review', () => {
     const caseId = seedCase(1);
     const author1 = new ObjectId().toString();
     const author2 = new ObjectId().toString();
-    await submit(caseId, author1, 'x'.repeat(200));
-    await submit(caseId, author2, 'x'.repeat(200));
+    await submit(caseId, author1);
+    await submit(caseId, author2);
 
     const reviewer = new ObjectId().toString();
     const pair = await service.getNextPair({reviewerId: reviewer, caseStudyId: caseId});
@@ -507,8 +546,8 @@ describe('getNextPair / submitPick — timer and self-review', () => {
     const caseId = seedCase(1);
     const author1 = new ObjectId().toString();
     const author2 = new ObjectId().toString();
-    await submit(caseId, author1, 'one two three');
-    await submit(caseId, author2, 'four five six');
+    await submit(caseId, author1);
+    await submit(caseId, author2);
 
     const reviewer = new ObjectId().toString();
     const pair = await service.getNextPair({reviewerId: reviewer, caseStudyId: caseId});
@@ -526,8 +565,8 @@ describe('getNextPair / submitPick — timer and self-review', () => {
 
   it('rejects a double-pick on the same comparison', async () => {
     const caseId = seedCase(1);
-    await submit(caseId, new ObjectId().toString(), 'one two three');
-    await submit(caseId, new ObjectId().toString(), 'four five six');
+    await submit(caseId, new ObjectId().toString());
+    await submit(caseId, new ObjectId().toString());
     const reviewer = new ObjectId().toString();
     const pair = await service.getNextPair({reviewerId: reviewer, caseStudyId: caseId});
     const comparison = repo.comparisons.find(c => c._id!.toString() === pair!.comparisonId)!;
@@ -542,9 +581,9 @@ describe('getNextPair / submitPick — timer and self-review', () => {
   it('refuses a self-review even if a pair somehow named the reviewer', async () => {
     const caseId = seedCase(1);
     const reviewer = new ObjectId().toString();
-    await submit(caseId, reviewer, 'one two three');
+    await submit(caseId, reviewer);
     const other = new ObjectId().toString();
-    await submit(caseId, other, 'four five six');
+    await submit(caseId, other);
 
     const responseByReviewer = repo.responses.find(r => r.userId.toString() === reviewer)!;
     const responseByOther = repo.responses.find(r => r.userId.toString() === other)!;
@@ -564,16 +603,16 @@ describe('getNextPair / submitPick — timer and self-review', () => {
     ).rejects.toThrow(/cannot review your own/i);
   });
 
-  it('exposes no author-identifying field in the served pair', async () => {
+  it('exposes only steelman in the served pair — no other response fields', async () => {
     const caseId = seedCase(1);
-    await submit(caseId, new ObjectId().toString(), 'one two three');
-    await submit(caseId, new ObjectId().toString(), 'four five six');
+    await submit(caseId, new ObjectId().toString());
+    await submit(caseId, new ObjectId().toString());
     const pair = await service.getNextPair({
       reviewerId: new ObjectId().toString(),
       caseStudyId: caseId,
     });
-    expect(Object.keys(pair!.left).sort()).toEqual(['outcome', 'responseId', 'text', 'wordCount']);
-    expect(Object.keys(pair!.right).sort()).toEqual(['outcome', 'responseId', 'text', 'wordCount']);
+    expect(Object.keys(pair!.left).sort()).toEqual(['outcome', 'responseId', 'steelman', 'wordCount']);
+    expect(Object.keys(pair!.right).sort()).toEqual(['outcome', 'responseId', 'steelman', 'wordCount']);
   });
 });
 
@@ -581,10 +620,10 @@ describe('win / flag thresholds', () => {
   it(`moves a response to WON after ${WINS_REQUIRED} wins`, async () => {
     const caseId = seedCase(1);
     const author = new ObjectId().toString();
-    const {responseId} = await submit(caseId, author, 'one two three');
+    const {responseId} = await submit(caseId, author);
     // A pool of opponents so pickPairCandidate always has two OPEN candidates.
     for (let i = 0; i < 3; i++) {
-      await submit(caseId, new ObjectId().toString(), 'four five six');
+      await submit(caseId, new ObjectId().toString());
     }
 
     for (let i = 0; i < WINS_REQUIRED; i++) {
@@ -607,9 +646,6 @@ describe('win / flag thresholds', () => {
     }
 
     const response = repo.responses.find(r => r._id!.toString() === responseId)!;
-    // Losses/BOTH_WEAK never count against it; only wins move the counter —
-    // assert the counter reflects exactly the wins recorded above, capped by
-    // however many of the WINS_REQUIRED attempts actually hit this response.
     expect(response.winCount).toBeGreaterThanOrEqual(0);
     if (response.winCount >= WINS_REQUIRED) {
       expect(response.status).toBe('WON');
@@ -618,8 +654,8 @@ describe('win / flag thresholds', () => {
 
   it('does not count a FLAGGED verdict toward the reviewer quota, but counts BOTH_WEAK', async () => {
     const caseId = seedCase(1);
-    await submit(caseId, new ObjectId().toString(), 'one two three');
-    await submit(caseId, new ObjectId().toString(), 'four five six');
+    await submit(caseId, new ObjectId().toString());
+    await submit(caseId, new ObjectId().toString());
     const reviewer = new ObjectId().toString();
 
     const pair1 = await service.getNextPair({reviewerId: reviewer, caseStudyId: caseId});
@@ -628,7 +664,7 @@ describe('win / flag thresholds', () => {
     await service.submitPick({reviewerId: reviewer, comparisonId: pair1!.comparisonId, outcome: 'FLAGGED'});
     expect(await repo.getReviewerQuota(reviewer, caseId)).toBe(0);
 
-    await submit(caseId, new ObjectId().toString(), 'seven eight nine');
+    await submit(caseId, new ObjectId().toString());
     const pair2 = await service.getNextPair({reviewerId: reviewer, caseStudyId: caseId});
     const c2 = repo.comparisons.find(c => c._id!.toString() === pair2!.comparisonId)!;
     c2.servedAt = new Date(Date.now() - 999_000);
@@ -638,17 +674,13 @@ describe('win / flag thresholds', () => {
 
   it('reports how many readers of this exact pair chose the same outcome', async () => {
     const caseId = seedCase(1);
-    await submit(caseId, new ObjectId().toString(), 'one two three');
-    await submit(caseId, new ObjectId().toString(), 'four five six');
+    await submit(caseId, new ObjectId().toString());
+    await submit(caseId, new ObjectId().toString());
 
-    // With exactly two OPEN responses, both reviewers must be served the same pair.
     const reviewer1 = new ObjectId().toString();
     const pair1 = await service.getNextPair({reviewerId: reviewer1, caseStudyId: caseId});
     const c1 = repo.comparisons.find(c => c._id!.toString() === pair1!.comparisonId)!;
     c1.servedAt = new Date(Date.now() - 999_000);
-    // Pick "left is better" using whichever outcome value the served pair
-    // says left corresponds to — sideAIsLeft is randomised per serve, so the
-    // client (and this test) must never assume left === outcome 'A'.
     const outcome1 = pair1!.left.outcome;
     const result1 = await service.submitPick({reviewerId: reviewer1, comparisonId: pair1!.comparisonId, outcome: outcome1});
     expect(result1.agreementCount).toBe(1);
@@ -656,13 +688,10 @@ describe('win / flag thresholds', () => {
 
     const reviewer2 = new ObjectId().toString();
     const pair2 = await service.getNextPair({reviewerId: reviewer2, caseStudyId: caseId});
-    // Both reviewers were served the same two underlying responses.
     const ids1 = [pair1!.left.responseId, pair1!.right.responseId].sort();
     const ids2 = [pair2!.left.responseId, pair2!.right.responseId].sort();
     expect(ids2).toEqual(ids1);
 
-    // Pick the same underlying response reviewer1 picked, regardless of which
-    // side (left/right) it landed on this time.
     const targetResponseId = outcome1 === pair1!.left.outcome ? pair1!.left.responseId : pair1!.right.responseId;
     const outcome2 =
       pair2!.left.responseId === targetResponseId ? pair2!.left.outcome : pair2!.right.outcome;
@@ -675,38 +704,56 @@ describe('win / flag thresholds', () => {
   });
 });
 
-describe('withdrawn response revision — removed', () => {
-  it('no longer applies: responses are never withdrawn', () => {
-    // Withdrawal mechanism has been removed. Flags are tracked for analytics
-    // but a response stays OPEN until it reaches WINS_REQUIRED wins.
-    expect(true).toBe(true);
-  });
-});
-
-describe('listCasesForUser (win-based unlock)', () => {
-  it('reports locked/writable/won state per case based on previous case WON status', async () => {
+describe('listCasesForUser (video-based unlock)', () => {
+  it('reports writable when the linked video is completed', async () => {
     const case1 = seedCase(1);
-    const case2 = seedCase(2);
-    const case3 = seedCase(3);
+    const user = new ObjectId().toString();
+
+    const list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
+    expect(list.find(c => c.caseStudyId === case1)!.state).toBe('writable');
+  });
+
+  it('reports locked when the linked video is not completed', async () => {
+    const case1 = seedCase(1);
+    const caseDoc = repo.caseStudies.find(c => c._id!.toString() === case1)!;
+    progressService.completedItems.delete(caseDoc.linkedItemId!.toString());
+    const user = new ObjectId().toString();
+
+    const list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
+    expect(list.find(c => c.caseStudyId === case1)!.state).toBe('locked');
+  });
+
+  it('reports locked when the case has no linkedItemId', async () => {
+    const case1 = seedCaseUnlinked(1);
+    const user = new ObjectId().toString();
+
+    const list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
+    expect(list.find(c => c.caseStudyId === case1)!.state).toBe('locked');
+  });
+
+  it('reports submitted-awaiting-verdict after submission', async () => {
+    const case1 = seedCase(1);
     const user = new ObjectId().toString();
     await submit(case1, user);
 
-    // Case 1 submitted (OPEN) — case 2 should still be locked.
-    let list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
-    let byId = new Map(list.map(l => [l.caseStudyId, l]));
-    expect(byId.get(case1)!.state).toBe('submitted-awaiting-verdict');
-    expect(byId.get(case2)!.state).toBe('locked');
-    expect(byId.get(case3)!.state).toBe('locked');
+    const list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
+    expect(list.find(c => c.caseStudyId === case1)!.state).toBe('submitted-awaiting-verdict');
+  });
 
-    // Once case 1 is WON, case 2 becomes writable.
-    repo.responses.find(
-      r => r.userId.toString() === user && r.caseStudyId.toString() === case1,
-    )!.status = 'WON';
-    list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
-    byId = new Map(list.map(l => [l.caseStudyId, l]));
-    expect(byId.get(case1)!.state).toBe('won');
-    expect(byId.get(case2)!.state).toBe('writable');
-    expect(byId.get(case3)!.state).toBe('locked');
+  it('exposes all six response fields in myResponse', async () => {
+    const case1 = seedCase(1);
+    const user = new ObjectId().toString();
+    await submit(case1, user, {
+      beat1a: 'Going in thought.',
+      steelman: VALID_STEELMAN,
+    });
+
+    const list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
+    const entry = list.find(c => c.caseStudyId === case1)!;
+    expect(entry.myResponse).toMatchObject({
+      beat1a: 'Going in thought.',
+      steelman: VALID_STEELMAN,
+    });
   });
 });
 
@@ -725,46 +772,7 @@ describe('caseStudiesEnabled — server-side enforcement', () => {
   });
 });
 
-describe('sequential (non-strict) unlock mode', () => {
-  it('unlocks the next case on submission alone, without requiring peer wins', async () => {
-    courseSettings.caseStudyStrictUnlockEnabled = false;
-    const case1 = seedCase(1);
-    const case2 = seedCase(2);
-    const user = new ObjectId().toString();
-
-    await submit(case1, user);
-    // Case 1 is still OPEN (no wins) — under non-strict mode case 2 should
-    // already be writable, unlike the strict/WON-gated suite above.
-    await expect(submit(case2, user)).resolves.toHaveProperty('responseId');
-  });
-
-  it('still rejects skipping ahead of the immediately preceding case', async () => {
-    courseSettings.caseStudyStrictUnlockEnabled = false;
-    const case1 = seedCase(1);
-    seedCase(2);
-    const case3 = seedCase(3);
-    const user = new ObjectId().toString();
-
-    await submit(case1, user);
-    // case2 not yet submitted — case3 must stay locked.
-    await expect(submit(case3, user)).rejects.toThrow(/not yet unlocked/i);
-  });
-
-  it('reflects sequential unlock in listCasesForUser without requiring a WON verdict', async () => {
-    courseSettings.caseStudyStrictUnlockEnabled = false;
-    const case1 = seedCase(1);
-    const case2 = seedCase(2);
-    const user = new ObjectId().toString();
-    await submit(case1, user);
-
-    const list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
-    const byId = new Map(list.map(l => [l.caseStudyId, l]));
-    expect(byId.get(case2)!.state).toBe('writable');
-  });
-});
-
 describe('weak-response-streak notification', () => {
-  /** Directly wires a decided comparison so the weak response loses to `opponentId`, bypassing pair-selection fairness. */
   async function loseTo(caseId: string, responseId: string, opponentId: string) {
     const reviewer = new ObjectId().toString();
     const comparison = await repo.createComparison({
@@ -785,9 +793,9 @@ describe('weak-response-streak notification', () => {
     courseSettings.caseStudyWeakStreakThreshold = 2;
     const caseId = seedCase(1);
     const author = new ObjectId().toString();
-    const {responseId} = await submit(caseId, author, 'a weak response');
-    const {responseId: opponent1} = await submit(caseId, new ObjectId().toString(), 'a stronger response');
-    const {responseId: opponent2} = await submit(caseId, new ObjectId().toString(), 'another stronger response');
+    const {responseId} = await submit(caseId, author);
+    const {responseId: opponent1} = await submit(caseId, new ObjectId().toString());
+    const {responseId: opponent2} = await submit(caseId, new ObjectId().toString());
 
     await loseTo(caseId, responseId, opponent1);
     expect(
@@ -806,14 +814,13 @@ describe('weak-response-streak notification', () => {
     courseSettings.caseStudyWeakStreakThreshold = 2;
     const caseId = seedCase(1);
     const author = new ObjectId().toString();
-    const {responseId} = await submit(caseId, author, 'an improving response');
-    const {responseId: opponent1} = await submit(caseId, new ObjectId().toString(), 'stronger 1');
-    const {responseId: opponent2} = await submit(caseId, new ObjectId().toString(), 'stronger 2');
-    const {responseId: opponent3} = await submit(caseId, new ObjectId().toString(), 'stronger 3');
+    const {responseId} = await submit(caseId, author);
+    const {responseId: opponent1} = await submit(caseId, new ObjectId().toString());
+    const {responseId: opponent2} = await submit(caseId, new ObjectId().toString());
+    const {responseId: opponent3} = await submit(caseId, new ObjectId().toString());
 
     await loseTo(caseId, responseId, opponent1);
 
-    // A win resets the streak counter to 0 before the second loss.
     const winReviewer = new ObjectId().toString();
     const winComparison = await repo.createComparison({
       caseStudyId: caseId,
@@ -839,8 +846,8 @@ describe('weak-response-streak notification', () => {
     courseSettings.caseStudyWeakStreakThreshold = 0;
     const caseId = seedCase(1);
     const author = new ObjectId().toString();
-    const {responseId} = await submit(caseId, author, 'a weak response');
-    const {responseId: opponent} = await submit(caseId, new ObjectId().toString(), 'a stronger response');
+    const {responseId} = await submit(caseId, author);
+    const {responseId: opponent} = await submit(caseId, new ObjectId().toString());
 
     await loseTo(caseId, responseId, opponent);
 

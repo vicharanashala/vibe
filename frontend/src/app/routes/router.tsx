@@ -46,6 +46,7 @@ import AnomaliesList from '../pages/teacher/AnomaliesList'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import StudentQuestionReview from '../pages/teacher/StudentQuestionReview'
 import ReflectionReview from '../pages/teacher/ReflectionReview'
+import CaseStudiesManagement from '../pages/teacher/case-studies-management'
 import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
 // import LoginPage from '../pages/LoginPage'
@@ -384,6 +385,12 @@ const teacherReflectionsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/reflections',
   component: ReflectionReview,
+})
+
+const teacherCaseStudiesRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/case-studies',
+  component: CaseStudiesManagement,
 })
 
 
@@ -757,6 +764,7 @@ const routeTree = rootRoute.addChildren([
     teacherCourseRegistrationRequests,
     teacherStudentQuestionsRoute,
     teacherReflectionsRoute,
+    teacherCaseStudiesRoute,
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
     teacherAuditRoute,

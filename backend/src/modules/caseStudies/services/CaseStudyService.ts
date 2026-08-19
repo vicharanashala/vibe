@@ -10,9 +10,8 @@ import {CaseResponse, ICaseResponse} from '../classes/transformers/CaseResponse.
 import {CaseStudy, ICaseStudy} from '../classes/transformers/CaseStudy.js';
 import {CaseComparisonOutcome} from '../classes/transformers/CaseComparison.js';
 import {
-  CASE_STUDY_RESPONSE_MAX_WORDS,
-  DEFAULT_STRICT_UNLOCK_ENABLED,
   DEFAULT_WEAK_STREAK_THRESHOLD,
+  ELEMENT_2A_MIN_WORDS,
   MAX_LIST_LIMIT,
   computeMinimumScreenTimeSeconds,
   countWords,
@@ -21,6 +20,8 @@ import {SETTING_TYPES} from '../../setting/types.js';
 import {CourseSettingService} from '../../setting/services/CourseSettingService.js';
 import {NOTIFICATIONS_TYPES} from '../../notifications/types.js';
 import {NotificationService} from '../../notifications/services/NotificationService.js';
+import {USERS_TYPES} from '../../users/types.js';
+import {ProgressService} from '../../users/services/ProgressService.js';
 
 export type CaseStateForUser =
   | 'locked'
@@ -38,11 +39,43 @@ export interface CaseListEntry {
   state: CaseStateForUser;
   /** Present only when the user has a response for this case. */
   myResponse?: {
-    text: string;
+    beat1a: string;
+    beat1b: string;
+    beat1c: string;
+    steelman: string;
+    roomPerspective: string;
+    changeCommitment: string;
     weakStreak: number;
     /** true when weakStreak >= the course's weakStreakThreshold — client shows "Needs revision" CTA. */
     eligibleForRevision: boolean;
   };
+}
+
+export interface InstructorResponseRow {
+  responseId: string;
+  userId: string;
+  studentName: string;
+  studentEmail: string;
+  status: 'OPEN' | 'WON' | 'WITHDRAWN';
+  beat1a: string;
+  beat1b: string;
+  beat1c: string;
+  steelman: string;
+  roomPerspective: string;
+  changeCommitment: string;
+  zoomSessionDate?: string;
+  winCount: number;
+  weakStreak: number;
+  comparisonsSeenCount: number;
+  flagCount: number;
+  submittedAt: string;
+}
+
+export interface InstructorCaseGroup {
+  caseStudyId: string;
+  sequenceIndex: number;
+  title: string;
+  responses: InstructorResponseRow[];
 }
 
 /**
@@ -52,10 +85,18 @@ export interface CaseListEntry {
  * than spread from the document (see `toServedPair`), so an author-
  * identifying field added to `ICaseResponse` later can never leak into a
  * review payload by default.
+ *
+ * Only `steelman` (element 2a) is exposed — the other five fields are
+ * private to the author.
  */
 export interface ServedPairResponseView {
   responseId: string;
-  text: string;
+  beat1a: string;
+  beat1b: string;
+  beat1c: string;
+  steelman: string;
+  roomPerspective: string;
+  changeCommitment: string;
   wordCount: number;
   /**
    * Submit this exact value as `outcome` when the participant picks this
@@ -77,7 +118,6 @@ export interface ServedPair {
 
 interface CaseStudySettings {
   enabled: boolean;
-  strictUnlockEnabled: boolean;
   weakStreakThreshold: number;
 }
 
@@ -90,9 +130,11 @@ export class CaseStudyService {
     private readonly courseSettingService: CourseSettingService,
     @inject(NOTIFICATIONS_TYPES.NotificationService)
     private readonly notificationService: NotificationService,
+    @inject(USERS_TYPES.ProgressService)
+    private readonly progressService: ProgressService,
   ) {}
 
-  /** Resolves the course-version-level toggles that govern this feature (PLANNING.md §4.2/§4.9). */
+  /** Resolves the course-version-level toggles that govern this feature. */
   private async getCaseStudySettings(
     courseId: string,
     courseVersionId: string,
@@ -103,9 +145,6 @@ export class CaseStudyService {
     );
     return {
       enabled: courseSettings?.settings?.caseStudiesEnabled ?? false,
-      strictUnlockEnabled:
-        courseSettings?.settings?.caseStudyStrictUnlockEnabled ??
-        DEFAULT_STRICT_UNLOCK_ENABLED,
       weakStreakThreshold:
         courseSettings?.settings?.caseStudyWeakStreakThreshold ??
         DEFAULT_WEAK_STREAK_THRESHOLD,
@@ -175,11 +214,11 @@ export class CaseStudyService {
   }
 
   /**
-   * Every case in a version, annotated with this user's own state. Sequence
-   * unlock depends on the course's `caseStudyStrictUnlockEnabled` setting:
-   * strict mode requires the previous case's response to have reached WON
-   * status through peer review; non-strict (default) unlocks the next case
-   * as soon as the previous one has any submitted response.
+   * Every case in a version, annotated with this user's own state.
+   *
+   * Unlock is video-gated: a case is writable when the student has completed
+   * the case's `linkedItemId` video. Cases with no `linkedItemId` are always
+   * locked until an instructor links a video.
    */
   async listCasesForUser(input: {
     userId: string;
@@ -200,52 +239,53 @@ export class CaseStudyService {
       responses.map(r => [r.caseStudyId.toString(), r]),
     );
 
-    return cases.map(c => {
-      const caseId = c._id!.toString();
-      const response = responseByCase.get(caseId);
-      let state: CaseStateForUser;
-      if (response) {
-        if (response.status === 'WON') state = 'won';
-        else if (response.status === 'WITHDRAWN') state = 'withdrawn';
-        else state = 'submitted-awaiting-verdict';
-      } else {
-        // A case is writable when the user has no response for it AND either:
-        // (a) it is the first case in the sequence, or
-        // (b) the previous case is unlocked per the course's unlock mode.
-        const previousCase = cases.find(pc => pc.sequenceIndex === c.sequenceIndex - 1);
-        if (!previousCase) {
-          // First case in the sequence — writable.
-          state = 'writable';
+    return Promise.all(
+      cases.map(async c => {
+        const caseId = c._id!.toString();
+        const response = responseByCase.get(caseId);
+        let state: CaseStateForUser;
+
+        if (response) {
+          if (response.status === 'WON') state = 'won';
+          else if (response.status === 'WITHDRAWN') state = 'withdrawn';
+          else state = 'submitted-awaiting-verdict';
+        } else if (c.linkedItemId) {
+          const completed = await this.progressService.isItemCompleted(
+            input.userId,
+            input.courseId,
+            input.courseVersionId,
+            c.linkedItemId.toString(),
+          );
+          state = completed ? 'writable' : 'locked';
         } else {
-          const prevResponse = responseByCase.get(previousCase._id!.toString());
-          state = settings.strictUnlockEnabled
-            ? prevResponse?.status === 'WON'
-              ? 'writable'
-              : 'locked'
-            : prevResponse
-              ? 'writable'
-              : 'locked';
+          state = 'locked';
         }
-      }
-      const entry: CaseListEntry = {
-        caseStudyId: caseId,
-        sequenceIndex: c.sequenceIndex,
-        title: c.title,
-        bodyMarkdown: c.bodyMarkdown,
-        linkedItemId: c.linkedItemId ? c.linkedItemId.toString() : null,
-        state,
-      };
-      if (response) {
-        entry.myResponse = {
-          text: response.text,
-          weakStreak: response.weakStreak,
-          eligibleForRevision:
-            settings.weakStreakThreshold > 0 &&
-            response.weakStreak >= settings.weakStreakThreshold,
+
+        const entry: CaseListEntry = {
+          caseStudyId: caseId,
+          sequenceIndex: c.sequenceIndex,
+          title: c.title,
+          bodyMarkdown: c.bodyMarkdown,
+          linkedItemId: c.linkedItemId ? c.linkedItemId.toString() : null,
+          state,
         };
-      }
-      return entry;
-    });
+        if (response) {
+          entry.myResponse = {
+            beat1a: response.beat1a,
+            beat1b: response.beat1b,
+            beat1c: response.beat1c,
+            steelman: response.steelman,
+            roomPerspective: response.roomPerspective,
+            changeCommitment: response.changeCommitment,
+            weakStreak: response.weakStreak,
+            eligibleForRevision:
+              settings.weakStreakThreshold > 0 &&
+              response.weakStreak >= settings.weakStreakThreshold,
+          };
+        }
+        return entry;
+      }),
+    );
   }
 
   async getMyResponse(input: {
@@ -262,23 +302,36 @@ export class CaseStudyService {
   }
 
   /**
-   * Record a participant's response to a case. One per participant per case;
-   * the next case in sequence only unlocks after this response reaches WON
-   * status through peer review.
+   * Record a participant's response to a case. The case must have a linked
+   * video, and the student must have completed that video.
    */
   async submitResponse(input: {
     userId: string;
     caseStudyId: string;
-    text: string;
+    beat1a: string;
+    beat1b: string;
+    beat1c: string;
+    steelman: string;
+    roomPerspective: string;
+    changeCommitment: string;
+    zoomSessionDate?: string;
   }): Promise<{responseId: string}> {
-    const text = input.text.trim();
-    const wordCount = countWords(text);
-    if (wordCount === 0) {
-      throw new BadRequestError('A response cannot be empty.');
+    const fields = {
+      beat1a: input.beat1a.trim(),
+      beat1b: input.beat1b.trim(),
+      beat1c: input.beat1c.trim(),
+      steelman: input.steelman.trim(),
+      roomPerspective: input.roomPerspective.trim(),
+      changeCommitment: input.changeCommitment.trim(),
+    };
+
+    const steelmanWordCount = countWords(fields.steelman);
+    if (steelmanWordCount === 0) {
+      throw new BadRequestError('The steelman field cannot be empty.');
     }
-    if (wordCount > CASE_STUDY_RESPONSE_MAX_WORDS) {
+    if (steelmanWordCount < ELEMENT_2A_MIN_WORDS) {
       throw new BadRequestError(
-        `A response must be at most ${CASE_STUDY_RESPONSE_MAX_WORDS} words (this one is ${wordCount}).`,
+        `The steelman must be at least ${ELEMENT_2A_MIN_WORDS} words (this one is ${steelmanWordCount}).`,
       );
     }
 
@@ -288,6 +341,25 @@ export class CaseStudyService {
       caseStudy.courseVersionId.toString(),
     );
     this.assertCaseStudiesEnabled(settings);
+
+    // Video-based unlock: the case must be linked to a video, and that video
+    // must be completed by this student.
+    if (!caseStudy.linkedItemId) {
+      throw new BadRequestError(
+        'This case study is not yet linked to a video. Awaiting video link from instructor.',
+      );
+    }
+    const videoCompleted = await this.progressService.isItemCompleted(
+      input.userId,
+      caseStudy.courseId.toString(),
+      caseStudy.courseVersionId.toString(),
+      caseStudy.linkedItemId.toString(),
+    );
+    if (!videoCompleted) {
+      throw new BadRequestError(
+        'Watch the linked video first to unlock this case study.',
+      );
+    }
 
     // Fast path: a readable rejection for the common case. The unique
     // (userId, caseStudyId) index is the real race guard.
@@ -301,53 +373,13 @@ export class CaseStudyService {
       );
     }
 
-    // Sequential unlock: Case N requires Case N-1 to be unlocked first. Case 1
-    // (no predecessor) is always allowed. The rule for what "unlocked" means is
-    // the course's `caseStudyStrictUnlockEnabled` toggle:
-    //  - strict: Case N-1's own response must have reached WON status.
-    //  - non-strict (default): Case N-1 must simply have been submitted —
-    //    equivalent to requiring at least (sequenceIndex - 1) prior responses.
-    if (caseStudy.sequenceIndex > 1) {
-      if (settings.strictUnlockEnabled) {
-        const prevCase = await this.repository.findByVersionAndSequenceIndex(
-          caseStudy.courseVersionId.toString(),
-          caseStudy.sequenceIndex - 1,
-        );
-        if (prevCase) {
-          const prevResponse = await this.repository.findUserResponse(
-            input.userId,
-            prevCase._id!.toString(),
-          );
-          if (!prevResponse || prevResponse.status !== 'WON') {
-            throw new BadRequestError(
-              `Case ${caseStudy.sequenceIndex} is not yet unlocked. Your response to the previous case must be approved by peers first.`,
-            );
-          }
-        }
-      } else {
-        // excludeCaseStudyId guards against a concurrent submission for this
-        // same case bumping the count the other request reads, which would
-        // otherwise make a still-in-flight request see itself as "one case
-        // further along" and fail with a misleading "not yet unlocked".
-        const priorResponseCount = await this.repository.countUserResponses(
-          input.userId,
-          caseStudy.courseVersionId.toString(),
-          input.caseStudyId,
-        );
-        if (priorResponseCount < caseStudy.sequenceIndex - 1) {
-          throw new BadRequestError(
-            `Case ${caseStudy.sequenceIndex} is not yet unlocked. Submit your response to the previous case first.`,
-          );
-        }
-      }
-    }
-
     const responseId = await this.repository.createResponse(
       new CaseResponse({
         userId: input.userId,
         courseVersionId: caseStudy.courseVersionId.toString(),
         caseStudyId: input.caseStudyId,
-        text,
+        ...fields,
+        zoomSessionDate: input.zoomSessionDate,
       }),
     );
     if (responseId === null) {
@@ -391,8 +423,8 @@ export class CaseStudyService {
     const [responseA, responseB] = candidate;
 
     const minimumScreenTimeSeconds = computeMinimumScreenTimeSeconds(
-      countWords(responseA.text),
-      countWords(responseB.text),
+      countWords(responseA.steelman),
+      countWords(responseB.steelman),
     );
 
     const comparison = await this.repository.createComparison({
@@ -436,14 +468,24 @@ export class CaseStudyService {
 
     const viewA: ServedPairResponseView = {
       responseId: responseA._id!.toString(),
-      text: responseA.text,
-      wordCount: countWords(responseA.text),
+      beat1a: responseA.beat1a,
+      beat1b: responseA.beat1b,
+      beat1c: responseA.beat1c,
+      steelman: responseA.steelman,
+      roomPerspective: responseA.roomPerspective,
+      changeCommitment: responseA.changeCommitment,
+      wordCount: countWords(responseA.steelman),
       outcome: 'A',
     };
     const viewB: ServedPairResponseView = {
       responseId: responseB._id!.toString(),
-      text: responseB.text,
-      wordCount: countWords(responseB.text),
+      beat1a: responseB.beat1a,
+      beat1b: responseB.beat1b,
+      beat1c: responseB.beat1c,
+      steelman: responseB.steelman,
+      roomPerspective: responseB.roomPerspective,
+      changeCommitment: responseB.changeCommitment,
+      wordCount: countWords(responseB.steelman),
       outcome: 'B',
     };
 
@@ -557,7 +599,7 @@ export class CaseStudyService {
   }
 
   /**
-   * Replace a response's text and start a fresh 7-review cycle.
+   * Replace a response's six fields and start a fresh review cycle.
    * Only callable when the response has reached the weak-streak threshold,
    * meaning the notification has already fired and the author has been
    * explicitly prompted to revise.
@@ -565,16 +607,29 @@ export class CaseStudyService {
   async reviseResponse(input: {
     userId: string;
     caseStudyId: string;
-    text: string;
+    beat1a: string;
+    beat1b: string;
+    beat1c: string;
+    steelman: string;
+    roomPerspective: string;
+    changeCommitment: string;
   }): Promise<{responseId: string}> {
-    const text = input.text.trim();
-    const wordCount = countWords(text);
-    if (wordCount === 0) {
-      throw new BadRequestError('A response cannot be empty.');
+    const fields = {
+      beat1a: input.beat1a.trim(),
+      beat1b: input.beat1b.trim(),
+      beat1c: input.beat1c.trim(),
+      steelman: input.steelman.trim(),
+      roomPerspective: input.roomPerspective.trim(),
+      changeCommitment: input.changeCommitment.trim(),
+    };
+
+    const steelmanWordCount = countWords(fields.steelman);
+    if (steelmanWordCount === 0) {
+      throw new BadRequestError('The steelman field cannot be empty.');
     }
-    if (wordCount > CASE_STUDY_RESPONSE_MAX_WORDS) {
+    if (steelmanWordCount < ELEMENT_2A_MIN_WORDS) {
       throw new BadRequestError(
-        `A response must be at most ${CASE_STUDY_RESPONSE_MAX_WORDS} words (this one is ${wordCount}).`,
+        `The steelman must be at least ${ELEMENT_2A_MIN_WORDS} words (this one is ${steelmanWordCount}).`,
       );
     }
 
@@ -610,7 +665,7 @@ export class CaseStudyService {
     const revised = await this.repository.reviseResponse(
       input.userId,
       input.caseStudyId,
-      text,
+      fields,
     );
     if (!revised) {
       throw new BadRequestError('Revision failed. Your response may have already been approved by peers.');
@@ -621,6 +676,50 @@ export class CaseStudyService {
   // ---------------------------------------------------------------------
   // Instructor / admin
   // ---------------------------------------------------------------------
+
+  async getResponsesForInstructor(courseVersionId: string): Promise<InstructorCaseGroup[]> {
+    const [cases, responses] = await Promise.all([
+      this.repository.listByCourseVersion(courseVersionId),
+      this.repository.listAllResponsesByVersion(courseVersionId),
+    ]);
+
+    const byCase = new Map<string, InstructorResponseRow[]>();
+    for (const c of cases) byCase.set(c._id!.toString(), []);
+
+    for (const r of responses) {
+      const caseId = r.caseStudyId.toString();
+      if (!byCase.has(caseId)) continue;
+      byCase.get(caseId)!.push({
+        responseId: r._id!.toString(),
+        userId: r.userId.toString(),
+        studentName: r.student
+          ? [r.student.firstName, r.student.lastName].filter(Boolean).join(' ')
+          : r.userId.toString(),
+        studentEmail: r.student?.email ?? '—',
+        status: r.status,
+        // Fall back to legacy `text` field for responses submitted before the 6-field schema.
+        beat1a: r.beat1a ?? (r as any).text ?? '',
+        beat1b: r.beat1b ?? '',
+        beat1c: r.beat1c ?? '',
+        steelman: r.steelman ?? '',
+        roomPerspective: r.roomPerspective ?? '',
+        changeCommitment: r.changeCommitment ?? '',
+        zoomSessionDate: r.zoomSessionDate,
+        winCount: r.winCount,
+        weakStreak: r.weakStreak,
+        comparisonsSeenCount: r.comparisonsSeenCount,
+        flagCount: r.flagCount,
+        submittedAt: r.createdAt.toISOString(),
+      });
+    }
+
+    return cases.map(c => ({
+      caseStudyId: c._id!.toString(),
+      sequenceIndex: c.sequenceIndex,
+      title: c.title,
+      responses: byCase.get(c._id!.toString()) ?? [],
+    }));
+  }
 
   async createCaseStudy(input: {
     courseId: string;

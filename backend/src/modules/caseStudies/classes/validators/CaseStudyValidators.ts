@@ -6,10 +6,9 @@ import {
   IsOptional,
   IsString,
   Min,
-  MaxLength,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {CASE_STUDY_RESPONSE_MAX_WORDS} from '../../constants.js';
+import {ELEMENT_2A_MIN_WORDS} from '../../constants.js';
 
 export class CaseStudyCoursePathParams {
   @IsMongoId()
@@ -32,13 +31,41 @@ export class ComparisonIdPathParams {
 export class SubmitCaseResponseBody {
   @IsString()
   @IsNotEmpty()
-  @MaxLength(2000)
+  @JSONSchema({description: 'Element 1a — what the participant thought going in (~1 sentence).'})
+  beat1a!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @JSONSchema({description: 'Element 1b — what challenged that position, or what gave most pause (~1 sentence).'})
+  beat1b!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @JSONSchema({description: 'Element 1c — where the participant ended up (~1 sentence).'})
+  beat1c!: string;
+
+  @IsString()
+  @IsNotEmpty()
   @JSONSchema({
-    description: `The participant's response to the case study, capped at ${CASE_STUDY_RESPONSE_MAX_WORDS} words (checked server-side by Unicode-aware word count, not character count).`,
-    example:
-      'I would start by asking the student what specifically confused them...',
+    description: `Element 2a — strongest case against where they landed (≥ ${ELEMENT_2A_MIN_WORDS} words, checked server-side). This is the only field shown to peer reviewers.`,
+    example: 'The strongest counterargument is that students who are confused often need direct explanation first, and Socratic questioning can feel frustrating when the student genuinely does not know what they do not know.',
   })
-  text!: string;
+  steelman!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @JSONSchema({description: "Element 2b — one perspective from the room; stored but never shown to reviewers. 'Room broadly agreed with me' is a valid answer."})
+  roomPerspective!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @JSONSchema({description: 'Element 3 — one concrete thing to change; must answer the cost named in the steelman.'})
+  changeCommitment!: string;
+
+  @IsOptional()
+  @IsString()
+  @JSONSchema({description: 'ISO date string (YYYY-MM-DD) from the Zoom session declaration gate. Stored verbatim, not validated.'})
+  zoomSessionDate?: string;
 }
 
 export class SubmitPickBody {
@@ -77,7 +104,7 @@ export class CreateCaseStudyBody {
   @IsOptional()
   @IsMongoId()
   @JSONSchema({
-    description: 'The video item this case follows, if any. Informational only.',
+    description: 'The video item ID that unlocks this case when watched. Cases without a linked video are always locked for students.',
   })
   linkedItemId?: string;
 }

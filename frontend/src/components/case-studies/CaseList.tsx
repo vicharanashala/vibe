@@ -19,7 +19,7 @@ const STATE_META: Record<
     label: 'Submitted',
     className: 'text-muted-foreground',
   },
-  won: {icon: Trophy, label: 'Won', className: 'text-emerald-600 dark:text-emerald-400'},
+  won: {icon: Trophy, label: 'Completed', className: 'text-emerald-600 dark:text-emerald-400'},
   withdrawn: {icon: AlertTriangle, label: 'Flagged — revise', className: 'text-destructive'},
 };
 
@@ -35,7 +35,7 @@ export default function CaseList({cases, activeCaseId, onSelectCase}: CaseListPr
         const meta = needsRevision
           ? {
               icon: AlertTriangle,
-              label: 'Needs revision',
+              label: 'Might need revision',
               className: 'text-amber-600 dark:text-amber-400',
             }
           : STATE_META[c.state];

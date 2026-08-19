@@ -11,23 +11,41 @@ interface ComparisonViewProps {
   anomalyContext: {courseId: string; versionId: string; itemId: string};
 }
 
+function Field({label, value}: {label: string; value: string}) {
+  return (
+    <div className="space-y-0.5">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="whitespace-pre-line text-sm leading-relaxed">{value}</p>
+    </div>
+  );
+}
+
 function ResponseCard({side, label}: {side: ServedPairSide; label: string}) {
   return (
-    <div className="flex-1 space-y-2 rounded-lg border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
-        <span className="text-xs text-muted-foreground">{side.wordCount} words</span>
+    <div className="flex-1 space-y-4 rounded-lg border bg-card p-4">
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <div className="space-y-3 border-t pt-3">
+        <Field label="What I thought going in" value={side.beat1a} />
+        <Field label="What challenged it" value={side.beat1b} />
+        <Field label="Where I ended up" value={side.beat1c} />
       </div>
-      <p className="whitespace-pre-line text-sm leading-relaxed">{side.text}</p>
+      <div className="space-y-0.5 border-t pt-3">
+        <p className="text-xs font-medium text-muted-foreground">Strongest case against my view</p>
+        <p className="whitespace-pre-line text-sm leading-relaxed">{side.steelman}</p>
+      </div>
+      <div className="space-y-3 border-t pt-3">
+        <Field label="One perspective from the room" value={side.roomPerspective} />
+        <Field label="One thing I'll change" value={side.changeCommitment} />
+      </div>
     </div>
   );
 }
 
 /**
- * Split-view pair with a forced-choice verdict — laid out so "both good" is
- * structurally absent (PLANNING.md §4.5), not just an unlisted option. Pick
- * buttons stay disabled until `ReadingTimerGate` clears; that is UX only —
- * the server independently re-validates the real elapsed time (§4.8).
+ * Split-view pair showing two steelman arguments (element 2a only — no other
+ * response fields are exposed to reviewers). Pick buttons stay disabled until
+ * `ReadingTimerGate` clears; that is UX only — the server independently
+ * re-validates the real elapsed time (§4.8).
  */
 export default function ComparisonView({pair, onPick, anomalyContext}: ComparisonViewProps) {
   const [locked, setLocked] = useState(true);

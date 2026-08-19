@@ -7,8 +7,11 @@
  * losses never count against it.
  */
 
-/** A response's text is capped at this many words (Unicode-aware, see countWords). */
-export const CASE_STUDY_RESPONSE_MAX_WORDS = 150;
+/** Minimum word count for the steelman field (element 2a) — enforced server-side. */
+export const ELEMENT_2A_MIN_WORDS = 25;
+
+/** Soft guidance ceiling for the total of all six response fields — shown in the UI, not hard-blocked. */
+export const RESPONSE_TOTAL_GUIDANCE_MAX = 200;
 
 /** Times a response must be picked as "better" before it leaves the review pool. */
 export const WINS_REQUIRED = 7;
@@ -64,9 +67,8 @@ export function countWords(text: string): number {
 }
 
 /**
- * The reading-timer lock, from PLANNING.md §4.6's worked-backward formula: a
- * full 300-word pair (two 150-word responses) locks the screen for
- * 300 / 1.25 * 1.4 ≈ 336 seconds at the defaults above.
+ * The reading-timer lock formula: minimum time is computed from both steelman
+ * word counts. E.g. two 50-word steelmans → 100 / 1.25 * 1.4 ≈ 112 seconds.
  */
 export function computeMinimumScreenTimeSeconds(
   wordCountA: number,

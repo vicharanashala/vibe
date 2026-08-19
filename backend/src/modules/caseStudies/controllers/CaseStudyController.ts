@@ -95,7 +95,13 @@ export class CaseStudyController {
     return this.service.submitResponse({
       userId: this.requireUserId(user),
       caseStudyId: params.caseStudyId,
-      text: body.text,
+      beat1a: body.beat1a,
+      beat1b: body.beat1b,
+      beat1c: body.beat1c,
+      steelman: body.steelman,
+      roomPerspective: body.roomPerspective,
+      changeCommitment: body.changeCommitment,
+      zoomSessionDate: body.zoomSessionDate,
     });
   }
 
@@ -113,7 +119,12 @@ export class CaseStudyController {
     return this.service.reviseResponse({
       userId: this.requireUserId(user),
       caseStudyId: params.caseStudyId,
-      text: body.text,
+      beat1a: body.beat1a,
+      beat1b: body.beat1b,
+      beat1c: body.beat1c,
+      steelman: body.steelman,
+      roomPerspective: body.roomPerspective,
+      changeCommitment: body.changeCommitment,
     });
   }
 
@@ -218,6 +229,18 @@ export class CaseStudyController {
   ) {
     this.assertCanManageVersion(ability, params.versionId);
     return this.service.getInstructorStats(params.versionId);
+  }
+
+  @Authorized()
+  @Get('/courses/:courseId/versions/:versionId/responses')
+  @HttpCode(200)
+  async listAllResponses(
+    @Params() params: CaseStudyCoursePathParams,
+    @Ability(getCourseVersionAbility) {ability}: any,
+  ) {
+    this.assertCanManageVersion(ability, params.versionId);
+    const cases = await this.service.getResponsesForInstructor(params.versionId);
+    return {cases};
   }
 
   private requireUserId(user: IUser): string {

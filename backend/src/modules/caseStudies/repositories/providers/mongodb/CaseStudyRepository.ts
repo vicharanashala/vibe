@@ -292,6 +292,29 @@ export class CaseStudyRepository {
       .toArray();
   }
 
+  async listAllResponsesByVersion(
+    courseVersionId: string,
+  ): Promise<Array<ICaseResponse & {student: {firstName: string; lastName?: string; email: string} | null}>> {
+    await this.init();
+    return this.caseResponses
+      .aggregate<any>([
+        {$match: {courseVersionId: new ObjectId(courseVersionId)}},
+        {$sort: {caseStudyId: 1, createdAt: 1}},
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            pipeline: [{$project: {firstName: 1, lastName: 1, email: 1}}],
+            as: '_user',
+          },
+        },
+        {$addFields: {student: {$arrayElemAt: ['$_user', 0]}}},
+        {$project: {_user: 0}},
+      ])
+      .toArray();
+  }
+
   async findUserResponse(
     userId: string,
     caseStudyId: string,
@@ -339,7 +362,14 @@ export class CaseStudyRepository {
   async reviseResponse(
     userId: string,
     caseStudyId: string,
-    newText: string,
+    fields: {
+      beat1a: string;
+      beat1b: string;
+      beat1c: string;
+      steelman: string;
+      roomPerspective: string;
+      changeCommitment: string;
+    },
   ): Promise<boolean> {
     await this.init();
     const updated = await this.caseResponses.findOneAndUpdate(
@@ -350,7 +380,7 @@ export class CaseStudyRepository {
       },
       {
         $set: {
-          text: newText,
+          ...fields,
           status: 'OPEN',
           winCount: 0,
           weakStreak: 0,
@@ -430,19 +460,34 @@ export class CaseStudyRepository {
     const seenPairs = await this.caseComparisons
       .find(
         {reviewerId: reviewerObjId, caseStudyId: caseObjId},
-        {projection: {responseAId: 1, responseBId: 1}},
+        {projection: {responseAId: 1, responseBId: 1, outcome: 1}},
       )
       .toArray();
     const seenKeys = new Set(
       seenPairs.map(p => `${p.responseAId.toString()}:${p.responseBId.toString()}`),
     );
 
-    for (let i = 0; i < pool.length; i++) {
-      for (let j = i + 1; j < pool.length; j++) {
-        const [a, b] = normalizePair(pool[i]._id!, pool[j]._id!);
+    // After a revision the old decided comparisons remain; exclude those response
+    // IDs so a revised response is never served to a reviewer who already judged it.
+    const judgedResponseIds = new Set<string>();
+    for (const p of seenPairs) {
+      if (p.outcome !== undefined) {
+        judgedResponseIds.add(p.responseAId.toString());
+        judgedResponseIds.add(p.responseBId.toString());
+      }
+    }
+    const eligiblePool = judgedResponseIds.size > 0
+      ? pool.filter(r => !judgedResponseIds.has(r._id!.toString()))
+      : pool;
+
+    if (eligiblePool.length < 2) return null;
+
+    for (let i = 0; i < eligiblePool.length; i++) {
+      for (let j = i + 1; j < eligiblePool.length; j++) {
+        const [a, b] = normalizePair(eligiblePool[i]._id!, eligiblePool[j]._id!);
         const key = `${a.toString()}:${b.toString()}`;
         if (!seenKeys.has(key)) {
-          return [pool[i], pool[j]];
+          return [eligiblePool[i], eligiblePool[j]];
         }
       }
     }

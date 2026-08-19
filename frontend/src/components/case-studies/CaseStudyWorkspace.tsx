@@ -1,6 +1,8 @@
 import {useState} from 'react';
 import {AlertCircle, ArrowLeft, Loader2} from 'lucide-react';
 import {Button} from '@/components/ui/button';
+import {Checkbox} from '@/components/ui/checkbox';
+import {Input} from '@/components/ui/input';
 import {enterFullscreen} from '@/utils/fullscreen';
 import {
   useMyCaseResponse,
@@ -13,6 +15,7 @@ import {
 import CaseList from './CaseList';
 import CaseComposer from './CaseComposer';
 import ComparisonView from './ComparisonView';
+import type {CaseResponseInput} from '@/lib/api/case-studies';
 
 interface CaseStudyWorkspaceProps {
   courseId: string;
@@ -110,7 +113,7 @@ export default function CaseStudyWorkspace({courseId, versionId}: CaseStudyWorks
           caseStudyId={activeCase.caseStudyId}
           title={`Case ${activeCase.sequenceIndex}: ${activeCase.title}`}
           bodyMarkdown={activeCase.bodyMarkdown}
-          existingText={activeCase.myResponse?.text ?? ''}
+          existingResponse={activeCase.myResponse}
           composerMode="revise"
           onRevised={() => setMode('review')}
         />
@@ -121,7 +124,7 @@ export default function CaseStudyWorkspace({courseId, versionId}: CaseStudyWorks
           caseStudyId={activeCase.caseStudyId}
           title={`Case ${activeCase.sequenceIndex}: ${activeCase.title}`}
           bodyMarkdown={activeCase.bodyMarkdown}
-          existingText={activeCase.myResponse?.text ?? ''}
+          existingResponse={activeCase.myResponse}
           composerMode="withdrawn"
           onRevised={() => setMode('review')}
         />
@@ -148,6 +151,58 @@ function CaseComposerPane({
   onSubmitted: () => void;
 }) {
   const submit = useSubmitCaseResponse({courseId, versionId}, caseStudyId);
+  const [gateStep, setGateStep] = useState<'declaration' | 'date' | 'composing'>('declaration');
+  const [declared, setDeclared] = useState(false);
+  const [zoomSessionDate, setZoomSessionDate] = useState('');
+
+  if (gateStep === 'declaration') {
+    return (
+      <div className="space-y-6 rounded-lg border p-6">
+        <div>
+          <h3 className="text-base font-semibold">Before you begin</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Please confirm your participation before accessing this case study.
+          </p>
+        </div>
+        <label className="flex cursor-pointer items-start gap-3">
+          <Checkbox
+            id="zoom-declaration"
+            checked={declared}
+            onCheckedChange={v => setDeclared(v === true)}
+            className="mt-0.5"
+          />
+          <span className="text-sm leading-snug">
+            I confirm that I have watched the relevant Zoom session and participated in the breakout discussion for this case.
+          </span>
+        </label>
+        <Button disabled={!declared} onClick={() => setGateStep('date')}>
+          Continue
+        </Button>
+      </div>
+    );
+  }
+
+  if (gateStep === 'date') {
+    return (
+      <div className="space-y-6 rounded-lg border p-6">
+        <div>
+          <h3 className="text-base font-semibold">Zoom session date</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Enter the date of the Zoom session you attended.
+          </p>
+        </div>
+        <Input
+          type="date"
+          value={zoomSessionDate}
+          onChange={e => setZoomSessionDate(e.target.value)}
+          className="max-w-xs"
+        />
+        <Button disabled={!zoomSessionDate} onClick={() => setGateStep('composing')}>
+          OK
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <CaseComposer
@@ -155,8 +210,8 @@ function CaseComposerPane({
       bodyMarkdown={bodyMarkdown}
       isSubmitting={submit.isPending}
       anomalyContext={{courseId, versionId, itemId: caseStudyId}}
-      onSubmit={async text => {
-        await submit.mutateAsync(text);
+      onSubmit={async response => {
+        await submit.mutateAsync({...response, zoomSessionDate});
         onSubmitted();
       }}
     />
@@ -169,7 +224,7 @@ function RevisePane({
   caseStudyId,
   title,
   bodyMarkdown,
-  existingText,
+  existingResponse,
   composerMode = 'revise',
   onRevised,
 }: {
@@ -178,7 +233,7 @@ function RevisePane({
   caseStudyId: string;
   title: string;
   bodyMarkdown: string;
-  existingText: string;
+  existingResponse?: Partial<CaseResponseInput>;
   composerMode?: 'revise' | 'withdrawn';
   onRevised: () => void;
 }) {
@@ -191,9 +246,9 @@ function RevisePane({
       isSubmitting={revise.isPending}
       anomalyContext={{courseId, versionId, itemId: caseStudyId}}
       mode={composerMode}
-      existingText={existingText}
-      onSubmit={async text => {
-        await revise.mutateAsync(text);
+      existingResponse={existingResponse}
+      onSubmit={async response => {
+        await revise.mutateAsync(response);
         onRevised();
       }}
     />
@@ -242,7 +297,7 @@ function ReviewPane({
           <p className="mt-1 text-muted-foreground">
             {mine.winCount} win{mine.winCount === 1 ? '' : 's'} ·{' '}
             {mine.status === 'WON'
-              ? 'Won'
+              ? 'Completed'
               : mine.status === 'WITHDRAWN'
                 ? 'Flagged for revision'
                 : 'In review'}

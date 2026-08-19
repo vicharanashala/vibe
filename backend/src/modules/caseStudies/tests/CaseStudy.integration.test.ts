@@ -3,24 +3,28 @@ import {Db, MongoClient, ObjectId} from 'mongodb';
 import {MongoMemoryReplSet} from 'mongodb-memory-server';
 import {CaseStudyRepository} from '../repositories/providers/mongodb/CaseStudyRepository.js';
 import {CaseStudyService} from '../services/CaseStudyService.js';
-import {WINS_REQUIRED} from '../constants.js';
+import {ELEMENT_2A_MIN_WORDS, WINS_REQUIRED} from '../constants.js';
 
-/** Stands in for CourseSettingService — case studies enabled, strict (WON-gated) unlock by default. */
 class FakeCourseSettingService {
   async readCourseSettings() {
     return {
       settings: {
         caseStudiesEnabled: true,
-        caseStudyStrictUnlockEnabled: true,
         caseStudyWeakStreakThreshold: 3,
       },
     };
   }
 }
 
-/** Stands in for NotificationService — this suite only asserts on repository-level behaviour. */
 class FakeNotificationService {
   async createNotification() {}
+}
+
+/** All items are considered completed; every case seeded here has a linked video. */
+class FakeProgressService {
+  async isItemCompleted() {
+    return true;
+  }
 }
 
 /**
@@ -52,19 +56,35 @@ let service: CaseStudyService;
 const COURSE = new ObjectId().toString();
 const VERSION = new ObjectId().toString();
 
+const VALID_STEELMAN = Array.from({length: ELEMENT_2A_MIN_WORDS}, (_, i) => `word${i}`).join(' ');
+const LONG_STEELMAN = Array.from({length: 50}, (_, i) => `word${i}`).join(' ');
+
 async function seedCase(sequenceIndex: number): Promise<string> {
+  const linkedItemId = new ObjectId().toString();
   const {caseStudyId} = await service.createCaseStudy({
     courseId: COURSE,
     courseVersionId: VERSION,
     sequenceIndex,
     title: `Case ${sequenceIndex}`,
     bodyMarkdown: 'A prompt.',
+    linkedItemId,
   });
   return caseStudyId;
 }
 
-async function submit(caseStudyId: string, userId = new ObjectId().toString(), text = 'one two three') {
-  return service.submitResponse({userId, caseStudyId, text});
+function makeFields(steelman = VALID_STEELMAN) {
+  return {
+    beat1a: 'What I thought going in.',
+    beat1b: 'What challenged me.',
+    beat1c: 'Where I ended up.',
+    steelman,
+    roomPerspective: 'One perspective from the room.',
+    changeCommitment: 'One thing I will change.',
+  };
+}
+
+async function submit(caseStudyId: string, userId = new ObjectId().toString(), steelman = VALID_STEELMAN) {
+  return service.submitResponse({userId, caseStudyId, ...makeFields(steelman)});
 }
 
 /** Back-date a comparison's servedAt so its reading timer has already cleared. */
@@ -89,6 +109,7 @@ beforeAll(async () => {
     repo,
     new FakeCourseSettingService() as never,
     new FakeNotificationService() as never,
+    new FakeProgressService() as never,
   );
 }, 60_000);
 
@@ -127,10 +148,6 @@ describe('case studies — real MongoDB', () => {
     await submit(caseId, new ObjectId().toString());
     const reviewer = new ObjectId().toString();
 
-    // Two concurrent "next pair" requests from the same reviewer with no
-    // pending pair yet — createComparison's unique index must let exactly
-    // one through, and the loser must fall back to the winner's pair rather
-    // than erroring.
     const [pairA, pairB] = await Promise.all([
       service.getNextPair({reviewerId: reviewer, caseStudyId: caseId}),
       service.getNextPair({reviewerId: reviewer, caseStudyId: caseId}),
@@ -157,8 +174,9 @@ describe('case studies — real MongoDB', () => {
 
   it('rejects a pick before the server-computed minimum reading time elapses', async () => {
     const caseId = await seedCase(1);
-    await submit(caseId, new ObjectId().toString(), 'x'.repeat(300));
-    await submit(caseId, new ObjectId().toString(), 'x'.repeat(300));
+    // Long steelmans → higher word count → positive minimumScreenTimeSeconds.
+    await submit(caseId, new ObjectId().toString(), LONG_STEELMAN);
+    await submit(caseId, new ObjectId().toString(), LONG_STEELMAN);
     const reviewer = new ObjectId().toString();
 
     const pair = await service.getNextPair({reviewerId: reviewer, caseStudyId: caseId});
@@ -193,29 +211,22 @@ describe('case studies — real MongoDB', () => {
     const caseId = await seedCase(1);
     const author = new ObjectId().toString();
     const {responseId} = await submit(caseId, author);
-    // Enough opponents that pickPairCandidate always has two OPEN responses.
     for (let i = 0; i < WINS_REQUIRED + 2; i++) {
       await submit(caseId, new ObjectId().toString());
     }
 
-    // Drive the target response to one win below the threshold sequentially.
     for (let i = 0; i < WINS_REQUIRED - 1; i++) {
       const reviewer = new ObjectId().toString();
       const pair = await service.getNextPair({reviewerId: reviewer, caseStudyId: caseId});
       await clearTimer(pair!.comparisonId);
-      const outcome = pair!.left.responseId === responseId ? pair!.left.outcome : pair!.right.outcome;
-      // If this pair doesn't include the target response, flag it out of the
-      // way (BOTH_WEAK) and keep going — we only care about wins landing on
-      // `responseId` specifically for this test's setup.
       if (pair!.left.responseId === responseId || pair!.right.responseId === responseId) {
+        const outcome = pair!.left.responseId === responseId ? pair!.left.outcome : pair!.right.outcome;
         await service.submitPick({reviewerId: reviewer, comparisonId: pair!.comparisonId, outcome});
       } else {
         await service.submitPick({reviewerId: reviewer, comparisonId: pair!.comparisonId, outcome: 'BOTH_WEAK'});
       }
     }
 
-    // Now fire several concurrent winning picks that could all push it over
-    // the threshold at once — the WON flip must still happen exactly once.
     const finalReviewers = Array.from({length: 5}, () => new ObjectId().toString());
     await Promise.allSettled(
       finalReviewers.map(async reviewerId => {
@@ -241,7 +252,7 @@ describe('case studies — real MongoDB', () => {
   it('does NOT withdraw a response even after multiple FLAGGED verdicts', async () => {
     const caseId = await seedCase(1);
     const author = new ObjectId().toString();
-    const {responseId} = await submit(caseId, author, 'garbled');
+    const {responseId} = await submit(caseId, author);
     await submit(caseId, new ObjectId().toString());
 
     for (let i = 0; i < 3; i++) {
@@ -253,7 +264,6 @@ describe('case studies — real MongoDB', () => {
     }
 
     const doc = await db.collection('caseResponses').findOne({_id: new ObjectId(responseId)});
-    // Flags are tracked for analytics but never change status.
     expect(doc?.flagCount).toBeGreaterThan(0);
     expect(doc?.status).not.toBe('WITHDRAWN');
   });
@@ -280,6 +290,20 @@ describe('case studies — real MongoDB', () => {
     });
     expect(cases).toHaveLength(2);
     expect(cases.find(c => c.sequenceIndex === 1)!.title).toBe('Revised title');
+  });
+
+  it('exposes steelman in the served pair — not text, beat1a, or roomPerspective', async () => {
+    const caseId = await seedCase(1);
+    await submit(caseId, new ObjectId().toString());
+    await submit(caseId, new ObjectId().toString());
+    const pair = await service.getNextPair({
+      reviewerId: new ObjectId().toString(),
+      caseStudyId: caseId,
+    });
+    expect(pair!.left).toHaveProperty('steelman');
+    expect(pair!.left).not.toHaveProperty('text');
+    expect(pair!.left).not.toHaveProperty('beat1a');
+    expect(pair!.left).not.toHaveProperty('roomPerspective');
   });
 
   it('reports integration progress facts without a completion boolean', async () => {

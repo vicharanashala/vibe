@@ -9,7 +9,10 @@ import {ObjectId} from 'mongodb';
 export type CaseResponseStatus = 'OPEN' | 'WON' | 'WITHDRAWN';
 
 /**
- * One participant's response to one case study.
+ * One participant's response to one case study — structured as six elements
+ * (FR-12). Only `steelman` (element 2a) is exposed to peer reviewers; the
+ * remaining fields inform the author's own reflection and are stored but not
+ * shared with anyone else.
  *
  * `winCount`/`comparisonsSeenCount`/`flagCount` are denormalised onto the
  * document so the pair-selection query can sort "least-served first" and the
@@ -22,8 +25,20 @@ export interface ICaseResponse {
   userId: ObjectId;
   courseVersionId: ObjectId;
   caseStudyId: ObjectId;
-  /** The response body as written by the participant, ≤ CASE_STUDY_RESPONSE_MAX_WORDS words. */
-  text: string;
+  /** Element 1a — what the participant thought going in (~1 sentence). */
+  beat1a: string;
+  /** Element 1b — what challenged that position, or what gave most pause (~1 sentence). */
+  beat1b: string;
+  /** Element 1c — where the participant ended up (~1 sentence). */
+  beat1c: string;
+  /** Element 2a — strongest case against where they landed (≥ 25 words). Shown to reviewers. */
+  steelman: string;
+  /** Element 2b — one perspective from the room; never shown to reviewers. */
+  roomPerspective: string;
+  /** Element 3 — one thing to change; must answer the cost named in steelman (~1 sentence). */
+  changeCommitment: string;
+  /** ISO date string from the Zoom session declaration gate (YYYY-MM-DD). Not validated server-side. */
+  zoomSessionDate?: string;
   status: CaseResponseStatus;
   /** Times picked as "better" in a valid, non-flagged comparison. */
   winCount: number;
@@ -46,7 +61,13 @@ export class CaseResponse implements ICaseResponse {
   userId: ObjectId;
   courseVersionId: ObjectId;
   caseStudyId: ObjectId;
-  text: string;
+  beat1a: string;
+  beat1b: string;
+  beat1c: string;
+  steelman: string;
+  roomPerspective: string;
+  changeCommitment: string;
+  zoomSessionDate?: string;
   status: CaseResponseStatus;
   winCount: number;
   comparisonsSeenCount: number;
@@ -59,12 +80,24 @@ export class CaseResponse implements ICaseResponse {
     userId: string;
     courseVersionId: string;
     caseStudyId: string;
-    text: string;
+    beat1a: string;
+    beat1b: string;
+    beat1c: string;
+    steelman: string;
+    roomPerspective: string;
+    changeCommitment: string;
+    zoomSessionDate?: string;
   }) {
     this.userId = new ObjectId(input.userId);
     this.courseVersionId = new ObjectId(input.courseVersionId);
     this.caseStudyId = new ObjectId(input.caseStudyId);
-    this.text = input.text;
+    this.beat1a = input.beat1a;
+    this.beat1b = input.beat1b;
+    this.beat1c = input.beat1c;
+    this.steelman = input.steelman;
+    this.roomPerspective = input.roomPerspective;
+    this.changeCommitment = input.changeCommitment;
+    if (input.zoomSessionDate) this.zoomSessionDate = input.zoomSessionDate;
     this.status = 'OPEN';
     this.winCount = 0;
     this.comparisonsSeenCount = 0;
