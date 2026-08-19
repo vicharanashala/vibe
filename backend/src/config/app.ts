@@ -29,6 +29,11 @@ export const appConfig = {
   // Default ON: the slot-booking fulfillment evaluator (Phase 3) annotates ended
   // windows as FULFILLED/UNFULFILLED. Set ENABLE_FULFILLMENT_JOB='false' to stop.
   ENABLE_FULFILLMENT_JOB: env('ENABLE_FULFILLMENT_JOB') !== 'false',
+  // Default OFF, unlike the jobs above: this one closes abandoned watch
+  // sessions and moves student progress forward, so it is switched on
+  // deliberately per environment after a dry run rather than on deploy.
+  ENABLE_WATCHTIME_RECOVERY_JOB:
+    env('ENABLE_WATCHTIME_RECOVERY_JOB') === 'true',
   GOOGLE_APPLICATION_CREDENTIALS: env('GOOGLE_APPLICATION_CREDENTIALS'),
   GCP_BACKUP_BUCKET: env('GCP_BACKUP_BUCKET'),
   GCP_BACKUP_ACTIVITY_BUCKET: env('GCP_BACKUP_ACTIVITY_BUCKET'),

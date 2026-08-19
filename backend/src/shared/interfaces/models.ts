@@ -545,6 +545,12 @@ export interface IWatchTime {
   endTime?: Date;
   lastSeenAt?: Date;
   cohortId?: ID;
+  // Written by addBulkWatchTime for records the system fabricated rather than
+  // measured, so they can be told apart from genuine watch sessions.
+  isBulk?: boolean;
+  // Set by the orphan recovery job once it has judged an abandoned session, so
+  // a record that fails the watch-duration bar is not re-examined every run.
+  recoveryAttemptedAt?: Date;
 }
 
 export interface ICohort {
