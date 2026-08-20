@@ -2716,10 +2716,16 @@ class ProgressService extends BaseService {
    * completed, and refresh their enrollment percentage.
    *
    * This is the non-quiz portion of what stopItem does after it closes a watch
-   * session, reused by the orphan recovery job. It deliberately leaves out
-   * stopItem's quiz rewind, its Guru Setu override and its follow-up invite
-   * trigger: the recovery job only ever handles watch-duration items, and it
-   * must not send a student an invite off the back of a background sweep.
+   * session, reused by the orphan recovery job (#1289) and the admin manual
+   * unstick path (#1295). It deliberately leaves out stopItem's quiz rewind,
+   * its Guru Setu override and its follow-up invite trigger — neither of
+   * those callers handles quizzes, and neither should trigger a student
+   * invite off the back of a background sweep or an admin action.
+   *
+   * If itemId has no next item in sequence, this marks the whole course
+   * completed rather than refusing — callers advancing a student off their
+   * literal last remaining item should be aware of that rather than
+   * surprised by it.
    */
   private async advanceProgressAfterItemCompletion(
     userId: string,
@@ -2806,6 +2812,103 @@ class ProgressService extends BaseService {
     );
 
     return Boolean(updatedProgress);
+  }
+
+  /**
+   * Admin-only manual unstick: advance a student's currentItem past whatever
+   * item they are currently stuck on, without a genuine completion.
+   *
+   * Deliberately narrow by design (see #1295): who can call this is enforced
+   * at the controller (admin only — not instructors, not the student), and
+   * this moves exactly one item per call. To unstick a student several items
+   * back, call it again — each call is independently audited.
+   *
+   * Never fabricates a completed watchTime, since the student didn't
+   * actually watch the item — isItemCompleted/getCompletedItems only look at
+   * watchTime, so this never shows up as a genuine completion. The skip is
+   * recorded via recordAdminSkip so it stays distinguishable from an item
+   * the student simply never reached, but — known, accepted limitation —
+   * it is NOT excluded from computeCourseProgressPercent's denominator in
+   * this version. A student advanced past N items this way will show a
+   * percentage capped below 100% until admin skips are taught to that
+   * calculation the way hidden/deleted items already are. Left out of this
+   * change deliberately: that calculation is also what the live stopItem
+   * completion path depends on, and widening it needs its own review rather
+   * than riding in on an admin utility.
+   */
+  async adminAdvanceStuckStudent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    reason: string,
+    skippedBy: string,
+    cohortId?: string,
+  ): Promise<boolean> {
+    return this._withTransaction(async session => {
+      const progress = await this.progressRepository.findProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
+
+      if (!progress) {
+        throw new NotFoundError('Progress not found');
+      }
+
+      if (progress.completed) {
+        throw new BadRequestError(
+          'This student has already completed the course',
+        );
+      }
+
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion) {
+        throw new NotFoundError('Course version not found');
+      }
+
+      const itemId = progress.currentItem.toString();
+      const moduleId = progress.currentModule.toString();
+      const sectionId = progress.currentSection.toString();
+
+      await this.progressRepository.recordAdminSkip(
+        userId,
+        courseId,
+        courseVersionId,
+        {
+          itemId,
+          reason,
+          skippedBy,
+          skippedAt: new Date(),
+        },
+        cohortId,
+        session,
+      );
+
+      const advanced = await this.advanceProgressAfterItemCompletion(
+        userId,
+        courseId,
+        courseVersionId,
+        courseVersion,
+        moduleId,
+        sectionId,
+        itemId,
+        cohortId,
+        session,
+      );
+
+      if (!advanced) {
+        throw new InternalServerError(
+          'Could not advance progress — enrollment not found',
+        );
+      }
+
+      return true;
+    });
   }
 
   /**

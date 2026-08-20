@@ -1,4 +1,4 @@
-import { IProgress, IWatchTime } from '#shared/interfaces/models.js';
+import { IAdminSkip, IProgress, IWatchTime } from '#shared/interfaces/models.js';
 import { IAttempt } from '#quizzes/interfaces/grading.js';
 import { injectable, inject } from 'inversify';
 import { Collection, ObjectId, ClientSession } from 'mongodb';
@@ -590,6 +590,44 @@ class ProgressRepository {
         isDeleted: { $ne: true },
       },
       { $set: normalizedProgress },
+      { returnDocument: 'after', session },
+    );
+    return result;
+  }
+
+  /**
+   * Record that an admin manually advanced a student past an item, without a
+   * genuine completion. Appended rather than replacing anything, so a
+   * student can be skipped past more than one item over time and each skip
+   * keeps its own reason/actor/timestamp.
+   */
+  async recordAdminSkip(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    skip: IAdminSkip,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IProgress | null> {
+    await this.init();
+    const result = await this.progressCollection.findOneAndUpdate(
+      {
+        userId: { $in: [new ObjectId(userId), userId] },
+        courseId: { $in: [new ObjectId(courseId), courseId] },
+        courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        isDeleted: { $ne: true },
+      },
+      {
+        $push: {
+          adminSkips: {
+            itemId: new ObjectId(skip.itemId),
+            reason: skip.reason,
+            skippedBy: new ObjectId(skip.skippedBy),
+            skippedAt: skip.skippedAt,
+          },
+        },
+      },
       { returnDocument: 'after', session },
     );
     return result;
