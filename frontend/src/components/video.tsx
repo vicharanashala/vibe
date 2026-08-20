@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack,
 
 import { useCourseStore } from '../store/course-store';
 import { usePlayerStore } from '../store/player-store'; // Import the new store
-import type { VideoProps, YTPlayerInstance } from '@/types/video.types';
+import type { VideoProps, VideoRef, YTPlayerInstance } from '@/types/video.types';
 import { PLAYER_STATE, createHlsPlayerInstance } from './video-players/hlsPlayerInstance';
 import { resolveVideoSource } from '@/types/media.types';
 import { getVideoPlaybackUrl } from '@/lib/api/media';
@@ -58,7 +58,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-export default function Video({ URL, source, assetId, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, pauseSignal, awayPaused = false }: VideoProps) {
+const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, assetId, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, pauseSignal, awayPaused = false }: VideoProps, ref) {
   /**
    * An uploaded lesson streams HLS instead of embedding YouTube. Everything else
    * in this component — proctoring, seek gating, watch-time, overlays, keyboard
@@ -590,6 +590,32 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
     });
   }, [currentCourse, stopItem, isAlreadyWatched, completedItemIdsRef]);
 
+  /**
+   * Best-effort stop for a session that was started but never explicitly
+   * closed. Shared by the imperative handle below (used by course-page.tsx's
+   * handleNext/handlePrevVideo before navigating) and by the unmount effect
+   * further down (a fallback for paths that skip that call entirely — e.g.
+   * sidebar navigation, which today only awaits stopCurrentItem for BLOG
+   * items). A no-op if nothing was started, or if stop already ran.
+   */
+  const stopIfInProgress = useCallback(async () => {
+    const watchItemId = watchItemIdRef.current;
+    if (
+      progressStartedRef.current &&
+      !progressStoppedRef.current &&
+      !stopInFlightRef.current &&
+      watchItemId
+    ) {
+      await handleStopItem(watchItemId, 0);
+    }
+  }, [handleStopItem]);
+
+  useImperativeHandle(ref, () => ({
+    stopItem: () => {
+      void stopIfInProgress();
+    },
+  }), [stopIfInProgress]);
+
   // Pause/resume video based on doGesture
   useEffect(() => {
     const player = playerRef.current;
@@ -828,6 +854,96 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
     return () => clearInterval(interval); // cleanup on unmount
   }, [startItem.data?.watchItemId, playing, currentCourse?.watchItemId]);
 
+  const stopIfInProgressRef = useRef(stopIfInProgress);
+  stopIfInProgressRef.current = stopIfInProgress;
+
+  /**
+   * Defense in depth: record an abandoned watch session on unmount, for any
+   * path that leaves this item without calling stopItem() through the ref
+   * above. A no-op if the session was already stopped (stopIfInProgress
+   * checks progressStoppedRef), so this never double-fires against a normal
+   * stop that already ran.
+   *
+   * Declared as its own effect with no dependencies, and before the
+   * player-creation effect below, so its cleanup runs first on unmount and
+   * reads progressStartedRef/watchItemIdRef while that effect's own cleanup
+   * (which also runs on prop changes, not only unmount) still leaves them
+   * intact.
+   */
+  useEffect(() => {
+    return () => {
+      void stopIfInProgressRef.current();
+    };
+  }, []);
+
+  // Snapshot for the pagehide flush below, refreshed every render so the
+  // handler (registered once) always reads current values without needing
+  // currentCourse/seekForwardEnabled in its own dependency array.
+  const pageHideContextRef = useRef({ currentCourse, seekForwardEnabled });
+  pageHideContextRef.current = { currentCourse, seekForwardEnabled };
+
+  /**
+   * Best-effort delivery for the one case the unmount effect above cannot
+   * cover: the tab or browser being closed outright, where the page's JS
+   * stops running before a normal (non-keepalive) request can complete.
+   *
+   * Deliberately a raw `fetch` with keepalive rather than navigator.sendBeacon
+   * — sendBeacon cannot set the Authorization header this API requires, since
+   * it only ever sends as a plain POST with no custom headers, and this app
+   * authenticates with a bearer token rather than a cookie. A keepalive fetch
+   * is the browser-supported alternative that still survives page unload.
+   *
+   * No response is read and nothing is retried — the page may already be
+   * gone by the time this returns, so this is fire-and-forget by design, the
+   * same way sendBeacon would be.
+   */
+  const handlePageHide = useCallback(() => {
+    const watchItemId = watchItemIdRef.current;
+    const { currentCourse, seekForwardEnabled } = pageHideContextRef.current;
+    if (
+      !progressStartedRef.current ||
+      progressStoppedRef.current ||
+      stopInFlightRef.current ||
+      !watchItemId ||
+      !currentCourse
+    ) {
+      return;
+    }
+
+    const token = localStorage.getItem('firebase-auth-token');
+    if (!token) return;
+
+    const url =
+      `${import.meta.env.VITE_BASE_URL}/users/progress/courses/${currentCourse.courseId}` +
+      `/versions/${currentCourse.versionId ?? ''}/stop`;
+
+    try {
+      void fetch(url, {
+        method: 'POST',
+        keepalive: true,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          watchItemId,
+          itemId: currentCourse.itemId ?? '',
+          moduleId: currentCourse.moduleId ?? '',
+          sectionId: currentCourse.sectionId ?? '',
+          seekForwardEnabled,
+          nextItemId: nextItemIdRef.current,
+          cohortId: currentCourse.cohortId || undefined,
+        }),
+      });
+    } catch {
+      // Best-effort — the tab is already closing, nothing left to do if this throws.
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('pagehide', handlePageHide);
+    return () => window.removeEventListener('pagehide', handlePageHide);
+  }, [handlePageHide]);
 
   const forceHighestQuality = (player: YTPlayerInstance) => {
     const qualities = player.getAvailableQualityLevels();
@@ -1012,34 +1128,16 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
       window.onYouTubeIframeAPIReady = createPlayer;
     }
 
-    // Cleanup when component unmounts or URL changes
+    // Cleanup when component unmounts or URL changes. Note this also fires on
+    // videoId/startTimeSeconds/readyToDetect changes, not only on true unmount
+    // — the actual "stop an abandoned session" logic lives in the dedicated
+    // effect above instead, which runs only once, on unmount, before this one.
     return () => {
-// Clear any pending stop timeout
-  if (stopTimeoutRef.current) {
-    clearTimeout(stopTimeoutRef.current);
-    stopTimeoutRef.current = null;
-  }
-    // Stop if started but not yet stopped (immediate on unmount, no debounce)
-  // if (!progressStoppedRef.current && !stopInFlightRef.current && watchItemIdRef.current && currentCourse) {
-  //   stopInFlightRef.current = true;
-  //   stopItem.mutate({
-  //     params: {
-  //       path: {
-  //         courseId: currentCourse.courseId,
-  //         courseVersionId: currentCourse.versionId ?? '',
-  //       },
-  //     },
-  //     body: {
-  //       watchItemId: watchItemIdRef.current,
-  //       itemId: currentCourse.itemId ?? '',
-  //       moduleId: currentCourse.moduleId ?? '',
-  //       sectionId: currentCourse.sectionId ?? '',
-  //       seekForwardEnabled,
-  //       nextItemId,
-  //       cohortId: currentCourse.cohortId ?? '',
-  //     },
-  //   });
-  // }
+      // Clear any pending stop timeout
+      if (stopTimeoutRef.current) {
+        clearTimeout(stopTimeoutRef.current);
+        stopTimeoutRef.current = null;
+      }
       // Reset references
       progressStartedRef.current = false;
       progressStoppedRef.current = false;
@@ -2407,9 +2505,11 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
       `}</style>
     </div >
   );
-}
+});
 
+Video.displayName = 'Video';
 
+export default Video;
 
 type NavigatingOverlayProps = {
   visible: boolean;

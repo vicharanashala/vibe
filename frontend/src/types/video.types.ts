@@ -42,6 +42,14 @@ export interface VideoProps {
   awayPaused?: boolean;
 }
 
+/**
+ * Imperative handle exposed by the video player, matching ArticleRef/QuizRef so
+ * the parent can await a stop before navigating away from an in-progress video.
+ */
+export interface VideoRef {
+  stopItem: () => void;
+}
+
 
 
 /**
