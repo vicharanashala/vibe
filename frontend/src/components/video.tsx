@@ -119,7 +119,52 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
   }, [nextItemId]);
 
   // subtitlesEnabled is persisted in the player store (see usePlayerStore above).
-  const [subtitlesAvailable, setSubtitlesAvailable] = useState(false);
+  /**
+   * Only the YouTube player can show subtitles. The uploaded-video player's
+   * caption methods are no-ops and no WebVTT track is produced upstream, so the
+   * control is hidden there instead of toggling a preference that does nothing.
+   *
+   * Whether a *particular* YouTube video carries captions can't be known without
+   * loading the captions module (which would display them), so that is checked
+   * at toggle time rather than up front — see handleToggleSubtitles.
+   */
+  const subtitlesSupported = !isUploadedVideo && Boolean(videoId);
+  /** Pending caption-availability poll, cleared on re-toggle and on teardown. */
+  const captionProbeRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => () => {
+    if (captionProbeRef.current) clearTimeout(captionProbeRef.current);
+  }, []);
+
+  /** Height of the strip that covers YouTube's title/share chrome — see below. */
+  const YT_CHROME_COVER_PX = 64;
+  const ytIframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  /**
+   * Sizes the YouTube iframe, which has to be framed one of two ways.
+   *
+   * Captions OFF — the iframe is grown 72px past the top and bottom of its
+   * (overflow-hidden) container. On a 16:9 stage YouTube letterboxes the extra
+   * height, so the video still fills the container exactly and it is only the
+   * black bars — and the chrome drawn on them — that get clipped. Nothing of the
+   * picture is lost, which is why this stays the default.
+   *
+   * Captions ON — that same clipping is what hides the captions, because YouTube
+   * draws them into the bottom bar. So the iframe is left at container size: with
+   * no letterboxing the captions land over the bottom of the picture itself,
+   * where they are visible. YouTube's top chrome is then inside the frame too and
+   * is covered by an opaque strip instead (see the overlay in the markup).
+   *
+   * The cost of the captions-on framing is the strip of picture behind that
+   * cover, which is why it is not applied unless subtitles are actually on.
+   */
+  const applyIframeFraming = (iframeEl: HTMLIFrameElement, captionsOn: boolean) => {
+    iframeEl.style.top = captionsOn ? '0px' : '-72px';
+    iframeEl.style.height = captionsOn ? '100%' : 'calc(100% + 144px)';
+  };
+
+  useEffect(() => {
+    if (ytIframeRef.current) applyIframeFraming(ytIframeRef.current, subtitlesEnabled);
+  }, [subtitlesEnabled, playerReady]);
 
   // const [videoEnded, setVideoEnded] = useState(false);
 
@@ -144,6 +189,66 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
   // Fullscreen state
   const [isFullscreen, setIsFullscreen] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Auto-hiding control bar.
+   *
+   * Only applies where the bar floats over the picture. Docked below the video it
+   * occupies layout, so hiding it would reflow the stage and shift the video —
+   * worse than leaving it. Overlaid, it covers the picture, which is what makes
+   * getting out of the way worth doing.
+   */
+  const controlsOverlaid = focusMode || isFullscreen;
+  /** How far up from the bottom edge the cursor reveals the bar. */
+  const CONTROLS_REVEAL_ZONE_PX = 140;
+  const CONTROLS_IDLE_MS = 2200;
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const controlsHideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  /** Set while the cursor rests on the bar, which suspends the hide timer. */
+  const pointerOverControlsRef = useRef(false);
+
+  const clearControlsHideTimer = () => {
+    if (controlsHideTimerRef.current) {
+      clearTimeout(controlsHideTimerRef.current);
+      controlsHideTimerRef.current = null;
+    }
+  };
+
+  /**
+   * Hides the bar after a spell without interaction — but never while paused (a
+   * paused player with no controls reads as broken rather than clean) and never
+   * while the cursor is resting on the bar itself.
+   */
+  const scheduleControlsHide = () => {
+    clearControlsHideTimer();
+    if (!controlsOverlaid || !playing || pointerOverControlsRef.current) return;
+    controlsHideTimerRef.current = setTimeout(() => setControlsVisible(false), CONTROLS_IDLE_MS);
+  };
+
+  const revealControls = () => {
+    setControlsVisible(true);
+    scheduleControlsHide();
+  };
+
+  /** Reveals the bar when the cursor comes down into the strip above it. */
+  const handleStageMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!controlsOverlaid) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.bottom - event.clientY <= CONTROLS_REVEAL_ZONE_PX) revealControls();
+  };
+
+  // Pausing brings the bar back; playing starts it counting down again.
+  useEffect(() => {
+    if (!controlsOverlaid || !playing) {
+      clearControlsHideTimer();
+      setControlsVisible(true);
+      return;
+    }
+    scheduleControlsHide();
+    return clearControlsHideTimer;
+  }, [playing, controlsOverlaid]);
+
+  useEffect(() => clearControlsHideTimer, []);
 
   // Watch time tracking state
   const [watchTimeTrack, setWatchTimeTrack] = useState<WatchTimeTrackData>({
@@ -859,33 +964,20 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
             try {
               const iframeEl = (event.target as any).getIframe?.() as HTMLIFrameElement | undefined;
               if (iframeEl) {
-                // Enlarge the iframe ~72px past the top and bottom of its
-                // (overflow-hidden) container so YouTube's own top title and
-                // bottom control/branding chrome — which we cannot remove from a
-                // cross-origin iframe — fall outside the visible area and get
-                // clipped. For a 16:9 stage YouTube letterboxes the extra height,
-                // so the video stays full-width with no zoom; the black bars (and
-                // the chrome on them) are what gets clipped away.
+                ytIframeRef.current = iframeEl;
                 iframeEl.style.position = 'absolute';
-                iframeEl.style.top = '-72px';
                 iframeEl.style.left = '0';
                 iframeEl.style.width = '100%';
-                iframeEl.style.height = 'calc(100% + 144px)';
                 iframeEl.style.display = 'block';
+                applyIframeFraming(iframeEl, subtitlesEnabled);
               }
             } catch { /* getIframe unavailable — non-fatal */ }
-            // Re-apply the persisted subtitle preference on a fresh player.
+            // Re-apply the persisted subtitle preference on a fresh player. This
+            // goes through the same retrying path as the toggle: the captions
+            // module is no more loaded at onReady than it is at click time.
             if (subtitlesEnabled) {
-              try {
-                const p = event.target as any;
-                p.loadModule?.('captions');
-                p.setOption?.('captions', 'track', { languageCode: 'en' });
-                // Shrink the (cross-origin) YouTube captions so they don't dominate
-                // the focused stage. fontSize is one of the few caption options the
-                // IFrame API honors; reapply after the module finishes loading.
-                p.setOption?.('captions', 'fontSize', -1);
-                setTimeout(() => { try { p.setOption?.('captions', 'fontSize', -1); } catch { /* noop */ } }, 800);
-              } catch { /* captions module unavailable — non-fatal */ }
+              playerRef.current = event.target;
+              enableCaptions(event.target);
             }
             // Shared with the uploaded-video player: duration, volume, seek to
             // the segment start, then pause and wait for the camera.
@@ -962,6 +1054,7 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
         playerRef.current.destroy?.();
         playerRef.current = null;
       }
+      ytIframeRef.current = null; // belongs to the destroyed player
     };
   }, [videoId, startTimeSeconds, readyToDetect]);
 
@@ -1161,19 +1254,81 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
 
 
 
+  /**
+   * The IFrame API exposes captions under two module names — 'cc' on the HTML5
+   * player, 'captions' on the legacy one — and which one answers is not
+   * something we get to know in advance. Both are tried; the one that returns a
+   * tracklist is the live one.
+   */
+  const CAPTION_MODULES = ['cc', 'captions'] as const;
+
+  /** The caption module that is actually answering, or null if none has yet. */
+  const liveCaptionModule = (player: YTPlayerInstance): string | null => {
+    for (const module of CAPTION_MODULES) {
+      try {
+        if (Array.isArray(player.getOption?.(module, 'tracklist'))) return module;
+      } catch { /* module not loaded yet — try the next name */ }
+    }
+    return null;
+  };
+
+  /**
+   * Turns captions on, retrying until the captions module is actually loaded.
+   *
+   * loadModule resolves asynchronously, so the setOption calls that follow it on
+   * the next line act on a module that does not exist yet and are dropped — which
+   * is why the toggle appeared to do nothing. Selecting the track has to be
+   * retried until `tracklist` answers, not fired once and assumed to have landed.
+   */
+  const enableCaptions = (player: YTPlayerInstance) => {
+    for (const module of CAPTION_MODULES) {
+      try { player.loadModule?.(module); } catch { /* wrong name for this player */ }
+    }
+
+    let attemptsLeft = 12;
+    const apply = () => {
+      if (playerRef.current !== player) return; // player was swapped out from under us
+
+      const module = liveCaptionModule(player);
+      if (module) {
+        const tracks = player.getOption?.(module, 'tracklist') as unknown[];
+        if (tracks.length === 0) {
+          // A definitive empty list: this video carries no caption track at all.
+          toast.info('This video has no subtitles available');
+          setSubtitlesEnabled(false);
+          return;
+        }
+        player.setOption?.(module, 'track', { languageCode: 'en' });
+        // Keep captions compact (see note in onReady).
+        player.setOption?.(module, 'fontSize', -1);
+        return;
+      }
+
+      // No answer yet. Keep waiting rather than reporting "no subtitles", since a
+      // slow module load and a caption-less video look identical this early.
+      if (--attemptsLeft > 0) captionProbeRef.current = setTimeout(apply, 400);
+    };
+    apply();
+  };
+
   const handleToggleSubtitles = () => {
     const newState = !subtitlesEnabled;
+    const player = playerRef.current;
 
-    if (playerRef.current) {
+    if (captionProbeRef.current) {
+      clearTimeout(captionProbeRef.current);
+      captionProbeRef.current = null;
+    }
+
+    if (player) {
       if (newState) {
-        const p: any = playerRef.current;
-        p.loadModule('captions');
-        p.setOption('captions', 'track', { languageCode: 'en' });
-        // Keep captions compact (see note in onReady).
-        p.setOption?.('captions', 'fontSize', -1);
-        setTimeout(() => { try { p.setOption?.('captions', 'fontSize', -1); } catch { /* noop */ } }, 800);
+        enableCaptions(player);
       } else {
-        playerRef.current.setOption('captions', 'track', {});
+        // Clearing the track is the documented "off"; the module that answers is
+        // whichever one loaded, so clear both rather than guessing.
+        for (const module of CAPTION_MODULES) {
+          try { player.setOption?.(module, 'track', {}); } catch { /* not this one */ }
+        }
       }
     }
 
@@ -1230,9 +1385,12 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
         overflow: 'hidden',
         padding: focusMode ? '0px' : '16px',
         boxSizing: 'border-box',
-        cursor: 'pointer',
+        // Take the cursor away with the bar, so nothing floats over the picture.
+        cursor: controlsOverlaid && !controlsVisible ? 'none' : 'pointer',
       }}
       onClick={handlePlayPause}
+      onMouseMove={handleStageMouseMove}
+      onMouseLeave={() => { pointerOverControlsRef.current = false; scheduleControlsHide(); }}
     >
 
       <ConfirmOverlay
@@ -1351,7 +1509,24 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
 
               />
 
-
+              {/* With subtitles on, the iframe sits flush in its container so the
+                  captions are not clipped (see applyIframeFraming) — which leaves
+                  YouTube's title/share chrome inside the frame. Cover it. */}
+              {subtitlesEnabled && subtitlesSupported && (
+                <div
+                  aria-hidden
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: YT_CHROME_COVER_PX,
+                    background: '#000',
+                    pointerEvents: 'none',
+                    borderRadius: '12px 12px 0 0',
+                  }}
+                />
+              )}
 
               {/* Multiple overlay layers to block YouTube controls */}
 
@@ -1855,9 +2030,10 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
             alignItems: 'center',
             gap: 10,
             flexWrap: 'wrap',
-            ...((focusMode || isFullscreen)
+            ...(controlsOverlaid
               ? {
-                  // Float the bar over the bottom of the video; auto-hide while playing.
+                  // Float the bar over the bottom of the video, and let it slide
+                  // away while playing until the cursor comes looking for it.
                   position: 'absolute',
                   left: 0,
                   right: 0,
@@ -1867,10 +2043,10 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
                   backdropFilter: 'blur(10px)',
                   WebkitBackdropFilter: 'blur(10px)',
                   borderRadius: 0,
-                  // Keep the control bar visible over the video at all times.
-                  opacity: 1,
-                  pointerEvents: 'auto',
-                  transition: 'opacity 250ms ease',
+                  opacity: controlsVisible ? 1 : 0,
+                  transform: controlsVisible ? 'translateY(0)' : 'translateY(100%)',
+                  pointerEvents: controlsVisible ? 'auto' : 'none',
+                  transition: 'opacity 200ms ease, transform 220ms ease',
                 }
               : {
                   background: 'hsl(var(--card))',
@@ -1878,6 +2054,10 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
                 }),
           }}
           onClick={(e) => e.stopPropagation()}
+          // Resting on the bar holds it open; leaving it starts the countdown, so
+          // the bar clears itself once you are done using it.
+          onMouseEnter={() => { pointerOverControlsRef.current = true; clearControlsHideTimer(); setControlsVisible(true); }}
+          onMouseLeave={() => { pointerOverControlsRef.current = false; scheduleControlsHide(); }}
         >
           {/* Progress Bar - Seeking controlled by seekForwardEnabled (fills the row middle) */}
           <div style={{ order: 2, flex: 1, minWidth: 140 }}>
@@ -2009,7 +2189,8 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, order: 3 }}>
 
               <TooltipProvider>
-                {/* Subtitles */}
+                {/* Subtitles — hidden entirely for players that cannot show any. */}
+                {subtitlesSupported && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -2034,6 +2215,7 @@ export default function Video({ URL, source, assetId, startTime, nextItemId, end
                     <p>Toggle Subtitles</p>
                   </TooltipContent>
                 </Tooltip>
+                )}
 
                 {/* Speed Control */}
                 <Card className="flex flex-row items-center gap-1.5 px-2 py-0.5 bg-accent/15 flex-shrink-0">

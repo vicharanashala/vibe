@@ -1,2 +1,2 @@
-export { FAQRepository } from './FAQRepository';
-export { SupportQuestionRepository } from './SupportQuestionRepository';
+export { FAQRepository } from './FAQRepository.js';
+export { SupportQuestionRepository } from './SupportQuestionRepository.js';

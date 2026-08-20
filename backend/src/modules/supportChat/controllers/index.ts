@@ -1,2 +1,2 @@
-export { ChatController } from './ChatController';
-export { AdminController } from './AdminController';
+export { ChatController } from './ChatController.js';
+export { AdminController } from './AdminController.js';

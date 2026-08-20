@@ -1445,6 +1445,18 @@ export default function AuthPage({ role }: AuthPageProps) {
                         {formErrors.password && (
                           <p className="text-xs text-destructive">{formErrors.password}</p>
                         )}
+                        {!isSignUp && (
+                          <div className="text-right">
+                            <Button
+                              type="button"
+                              variant="link"
+                              className="h-auto p-0 text-xs"
+                              onClick={() => navigate({ to: "/forgot-password" })}
+                            >
+                              Forgot password?
+                            </Button>
+                          </div>
+                        )}
                       </div>
 
                       {/* reCAPTCHA */}
