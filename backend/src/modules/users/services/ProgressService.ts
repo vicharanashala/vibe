@@ -2548,8 +2548,18 @@ class ProgressService extends BaseService {
         cohortId,
       );
 
+      // Throwing here — rather than returning — aborts the whole transaction,
+      // so the watchTime row closed in step 1 above rolls back too. A silent
+      // return previously let that write commit on its own: the item's
+      // endTime got set with no corresponding progress update, which is
+      // indistinguishable from a genuinely completed stop to the client (200
+      // OK) while leaving the student's currentItem pointer stuck. Matches
+      // the same missing-enrollment convention already used in
+      // updateEnrollmentProgressPercent above.
       if (!enrollment) {
-        return;
+        throw new NotFoundError(
+          'User has no enrollment for this course version — cannot record progress',
+        );
       }
 
       // ----------------------------------------------------
