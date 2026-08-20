@@ -94,8 +94,6 @@ import { ISubmitFeedbackBody } from '@/components/Item-container';
 import { TranscriptResponse } from '@/types/ai.types';
 import { VideoOverallAnalytics, VideoUserAnalytics, VideoUserAnalyticsResponse } from '@/app/pages/teacher/teacher-course-page';
 import { WatchTimeTrackData } from '@/types/user_activity_event.types';
-import { start } from 'repl';
-
 // Add missing ObjectId type
 type ObjectId = string;
 
@@ -2162,6 +2160,9 @@ export function useEditProctoringSettings() {
     baseHp: number,
     randomizeItems: boolean,
     crowdsourcedQuestionSubmissionEnabled: boolean = false,
+    caseStudiesEnabled: boolean = false,
+    caseStudyStrictUnlockEnabled: boolean = true,
+    caseStudyWeakStreakThreshold: number = 3,
   ) => {
     setLoading(true);
     setError(null);
@@ -2184,6 +2185,9 @@ export function useEditProctoringSettings() {
         baseHp,
         randomizeItems,
         crowdsourcedQuestionSubmissionEnabled,
+        caseStudiesEnabled,
+        caseStudyStrictUnlockEnabled,
+        caseStudyWeakStreakThreshold,
       };
 
       const res = await fetch(url, {

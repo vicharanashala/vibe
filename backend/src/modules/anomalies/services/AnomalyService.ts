@@ -335,6 +335,12 @@ export class AnomalyService extends BaseService {
           case AnomalyType.FACE_RECOGNITION:
             stats.FACE_RECOGNITION++;
             break;
+          case AnomalyType.TAB_SWITCH_DURING_REVIEW:
+            stats.TAB_SWITCH_DURING_REVIEW++;
+            break;
+          case AnomalyType.PASTE_ATTEMPTED:
+            stats.PASTE_ATTEMPTED++;
+            break;
         }
       });
       return stats;

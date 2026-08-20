@@ -53,6 +53,7 @@ import { ProctorAlertOverlay } from "@/components/learn/ProctorAlertOverlay";
 import { NoiseIndicator } from "@/components/learn/NoiseIndicator";
 import { AwayOverlay } from "@/components/learn/AwayOverlay";
 import { CourseDrawer } from "@/components/learn/CourseDrawer";
+import CaseStudyWorkspace from "@/components/case-studies/CaseStudyWorkspace";
 
 // Proctoring anomalies that should block the video and surface the buttonless
 // alert (with webcam) — covers "no person" (noFace) and "more than one person".
@@ -219,6 +220,9 @@ export default function CoursePage() {
 
   // --- Focused learn-page UI state ---
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Which pane the drawer's tab switcher points at — additive, defaults to
+  // the existing module-tree behaviour when case studies aren't enabled.
+  const [activeDrawerTab, setActiveDrawerTab] = useState<"content" | "case-studies">("content");
   const [aiExpanded, setAiExpanded] = useState(false);
   const [aiSheet, setAiSheet] = useState<"chat" | "talk" | "discussion" | null>(null);
   const [camPinned, setCamPinned] = useState(false);
@@ -1900,7 +1904,11 @@ return false;
         onClick={() => setAiExpanded(false)}
       >
         {/* Lesson content */}
-        {currentItem ? (
+        {activeDrawerTab === "case-studies" ? (
+          <div className="absolute inset-0 z-30 overflow-y-auto bg-card text-card-foreground">
+            <CaseStudyWorkspace courseId={COURSE_ID} versionId={VERSION_ID} />
+          </div>
+        ) : currentItem ? (
           currentItem.type === "PROJECT" ? (
             <div className="z-30 absolute inset-0 px-3 sm:px-6 py-16 overflow-y-auto">
               <div className="mx-auto w-full max-w-5xl">
@@ -2139,6 +2147,15 @@ return false;
         onToggleSection={toggleSection}
         onSelectItem={(m, s, i) => { handleSelectItem(m, s, i); setDrawerOpen(false); }}
         isItemLocked={isItemLocked}
+        caseStudiesEnabled={proctoringData?.settings.caseStudiesEnabled ?? false}
+        activeDrawerTab={activeDrawerTab}
+        onDrawerTabChange={(tab) => {
+          setActiveDrawerTab(tab);
+          // Same as selecting a lesson item: switching to the Case Studies
+          // pane in the main stage means the drawer's own backdrop would
+          // otherwise sit on top of it and block interaction.
+          if (tab === "case-studies") setDrawerOpen(false);
+        }}
         emotion={
           currentItem
             ? {

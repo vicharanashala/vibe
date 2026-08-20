@@ -1467,6 +1467,18 @@ function VersionCard({
     storePageAndNavigate("/teacher/courses/reflections")
   }
 
+  const goToCaseStudies = () => {
+    setCurrentCourse({
+      courseId: courseId,
+      versionId: selectedVersionId ? selectedVersionId : null,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    })
+    storePageAndNavigate("/teacher/courses/case-studies")
+  }
+
   const viewInstructors = () => {
     // Set course info in store and navigate to instructors page
     setCurrentCourse({
@@ -1822,6 +1834,15 @@ function VersionCard({
                       >
                         <NotebookPen className="mr-2 h-4 w-4" />
                         Reflections
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          goToCaseStudies();
+                        }}
+                      >
+                        <MessageSquareQuote className="mr-2 h-4 w-4" />
+                        Manage Cases
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={configureCohorts}>
                         <Layers className="mr-2 h-4 w-4" />

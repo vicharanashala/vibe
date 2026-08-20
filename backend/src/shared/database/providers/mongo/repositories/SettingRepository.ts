@@ -302,6 +302,9 @@ export class SettingRepository implements ISettingRepository {
     audit: AuditingDto,
     session?: ClientSession,
     crowdsourcedQuestionSubmissionEnabled: boolean = false,
+    caseStudiesEnabled: boolean = false,
+    caseStudyStrictUnlockEnabled: boolean = true,
+    caseStudyWeakStreakThreshold: number = 3,
   ): Promise<UpdateResult | null> {
     await this.init();
 
@@ -361,6 +364,9 @@ export class SettingRepository implements ISettingRepository {
           'settings.randomizeItems': randomizeItems,
           'settings.crowdsourcedQuestionSubmissionEnabled':
             crowdsourcedQuestionSubmissionEnabled,
+          'settings.caseStudiesEnabled': caseStudiesEnabled,
+          'settings.caseStudyStrictUnlockEnabled': caseStudyStrictUnlockEnabled,
+          'settings.caseStudyWeakStreakThreshold': caseStudyWeakStreakThreshold,
         },
         $push: {
           'settings.audit': audit,

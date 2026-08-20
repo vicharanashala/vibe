@@ -127,6 +127,16 @@ class ProgressService extends BaseService {
     super(database);
   }
 
+  /** Whether a specific video/item has been completed by this user in this course version. */
+  public async isItemCompleted(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+  ): Promise<boolean> {
+    return this.progressRepository.isItemCompleted(userId, courseId, courseVersionId, itemId);
+  }
+
   public async calculateGuruSetuProgress(
     userId: string,
     courseVersionId: string,

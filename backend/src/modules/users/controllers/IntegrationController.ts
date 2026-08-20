@@ -1,6 +1,8 @@
 import { ApiKeyAuthMiddleware } from '#root/shared/middleware/ApiKeyAuthMiddleware.js';
 import { EnrollmentService } from '#users/services/EnrollmentService.js';
 import { USERS_TYPES } from '#users/types.js';
+import { CASE_STUDIES_TYPES } from '#root/modules/caseStudies/types.js';
+import { CaseStudyService } from '#root/modules/caseStudies/services/CaseStudyService.js';
 import { injectable, inject } from 'inversify';
 import {
   JsonController,
@@ -31,6 +33,8 @@ class IntegrationController {
   constructor(
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(CASE_STUDIES_TYPES.CaseStudyService)
+    private readonly caseStudyService: CaseStudyService,
   ) {}
 
   @OpenAPI({
@@ -149,6 +153,45 @@ class IntegrationController {
       page,
       limit,
     );
+  }
+
+  @OpenAPI({
+    summary: 'Get the case-studies progress roster for a course version',
+    description:
+      'Returns a paginated roster of every learner\'s case-studies activity ' +
+      'on the given course version: how many cases they have submitted, how ' +
+      'many reached a winning verdict, and how many are still in review. ' +
+      'This endpoint reports facts only — it does not compute or return a ' +
+      '"N of ~20 complete" boolean, since that completion rule belongs to ' +
+      'the consuming application, not ViBe. Authenticate with the ' +
+      '`X-API-Key` header. Use `page` and `limit` (max 200) to page through ' +
+      'learners.',
+  })
+  @Get('/courses/:courseId/versions/:versionId/case-studies/progress')
+  @HttpCode(200)
+  async getCaseStudiesProgress(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @QueryParam('page') page = 1,
+    @QueryParam('limit') limit = 50,
+  ): Promise<{
+    page: number;
+    limit: number;
+    totalLearners: number;
+    totalPages: number;
+    learners: Array<{
+      userId: string;
+      casesSubmitted: number;
+      casesWon: number;
+      casesInReview: number;
+      lastActivityAt: Date | null;
+    }>;
+  }> {
+    return await this.caseStudyService.getIntegrationProgress({
+      courseVersionId: versionId,
+      page,
+      limit,
+    });
   }
 }
 

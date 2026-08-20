@@ -785,6 +785,11 @@ export interface ISettings {
   baseHp?: number;
   randomizeItems?: boolean;
   crowdsourcedQuestionSubmissionEnabled?: boolean;
+  caseStudiesEnabled?: boolean;
+  /** true = a case unlocks only after its predecessor's response reaches WINS_REQUIRED peer wins; false = it unlocks as soon as the predecessor has any submitted response. */
+  caseStudyStrictUnlockEnabled?: boolean;
+  /** Consecutive non-winning peer verdicts before a "your response looks weak" notification fires. */
+  caseStudyWeakStreakThreshold?: number;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;
