@@ -89,6 +89,39 @@ export default function AuthPage({ role }: AuthPageProps) {
   // Removed the unused clearUser variable
   const setUser = useAuthStore((state) => state.setUser);
 
+  const handleSetUser = async (firebaseUser: any, defaultRole: string) => {
+    try {
+      const token = await firebaseUser.getIdToken();
+      const baseUrl = import.meta.env.VITE_BASE_URL;
+      const response = await fetch(`${baseUrl}/users/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      let backendUser: any = null;
+      if (response.ok) {
+        backendUser = await response.json();
+      }
+      setUser({
+        _id: backendUser?._id || "",
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || "",
+        name: backendUser ? `${backendUser.firstName} ${backendUser.lastName}`.trim() : (firebaseUser.displayName || ""),
+        role: backendUser?.role || defaultRole,
+        avatar: backendUser?.avatar || firebaseUser.photoURL || "",
+      });
+    } catch (err) {
+      console.error("Failed to map user profile:", err);
+      setUser({
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || "",
+        name: firebaseUser.displayName || "",
+        role: defaultRole,
+        avatar: firebaseUser.photoURL || "",
+      });
+    }
+  };
+
   // Password validation
   const passwordsMatch = !confirmPassword || password === confirmPassword;
   const calculatePasswordStrength = (password: string) => {
@@ -571,13 +604,7 @@ export default function AuthPage({ role }: AuthPageProps) {
       }
 
       // Set user in store
-      setUser({
-        uid: result.user.uid,
-        email: result.user.email || "",
-        name: result.user.displayName || "",
-        role: chosenRole,
-        avatar: result.user.photoURL || "",
-      });
+      await handleSetUser(result.user, chosenRole);
 
       // Check for redirect param
       const searchParams = new URLSearchParams(window.location.search);
@@ -631,16 +658,9 @@ export default function AuthPage({ role }: AuthPageProps) {
       throw new Error(`Signup failed with status ${response.status}`);
     }
 
-    const fbUser = auth.currentUser;
-    setUser({
-      uid: fbUser?.uid || "",
-      email: fbUser?.email || googleSignupPending.email,
-      name:
-        fbUser?.displayName ||
-        `${googleSignupPending.firstName} ${googleSignupPending.lastName}`.trim(),
-      role: "student",
-      avatar: fbUser?.photoURL || "",
-    });
+    if (fbUser) {
+      await handleSetUser(fbUser, "student");
+    }
 
     setGoogleSignupPending(null);
     resetStudentPhoto();
@@ -786,13 +806,7 @@ export default function AuthPage({ role }: AuthPageProps) {
       const result = await loginWithEmail(email, password);
 
       // Set user in store
-      setUser({
-        uid: result.user.uid,
-        email: result.user.email || "",
-        name: result.user.displayName || "",
-        role: activeRole,
-        avatar: result.user.photoURL || "",
-      });
+      await handleSetUser(result.user, activeRole);
 
       // Check for redirect param
       const searchParams = new URLSearchParams(window.location.search);
@@ -901,13 +915,7 @@ export default function AuthPage({ role }: AuthPageProps) {
       const result = await loginWithEmail(email, password);
 
       // Set user in store
-      setUser({
-        uid: result.user.uid,
-        email: result.user.email || "",
-        name: result.user.displayName || "",
-        role: activeRole,
-        avatar: result.user.photoURL || "",
-      });
+      await handleSetUser(result.user, activeRole);
 
       // Check for redirect param
       const searchParams = new URLSearchParams(window.location.search);

@@ -39,7 +39,8 @@ export function setupQuestionAbilities(
 
         switch (enrollment.role) {
             case 'STUDENT':
-                // Students typically don't have access to managing questions
+                // Students can view questions
+                can(QuestionActions.View, 'Question');
                 break;
             case 'INSTRUCTOR':
                 can(QuestionActions.Create, 'Question');

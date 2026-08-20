@@ -18,7 +18,6 @@ import EjectionPoliciesPage from '../pages/teacher/ejection-policies'
 import StudentLayout from '@/layouts/student-layout'
 import StudentDashboard from "@/app/pages/student/dashboard";
 import StudentCourses from "@/app/pages/student/courses";
-import LearningAnalytics from "@/app/pages/student/analytics/LearningAnalytics";
 import StudentProfile from "@/app/pages/student/profile";
 import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
 import StudentMySubmissions from "../pages/student/StudentMySubmissions";
@@ -34,7 +33,6 @@ import { useCourseStore } from '@/store/course-store'
 // import CourseEnrollments from '../pages/teacher/course-enrollments'
 import CourseEnrollmentsContainer from '../pages/teacher/course-enrollments'
 import CourseEmotionAnalyticsPage from '../pages/teacher/course-emotion-analytics'
-import CourseVideosPage from '../pages/teacher/course-videos'
 import InvitePage from '../pages/teacher/invite'
 import GenerateSectionPage from '@/app/pages/teacher/create-job'
 import AISectionPage from '@/app/pages/teacher/AISectionPage';
@@ -45,7 +43,6 @@ import AnomaliesList from '../pages/teacher/AnomaliesList'
 // import CourseInstructors from '../pages/teacher/course-instructors'
 import RegisteredUsers from '../pages/teacher/CourseRegistrationRequests'
 import StudentQuestionReview from '../pages/teacher/StudentQuestionReview'
-import ReflectionReview from '../pages/teacher/ReflectionReview'
 import CourseRegistration from '../pages/student/CourseRegistration'
 import CourseIssueReports from '../pages/student/FlagResponse'
 // import LoginPage from '../pages/LoginPage'
@@ -76,6 +73,8 @@ import StudentMyLedgerPage from '@/app/pages/student/hp-system/student-ledger'
 import StudentActivityDetail from '@/app/pages/student/hp-system/activity-detail'
 import { StudentHpGuard } from '@/components/hp-system/StudentHpGuard'
 import NotificationsPage from '@/app/pages/shared/NotificationsPage'
+import StudentDuelsPage from '@/app/pages/student/duels/index'
+import ActiveDuelPage from '@/app/pages/student/duels/active'
 import SupportDashboard from '@/app/pages/teacher/support-dashboard'
 
 // Root route with error and notFound handling
@@ -340,13 +339,6 @@ const teacherCourseEnrollmentsRoute = new Route({
   component: CourseEnrollmentsContainer,
 });
 
-// The course's video library: upload lectures once, reuse across many lessons.
-const teacherCourseVideosRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/videos',
-  component: CourseVideosPage,
-});
-
 const teacherCourseEmotionAnalyticsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/emotion-analytics',
@@ -378,12 +370,6 @@ const teacherStudentQuestionsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/courses/student-questions',
   component: StudentQuestionReview,
-})
-
-const teacherReflectionsRoute = new Route({
-  getParentRoute: () => teacherLayoutRoute,
-  path: '/courses/reflections',
-  component: ReflectionReview,
 })
 
 
@@ -521,13 +507,6 @@ const studentCoursesRoute = new Route({
   component: StudentCourses,
 });
 
-// Student learning analytics route
-const studentAnalyticsRoute = new Route({
-  getParentRoute: () => studentLayoutRoute,
-  path: '/analytics',
-  component: LearningAnalytics,
-});
-
 // Student notifications route
 const studentNotificationsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -603,6 +582,18 @@ const studentHpSystemLedgerRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/hp-system/ledger',
   component: guardStudentHp(StudentMyLedgerPage),
+});
+
+const studentDuelsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/duels',
+  component: StudentDuelsPage,
+});
+
+const studentActiveDuelRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/duels/$id',
+  component: ActiveDuelPage,
 });
 
 const studentHpSystemActivitiesDetailRoute = new Route({
@@ -743,7 +734,6 @@ const routeTree = rootRoute.addChildren([
     teacherViewCourseRoute, teacherCourseFlagsRoute,
     teacherProfileRoute,
     teacherCourseEnrollmentsRoute,
-    teacherCourseVideosRoute,
     teacherCourseEmotionAnalyticsRoute,
     teacherAudioManagerRoute,
     teacherAddCourseRoute,
@@ -756,7 +746,6 @@ const routeTree = rootRoute.addChildren([
     // teacherCourseInstructorsRoute,
     teacherCourseRegistrationRequests,
     teacherStudentQuestionsRoute,
-    teacherReflectionsRoute,
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
     teacherAuditRoute,
@@ -776,7 +765,6 @@ const routeTree = rootRoute.addChildren([
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
     studentCoursesRoute,
-    studentAnalyticsRoute,
     studentProfileRoute,
     studentCourseInviteRegistration,
     studentIssuesRoute,
@@ -789,6 +777,8 @@ const routeTree = rootRoute.addChildren([
     studentHpSystemSubmissionsRoute,
     studentHpSystemLedgerRoute,
     studentNotificationsRoute,
+    studentDuelsRoute,
+    studentActiveDuelRoute,
   ]),
   coursePageRoute,
 ]);
