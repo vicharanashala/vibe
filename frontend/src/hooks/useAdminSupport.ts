@@ -1,160 +1,162 @@
 import { useCallback } from 'react';
-import { AdminResponseRequest, IFAQ, FAQCategory } from '@/modules/supportChat/types';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import {
+  AdminResponseRequest,
+  IFAQ,
+  FAQCategory,
+  SupportDashboardResponse,
+  SupportQuestionStatus,
+  SupportQuestionsResponse,
+} from '@/modules/supportChat/types';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+// VITE_BASE_URL already ends in the API prefix (e.g. http://localhost:4001/api),
+// which is why paths below start at the resource, not at /api.
+const API_BASE = import.meta.env.VITE_BASE_URL ?? '';
 
-export default function useAdminSupport() {
-  const getToken = () => localStorage.getItem('authToken');
+const getToken = () => localStorage.getItem('firebase-auth-token');
 
-  const getDashboard = useCallback(
-    async (courseId?: string, startDate?: string, endDate?: string) => {
+const authHeaders = (): Record<string, string> => {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+/**
+ * The queue is scoped server-side: admins see every course, instructors only
+ * the ones they staff, and anyone else is refused outright. A 403 here is a
+ * permission answer, not an empty queue, so it surfaces as an error.
+ */
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: {
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...authHeaders(),
+      ...init?.headers,
+    },
+  });
+
+  if (response.status === 403) {
+    throw new Error('You do not have permission to view the support queue.');
+  }
+  if (!response.ok) {
+    throw new Error(`Support request failed: ${response.statusText}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export const supportAdminKeys = {
+  dashboard: (courseId?: string) => ['admin-support', 'dashboard', courseId ?? 'all'] as const,
+  questions: (status?: string, courseId?: string) =>
+    ['admin-support', 'questions', status ?? 'open', courseId ?? 'all'] as const,
+  faqs: (category?: FAQCategory) => ['admin-support', 'faqs', category ?? 'all'] as const,
+};
+
+export function useSupportDashboard(courseId?: string) {
+  return useQuery({
+    queryKey: supportAdminKeys.dashboard(courseId),
+    queryFn: () => {
       const params = new URLSearchParams();
       if (courseId) params.append('courseId', courseId);
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
-
-      const response = await fetch(`${API_BASE}/api/admin/support/dashboard?${params}`, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch dashboard');
-      return response.json();
+      return request<SupportDashboardResponse>(`/admin/support/dashboard?${params}`);
     },
-    []
-  );
+  });
+}
 
-  const getQuestions = useCallback(
-    async (status?: string, page: number = 1, limit: number = 50, courseId?: string) => {
+/** Omitting `status` returns the open queue: escalated plus anything pending. */
+export function useSupportQuestions(status?: SupportQuestionStatus, courseId?: string) {
+  return useQuery({
+    queryKey: supportAdminKeys.questions(status, courseId),
+    queryFn: () => {
       const params = new URLSearchParams();
       if (status) params.append('status', status);
-      params.append('page', page.toString());
-      params.append('limit', limit.toString());
       if (courseId) params.append('courseId', courseId);
-
-      const response = await fetch(`${API_BASE}/api/admin/support/questions?${params}`, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch questions');
-      return response.json();
+      params.append('limit', '100');
+      return request<SupportQuestionsResponse>(`/admin/support/questions?${params}`);
     },
-    []
-  );
+  });
+}
 
-  const respondToQuestion = useCallback(
-    async (questionId: string, request: AdminResponseRequest) => {
-      const response = await fetch(
-        `${API_BASE}/api/admin/support/questions/${questionId}/respond`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${getToken()}`,
-          },
-          body: JSON.stringify(request),
-        }
-      );
+export function useRespondToQuestion() {
+  const queryClient = useQueryClient();
 
-      if (!response.ok) throw new Error('Failed to respond to question');
-      return response.json();
+  return useMutation({
+    mutationFn: ({
+      questionId,
+      request: body,
+    }: {
+      questionId: string;
+      request: AdminResponseRequest;
+    }) =>
+      request(`/admin/support/questions/${questionId}/respond`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-support'] });
     },
-    []
-  );
+  });
+}
 
-  const resolveQuestion = useCallback(
-    async (questionId: string) => {
-      const response = await fetch(
-        `${API_BASE}/api/admin/support/questions/${questionId}/resolve`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-          },
-        }
-      );
+export function useResolveQuestion() {
+  const queryClient = useQueryClient();
 
-      if (!response.ok) throw new Error('Failed to resolve question');
-      return response.json();
+  return useMutation({
+    mutationFn: (questionId: string) =>
+      request(`/admin/support/questions/${questionId}/resolve`, { method: 'PUT' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-support'] });
     },
-    []
-  );
+  });
+}
 
-  const getAllFAQs = useCallback(
-    async (category?: FAQCategory) => {
+export function useSupportFAQs(category?: FAQCategory) {
+  return useQuery({
+    queryKey: supportAdminKeys.faqs(category),
+    queryFn: () => {
       const params = new URLSearchParams();
       if (category) params.append('category', category);
-
-      const response = await fetch(`${API_BASE}/api/admin/support/faqs?${params}`, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch FAQs');
-      return response.json();
+      return request<{ faqs: IFAQ[]; total: number }>(`/admin/support/faqs?${params}`);
     },
-    []
-  );
+  });
+}
 
+/**
+ * Imperative escape hatch for the FAQ bank, which has no screen of its own
+ * yet. New UI should prefer the query hooks above.
+ */
+export default function useAdminSupport() {
   const createFAQ = useCallback(
-    async (faq: Omit<IFAQ, '_id' | 'createdAt' | 'updatedAt' | 'embedding' | 'createdBy'>) => {
-      const response = await fetch(`${API_BASE}/api/admin/support/faqs`, {
+    (faq: Omit<IFAQ, '_id' | 'createdAt' | 'updatedAt' | 'embedding' | 'createdBy'>) =>
+      request<IFAQ>('/admin/support/faqs', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getToken()}`,
-        },
         body: JSON.stringify(faq),
-      });
-
-      if (!response.ok) throw new Error('Failed to create FAQ');
-      return response.json();
-    },
+      }),
     []
   );
 
   const updateFAQ = useCallback(
-    async (faqId: string, updates: Partial<IFAQ>) => {
-      const response = await fetch(`${API_BASE}/api/admin/support/faqs/${faqId}`, {
+    (faqId: string, updates: Partial<IFAQ>) =>
+      request<IFAQ>(`/admin/support/faqs/${faqId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getToken()}`,
-        },
         body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) throw new Error('Failed to update FAQ');
-      return response.json();
-    },
+      }),
     []
   );
 
   const deleteFAQ = useCallback(
-    async (faqId: string) => {
-      const response = await fetch(`${API_BASE}/api/admin/support/faqs/${faqId}`, {
+    (faqId: string) =>
+      request<{ success: boolean; message: string }>(`/admin/support/faqs/${faqId}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
-
-      if (!response.ok) throw new Error('Failed to delete FAQ');
-      return response.json();
-    },
+      }),
     []
   );
 
   return {
-    getDashboard,
-    getQuestions,
-    respondToQuestion,
-    resolveQuestion,
-    getAllFAQs,
     createFAQ,
     updateFAQ,
     deleteFAQ,

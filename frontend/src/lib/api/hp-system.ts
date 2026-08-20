@@ -57,6 +57,8 @@ export interface CourseVersionStats {
     versionName: string;
     totalCohorts: number;
     createdAt?: string;
+    /** False when the HP System was switched off but the version still holds HP data. */
+    hpEnabled?: boolean;
 }
 
 export interface CourseWithVersions {

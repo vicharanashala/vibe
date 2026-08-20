@@ -5,6 +5,7 @@ import Article from './article';
 import ProjectItem from '../app/pages/teacher/components/ProjectItem';
 import type { ArticleRef } from "@/types/article.types";
 import type { QuizRef } from "@/types/quiz.types";
+import type { VideoRef } from "@/types/video.types";
 import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
 import ReflectionItemPanel, {type ReflectionItemPanelRef} from '@/components/peer-reviews/ReflectionItemPanel';
@@ -21,8 +22,9 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
   const reflectionRef = useRef<ReflectionItemPanelRef>(null);
+  const videoRef = useRef<VideoRef>(null);
 
-  // ✅ Expose stop function to parent - handles both article and quiz
+  // ✅ Expose stop function to parent - handles article, quiz, reflection and video
   useImperativeHandle(ref, () => ({
     stopCurrentItem: async () => {
       if (articleRef.current) {
@@ -31,6 +33,8 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
         await quizRef.current.stopItem();
       } else if (reflectionRef.current) {
         await reflectionRef.current.stopItem();
+      } else if (videoRef.current) {
+        await videoRef.current.stopItem();
       }
     },
     getCurrentDetails: () => {
@@ -59,6 +63,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
          */
         return <Video
           key={item._id.toString()}
+          ref={videoRef}
           URL={item.details?.URL ? item.details.URL : ''}
           source={item.details?.source}
           assetId={item.details?.assetId}

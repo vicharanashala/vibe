@@ -3,7 +3,7 @@ import { HpActivity } from "@/lib/api/hp-system";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { EditActivityDialog } from "./EditActivityDialog";
 import { RuleSettingsDialog } from "./RuleSettingsDialog";
-import { useHpActivities, useUpdateHpActivity, usePublishHpActivity, useArchiveHpActivity, useHpCourseVersions, useDeleteHpActivity, useHpActivitiesStatsMap } from "@/hooks/hooks";
+import { useHpActivities, useUpdateHpActivity, usePublishHpActivity, useArchiveHpActivity, useHpCourseVersions, useDeleteHpActivity, useHpActivitiesStatsMap, useHpVersionAccess } from "@/hooks/hooks";
 import { Plus, Search, Trash2, Paperclip, Edit, Link as LinkIcon, FileText, Send, Settings, LayoutGrid, List, Archive, RefreshCw, MoreVertical } from "lucide-react";
 import{
     DropdownMenu,
@@ -38,6 +38,10 @@ export function ActivitiesTab({ courseVersionId, cohortId }: ActivitiesTabProps)
     
     const router = useRouterState();
     const from = router.location.state?.from;
+
+    // HP switched off for this version: the activities stay readable, but nothing
+    // here may be authored, published or removed any more.
+    const { readOnly } = useHpVersionAccess(courseVersionId);
 
 
     // Edit Dialog state
@@ -291,9 +295,11 @@ export function ActivitiesTab({ courseVersionId, cohortId }: ActivitiesTabProps)
                         <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
                         {isRefetching ? "Refreshing..." : "Refresh"}
                     </Button>
-                    <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId)}/activities/create` , state: {from}})}>
-                        <Plus className="mr-2 h-4 w-4" /> Add Activity
-                    </Button>
+                    {!readOnly && (
+                        <Button onClick={() => navigate({ to: `/teacher/hp-system/${courseVersionId}/cohort/${encodeURIComponent(cohortId)}/activities/create` , state: {from}})}>
+                            <Plus className="mr-2 h-4 w-4" /> Add Activity
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -330,7 +336,7 @@ export function ActivitiesTab({ courseVersionId, cohortId }: ActivitiesTabProps)
 
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="outline" size="sm">
+                                                <Button variant="outline" size="sm" disabled={readOnly}>
                                                     <MoreVertical className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
@@ -505,7 +511,7 @@ export function ActivitiesTab({ courseVersionId, cohortId }: ActivitiesTabProps)
                                 </div>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm" className="h-9 px-3">
+                                        <Button variant="outline" size="sm" className="h-9 px-3" disabled={readOnly}>
                                             <MoreVertical className="h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>

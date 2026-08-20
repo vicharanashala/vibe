@@ -91,6 +91,23 @@ class ProgressRepository {
     }
 
     try {
+      // The orphan recovery job sweeps open watch sessions by age. A partial
+      // index keeps this to just the rows that are still open, so it stays
+      // small however large the collection grows.
+      await this.watchTimeCollection.createIndex(
+        {
+          startTime: 1,
+        },
+        {
+          background: true,
+          partialFilterExpression: { endTime: { $exists: false } },
+        },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
       await this.attemptCollection.createIndex(
         {
           userId: 1,
@@ -636,6 +653,71 @@ class ProgressRepository {
       { returnDocument: 'after', session },
     );
     return result;
+  }
+
+  /**
+   * Watch sessions that were started but never stopped.
+   *
+   * Completion is modelled as "a watchTime row with a non-null endTime", so a
+   * row left open by a lost stop call keeps its item incomplete forever and
+   * blocks linear progression. These are the candidates the recovery job
+   * judges. Rows it has already rejected carry recoveryAttemptedAt and are
+   * excluded, so a session that will never qualify is examined once, not on
+   * every run.
+   */
+  async findOrphanedWatchTimes(
+    olderThan: Date,
+    limit: number,
+  ): Promise<IWatchTime[]> {
+    await this.init();
+    return this.watchTimeCollection
+      .find({
+        endTime: { $exists: false },
+        recoveryAttemptedAt: { $exists: false },
+        isDeleted: { $ne: true },
+        startTime: { $lt: olderThan },
+      })
+      .sort({ startTime: 1 })
+      .limit(limit)
+      .toArray();
+  }
+
+  /**
+   * Close an orphaned session at a specific time.
+   *
+   * Distinct from stopItemTracking, which stamps "now" and is the live stop
+   * path. The endTime guard in the filter makes this safe to run concurrently:
+   * if another instance closed the row first, this returns null rather than
+   * overwriting a legitimate endTime.
+   */
+  async closeOrphanedWatchTime(
+    watchTimeId: string | ObjectId,
+    endTime: Date,
+    session?: ClientSession,
+  ): Promise<IWatchTime | null> {
+    await this.init();
+    return this.watchTimeCollection.findOneAndUpdate(
+      {
+        _id: new ObjectId(watchTimeId),
+        endTime: { $exists: false },
+        isDeleted: { $ne: true },
+      },
+      { $set: { endTime, recoveryAttemptedAt: new Date() } },
+      { returnDocument: 'after', session },
+    );
+  }
+
+  async markRecoveryAttempted(
+    watchTimeIds: (string | ObjectId)[],
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    if (!watchTimeIds.length) return;
+    await this.watchTimeCollection.updateMany(
+      { _id: { $in: watchTimeIds.map(id => new ObjectId(id)) } },
+      { $set: { recoveryAttemptedAt: new Date() } },
+      { session },
+    );
   }
 
   async updateLastSeen(

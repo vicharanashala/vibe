@@ -8,7 +8,10 @@
     "d": "bash scripts/deploy.sh",
     "copy": "cd ../backend && node scripts/generate-openapi.cjs --output ../../frontend/openapi.json",
     "gen-schema": "pnpx openapi-typescript openapi.json --output src/lib/api/schema.ts ",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "gts lint",
     "preview": "vite preview",
     "clean": "gts clean",
@@ -159,6 +162,7 @@
     "tailwindcss": "^4.0.0",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.23.0",
-    "vite": "^6.2.6"
+    "vite": "^6.2.6",
+    "vitest": "^3.2.4"
   }
 }

@@ -57,6 +57,8 @@ import ResetPasswordPage from '../pages/ResetPasswordPage'
 import StudentLogin from '../pages/student/StudentLogin'
 import TeacherLogin from '../pages/teacher/TeacherLogin'
 import SelectRolePage from '../pages/SelectRolePage'
+import ShareLinkLanding from '../pages/shared/ShareLinkLanding'
+import ShareVideoPage from '../pages/teacher/share-video'
 import AuditPage from '../pages/teacher/AuditPage'
 import ConfigureCohorts from '../pages/teacher/configure-cohorts'
 
@@ -72,7 +74,9 @@ import StudentActivities from '@/app/pages/student/hp-system/activities'
 import StudentSubmissions from '@/app/pages/student/hp-system/submissions'
 import StudentMyLedgerPage from '@/app/pages/student/hp-system/student-ledger'
 import StudentActivityDetail from '@/app/pages/student/hp-system/activity-detail'
+import { StudentHpGuard } from '@/components/hp-system/StudentHpGuard'
 import NotificationsPage from '@/app/pages/shared/NotificationsPage'
+import SupportDashboard from '@/app/pages/teacher/support-dashboard'
 
 // Root route with error and notFound handling
 const rootRoute = new RootRoute({
@@ -447,6 +451,14 @@ const teacherAIWorkflowSectionRoute = new Route({
   component: AiWorkflow,
 });
 
+// The support assistant's escalation queue. Server-side scoping decides what
+// this shows: every course for an admin, only their own for an instructor.
+const teacherSupportRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/support',
+  component: SupportDashboard,
+})
+
 const teacherAuditRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/audit',
@@ -559,36 +571,44 @@ const studentMySubmissionsRoute = new Route({
   component: StudentMySubmissions,
 });
 
+// Every learner HP page sits behind the per-course opt-in, so each one is
+// wrapped rather than relying on the sidebar to keep learners away.
+const guardStudentHp = (Page: () => React.JSX.Element) => () => (
+  <StudentHpGuard>
+    <Page />
+  </StudentHpGuard>
+);
+
 // Student cohorts route
 const studentHpSystemCohortsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/hp-system/cohorts',
-  component: StudentCohorts,
+  component: guardStudentHp(StudentCohorts),
 });
 
 // Student activities route
 const studentHpSystemActivitiesRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/hp-system/$courseVersionId/$cohortId/activities',
-  component: StudentActivities,
+  component: guardStudentHp(StudentActivities),
 });
 
 const studentHpSystemSubmissionsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/hp-system/$courseVersionId/$cohortId/submissions',
-  component: StudentSubmissions,
+  component: guardStudentHp(StudentSubmissions),
 });
 
 const studentHpSystemLedgerRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/hp-system/ledger',
-  component: StudentMyLedgerPage,
+  component: guardStudentHp(StudentMyLedgerPage),
 });
 
 const studentHpSystemActivitiesDetailRoute = new Route({
   getParentRoute: () =>studentLayoutRoute,
   path: '/hp-system/$courseVersionId/$cohortId/activities/$activityId',
-  component: StudentActivityDetail,
+  component: guardStudentHp(StudentActivityDetail),
 });
 // export const studentCourseInviteRegistration = new Route({
 //   getParentRoute: () => studentLayoutRoute,
@@ -688,10 +708,27 @@ export const selectRoleRoute = new Route({
   component: SelectRolePage
 })
 
+// Sharing a video that is not in a course — no course picker, so it belongs
+// beside the course builder rather than inside a course.
+const teacherShareVideoRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/share-video',
+  component: ShareVideoPage
+})
+
+// Share link landing — public on purpose. The token in the URL is the
+// credential, and the whole point is that a recipient never has to sign in.
+export const shareLinkRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/share/$token',
+  component: ShareLinkLanding
+})
+
 // Create the router with the route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
+  shareLinkRoute,
   //   loginRoute,
   forgotPasswordRoute,
   resetPasswordRoute,
@@ -723,6 +760,7 @@ const routeTree = rootRoute.addChildren([
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
     teacherAuditRoute,
+    teacherSupportRoute,
     teacherConfigureCohortsRoute,
       teacherEjectionPoliciesRoute, 
     teacherHpSystemVersionsRoute,
@@ -733,6 +771,7 @@ const routeTree = rootRoute.addChildren([
     teacherStudentSubmissionsRoute,
     teacherSubmissionDetailsRoute,
     teacherNotificationsRoute,
+    teacherShareVideoRoute,
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,

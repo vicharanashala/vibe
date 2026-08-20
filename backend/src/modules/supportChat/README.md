@@ -58,10 +58,11 @@ supportChat/
 
 ## Key Features
 
-### 1. Semantic FAQ Retrieval
-- Uses Anthropic Claude embeddings for intelligent question matching
-- Confidence-based filtering (threshold: 0.75)
-- Combines similarity score, keyword overlap, recency, and popularity
+### 1. FAQ Retrieval
+- Lexical (IDF-weighted term coverage) matching that works with no external service
+- Optional MiniMax embeddings layered on top when a key is configured, generated
+  lazily per FAQ and stored, so the provider is never on the critical path
+- Confidence-based filtering, with a separate lower bar for lexical-only matching
 - No hallucinations - returns only FAQ content
 
 ### 2. Admin Fallback Workflow
@@ -108,6 +109,14 @@ Body: { rating: 'helpful' | 'not_helpful' }
 Response: ISupportQuestion
 ```
 
+**Report a Technical Issue** (the escalation form the widget shows when the
+assistant has no answer; resubmitting replaces the earlier report)
+```
+POST /api/support/chat/:questionId/escalate
+Body: { category: FAQCategory, details: string, contactEmail?: string }
+Response: ISupportQuestion (status ESCALATED, with `escalation` populated)
+```
+
 ### Admin Endpoints
 
 **Get Dashboard Stats**
@@ -117,12 +126,15 @@ Query: ?courseId=xxx&startDate=xxx&endDate=xxx
 Response: { stats: {...}, recentPending: ISupportQuestion[] }
 ```
 
-**Get Pending Questions**
+**Get the Queue**
 ```
 GET /api/admin/support/questions
-Query: ?status=PENDING&page=1&limit=50&courseId=xxx
+Query: ?status=ESCALATED&page=1&limit=50&courseId=xxx
 Response: { questions: ISupportQuestion[], total: number }
 ```
+Omit `status` for the open queue — ESCALATED plus anything left PENDING by an
+interrupted chat turn. Results are scoped to the caller: admins see every
+course, INSTRUCTOR/MANAGER see the courses they staff, everyone else gets 403.
 
 **Respond to Question**
 ```
@@ -158,13 +170,16 @@ All types are defined in `types.ts`:
 
 ## Environment Configuration
 
-Required `.env` variables:
+All of these are optional — with none of them set the bot still answers from the
+FAQ set using lexical matching.
 
 ```env
-MINIMAX_API_KEY=your-minimax-api-key    # Minimax API key
-MINIMAX_API_URL=https://api.minimax.chat/v1  # Minimax API endpoint (optional)
-MINIMAX_EMBEDDING_MODEL=embo-01         # Minimax embedding model (optional)
-FAQ_CONFIDENCE_THRESHOLD=0.75           # Minimum confidence for auto-response
+MINIMAX_API_KEY=your-minimax-api-key         # enables the embedding layer
+MINIMAX_GROUP_ID=your-minimax-group-id       # MiniMax sends this as a query param
+MINIMAX_API_URL=https://api.minimax.io/v1    # embedding endpoint host
+MINIMAX_EMBEDDING_MODEL=embo-01
+FAQ_CONFIDENCE_THRESHOLD=0.75                # bar when embeddings are available
+FAQ_LEXICAL_CONFIDENCE_THRESHOLD=0.45        # bar when they are not
 MONGODB_FAQ_COLLECTION=supportFaqs
 MONGODB_QUESTIONS_COLLECTION=supportQuestions
 ```
@@ -216,14 +231,24 @@ for (const faqData of initialFAQs) {
 
 ## Retrieval Algorithm
 
-The FAQ retrieval uses a multi-factor scoring system:
+Every question is scored lexically first, because that path has no external
+dependency and works on FAQs that have never been embedded:
 
-1. **Semantic Similarity (70%)**: Cosine similarity between question and FAQ embeddings via Claude
-2. **Keyword Overlap (20%)**: Percentage of query words appearing in FAQ
-3. **Recency (-10%)**: Penalty for FAQs not updated in 365+ days
-4. **Popularity (+0.0001 per use)**: Boost for frequently helpful FAQs
+**Lexical score**: the share of the question's information — each term weighted
+by its inverse document frequency across the FAQ set — that the FAQ covers,
+discounted by where the term was found (its own question 1.0, tags 0.8,
+answer 0.5). Terms no FAQ contains still count against coverage, so a question
+about something unknown cannot score a confident match.
 
-Result is escalated to admin if top score < 0.75 threshold.
+If an embedding provider is reachable, the question is embedded, the top lexical
+candidates have their own embeddings generated and stored (bounded per request),
+and the final score becomes `0.7 × cosine similarity + 0.3 × lexical`. Popularity
+adds a tiebreak of at most 0.01. Recency is reported but no longer penalises.
+
+The bar depends on which signal was available: `FAQ_CONFIDENCE_THRESHOLD` (0.75)
+with embeddings, `FAQ_LEXICAL_CONFIDENCE_THRESHOLD` (0.45) without. Anything
+below it, or any retrieval failure, escalates to the admin queue rather than
+erroring the chat turn.
 
 ## Security & Access Control
 
@@ -273,12 +298,17 @@ Track metrics from `supportAnalytics`:
 - `inversify`: Dependency injection
 - `routing-controllers`: Express decorators
 - `mongodb`: Database access
-- `@anthropic-ai/sdk`: Claude embeddings & API
 - `class-validator`: Input validation
+
+Embeddings are fetched over `fetch` from MiniMax; no vendor SDK is required.
 
 ## Support & Debugging
 
 **Check logs**: Look for "ChatService", "FAQRetrievalService", "AdminService" logger outputs
 **Test retrieval**: Use ChatService.handleUserQuestion() with test questions
-**Verify embeddings**: Ensure Anthropic API key is set and API is accessible
+**Everything escalates**: check the FAQ set is non-empty and `isActive`, then
+lower `FAQ_LEXICAL_CONFIDENCE_THRESHOLD` to see the near-misses
+**Embeddings look inert**: the service logs once and stops calling the provider
+for `SUPPORT_CHAT_EMBEDDING_COOLDOWN_MS` after a failure — MiniMax reports a bad
+key as HTTP 200 with a non-zero `base_resp.status_code`
 **Monitor queue**: Admin dashboard shows pending questions count
