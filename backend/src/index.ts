@@ -5,9 +5,30 @@ await import('./instrument.js');
 
 import * as Sentry from '@sentry/node';
 import express from 'express';
+import admin from 'firebase-admin';
 // import session from 'express-session'
 import { useExpressServer, RoutingControllersOptions } from 'routing-controllers';
 import { appConfig } from './config/app.js';
+
+// Initialize Firebase Admin eagerly at startup so misconfiguration surfaces immediately
+{
+  const { firebase } = appConfig;
+  if (!admin.apps.length) {
+    if (firebase.clientEmail && firebase.privateKey && firebase.projectId) {
+      console.log('[Firebase] init with cert credentials, project:', firebase.projectId);
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          clientEmail: firebase.clientEmail,
+          privateKey: firebase.privateKey,
+          projectId: firebase.projectId,
+        }),
+      });
+    } else {
+      console.warn('[Firebase] cert vars missing — falling back to applicationDefault(). clientEmail:', !!firebase.clientEmail, '| privateKey:', !!firebase.privateKey, '| projectId:', firebase.projectId ?? 'MISSING');
+      admin.initializeApp({ credential: admin.credential.applicationDefault() });
+    }
+  }
+}
 import { loggingHandler } from './shared/middleware/loggingHandler.js';
 import { generateOpenAPISpec } from './shared/functions/generateOpenApiSpec.js';
 import { getContainer, loadAppModules } from './bootstrap/loadModules.js';

@@ -15,7 +15,6 @@ import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.
 import {InviteRepository} from '#root/shared/index.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {InviteResult, MailService} from '#root/modules/notifications/index.js';
-import {appConfig} from '#root/config/app.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {EnrollmentService} from '#root/modules/users/services/EnrollmentService.js';
 import {NOTIFICATIONS_TYPES} from '#root/modules/notifications/types.js';
@@ -105,22 +104,6 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     private database: MongoDatabase,
   ) {
     super(database);
-    if (!admin.apps.length) {
-      console.log('[Firebase] init check — clientEmail:', !!appConfig.firebase.clientEmail, '| privateKey:', !!appConfig.firebase.privateKey, '| projectId:', appConfig.firebase.projectId ?? 'MISSING');
-      if (appConfig.firebase.clientEmail && appConfig.firebase.privateKey && appConfig.firebase.projectId) {
-        admin.initializeApp({
-          credential: admin.credential.cert({
-            clientEmail: appConfig.firebase.clientEmail,
-            privateKey: appConfig.firebase.privateKey,
-            projectId: appConfig.firebase.projectId,
-          }),
-        });
-      } else {
-        admin.initializeApp({
-          credential: admin.credential.applicationDefault(),
-        });
-      }
-    }
     this.auth = admin.auth();
   }
   async getCurrentUserFromToken(token: string): Promise<IUser> {
