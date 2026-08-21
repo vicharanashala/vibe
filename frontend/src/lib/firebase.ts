@@ -19,13 +19,21 @@ import { useLoginWithGoogle } from "@/hooks/hooks";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+/**
+ * The local preview can run without a Firebase project. Production builds
+ * still use the real VITE_FIREBASE_* values when provided.
+ */
+export const isMockFirebase =
+  import.meta.env.VITE_USE_MOCK_FIREBASE === "true" ||
+  (import.meta.env.DEV && !import.meta.env.VITE_FIREBASE_API_KEY);
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "mock-api-key",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "mock-vibe.local",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "mock-vibe",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "mock-vibe.local",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "000000000000",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:000000000000:web:mock-vibe",
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
@@ -168,4 +176,4 @@ export const logout = () => {
   useAuthStore.getState().clearUser();
 };
 
-export const analytics = getAnalytics(app);
+export const analytics = isMockFirebase ? null : getAnalytics(app);
