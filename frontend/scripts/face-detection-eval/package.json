@@ -1,0 +1,12 @@
+{
+  "name": "face-detection-eval",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "eval": "node run-eval.mjs",
+    "sweep": "node threshold-sweep.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.57.0"
+  }
+}
