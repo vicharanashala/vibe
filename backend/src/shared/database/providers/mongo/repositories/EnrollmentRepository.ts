@@ -43,6 +43,7 @@ import {
   buildGuruSetuWatchAggPipeline,
   buildGuruSetuFeedbackAggPipeline,
 } from './queries/guruSetuFeedbackExportPipeline.js';
+import { isTransientTransactionError } from '#root/shared/functions/isTransientTransactionError.js';
 
 @injectable()
 export class EnrollmentRepository {
@@ -313,6 +314,9 @@ export class EnrollmentRepository {
         { session },
       );
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         `Failed to update progress in enrollment. More/${error}`,
       );
@@ -332,6 +336,9 @@ export class EnrollmentRepository {
         { session },
       );
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         `Failed to update completed items count in enrollment. More/${error}`,
       );
@@ -365,6 +372,9 @@ export class EnrollmentRepository {
       }
       return newEnrollment;
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         `Failed to create enrollment: ${error.message}`,
       );
@@ -535,6 +545,9 @@ export class EnrollmentRepository {
 
       return newProgress;
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         `Failed to create progress tracking: ${error.message}`,
       );
@@ -749,6 +762,9 @@ export class EnrollmentRepository {
         .aggregate(aggregationPipeline, { session })
         .toArray();
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       console.error(error);
       throw new InternalServerError(`Failed to get enrollments /More ${error}`);
     }
@@ -2499,6 +2515,9 @@ export class EnrollmentRepository {
       });
       console.log(`Enrollment bulk update result: ${JSON.stringify(result)}`);
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to bulk update enrollments.\n More Details: ' + error,
       );
@@ -3775,6 +3794,9 @@ export class EnrollmentRepository {
 
       return enrollments;
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       console.error('Failed to get enrollments:', error);
       throw new Error('Failed to fetch enrollments for the course version');
     }
@@ -3809,6 +3831,9 @@ export class EnrollmentRepository {
 
       return enrollments;
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       console.error('Failed to get student enrollments:', error);
       throw new Error(
         'Failed to fetch student enrollments for the course version',
@@ -3889,6 +3914,9 @@ export class EnrollmentRepository {
 
       return result.modifiedCount;
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       console.error('Failed to delete enrollments:', error);
       throw new Error('Failed to delete enrollments for the course version');
     }
