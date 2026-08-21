@@ -24,6 +24,9 @@ Thumbs.db
 .env
 .env.*
 
+# Local-only Claude instructions (not committed/shared)
+CLAUDE.md
+
 # Python Bytecode
 *.pyc
 *.pyo
