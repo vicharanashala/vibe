@@ -40,7 +40,7 @@ class SOLQuestionRenderer extends BaseQuestionRenderer {
 
     if (parameterMap) {
       // Process text in lot items using the tag parser
-      shuffledLotItems = lotItems.map(item => ({
+      shuffledLotItems = shuffledLotItems.map(item => ({
         ...item,
         text: this.tagParser.processText(item.text, parameterMap),
       }));
