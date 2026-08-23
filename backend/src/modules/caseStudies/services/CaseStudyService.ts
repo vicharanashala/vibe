@@ -258,7 +258,8 @@ export class CaseStudyService {
           );
           state = completed ? 'writable' : 'locked';
         } else {
-          state = 'locked';
+          // DEMO: no linkedItemId → writable; revert this commit to restore video-gate
+          state = 'writable';
         }
 
         const entry: CaseListEntry = {
