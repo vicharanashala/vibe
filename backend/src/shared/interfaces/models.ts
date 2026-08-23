@@ -526,6 +526,23 @@ export interface IProgress {
   completed: boolean;
   completedAt?: Date;
   cohort?: string;
+  /**
+   * Items an admin manually advanced this student past, without a genuine
+   * completion — e.g. to unstick a student left permanently locked by a lost
+   * stop call. Recorded so the gap is distinguishable from an item the
+   * student never touched, rather than silently indistinguishable from one.
+   * Deliberately never counted as completed anywhere completion is checked
+   * (isItemCompleted/getCompletedItems only look at watchTime), so
+   * percentCompleted does not claim the item was watched.
+   */
+  adminSkips?: IAdminSkip[];
+}
+
+export interface IAdminSkip {
+  itemId: string | ObjectId;
+  reason: string;
+  skippedBy: string | ObjectId;
+  skippedAt: Date;
 }
 
 export interface ICurrentProgressPath {
@@ -545,6 +562,12 @@ export interface IWatchTime {
   endTime?: Date;
   lastSeenAt?: Date;
   cohortId?: ID;
+  // Written by addBulkWatchTime for records the system fabricated rather than
+  // measured, so they can be told apart from genuine watch sessions.
+  isBulk?: boolean;
+  // Set by the orphan recovery job once it has judged an abandoned session, so
+  // a record that fails the watch-duration bar is not re-examined every run.
+  recoveryAttemptedAt?: Date;
 }
 
 export interface ICohort {

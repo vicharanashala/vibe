@@ -61,6 +61,8 @@ export function AppSidebar() {
           // Sharing a video needs no course, so it sits beside the builder
           // rather than inside a course.
           { title: "Share a video", url: "/teacher/share-video" },
+          // Was reachable only by typing the URL directly — no nav entry existed.
+          { title: "Generate Section (AI)", url: "/teacher/jobs/create" },
         ],
       },
       {
