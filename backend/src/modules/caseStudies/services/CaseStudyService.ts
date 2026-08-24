@@ -345,11 +345,8 @@ export class CaseStudyService {
 
     // Video-based unlock: the case must be linked to a video, and that video
     // must be completed by this student.
-    if (!caseStudy.linkedItemId) {
-      throw new BadRequestError(
-        'This case study is not yet linked to a video. Awaiting video link from instructor.',
-      );
-    }
+    // DEMO: skip video-gate when no linkedItemId; revert to restore
+    if (caseStudy.linkedItemId) {
     const videoCompleted = await this.progressService.isItemCompleted(
       input.userId,
       caseStudy.courseId.toString(),
@@ -361,6 +358,7 @@ export class CaseStudyService {
         'Watch the linked video first to unlock this case study.',
       );
     }
+    } // end DEMO linkedItemId gate
 
     // Fast path: a readable rejection for the common case. The unique
     // (userId, caseStudyId) index is the real race guard.
