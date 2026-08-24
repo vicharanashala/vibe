@@ -4802,7 +4802,7 @@ class ProgressService extends BaseService {
     }
 
     // Get user names for all enrolled students
-    const userIds = enrollments.map(e => e.userId.toString());
+    const userIds = enrollments.map(e => e.userId?.toString()).filter((id): id is string => !!id);
     const users = await this.userRepo.getUsersByIds(userIds, {
       firstName: 1,
       lastName: 1,

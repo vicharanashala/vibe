@@ -793,7 +793,7 @@ class ProgressRepository {
       isDeleted: { $ne: true },
       endTime: { $gte: since, $ne: null },
     };
-    if (cohortId) {
+    if (cohortId && ObjectId.isValid(cohortId)) {
       match.cohortId = new ObjectId(cohortId);
     }
     const results = await this.watchTimeCollection
@@ -854,7 +854,7 @@ class ProgressRepository {
       isDeleted: { $ne: true },
       startTime: { $ne: null, $exists: true },
     };
-    if (cohortId) {
+    if (cohortId && ObjectId.isValid(cohortId)) {
       match.cohortId = new ObjectId(cohortId);
     }
     const results = await this.watchTimeCollection
@@ -894,7 +894,7 @@ class ProgressRepository {
       courseId: { $in: [new ObjectId(courseId), courseId] },
       courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
     };
-    if (cohortId) {
+    if (cohortId && ObjectId.isValid(cohortId)) {
       query.cohortId = new ObjectId(cohortId);
     }
     const progressRecords = await this.progressCollection

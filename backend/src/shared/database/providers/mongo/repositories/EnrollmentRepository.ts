@@ -3723,7 +3723,7 @@ export class EnrollmentRepository {
         status: { $regex: /^active$/i },
         isDeleted: { $ne: true },
       };
-      if (cohortId) {
+      if (cohortId && ObjectId.isValid(cohortId)) {
         query.cohortId = new ObjectId(cohortId);
       }
 
