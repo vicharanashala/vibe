@@ -155,7 +155,7 @@ export class StudentQuestionController {
     const questions = await this.service.listCourseVersionQuestions({
       courseId: params.courseId,
       courseVersionId: params.courseVersionId,
-      status: query.status as 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL' | undefined,
+      status: query.status as 'PENDING' | 'HELD' | 'APPROVED' | 'REJECTED' | 'ALL' | undefined,
       gateState: query.gateState as 'COLLECTING' | 'ELIGIBLE' | undefined,
       limit: query.limit ?? 100,
     });
@@ -175,6 +175,7 @@ export class StudentQuestionController {
         reviewedBy: q.reviewedBy?.toString(),
         reviewedAt: q.reviewedAt?.toISOString(),
         rejectionReason: q.rejectionReason,
+        screeningMessage: q.status === 'HELD' ? q.screening?.message : undefined,
         gateState: q.gateState,
         responseCount: q.responseCount,
         correctCount: q.correctCount,
