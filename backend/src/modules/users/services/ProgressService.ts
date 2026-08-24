@@ -4121,25 +4121,6 @@ class ProgressService extends BaseService {
         cohortId,
       );
 
-    // Get user names for all enrolled students (fetching only required name & email fields)
-    const userIds = enrollments.map(e => e.userId?.toString());
-    const users = await this.userRepo.getUsersByIds(userIds, {
-      firstName: 1,
-      lastName: 1,
-      email: 1,
-    });
-
-    const userMap = new Map();
-    for (const user of users) {
-      if (user) {
-        // Fall back to the email local-part when no name is on the profile,
-        // so learners don't all show up as "Unknown User".
-        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-        const emailName = user.email ? user.email.split('@')[0] : '';
-        userMap.set(user._id?.toString(), fullName || emailName || 'Unknown User');
-      }
-    }
-
     const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
     // Dedupe duplicate progress docs per learner — the data can contain more
@@ -4203,7 +4184,7 @@ class ProgressService extends BaseService {
 
       const entry: LeaderboardEntry = {
         userId: id,
-        userName: userMap.get(id) || 'Unknown User',
+        userName: 'Unknown User',
         completionPercentage,
         completedAt,
         enrollmentDate,
@@ -4266,6 +4247,38 @@ class ProgressService extends BaseService {
     const activeTotalPages = Math.max(1, Math.ceil(activeTotal / limit));
     const startIndex = (page - 1) * limit;
     const activePage = active.slice(startIndex, startIndex + limit);
+
+    // Efficiently fetch user profiles ONLY for items rendered on screen
+    const neededUserIds = Array.from(
+      new Set([
+        ...finishers.map(f => f.userId),
+        ...activePage.map(a => a.userId),
+        ...(myStats ? [myStats.userId] : []),
+      ]),
+    ).filter((id): id is string => !!id);
+
+    const users = await this.userRepo.getUsersByIds(neededUserIds, {
+      firstName: 1,
+      lastName: 1,
+      email: 1,
+    });
+
+    const userMap = new Map<string, string>();
+    for (const user of users) {
+      if (user) {
+        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        const emailName = user.email ? user.email.split('@')[0] : '';
+        userMap.set(user._id?.toString(), fullName || emailName || 'Unknown User');
+      }
+    }
+
+    const populateUserName = (entry: LeaderboardEntry) => {
+      entry.userName = userMap.get(entry.userId) || 'Unknown User';
+    };
+
+    finishers.forEach(populateUserName);
+    activePage.forEach(populateUserName);
+    if (myStats) populateUserName(myStats);
 
     return {
       finishers: { data: finishers, total: finishers.length },

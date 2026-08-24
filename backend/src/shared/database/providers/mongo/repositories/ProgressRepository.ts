@@ -902,13 +902,8 @@ class ProgressRepository {
         projection: {
           _id: 1,
           userId: 1,
-          courseId: 1,
-          courseVersionId: 1,
           completed: 1,
           completedAt: 1,
-          currentModule: 1,
-          currentSection: 1,
-          currentItem: 1,
         },
         session,
       })

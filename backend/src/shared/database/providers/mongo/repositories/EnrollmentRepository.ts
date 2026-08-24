@@ -3733,10 +3733,7 @@ export class EnrollmentRepository {
             _id: 1,
             userId: 1,
             percentCompleted: 1,
-            completionPercentage: 1,
             enrollmentDate: 1,
-            role: 1,
-            status: 1,
           },
           session,
         })
