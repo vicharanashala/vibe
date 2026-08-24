@@ -1,18 +1,19 @@
 import { inject, injectable } from 'inversify';
 import { Collection, ObjectId } from 'mongodb';
-import { IFAQ, SUPPORT_CHAT_CONFIG, FAQCategory } from '../../../types';
-import { TYPES } from '@/shared/container/types';
+import { IFAQ, SUPPORT_CHAT_CONFIG, FAQCategory } from '../../../types.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
 
 @injectable()
 export class FAQRepository {
-  constructor(@inject(TYPES.Database) private db: any) {}
+  constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
 
-  private getCollection(): Collection<IFAQ> {
-    return this.db.collection(SUPPORT_CHAT_CONFIG.collectionsNames.faq);
+  private async getCollection(): Promise<Collection<IFAQ>> {
+    return this.db.getCollection<IFAQ>(SUPPORT_CHAT_CONFIG.collectionsNames.faq);
   }
 
   async create(faq: Omit<IFAQ, '_id' | 'createdAt' | 'updatedAt'>): Promise<IFAQ> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     const now = new Date();
     const document = {
       ...faq,
@@ -29,12 +30,12 @@ export class FAQRepository {
   }
 
   async findById(id: ObjectId): Promise<IFAQ | null> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     return collection.findOne({ _id: id });
   }
 
   async findAll(filters?: { isActive?: boolean; category?: FAQCategory }): Promise<IFAQ[]> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     const query: any = {};
 
     if (filters?.isActive !== undefined) {
@@ -48,7 +49,7 @@ export class FAQRepository {
   }
 
   async updateById(id: ObjectId, updates: Partial<IFAQ>): Promise<IFAQ | null> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     const result = await collection.findOneAndUpdate(
       { _id: id },
       {
@@ -60,22 +61,32 @@ export class FAQRepository {
       { returnDocument: 'after' }
     );
 
-    return result.value as IFAQ | null;
+    return result as IFAQ | null;
+  }
+
+  /**
+   * Persists a generated embedding so it is computed once per FAQ rather than
+   * on every retrieval. Seeded FAQs arrive without one; the retrieval service
+   * backfills them lazily through here.
+   */
+  async setEmbedding(id: ObjectId, embedding: number[]): Promise<void> {
+    const collection = await this.getCollection();
+    await collection.updateOne({ _id: id }, { $set: { embedding } });
   }
 
   async incrementUsageCount(id: ObjectId): Promise<void> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     await collection.updateOne({ _id: id }, { $inc: { usageCount: 1 } });
   }
 
   async deleteById(id: ObjectId): Promise<boolean> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     const result = await collection.deleteOne({ _id: id });
     return result.deletedCount === 1;
   }
 
   async search(query: string, limit: number = 10): Promise<IFAQ[]> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     return collection
       .find({
         isActive: true,
@@ -86,17 +97,17 @@ export class FAQRepository {
   }
 
   async findByCategory(category: FAQCategory): Promise<IFAQ[]> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     return collection.find({ category, isActive: true }).toArray();
   }
 
   async findByTag(tag: string): Promise<IFAQ[]> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     return collection.find({ tags: tag, isActive: true }).toArray();
   }
 
   async findRelated(faqId: ObjectId): Promise<IFAQ[]> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     const faq = await this.findById(faqId);
     if (!faq?.relatedFaqIds || faq.relatedFaqIds.length === 0) {
       return [];
@@ -111,7 +122,7 @@ export class FAQRepository {
   }
 
   async createIndex(): Promise<void> {
-    const collection = this.getCollection();
+    const collection = await this.getCollection();
     await collection.createIndex({ category: 1, isActive: 1 });
     await collection.createIndex({ tags: 1 });
     await collection.createIndex({ createdAt: -1 });

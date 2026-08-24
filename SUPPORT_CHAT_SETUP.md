@@ -51,32 +51,14 @@ frontend/src/
 
 ## Integration Steps
 
-### Step 1: Add Module to Container
+### Steps 1 & 2: Container and controllers — already done
 
-In your main application container setup (e.g., `backend/src/container.ts`):
+`loadAppModules` walks `backend/src/modules/*` and picks up each module's
+`<name>ContainerModules` and `<name>ModuleControllers` exports, both of which
+`supportChat/index.ts` provides. Nothing has to be registered by hand.
 
-```typescript
-import { supportChatContainerModule } from '@/modules/supportChat';
-
-// Add to container setup
-container.load(supportChatContainerModule);
-```
-
-### Step 2: Register Controllers
-
-If using routing-controllers:
-
-```typescript
-import { useContainer, useControllers } from 'routing-controllers';
-import { ChatController, AdminController } from '@/modules/supportChat';
-
-useContainer(container);
-useControllers([
-  // ... other controllers
-  ChatController,
-  AdminController,
-]);
-```
+Controller paths must **not** include `/api`: the app mounts
+routing-controllers with `routePrefix: '/api'` already.
 
 ### Step 3: Initialize Database Indexes
 
@@ -103,19 +85,21 @@ await initializeSupportChat();
 
 Add to your `.env` file:
 
+Every one of these is optional. With none of them set the bot still answers from
+the FAQ set by lexical matching; embeddings only sharpen the ranking.
+
 ```env
-# Minimax API Configuration
+# Minimax embeddings (optional layer)
 MINIMAX_API_KEY=your-minimax-api-key
-MINIMAX_API_URL=https://api.minimax.chat/v1      # Optional, defaults to this
+MINIMAX_GROUP_ID=your-minimax-group-id
+MINIMAX_API_URL=https://api.minimax.io/v1        # Optional, defaults to this
 MINIMAX_EMBEDDING_MODEL=embo-01                   # Optional, defaults to this
 
 # Support Chat Configuration
-FAQ_CONFIDENCE_THRESHOLD=0.75
+FAQ_CONFIDENCE_THRESHOLD=0.75                     # Bar when embeddings are available
+FAQ_LEXICAL_CONFIDENCE_THRESHOLD=0.45             # Bar when they are not
 MONGODB_FAQ_COLLECTION=supportFaqs
 MONGODB_QUESTIONS_COLLECTION=supportQuestions
-
-# Frontend API (if separate from main app)
-REACT_APP_API_URL=http://localhost:3001
 ```
 
 ### Step 5: Seed Initial FAQs
@@ -185,34 +169,17 @@ export default function StudentLayout() {
 }
 ```
 
-### Step 7: Add Admin Dashboard Route
+### Step 7: Admin Dashboard Route (already wired)
 
-In your admin routes (e.g., `frontend/src/pages/teacher/routes.tsx`):
+The support queue ships routed — no manual step. It lives at **`/teacher/support`**,
+registered as `teacherSupportRoute` in `frontend/src/app/routes/router.tsx` and linked
+from the sidebar ("Support Queue") in `frontend/src/components/app-sidebar.tsx`.
 
-```typescript
-import { SupportDashboard } from '@/pages/teacher/support-dashboard';
-
-export const teacherRoutes = [
-  // ... other routes
-  {
-    path: '/support',
-    element: <SupportDashboard />,
-    requiredRole: ['admin', 'staff'],
-  },
-];
-```
-
-And add to sidebar navigation:
-
-```typescript
-<nav>
-  {/* Other menu items */}
-  <a href="/teacher/support" className="nav-item">
-    <MessageSquare className="w-4 h-4" />
-    Support Center
-  </a>
-</nav>
-```
+Who sees what is decided by the backend, not the route: `GET /admin/support/questions`
+scopes results with `resolveSupportQueueCourseIds()` — an admin (`globalRole: 'admin'`)
+sees every course, an INSTRUCTOR/MANAGER sees only the courses they staff, and anyone
+else gets a 403. The page surfaces that 403 as a permission message rather than an
+empty queue.
 
 ## Database Collections
 
@@ -361,15 +328,19 @@ Visit: `http://localhost:3000/teacher/support`
 ## Troubleshooting
 
 ### Embeddings not generating
-- Verify `MINIMAX_API_KEY` is set and valid
-- Check Minimax API quota and rate limits
-- Verify `MINIMAX_API_URL` is correct (defaults to `https://api.minimax.chat/v1`)
-- Embeddings are cached in FAQ documents after first creation
+- Verify `MINIMAX_API_KEY` is set and valid. Minimax answers a bad key with
+  HTTP 200 and `base_resp.status_code: 2049`, so a green status code proves
+  nothing — the service logs the decoded error
+- After a failure the service stops calling the provider for
+  `SUPPORT_CHAT_EMBEDDING_COOLDOWN_MS` (default 10 min) and matches lexically
+- Verify `MINIMAX_API_URL` is correct (defaults to `https://api.minimax.io/v1`)
+- Embeddings are generated lazily for the best-matching FAQs and stored on the
+  FAQ document, a few per chat turn
 
-### Questions not escalating to admin
-- Check confidence threshold (default 0.75)
-- Verify FAQ embeddings exist (`faq.embedding` field populated)
-- Check `SUPPORT_CHAT_EMBEDDING_MODEL` is set correctly
+### Every question escalates to admin
+- Confirm the FAQ set is seeded and the documents have `isActive: true`
+- Lower `FAQ_LEXICAL_CONFIDENCE_THRESHOLD` (default 0.45) to inspect near-misses
+- With embeddings configured the bar is `FAQ_CONFIDENCE_THRESHOLD` (default 0.75)
 
 ### Admin dashboard not loading questions
 - Verify admin has correct role (`admin` or `staff`)

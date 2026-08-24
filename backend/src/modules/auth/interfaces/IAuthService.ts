@@ -51,6 +51,18 @@ export interface IAuthService {
     firebaseUID: string,
     body: Partial<IUser>,
   ): Promise<void>;
+
+  /**
+   * Creates a passwordless identity for a share-link recipient, who is
+   * identified by the link's token rather than by signing in.
+   */
+  createGuestFirebaseUser(email: string, displayName: string): Promise<string>;
+
+  /**
+   * Mints a custom token the client exchanges for an ID token, so a share-link
+   * viewer can call the normal APIs without signing up.
+   */
+  createCustomToken(firebaseUID: string): Promise<string>;
 }
 
 /**

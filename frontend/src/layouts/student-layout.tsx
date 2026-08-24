@@ -7,6 +7,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { StudentSidebar } from "@/components/student-sidebar/StudentSidebar"
+import { ChatWidget } from "@/components/support-chat"
 
 export default function StudentLayout() {
   return (
@@ -24,6 +25,9 @@ export default function StudentLayout() {
             <Outlet />
           </div>
         </main>
+
+        {/* Support Chat Widget */}
+        <ChatWidget />
       </SidebarInset>
     </SidebarProvider>
   )

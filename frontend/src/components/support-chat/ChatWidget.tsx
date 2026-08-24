@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { MessageCircle, X } from 'lucide-react';
 import ChatWindow from './ChatWindow';
 
 interface ChatWidgetProps {

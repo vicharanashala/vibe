@@ -1,3 +1,4 @@
-export { ChatService } from './ChatService';
-export { FAQRetrievalService } from './FAQRetrievalService';
-export { AdminService } from './AdminService';
+export { ChatService } from './ChatService.js';
+export { FAQRetrievalService } from './FAQRetrievalService.js';
+export { AdminService } from './AdminService.js';
+export type { SupportQueueScope } from './AdminService.js';

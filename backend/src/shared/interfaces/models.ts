@@ -27,6 +27,11 @@ export interface IUser {
   profileImage?: string;
   faceEmbedding?: number[];
   roles: 'admin' | 'user';
+  /**
+   * A passwordless identity created for a share-link recipient. They never
+   * signed up, so they are excluded from the course's own analytics.
+   */
+  isShareLinkGuest?: boolean;
 }
 
 export type Versions = {
@@ -43,6 +48,12 @@ export interface ICourse {
   createdAt?: Date;
   updatedAt?: Date;
   isDeleted?: boolean;
+  /**
+   * A hidden holder for videos shared outside any course — one per instructor.
+   * It exists only so a quick-shared video has somewhere to record watching;
+   * it is never shown as a course of theirs.
+   */
+  isQuickShareContainer?: boolean;
 }
 
 export type ID = string | ObjectId | null;
@@ -453,6 +464,18 @@ export interface IEnrollment {
   enrollmentDate: Date;
   percentCompleted: number;
   completedItemsCount?: number;
+  /**
+   * This enrollment exists only to give a share-link recipient access. It is
+   * excluded from rosters and from the course's enrollment statistics, so
+   * sharing a course never moves the numbers that describe enrolled learners.
+   */
+  isShareLinkGuest?: boolean;
+  /**
+   * The instructor's own enrollment into their hidden quick-share holder. It
+   * is filtered out of their course lists and counts — the holder is not a
+   * course they teach.
+   */
+  isQuickShareContainer?: boolean;
   assignedTimeSlots?: Array<{
     from: string; // HH:MM format in IST
     to: string; // HH:MM format in IST
@@ -503,6 +526,23 @@ export interface IProgress {
   completed: boolean;
   completedAt?: Date;
   cohort?: string;
+  /**
+   * Items an admin manually advanced this student past, without a genuine
+   * completion — e.g. to unstick a student left permanently locked by a lost
+   * stop call. Recorded so the gap is distinguishable from an item the
+   * student never touched, rather than silently indistinguishable from one.
+   * Deliberately never counted as completed anywhere completion is checked
+   * (isItemCompleted/getCompletedItems only look at watchTime), so
+   * percentCompleted does not claim the item was watched.
+   */
+  adminSkips?: IAdminSkip[];
+}
+
+export interface IAdminSkip {
+  itemId: string | ObjectId;
+  reason: string;
+  skippedBy: string | ObjectId;
+  skippedAt: Date;
 }
 
 export interface ICurrentProgressPath {
@@ -522,6 +562,12 @@ export interface IWatchTime {
   endTime?: Date;
   lastSeenAt?: Date;
   cohortId?: ID;
+  // Written by addBulkWatchTime for records the system fabricated rather than
+  // measured, so they can be told apart from genuine watch sessions.
+  isBulk?: boolean;
+  // Set by the orphan recovery job once it has judged an abandoned session, so
+  // a record that fails the watch-duration bar is not re-examined every run.
+  recoveryAttemptedAt?: Date;
 }
 
 export interface ICohort {
@@ -601,6 +647,66 @@ export interface IInvite {
   createdAt: Date;
   expiresAt: Date;
 }
+/**
+ * How a share-link recipient watches.
+ *
+ * A person who was simply sent a video is not a learner working through a
+ * course, so the sharer chooses per link whether ViBe's learner behaviours
+ * apply. This never changes anything for enrolled learners.
+ */
+export enum ShareLinkViewingMode {
+  /** Plain playback: no proctoring, no rollback, no linear gating. */
+  PLAIN = 'PLAIN',
+  /** The full ViBe experience, same as an enrolled learner. */
+  PROCTORED = 'PROCTORED',
+}
+
+export enum ShareLinkEmailStatus {
+  /** The sharer chose to hand the link over themselves. */
+  NOT_SENT = 'NOT_SENT',
+  SENT = 'SENT',
+  FAILED = 'FAILED',
+}
+
+export enum ShareLinkStatus {
+  ACTIVE = 'ACTIVE',
+  OPENED = 'OPENED',
+  EXPIRED = 'EXPIRED',
+  REVOKED = 'REVOKED',
+}
+
+/**
+ * A per-recipient link to an existing course version.
+ *
+ * Unlike an invite, opening one never asks the recipient to sign up: the token
+ * itself carries their identity, and the first open binds it to a guest user so
+ * every watch-time, progress and activity record lands under a real userId.
+ */
+export interface IShareLink {
+  _id?: string | ObjectId | null;
+  token: string;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  cohortId?: string | ObjectId;
+  /** The video the link was generated for, when it was shared from one. */
+  itemId?: string | ObjectId;
+  recipientName: string;
+  recipientEmail: string;
+  createdBy: string | ObjectId;
+  /** Guest user the token was bound to on first open. */
+  guestUserId?: string | ObjectId;
+  viewingMode: ShareLinkViewingMode;
+  status: ShareLinkStatus;
+  emailStatus: ShareLinkEmailStatus;
+  emailedAt?: Date;
+  openCount: number;
+  createdAt: Date;
+  expiresAt: Date;
+  firstOpenedAt?: Date;
+  lastOpenedAt?: Date;
+  revokedAt?: Date;
+}
+
 // Interface for proctoring settings.
 /*export interface IProctoringSettings {
   components: ProctoringComponent[];
