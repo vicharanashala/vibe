@@ -2457,17 +2457,9 @@ class ProgressService extends BaseService {
           );
 
           if (!stoppedWatchTime) {
-            /**
-             * If your repository currently returns null when already stopped,
-             * this hard failure creates retry bugs.
-             *
-             * Recommended:
-             * either make stopItemTracking idempotent in repo,
-             * or treat "already stopped" as safe.
-             *
-             * For now, keeping compatibility:
-             */
-            throw new NotFoundError('Watch time record not found');
+            // Record was already closed by a concurrent request (endTime already
+            // set). Treat as idempotent success — progress has already advanced.
+            return;
           }
 
           await this.validateItemStopEligibility(
