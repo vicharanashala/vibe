@@ -686,6 +686,7 @@ class ProgressRepository {
       {
         _id: new ObjectId(watchTimeId),
         isDeleted: { $ne: true },
+        endTime: { $exists: false },
       },
       { $set: { endTime: new Date() } },
       { returnDocument: 'after', session },
