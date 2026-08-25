@@ -316,7 +316,7 @@ function ReviewPane({
           anomalyContext={{courseId, versionId, itemId: caseStudyId}}
         />
       ) : (
-        <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border p-8 text-center text-sm text-foreground/70">
           Check back once more colleagues have submitted responses to this case.
         </div>
       )}

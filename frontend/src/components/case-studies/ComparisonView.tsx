@@ -141,7 +141,7 @@ export default function ComparisonView({pair, onPick, anomalyContext}: Compariso
       </div>
 
       {locked ? (
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+        <p className="flex items-center justify-center gap-1.5 text-center text-xs font-medium text-amber-600 dark:text-amber-400">
           <AlertTriangle className="h-3.5 w-3.5" />
           Leaving this tab restarts the reading timer.
         </p>

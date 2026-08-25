@@ -149,7 +149,7 @@
   --secondary-foreground: 60 9.1% 97.8%;
 
   --muted: 12 6.5% 15.1%;
-  --muted-foreground: 24 5.4% 63.9%;
+  --muted-foreground: 24 5.4% 78%;
   --accent: 36 90% 60%;
   --accent-foreground: 60 9.1% 97.8%;
 
@@ -227,6 +227,12 @@
     color: hsl(var(--sidebar-foreground));
     border-right: 1px solid hsl(var(--sidebar-border));
   }
+}
+
+/* Text selection — keep highlight visible in dark mode */
+.dark ::selection {
+  background: hsl(38 95% 60% / 0.45);
+  color: hsl(60 9.1% 97.8%);
 }
 
 /* Custom Scrollbar Styles */
