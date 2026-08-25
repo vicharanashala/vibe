@@ -12,6 +12,7 @@ import {InternalServerError} from 'routing-controllers';
 class FeedbackRepository {
   private feedbackSubmissionCollection: Collection<FeedbackSubmissionItem>;
   private feedbackFormCollection: Collection<FeedBackFormItem>;
+  private initialized = false;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -26,6 +27,21 @@ class FeedbackRepository {
 
     this.feedbackFormCollection =
       await this.db.getCollection<FeedBackFormItem>('feedback_forms');
+
+    if (this.initialized) return;
+    this.initialized = true;
+
+    // feedback_submission had no indexes at all, so every lookup by user or
+    // version was a full collection scan. Progress recalculation reads this
+    // collection once per item create/delete on the Guru Setu course.
+    try {
+      await this.feedbackSubmissionCollection.createIndex(
+        {courseVersionId: 1, userId: 1},
+        {background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
   }
 
   /* ------------------------------------------------------
@@ -86,6 +102,21 @@ class FeedbackRepository {
       },
       {session},
     ).toArray();
+  }
+
+  /**
+   * All submissions in a course version, across every user. Used by bulk
+   * progress recalculation so it can fetch once instead of once per
+   * enrollment.
+   */
+  async getAllByVersionId(
+    versionId: string,
+    session?: ClientSession,
+  ): Promise<FeedbackSubmissionItem[]> {
+    await this.init();
+    return await this.feedbackSubmissionCollection
+      .find({courseVersionId: new ObjectId(versionId)}, {session})
+      .toArray();
   }
 
   async createFeedback(

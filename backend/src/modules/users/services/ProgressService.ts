@@ -127,34 +127,62 @@ class ProgressService extends BaseService {
     super(database);
   }
 
+  private isGuruSetu(courseId: string, versionId: string): boolean {
+    return (
+      courseId?.toString() === GURU_SETU_COURSE_ID &&
+      versionId?.toString() === GURU_SETU_VERSION_ID
+    );
+  }
+
+  /**
+   * Guru Setu progress is "feedback forms submitted / feedback forms in the
+   * version". Given the version's feedback form ids and the ids this user has
+   * submitted, derive the numbers in memory. Both the per-user and the bulk
+   * path funnel through here so there is a single formula.
+   */
+  private guruSetuProgressFrom(
+    feedbackFormIds: string[],
+    submittedFormIds: Set<string>,
+  ): { percentCompleted: number; completedItemsCount: number } {
+    const totalFeedbackItems = feedbackFormIds.length;
+
+    if (totalFeedbackItems === 0) {
+      return { percentCompleted: 0, completedItemsCount: 0 };
+    }
+
+    const completedCount = feedbackFormIds.filter(id =>
+      submittedFormIds.has(id),
+    ).length;
+
+    const percentCompleted = parseFloat(
+      ((completedCount / totalFeedbackItems) * 100).toFixed(2),
+    );
+
+    return {
+      percentCompleted,
+      completedItemsCount: completedCount,
+    };
+  }
+
   public async calculateGuruSetuProgress(
     userId: string,
     courseVersionId: string,
   ): Promise<{ percentCompleted: number; completedItemsCount: number }> {
     const feedbackItems = await this.itemRepo.getFeedbackItems(courseVersionId);
-    const totalFeedbackItems = feedbackItems.length;
 
-    if (totalFeedbackItems === 0) return { percentCompleted: 0, completedItemsCount: 0 };
+    if (feedbackItems.length === 0) {
+      return { percentCompleted: 0, completedItemsCount: 0 };
+    }
 
     const feedbackSubmissions = await this.feedbackRepository.getAllByUserAndVersionId(
       userId,
       courseVersionId,
     );
 
-    const submittedItemIds = new Set(
-      feedbackSubmissions.map(s => s.feedbackFormId.toString())
+    return this.guruSetuProgressFrom(
+      feedbackItems.map(item => item._id.toString()),
+      new Set(feedbackSubmissions.map(s => s.feedbackFormId.toString())),
     );
-
-    const completedCount = feedbackItems.filter(item =>
-      submittedItemIds.has(item._id.toString())
-    ).length;
-
-    const percentCompleted = parseFloat(((completedCount / totalFeedbackItems) * 100).toFixed(2));
-
-    return {
-      percentCompleted,
-      completedItemsCount: completedCount,
-    };
   }
 
   /**
@@ -563,52 +591,73 @@ class ProgressService extends BaseService {
     totalItems: number,
     session?: ClientSession,
   ) {
-    // resolve all async operations first
-    const bulkOps = await Promise.all(
-      enrollments.map(async enrollment => {
-        const userId = enrollment.userId?.toString();
+    if (enrollments.length === 0) return null;
 
-        // const completedItems = await this.getUserProgressPercentageWithoutTotal(
-        //   userId,
-        //   courseId,
-        //   versionId,
-        // );
+    // Guru Setu override: progress there is feedback-based rather than
+    // item-count based. Fetch the version's feedback forms and every
+    // submission ONCE, then derive each user's percentage in memory.
+    //
+    // This used to call calculateGuruSetuProgress per enrollment inside a
+    // Promise.all. That re-ran a whole-version traversal (one query per
+    // section, one per feedback form) for every enrolled user even though the
+    // result is identical for all of them, so adding or deleting an item on
+    // the FDP course outlived the request timeout.
+    let guruSetuFormIds: string[] | null = null;
+    let guruSetuSubmissionsByUser: Map<string, Set<string>> | null = null;
 
-        const completedItems = enrollment.completedItemsCount;
+    if (this.isGuruSetu(courseId, versionId)) {
+      const [feedbackItems, submissions] = await Promise.all([
+        this.itemRepo.getFeedbackItems(versionId, session),
+        this.feedbackRepository.getAllByVersionId(versionId, session),
+      ]);
 
-        let percentCompleted = this._calculateProgress(
-          totalItems,
-          completedItems,
-        );
+      guruSetuFormIds = feedbackItems.map(item => item._id.toString());
+      guruSetuSubmissionsByUser = new Map();
 
-        // Guru Setu Override
-        if (courseId?.toString() === GURU_SETU_COURSE_ID && versionId?.toString() === GURU_SETU_VERSION_ID) {
-          const guruProgress = await this.calculateGuruSetuProgress(userId, versionId);
-          percentCompleted = guruProgress.percentCompleted;
+      for (const submission of submissions) {
+        const submissionUserId = submission.userId.toString();
+        let submitted = guruSetuSubmissionsByUser.get(submissionUserId);
+        if (!submitted) {
+          submitted = new Set();
+          guruSetuSubmissionsByUser.set(submissionUserId, submitted);
         }
+        submitted.add(submission.feedbackFormId.toString());
+      }
+    }
 
-        return {
-          updateOne: {
-            filter: {
-              userId: new ObjectId(userId),
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(versionId),
-            },
-            update: {
-              $set: {
-                percentCompleted,
-                updatedAt: new Date(),
-              },
+    const bulkOps = enrollments.map(enrollment => {
+      const userId = enrollment.userId?.toString();
+
+      let percentCompleted = this._calculateProgress(
+        totalItems,
+        enrollment.completedItemsCount,
+      );
+
+      if (guruSetuFormIds) {
+        percentCompleted = this.guruSetuProgressFrom(
+          guruSetuFormIds,
+          guruSetuSubmissionsByUser.get(userId) ?? new Set<string>(),
+        ).percentCompleted;
+      }
+
+      return {
+        updateOne: {
+          filter: {
+            userId: new ObjectId(userId),
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(versionId),
+          },
+          update: {
+            $set: {
+              percentCompleted,
+              updatedAt: new Date(),
             },
           },
-        };
-      }),
-    );
+        },
+      };
+    });
 
-    if (bulkOps.length > 0) {
-      return this.enrollmentRepo.bulkUpdateEnrollments(bulkOps, session);
-    }
-    return null;
+    return this.enrollmentRepo.bulkUpdateEnrollments(bulkOps, session);
   }
 
   // Helper to calculate progress based on completed items
