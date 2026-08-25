@@ -2600,13 +2600,22 @@ export class EnrollmentRepository {
   ): Promise<number> {
     if (enrollments.length === 0) return 0;
 
+    // An enrollment with no cohort and one whose cohort simply wasn't loaded
+    // must not collapse to the same key, and neither may collide with a real
+    // cohort's. Normalising null/undefined to '' matches how the grouping
+    // stage below emits a missing cohortId.
+    const cohortKey = (cohortId: unknown) => cohortId?.toString() ?? '';
+
     const enrollmentMap = new Map<string, any>();
 
     enrollments.forEach(e => {
-      enrollmentMap.set(`${e.userId}_${e.courseId}_${e.courseVersionId}_${e.cohortId}`, {
-        id: e._id,
-        courseVersionId: e.courseVersionId.toString(),
-      });
+      enrollmentMap.set(
+        `${e.userId}_${e.courseId}_${e.courseVersionId}_${cohortKey(e.cohortId)}`,
+        {
+          id: e._id,
+          courseVersionId: e.courseVersionId.toString(),
+        },
+      );
     });
 
     const completedCounts = await this.watchTimeCollection
@@ -2615,13 +2624,22 @@ export class EnrollmentRepository {
           {
             $match: {
               isDeleted: { $ne: true },
-              isHidden: { $ne: true },
-              endTime: { $exists: true },
+              endTime: { $exists: true, $ne: null },
               $or: enrollments.map(e => ({
                 userId: e.userId,
                 courseId: e.courseId,
                 courseVersionId: e.courseVersionId,
-                ...(e.cohortId ? { cohortId: e.cohortId } : { cohortId: null }),
+                // A cohort-scoped enrollment counts only its own cohort's
+                // rows; one without a cohort counts the legacy rows that
+                // carry no cohortId (missing or explicitly null).
+                ...(e.cohortId
+                  ? { cohortId: e.cohortId }
+                  : {
+                      $or: [
+                        { cohortId: null },
+                        { cohortId: { $exists: false } },
+                      ],
+                    }),
               })),
             },
           },
@@ -2631,7 +2649,7 @@ export class EnrollmentRepository {
                 userId: '$userId',
                 courseId: '$courseId',
                 courseVersionId: '$courseVersionId',
-                cohortId: '$cohortId',
+                cohortId: { $ifNull: ['$cohortId', ''] },
               },
               completedItemsCount: { $addToSet: '$itemId' },
             },
@@ -2648,7 +2666,7 @@ export class EnrollmentRepository {
 
     const operations = completedCounts
       .map(c => {
-        const key = `${c._id.userId}_${c._id.courseId}_${c._id.courseVersionId}_${c._id.cohortId}`;
+        const key = `${c._id.userId}_${c._id.courseId}_${c._id.courseVersionId}_${cohortKey(c._id.cohortId)}`;
         const entry = enrollmentMap.get(key);
         if (!entry) return null;
 
@@ -2724,7 +2742,10 @@ export class EnrollmentRepository {
 
     const cursor = this.enrollmentCollection
       .find(match)
-      .project({ userId: 1, courseId: 1, courseVersionId: 1 })
+      // cohortId is required: the batch below scopes each enrollment's
+      // completions to its own cohort, and omitting it here silently counted
+      // every cohort-scoped enrollment as having completed nothing.
+      .project({ userId: 1, courseId: 1, courseVersionId: 1, cohortId: 1 })
       .batchSize(BATCH_SIZE);
 
     let batch: any[] = [];
