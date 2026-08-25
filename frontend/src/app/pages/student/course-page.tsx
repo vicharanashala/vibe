@@ -1754,6 +1754,10 @@ const handleGoToNextItem = async () => {
     const itemIndex = sectionItemsList.findIndex((i: any) => i._id === itemId);
   const currentItemIndex = sectionItemsList.findIndex((i: any) => i._id === currentItemId);
 
+  // If the current item isn't in this section's loaded list (stale/incomplete
+  // data), position comparison is meaningless — don't over-lock.
+  if (currentItemIndex === -1) return false;
+
   // Only unlock next item if it's a QUIZ paired with current VIDEO
   if (itemIndex === currentItemIndex + 1) {
     const currentItemInList = sectionItemsList[currentItemIndex] as any;
