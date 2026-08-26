@@ -570,6 +570,24 @@ export interface IWatchTime {
   recoveryAttemptedAt?: Date;
 }
 
+/**
+ * Precomputed slice of a course version's enrollment statistics.
+ *
+ * Only average watch hours is stored. It is the one figure whose cost grows
+ * with recorded watch-session volume rather than with roster size, so leaving
+ * it in the request path made the teacher statistics panel slower as a course
+ * accumulated viewing history. The enrollment counts beside it stay live —
+ * they are served by an index and teachers check them for freshness the
+ * moment someone joins.
+ */
+export interface ICourseVersionStats {
+  _id?: string | ObjectId | null;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  averageWatchHoursPerUser: number;
+  computedAt: Date;
+}
+
 export interface ICohort {
   _id?: string | ObjectId | null;
   courseId: string | ObjectId;

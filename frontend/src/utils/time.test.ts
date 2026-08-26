@@ -7,6 +7,7 @@ import {
   digitsToSeconds,
   parsePastedTime,
   formatWatchDuration,
+  formatTimeAgo,
 } from './time';
 
 describe('formatTime', () => {
@@ -178,5 +179,28 @@ describe('formatWatchDuration', () => {
     expect(formatWatchDuration(0)).toBe('0m');
     expect(formatWatchDuration(-5)).toBe('0m');
     expect(formatWatchDuration(NaN)).toBe('0m');
+  });
+});
+
+describe('formatTimeAgo', () => {
+  it('reads anything under a minute as current', () => {
+    expect(formatTimeAgo(new Date())).toBe('just now');
+    expect(formatTimeAgo(Date.now() - 30_000)).toBe('just now');
+  });
+
+  it('steps up through minutes, hours and days', () => {
+    expect(formatTimeAgo(Date.now() - 12 * 60_000)).toBe('12m ago');
+    expect(formatTimeAgo(Date.now() - 3 * 3600_000)).toBe('3h ago');
+    expect(formatTimeAgo(Date.now() - 2 * 86400_000)).toBe('2d ago');
+  });
+
+  it('treats a future timestamp as current rather than negative', () => {
+    // Clock skew between the server and the viewer must not render as
+    // "-1m ago" on a figure that was just recomputed.
+    expect(formatTimeAgo(Date.now() + 30_000)).toBe('just now');
+  });
+
+  it('returns an empty string for an unusable date', () => {
+    expect(formatTimeAgo('not a date')).toBe('');
   });
 });

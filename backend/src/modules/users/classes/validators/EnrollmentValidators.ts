@@ -631,6 +631,16 @@ export class EnrollmentStatisticsResponse {
 
   @IsNumber()
   averageWatchHoursPerUser: number;
+
+  @JSONSchema({
+    description:
+      'When averageWatchHoursPerUser was last recomputed by the statistics ' +
+      'job. Null means it has not been computed for this course version yet, ' +
+      'so the accompanying figure is a placeholder rather than a measurement.',
+  })
+  @IsOptional()
+  @IsDate()
+  watchHoursComputedAt?: Date | null;
 }
 
 export class UserEnrollmentStatisticsResponse {

@@ -34,6 +34,12 @@ export const appConfig = {
   // deliberately per environment after a dry run rather than on deploy.
   ENABLE_WATCHTIME_RECOVERY_JOB:
     env('ENABLE_WATCHTIME_RECOVERY_JOB') === 'true',
+  // Default ON: precomputes the average watch hours shown on the teacher
+  // statistics panel, which otherwise has to be aggregated per request. It
+  // only writes a cached display figure and touches no student progress, so
+  // it is safe to self-activate on deploy. Until it first runs, the panel
+  // reports watch hours as not yet computed rather than as zero.
+  ENABLE_ENROLLMENT_STATS_JOB: env('ENABLE_ENROLLMENT_STATS_JOB') !== 'false',
   GOOGLE_APPLICATION_CREDENTIALS: env('GOOGLE_APPLICATION_CREDENTIALS'),
   GCP_BACKUP_BUCKET: env('GCP_BACKUP_BUCKET'),
   GCP_BACKUP_ACTIVITY_BUCKET: env('GCP_BACKUP_ACTIVITY_BUCKET'),
