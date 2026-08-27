@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
+import { StudyNotesPanel } from "@/components/course/StudyNotesPanel";
+import type { TranscriptInput } from "@/lib/api/studyNotesApi";
+import { fetchYouTubeTranscript } from "@/lib/youtubeTranscript";
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics } from '@/hooks/hooks';
 import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, LockOpen, Lock } from 'lucide-react';
@@ -1081,38 +1084,53 @@ function TeacherCourseContent() {
 
     // Handle video items
     if (type === "VIDEO" && videoData) {
-      createItemAsync({
-        params: { path: { versionId, moduleId, sectionId } },
-        body: {
-          type: "VIDEO",
-          name: videoData.name,
-          description: videoData.description,
-          videoDetails: {
-            // URL and source/assetId are mutually exclusive — send only the pair
-            // the modal actually produced. Listing URL unconditionally would send
-            // it as undefined for an upload, and the backend would then validate
-            // the item as a YouTube video and reject it for a missing URL.
-            ...(videoData.details.source === "GCS"
-              ? {
-                source: videoData.details.source,
-                assetId: videoData.details.assetId,
-              }
-              : { URL: videoData.details.URL }),
-            startTime: videoData.details.startTime,
-            endTime: videoData.details.endTime,
-            points: videoData.details.points,
+      const videoUrl = videoData.details?.URL;
+      
+      const proceedCreate = (transcriptText?: string) => {
+        createItemAsync({
+          params: { path: { versionId, moduleId, sectionId } },
+          body: {
+            type: "VIDEO",
+            name: videoData.name,
+            description: videoData.description,
+            videoDetails: {
+              // URL and source/assetId are mutually exclusive — send only the pair
+              // the modal actually produced. Listing URL unconditionally would send
+              // it as undefined for an upload, and the backend would then validate
+              // the item as a YouTube video and reject it for a missing URL.
+              ...(videoData.details.source === "GCS"
+                ? {
+                  source: videoData.details.source,
+                  assetId: videoData.details.assetId,
+                }
+                : { URL: videoData.details.URL }),
+              startTime: videoData.details.startTime,
+              endTime: videoData.details.endTime,
+              points: videoData.details.points,
+              transcript: transcriptText,
+            }
           }
-        }
-      }).then((res) => {
-        refetchVersion();
-        if (shouldFetchItems) {
-          refetchItems();
-        }
-        toast.success("Video created successfully");
-      }).catch((error) => {
-        console.error("Error creating video:", error);
-        toast.error(`Failed to create video: ${error.message || 'Unknown error'}`);
-      });
+        }).then((res) => {
+          refetchVersion();
+          if (shouldFetchItems) {
+            refetchItems();
+          }
+          toast.success("Video created successfully");
+        }).catch((error) => {
+          console.error("Error creating video:", error);
+          toast.error(`Failed to create video: ${error.message || 'Unknown error'}`);
+        });
+      };
+
+      if (videoUrl) {
+        fetchYouTubeTranscript(videoUrl).then((ytRes) => {
+          proceedCreate(ytRes.status === 'ready' ? ytRes.transcriptText : undefined);
+        }).catch(() => {
+          proceedCreate(undefined);
+        });
+      } else {
+        proceedCreate(undefined);
+      }
 
       return;
     }
@@ -3530,6 +3548,42 @@ function TeacherCourseContent() {
                           }}
                         />
                       )}
+                      {/* Section Study Notes Panel */}
+                      {(() => {
+                        const currentSecId = activeSectionInfo?.sectionId || (selectedEntity?.type === 'section' ? selectedEntity.data?._id : selectedEntity?.parentIds?.sectionId);
+                        if (!currentSecId || !versionId) return null;
+                        const currentModId = activeSectionInfo?.moduleId || (selectedEntity?.type === 'section' ? selectedEntity.parentIds?.moduleId : undefined);
+                        const currentSecItems: any[] = sectionItems[currentSecId] || [];
+                        const currentTranscripts: TranscriptInput[] = currentSecItems
+                          .filter((item: any) => item.type === "VIDEO" && item.details?.transcript)
+                          .map((item: any) => ({
+                            videoTitle: item.name,
+                            transcriptText: item.details.transcript,
+                          }));
+                        return (
+                          <div className="mt-6 pt-4 border-t px-4">
+                            <StudyNotesPanel
+                              courseId={courseId}
+                              courseVersionId={versionId}
+                              moduleId={currentModId}
+                              sectionId={currentSecId}
+                              sectionTitle={
+                                (() => {
+                                  const modules: any[] = (versionData as any)?.modules ?? [];
+                                  for (const m of modules) {
+                                    const sec = (m.sections ?? []).find((s: any) => s.sectionId === currentSecId);
+                                    if (sec) return sec.name;
+                                  }
+                                  return "Section Study Notes";
+                                })()
+                              }
+                              items={currentSecItems}
+                              transcripts={currentTranscripts}
+                              isInstructor={true}
+                            />
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -3576,6 +3630,43 @@ function TeacherCourseContent() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Study Notes Panel */}
+                    {(() => {
+                      const currentSecId = activeSectionInfo?.sectionId || (selectedEntity?.type === 'section' ? selectedEntity.data?._id : selectedEntity?.parentIds?.sectionId);
+                      if (!currentSecId || !versionId) return null;
+                      const currentModId = activeSectionInfo?.moduleId || (selectedEntity?.type === 'section' ? selectedEntity.parentIds?.moduleId : undefined);
+                      const currentSecItems: any[] = sectionItems[currentSecId] || [];
+                      const currentTranscripts: TranscriptInput[] = currentSecItems
+                        .filter((item: any) => item.type === "VIDEO" && item.details?.transcript)
+                        .map((item: any) => ({
+                          videoTitle: item.name,
+                          transcriptText: item.details.transcript,
+                        }));
+                      return (
+                        <div className="relative z-10 my-6 w-full px-4">
+                          <StudyNotesPanel
+                            courseId={courseId}
+                            courseVersionId={versionId}
+                            moduleId={currentModId}
+                            sectionId={currentSecId}
+                            sectionTitle={
+                              (() => {
+                                const modules: any[] = (versionData as any)?.modules ?? [];
+                                for (const m of modules) {
+                                  const sec = (m.sections ?? []).find((s: any) => s.sectionId === currentSecId);
+                                  if (sec) return sec.name;
+                                }
+                                return "Section Study Notes";
+                              })()
+                            }
+                            items={currentSecItems}
+                            transcripts={currentTranscripts}
+                            isInstructor={true}
+                          />
+                        </div>
+                      );
+                    })()}
 
                     <div className="relative z-10 mb-6 w-full max-w-2xl px-4">
                       <div className="rounded-xl border bg-background/80 px-5 py-4 text-left">

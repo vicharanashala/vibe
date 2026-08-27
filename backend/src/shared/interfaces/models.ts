@@ -373,6 +373,7 @@ export interface IVideoDetails {
   startTime: string;
   endTime: string;
   points: number;
+  transcript?: string;
 }
 
 export interface IQuestionBankRef {
