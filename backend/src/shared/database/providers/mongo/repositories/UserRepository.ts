@@ -10,8 +10,17 @@ import {User} from '#auth/classes/transformers/User.js';
 import admin from 'firebase-admin';
 import {appConfig} from '#root/config/app.js';
 
+// This runs at module-load time, before FirebaseAuthService's constructor
+// ever gets a chance to — so its own identical init logic (see
+// modules/auth/services/FirebaseAuthService.ts) never fires once this one
+// has already set admin.apps. Explicit service-account creds whenever
+// they're configured, in any environment — not just isDevelopment.
+// applicationDefault() only resolves on real GCP infrastructure; a non-GCP
+// host like Render has neither, so it fails with "Could not load the
+// default credentials." Falling back to applicationDefault() only when the
+// explicit vars are absent keeps the real-GCP-production path unchanged.
 if (!admin.apps.length) {
-  if (appConfig.isDevelopment) {
+  if (appConfig.firebase.clientEmail && appConfig.firebase.privateKey && appConfig.firebase.projectId) {
     admin.initializeApp({
       credential: admin.credential.cert({
         clientEmail: appConfig.firebase.clientEmail,

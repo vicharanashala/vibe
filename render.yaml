@@ -1,0 +1,98 @@
+services:
+  # Backend API (Express, routing-controllers) — connects to your MongoDB
+  # Atlas cluster instead of the local in-memory Mongo used in dev.
+  - type: web
+    name: vibe-exam-backend
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter vitest-vibe run build
+    startCommand: node backend/build/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_MODULE
+        value: all
+      # Render injects PORT automatically; backend/src/config/app.ts already
+      # prefers env('PORT') over APP_PORT, so nothing to set here.
+      - key: APP_URL
+        sync: false # fill in after first deploy: https://vibe-exam-backend.onrender.com
+      - key: APP_ORIGINS
+        value: https://vibe-exam-frontend.onrender.com
+      - key: DB_URL
+        sync: false # paste your MongoDB Atlas connection string here
+      - key: DB_NAME
+        value: vibe
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: GCLOUD_PROJECT
+        sync: false
+      - key: SCREENING_PROVIDER
+        value: groq
+      - key: SCREENING_ENABLED
+        value: "true"
+      - key: SCREENING_CONTEXT_ENABLED
+        value: "false"
+      - key: SCREENING_TIMEOUT_MS
+        value: "9000"
+      - key: SCREENING_MAX_RETRIES
+        value: "2"
+      - key: SCREENING_DEDUP_LIMIT
+        value: "50"
+      - key: SCREENING_CONTEXT_CHARS
+        value: "2000"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: EXAM_GENAI_PROVIDER_ORDER
+        value: minimax,groq,anthropic
+      - key: EXAM_GENAI_TARGET_GOOD
+        value: "8"
+      - key: MINIMAX_API_KEY
+        sync: false
+      - key: MINIMAX_BASE_URL
+        value: https://api.minimax.io
+      - key: MINIMAX_MODEL
+        value: MiniMax-M3
+      # Personal token-plan key — keep throttled to avoid 429s (see
+      # backend/.env's comment on this same pair for the full story).
+      - key: MINIMAX_MAX_CONCURRENT
+        value: "1"
+      - key: MINIMAX_MAX_RPS
+        value: "1"
+      - key: ANTHROPIC_CRED
+        sync: false
+
+  # Frontend (Vite build, served as a static site).
+  - type: web
+    name: vibe-exam-frontend
+    runtime: static
+    rootDir: .
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter frontend run build
+    staticPublishPath: frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_BASE_URL
+        value: https://vibe-exam-backend.onrender.com/api
+      - key: VITE_FIREBASE_API_KEY
+        value: AIzaSyBEsYgdkrkt3x3bUDjmCODXDLyWonVtHr8
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        value: vibe-app-303fa.firebaseapp.com
+      - key: VITE_FIREBASE_PROJECT_ID
+        value: vibe-app-303fa
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        value: vibe-app-303fa.firebasestorage.app
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        value: "1012838726199"
+      - key: VITE_FIREBASE_APP_ID
+        value: 1:1012838726199:web:d09c5f36b6552ae6ba1db2
+      - key: VITE_FIREBASE_MEASUREMENT_ID
+        value: G-GW2XH9BK84

@@ -6,6 +6,14 @@ export const storageConfig = {
     anomalyBucketName: env('GOOGLE_ANOMALY_BUCKET') || 'vibe-anomaly-data',
     facesBucketName: env('GOOGLE_FACES_BUCKET') || 'vibe-faces-data',
     aiServerBucketName: env('GOOGLE_AI_SERVER_BUCKET') || 'vibe-aiserver-data',
+    /**
+     * Exam question/option images and proctoring-violation snapshots
+     * (`modules/exams`). Kept as its own bucket rather than reusing
+     * `anomalyBucketName`/`facesBucketName` since exam media is a distinct
+     * logical concern (teacher-authored content + student attempt audit
+     * trail) with no relation to the anomalies module.
+     */
+    examMediaBucketName: env('GOOGLE_EXAM_MEDIA_BUCKET') || 'vibe-exam-media',
   },
   encryption: {
     mediaEncryptionKey: env('MEDIA_ENCRYPTION_KEY'),
