@@ -3,10 +3,14 @@ import {
   IsEnum,
   IsMongoId,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
+  Max,
+  Min,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
+import {Type} from 'class-transformer';
 // Import directly from the defining transformer rather than the module barrel
 // to avoid a circular dependency (the barrel re-exports controllers that pull
 // these validators back in, leaving AnomalyType undefined at eval time).
@@ -61,6 +65,22 @@ export class NewAnomalyData {
   @IsMongoId()
   @IsString()
   cohortId?: string | ObjectId;
+
+  @JSONSchema({
+    description:
+      'Average per-face detection confidence (0-1) for the frame that triggered this anomaly, when the client-side detector provides one (optional, #1222)',
+    type: 'number',
+  })
+  @IsOptional()
+  // This endpoint is multipart/form-data (image upload), so numeric fields
+  // arrive as strings - without this, class-validator's @IsNumber() rejects
+  // a perfectly valid "0.91" (confirmed live: real 400 against a temporary
+  // Render deploy of this branch before this fix was added).
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  confidence?: number;
 }
 
 export class AnomalyData extends NewAnomalyData implements IAnomalyData {
