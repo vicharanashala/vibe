@@ -3942,20 +3942,27 @@ export class EnrollmentRepository {
       const courseObjectId = new ObjectId(courseId);
       const versionObjectId = new ObjectId(courseVersionId);
 
+      const query: any = {
+        courseId: courseObjectId,
+        courseVersionId: versionObjectId,
+        role: 'STUDENT',
+        status: { $regex: /^active$/i },
+        isDeleted: { $ne: true },
+      };
+      if (cohortId && ObjectId.isValid(cohortId)) {
+        query.cohortId = new ObjectId(cohortId);
+      }
+
       const enrollments = await this.enrollmentCollection
-        .find(
-          {
-            courseId: courseObjectId,
-            courseVersionId: versionObjectId,
-            role: 'STUDENT',
-            status: { $regex: /^active$/i },
-            isDeleted: { $ne: true },
-            ...(cohortId
-              ? { cohortId: new ObjectId(cohortId) }
-              : { cohortId: null }),
+        .find(query, {
+          projection: {
+            _id: 1,
+            userId: 1,
+            percentCompleted: 1,
+            enrollmentDate: 1,
           },
-          { session },
-        )
+          session,
+        })
         .toArray();
 
       return enrollments;

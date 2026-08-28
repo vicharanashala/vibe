@@ -924,18 +924,19 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<Map<string, { weeklyItems: number; weeklyMinutes: number }>> {
     await this.init();
+    const match: any = {
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      isDeleted: { $ne: true },
+      endTime: { $gte: since, $ne: null },
+    };
+    if (cohortId && ObjectId.isValid(cohortId)) {
+      match.cohortId = new ObjectId(cohortId);
+    }
     const results = await this.watchTimeCollection
       .aggregate(
         [
-          {
-            $match: {
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(courseVersionId),
-              ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
-              isDeleted: { $ne: true },
-              endTime: { $gte: since, $ne: null },
-            },
-          },
+          { $match: match },
           {
             $group: {
               _id: '$userId',
@@ -984,18 +985,19 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<Map<string, Date>> {
     await this.init();
+    const match: any = {
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      isDeleted: { $ne: true },
+      startTime: { $ne: null, $exists: true },
+    };
+    if (cohortId && ObjectId.isValid(cohortId)) {
+      match.cohortId = new ObjectId(cohortId);
+    }
     const results = await this.watchTimeCollection
       .aggregate(
         [
-          {
-            $match: {
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(courseVersionId),
-              ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
-              isDeleted: { $ne: true },
-              startTime: { $ne: null, $exists: true },
-            },
-          },
+          { $match: match },
           { $group: { _id: '$userId', firstStart: { $min: '$startTime' } } },
         ],
         { session },
@@ -1025,15 +1027,23 @@ class ProgressRepository {
     session?: ClientSession,
   ): Promise<IProgress[]> {
     await this.init();
+    const query: any = {
+      courseId: { $in: [new ObjectId(courseId), courseId] },
+      courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+    };
+    if (cohortId && ObjectId.isValid(cohortId)) {
+      query.cohortId = new ObjectId(cohortId);
+    }
     const progressRecords = await this.progressCollection
-      .find(
-        {
-          courseId: { $in: [new ObjectId(courseId), courseId] },
-          courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+      .find(query, {
+        projection: {
+          _id: 1,
+          userId: 1,
+          completed: 1,
+          completedAt: 1,
         },
-        { session },
-      )
+        session,
+      })
       .toArray();
 
     return progressRecords.map(progress => ({
