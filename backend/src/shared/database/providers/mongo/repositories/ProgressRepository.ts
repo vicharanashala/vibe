@@ -6,6 +6,7 @@ import { MongoDatabase } from '../MongoDatabase.js';
 import { GLOBAL_TYPES } from '#root/types.js';
 import { BadRequestError, InternalServerError } from 'routing-controllers';
 import { ActiveUserDto, Course, CourseVersion, VideoUserAnalytics, VideoUserAnalyticsResponse } from '#root/modules/courses/classes/index.js';
+import { isTransientTransactionError } from '#root/shared/functions/isTransientTransactionError.js';
 
 type CurrentProgress = Pick<
   IProgress,
@@ -506,6 +507,9 @@ class ProgressRepository {
 
       return docsToDelete.map(doc => doc._id.toString());
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         `Failed to delete quiz attempts /More ${error}`,
       );

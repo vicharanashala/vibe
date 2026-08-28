@@ -49,18 +49,7 @@ import { IQuestionBank } from '#root/shared/interfaces/quiz.js';
 import { IProjectSubmissionRepository } from '#root/modules/projects/interfaces/IProjectSubmissionRepository.js';
 import { ISettingRepository } from '#root/shared/database/interfaces/ISettingRepository.js';
 import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
-
-/**
- * Transient transaction errors (e.g. write conflicts with concurrent watch-time
- * heartbeats) must reach BaseService._withTransaction unwrapped, with their
- * errorLabels intact, so the transaction is retried instead of surfacing a 500.
- */
-function isTransientTransactionError(error: unknown): boolean {
-  return (
-    Array.isArray((error as any)?.errorLabels) &&
-    (error as any).errorLabels.includes('TransientTransactionError')
-  );
-}
+import { isTransientTransactionError } from '#root/shared/functions/isTransientTransactionError.js';
 
 @injectable()
 export class CourseRepository implements ICourseRepository {
@@ -488,6 +477,9 @@ export class CourseRepository implements ICourseRepository {
         throw new InternalServerError('Failed to create course version');
       }
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to create course version.\n More Details: ' + error,
       );
@@ -510,6 +502,9 @@ export class CourseRepository implements ICourseRepository {
         { session },
       );
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to add module to course version.\n More Details: ' + error,
       );
@@ -548,6 +543,9 @@ export class CourseRepository implements ICourseRepository {
       ) as CourseVersion;
     } catch (error) {
       if (error instanceof NotFoundError) {
+        throw error;
+      }
+      if (isTransientTransactionError(error)) {
         throw error;
       }
       throw new InternalServerError(
@@ -956,6 +954,9 @@ export class CourseRepository implements ICourseRepository {
       if (error instanceof NotFoundError) {
         throw error;
       }
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to delete course version.\n More Details: ' + error,
       );
@@ -1249,6 +1250,9 @@ export class CourseRepository implements ICourseRepository {
       );
       return await query.toArray();
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         `Failed to fetch courses: ${(error as Error).message}`,
       );
@@ -1267,6 +1271,9 @@ export class CourseRepository implements ICourseRepository {
       );
       console.log(`Bulk update result: ${JSON.stringify(result)}`);
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to bulk update course versions.\n More Details: ' + error,
       );
@@ -1291,6 +1298,9 @@ export class CourseRepository implements ICourseRepository {
 
       return true;
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       console.error('Failed to add new course version:', error);
       throw new InternalServerError(`Failed to add new course version`);
     }
@@ -1409,6 +1419,9 @@ export class CourseRepository implements ICourseRepository {
         );
       }
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to cascade delete versions.\n More Details: ' + error,
       );
@@ -1439,6 +1452,9 @@ export class CourseRepository implements ICourseRepository {
       )
       return result;
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to update course version.\n More Details: ' + error,
       );
@@ -1476,6 +1492,9 @@ export class CourseRepository implements ICourseRepository {
 
       return result.insertedId.toString();
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to create cohort settings.\n More Details: ' + error,
       );
@@ -1500,6 +1519,9 @@ export class CourseRepository implements ICourseRepository {
       }
       return setting;
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to get cohort setting by ID.\n More Details: ' + error,
       );
@@ -1526,6 +1548,9 @@ export class CourseRepository implements ICourseRepository {
       }
       return setting._id.toString();
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to get cohort setting.\n More Details: ' + error,
       );
@@ -1554,6 +1579,9 @@ export class CourseRepository implements ICourseRepository {
 
       return result.modifiedCount === 1;
     } catch (error) {
+      if (isTransientTransactionError(error)) {
+        throw error;
+      }
       throw new InternalServerError(
         'Failed to update cohort settings.\n More Details: ' + error,
       );
