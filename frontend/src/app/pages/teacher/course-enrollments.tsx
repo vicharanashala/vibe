@@ -44,6 +44,7 @@ import {
   useRecalculateStudentProgress,
   useResetFace,
 } from "@/hooks/hooks"
+import { formatTimeAgo } from "@/utils/time"
 import { toast } from "sonner"
 import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
@@ -1323,12 +1324,20 @@ function CourseEnrollments() {
     },
     {
       title: "Avg Watch Hours",
+      // Recomputed on a schedule rather than per request, so unlike the tiles
+      // above it carries a note saying how current it is. Before the job has
+      // ever run for this course there is no figure to show, and a bare "0h"
+      // would read as "nobody watched anything" rather than "not measured yet".
       value: (() => {
+        if (!enrollmentStats?.watchHoursComputedAt) return `—`;
         const v = enrollmentStats?.averageWatchHoursPerUser ?? 0;
         if (v <= 0) return `0h`;
         if (v < 0.005) return `<0.01h`;
         return `${v.toFixed(2)}h`;
       })(),
+      subtitle: enrollmentStats?.watchHoursComputedAt
+        ? `Updated ${formatTimeAgo(enrollmentStats.watchHoursComputedAt)}`
+        : `Not computed yet`,
       icon: Clock,
       color: "text-orange-600",
       bgColor: "bg-orange-50",
@@ -1476,6 +1485,9 @@ function CourseEnrollments() {
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
                       <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                      {stat.subtitle && (
+                        <p className="text-xs text-muted-foreground mt-1">{stat.subtitle}</p>
+                      )}
                     </div>
                     <div className={`p-3 rounded-full ${stat.bgColor}`}>
                       <stat.icon className={`h-5 w-5 ${stat.color}`} />

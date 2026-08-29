@@ -433,6 +433,30 @@ export class ResetCourseProgressParams {
   versionId: string;
 }
 
+export class AdminAdvanceProgressBody {
+  @JSONSchema({
+    description:
+      'Why this student is being manually advanced — e.g. a lost stop call ' +
+      'confirmed via a support ticket. Required so every admin unlock is ' +
+      'self-explanatory in the audit trail without needing to dig up context.',
+    example: 'Stop call lost, confirmed watched via ticket #123',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  reason: string;
+
+  @JSONSchema({
+    description: 'Optional cohort ID, for cohort-scoped progress records',
+    type: 'string',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  cohortId?: string;
+}
+
 export class ResetCourseProgressBody {
   @JSONSchema({
     description: 'Optional module ID to reset progress to',

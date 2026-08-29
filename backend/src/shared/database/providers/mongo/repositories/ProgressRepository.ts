@@ -1,4 +1,4 @@
-import { IProgress, IWatchTime } from '#shared/interfaces/models.js';
+import { IAdminSkip, IProgress, IWatchTime } from '#shared/interfaces/models.js';
 import { IAttempt } from '#quizzes/interfaces/grading.js';
 import { injectable, inject } from 'inversify';
 import { Collection, ObjectId, ClientSession } from 'mongodb';
@@ -83,6 +83,22 @@ class ProgressRepository {
       await this.watchTimeCollection.createIndex(
         {
           itemId: 1,
+        },
+        { background: true },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      // The enrollment statistics job sums watch time across a whole course
+      // version. The userId-leading index above cannot serve that shape, so
+      // without this one the aggregation scans the entire collection.
+      await this.watchTimeCollection.createIndex(
+        {
+          courseId: 1,
+          courseVersionId: 1,
+          endTime: 1,
         },
         { background: true },
       );
@@ -595,6 +611,44 @@ class ProgressRepository {
     return result;
   }
 
+  /**
+   * Record that an admin manually advanced a student past an item, without a
+   * genuine completion. Appended rather than replacing anything, so a
+   * student can be skipped past more than one item over time and each skip
+   * keeps its own reason/actor/timestamp.
+   */
+  async recordAdminSkip(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    skip: IAdminSkip,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IProgress | null> {
+    await this.init();
+    const result = await this.progressCollection.findOneAndUpdate(
+      {
+        userId: { $in: [new ObjectId(userId), userId] },
+        courseId: { $in: [new ObjectId(courseId), courseId] },
+        courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        isDeleted: { $ne: true },
+      },
+      {
+        $push: {
+          adminSkips: {
+            itemId: new ObjectId(skip.itemId),
+            reason: skip.reason,
+            skippedBy: new ObjectId(skip.skippedBy),
+            skippedAt: skip.skippedAt,
+          },
+        },
+      },
+      { returnDocument: 'after', session },
+    );
+    return result;
+  }
+
   async createProgress(
     progress: IProgress,
     session: ClientSession,
@@ -648,6 +702,7 @@ class ProgressRepository {
       {
         _id: new ObjectId(watchTimeId),
         isDeleted: { $ne: true },
+        endTime: { $exists: false },
       },
       { $set: { endTime: new Date() } },
       { returnDocument: 'after', session },

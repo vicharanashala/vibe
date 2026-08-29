@@ -47,7 +47,10 @@ export const EjectionPolicyModal = ({
     courseId: defaultScope === PolicyScope.COURSE ? courseId || "" : "",
     courseVersionId: defaultScope === PolicyScope.COURSE ? courseVersionId || "" : "",
     cohortId: cohortId ||"",
-    isActive: true,
+    // New policies start inactive: this feature ejects students, so it must be
+    // switched on deliberately after its triggers have been reviewed, never by
+    // simply being created.
+    isActive: false,
     
     // Triggers
     inactivityEnabled: false,
@@ -131,8 +134,8 @@ export const EjectionPolicyModal = ({
         courseId: courseId || "",
         courseVersionId: courseVersionId || "",
         cohortId: cohortId || "",
-        
-        isActive: true,
+
+        isActive: false,
         inactivityEnabled: false,
         inactivityThresholdDays: 30,
         inactivityWarningDays: 7,
@@ -364,14 +367,25 @@ export const EjectionPolicyModal = ({
                
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <Label htmlFor="isActive" className="cursor-pointer">Active Status</Label>
-                <Switch
-                  id="isActive"
-                  checked={formData.isActive}
-                  onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-                />
-              </div>
+              {/* Only offered when editing. A new policy is always created
+                  inactive and is activated from its card, which confirms the
+                  consequence first — creating a policy must never be what
+                  starts ejecting students. */}
+              {editPolicy ? (
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <Label htmlFor="isActive" className="cursor-pointer">Active Status</Label>
+                  <Switch
+                    id="isActive"
+                    checked={formData.isActive}
+                    onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                  />
+                </div>
+              ) : (
+                <p className="p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+                  This policy will be created <span className="font-medium">inactive</span>. Activate it
+                  from the policy list once you have reviewed its triggers.
+                </p>
+              )}
             </div>
           </div>
 

@@ -49,9 +49,13 @@ export class EjectionPolicyService extends BaseService {
       // Check for conflicts
       // await this.checkPolicyConflicts(policyData, undefined, session);
 
-      // Create the policy
+      // Create the policy. isActive is forced off regardless of what the
+      // caller sent: this feature ejects students, so a policy becomes live
+      // only through an explicit activation (toggle/update), never as a side
+      // effect of being created.
       const policy = new EjectionPolicy({
         ...policyData,
+        isActive: false,
         createdBy,
       });
 

@@ -1069,14 +1069,13 @@ export class EnrollmentController {
         courseId,
         versionId,
       );
-    // stats now includes averageWatchHoursPerUser
-
     if (!stats || stats.totalEnrollments === 0) {
       return {
         totalEnrollments: 0,
         completedCount: 0,
         averageProgressPercent: 0,
         averageWatchHoursPerUser: 0,
+        watchHoursComputedAt: null,
       };
     }
 

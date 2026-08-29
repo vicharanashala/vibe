@@ -526,6 +526,23 @@ export interface IProgress {
   completed: boolean;
   completedAt?: Date;
   cohort?: string;
+  /**
+   * Items an admin manually advanced this student past, without a genuine
+   * completion — e.g. to unstick a student left permanently locked by a lost
+   * stop call. Recorded so the gap is distinguishable from an item the
+   * student never touched, rather than silently indistinguishable from one.
+   * Deliberately never counted as completed anywhere completion is checked
+   * (isItemCompleted/getCompletedItems only look at watchTime), so
+   * percentCompleted does not claim the item was watched.
+   */
+  adminSkips?: IAdminSkip[];
+}
+
+export interface IAdminSkip {
+  itemId: string | ObjectId;
+  reason: string;
+  skippedBy: string | ObjectId;
+  skippedAt: Date;
 }
 
 export interface ICurrentProgressPath {
@@ -551,6 +568,24 @@ export interface IWatchTime {
   // Set by the orphan recovery job once it has judged an abandoned session, so
   // a record that fails the watch-duration bar is not re-examined every run.
   recoveryAttemptedAt?: Date;
+}
+
+/**
+ * Precomputed slice of a course version's enrollment statistics.
+ *
+ * Only average watch hours is stored. It is the one figure whose cost grows
+ * with recorded watch-session volume rather than with roster size, so leaving
+ * it in the request path made the teacher statistics panel slower as a course
+ * accumulated viewing history. The enrollment counts beside it stay live —
+ * they are served by an index and teachers check them for freshness the
+ * moment someone joins.
+ */
+export interface ICourseVersionStats {
+  _id?: string | ObjectId | null;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  averageWatchHoursPerUser: number;
+  computedAt: Date;
 }
 
 export interface ICohort {

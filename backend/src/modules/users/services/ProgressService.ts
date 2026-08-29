@@ -127,34 +127,62 @@ class ProgressService extends BaseService {
     super(database);
   }
 
+  private isGuruSetu(courseId: string, versionId: string): boolean {
+    return (
+      courseId?.toString() === GURU_SETU_COURSE_ID &&
+      versionId?.toString() === GURU_SETU_VERSION_ID
+    );
+  }
+
+  /**
+   * Guru Setu progress is "feedback forms submitted / feedback forms in the
+   * version". Given the version's feedback form ids and the ids this user has
+   * submitted, derive the numbers in memory. Both the per-user and the bulk
+   * path funnel through here so there is a single formula.
+   */
+  private guruSetuProgressFrom(
+    feedbackFormIds: string[],
+    submittedFormIds: Set<string>,
+  ): { percentCompleted: number; completedItemsCount: number } {
+    const totalFeedbackItems = feedbackFormIds.length;
+
+    if (totalFeedbackItems === 0) {
+      return { percentCompleted: 0, completedItemsCount: 0 };
+    }
+
+    const completedCount = feedbackFormIds.filter(id =>
+      submittedFormIds.has(id),
+    ).length;
+
+    const percentCompleted = parseFloat(
+      ((completedCount / totalFeedbackItems) * 100).toFixed(2),
+    );
+
+    return {
+      percentCompleted,
+      completedItemsCount: completedCount,
+    };
+  }
+
   public async calculateGuruSetuProgress(
     userId: string,
     courseVersionId: string,
   ): Promise<{ percentCompleted: number; completedItemsCount: number }> {
     const feedbackItems = await this.itemRepo.getFeedbackItems(courseVersionId);
-    const totalFeedbackItems = feedbackItems.length;
 
-    if (totalFeedbackItems === 0) return { percentCompleted: 0, completedItemsCount: 0 };
+    if (feedbackItems.length === 0) {
+      return { percentCompleted: 0, completedItemsCount: 0 };
+    }
 
     const feedbackSubmissions = await this.feedbackRepository.getAllByUserAndVersionId(
       userId,
       courseVersionId,
     );
 
-    const submittedItemIds = new Set(
-      feedbackSubmissions.map(s => s.feedbackFormId.toString())
+    return this.guruSetuProgressFrom(
+      feedbackItems.map(item => item._id.toString()),
+      new Set(feedbackSubmissions.map(s => s.feedbackFormId.toString())),
     );
-
-    const completedCount = feedbackItems.filter(item =>
-      submittedItemIds.has(item._id.toString())
-    ).length;
-
-    const percentCompleted = parseFloat(((completedCount / totalFeedbackItems) * 100).toFixed(2));
-
-    return {
-      percentCompleted,
-      completedItemsCount: completedCount,
-    };
   }
 
   /**
@@ -563,52 +591,73 @@ class ProgressService extends BaseService {
     totalItems: number,
     session?: ClientSession,
   ) {
-    // resolve all async operations first
-    const bulkOps = await Promise.all(
-      enrollments.map(async enrollment => {
-        const userId = enrollment.userId?.toString();
+    if (enrollments.length === 0) return null;
 
-        // const completedItems = await this.getUserProgressPercentageWithoutTotal(
-        //   userId,
-        //   courseId,
-        //   versionId,
-        // );
+    // Guru Setu override: progress there is feedback-based rather than
+    // item-count based. Fetch the version's feedback forms and every
+    // submission ONCE, then derive each user's percentage in memory.
+    //
+    // This used to call calculateGuruSetuProgress per enrollment inside a
+    // Promise.all. That re-ran a whole-version traversal (one query per
+    // section, one per feedback form) for every enrolled user even though the
+    // result is identical for all of them, so adding or deleting an item on
+    // the FDP course outlived the request timeout.
+    let guruSetuFormIds: string[] | null = null;
+    let guruSetuSubmissionsByUser: Map<string, Set<string>> | null = null;
 
-        const completedItems = enrollment.completedItemsCount;
+    if (this.isGuruSetu(courseId, versionId)) {
+      const [feedbackItems, submissions] = await Promise.all([
+        this.itemRepo.getFeedbackItems(versionId, session),
+        this.feedbackRepository.getAllByVersionId(versionId, session),
+      ]);
 
-        let percentCompleted = this._calculateProgress(
-          totalItems,
-          completedItems,
-        );
+      guruSetuFormIds = feedbackItems.map(item => item._id.toString());
+      guruSetuSubmissionsByUser = new Map();
 
-        // Guru Setu Override
-        if (courseId?.toString() === GURU_SETU_COURSE_ID && versionId?.toString() === GURU_SETU_VERSION_ID) {
-          const guruProgress = await this.calculateGuruSetuProgress(userId, versionId);
-          percentCompleted = guruProgress.percentCompleted;
+      for (const submission of submissions) {
+        const submissionUserId = submission.userId.toString();
+        let submitted = guruSetuSubmissionsByUser.get(submissionUserId);
+        if (!submitted) {
+          submitted = new Set();
+          guruSetuSubmissionsByUser.set(submissionUserId, submitted);
         }
+        submitted.add(submission.feedbackFormId.toString());
+      }
+    }
 
-        return {
-          updateOne: {
-            filter: {
-              userId: new ObjectId(userId),
-              courseId: new ObjectId(courseId),
-              courseVersionId: new ObjectId(versionId),
-            },
-            update: {
-              $set: {
-                percentCompleted,
-                updatedAt: new Date(),
-              },
+    const bulkOps = enrollments.map(enrollment => {
+      const userId = enrollment.userId?.toString();
+
+      let percentCompleted = this._calculateProgress(
+        totalItems,
+        enrollment.completedItemsCount,
+      );
+
+      if (guruSetuFormIds) {
+        percentCompleted = this.guruSetuProgressFrom(
+          guruSetuFormIds,
+          guruSetuSubmissionsByUser.get(userId) ?? new Set<string>(),
+        ).percentCompleted;
+      }
+
+      return {
+        updateOne: {
+          filter: {
+            userId: new ObjectId(userId),
+            courseId: new ObjectId(courseId),
+            courseVersionId: new ObjectId(versionId),
+          },
+          update: {
+            $set: {
+              percentCompleted,
+              updatedAt: new Date(),
             },
           },
-        };
-      }),
-    );
+        },
+      };
+    });
 
-    if (bulkOps.length > 0) {
-      return this.enrollmentRepo.bulkUpdateEnrollments(bulkOps, session);
-    }
-    return null;
+    return this.enrollmentRepo.bulkUpdateEnrollments(bulkOps, session);
   }
 
   // Helper to calculate progress based on completed items
@@ -2321,6 +2370,26 @@ class ProgressService extends BaseService {
       throw new NotFoundError('Item not found');
     }
 
+    /**
+     * Idempotency guard: if the frontend retries this call (e.g. because a
+     * slow/truncated response on the first attempt looked like a failure),
+     * and this item is already marked complete, treat it as a safe no-op
+     * instead of re-running the transaction - which would otherwise throw
+     * on the watch-time record already being closed out, confusing a
+     * successful retry into an error.
+     */
+    if (
+      await this.progressRepository.isItemCompleted(
+        userId,
+        courseId,
+        courseVersionId,
+        itemId,
+        cohortId,
+      )
+    ) {
+      return;
+    }
+
     const versionStatus = await this.courseRepo.getCourseVersionStatus(
       courseVersionId,
     );
@@ -2388,17 +2457,9 @@ class ProgressService extends BaseService {
           );
 
           if (!stoppedWatchTime) {
-            /**
-             * If your repository currently returns null when already stopped,
-             * this hard failure creates retry bugs.
-             *
-             * Recommended:
-             * either make stopItemTracking idempotent in repo,
-             * or treat "already stopped" as safe.
-             *
-             * For now, keeping compatibility:
-             */
-            throw new NotFoundError('Watch time record not found');
+            // Record was already closed by a concurrent request (endTime already
+            // set). Treat as idempotent success — progress has already advanced.
+            return;
           }
 
           await this.validateItemStopEligibility(
@@ -2454,18 +2515,19 @@ class ProgressService extends BaseService {
       );
       const totalCourseItems = allCourseItemIdSet.size;
 
+      // Fetched once and reused below (step 4's non-linear check and step 8's
+      // percentage calculation both need this - it used to be queried twice).
+      const completedItemsArray = await this.progressRepository.getCompletedItems(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+      );
+
       // ----------------------------------------------------
       // 4. NON-LINEAR PROGRESSION FINAL COMPLETION CHECK
       // ----------------------------------------------------
       if (!linearProgressionEnabled && isCompleted) {
-        const completedItemsArray =
-          await this.progressRepository.getCompletedItems(
-            userId,
-            courseId,
-            courseVersionId,
-            cohortId,
-          );
-
         const completedItemsSet = new Set(
           completedItemsArray.map(id => id.toString()),
         );
@@ -2548,21 +2610,26 @@ class ProgressService extends BaseService {
         cohortId,
       );
 
+      // Throwing here — rather than returning — aborts the whole transaction,
+      // so the watchTime row closed in step 1 above rolls back too. A silent
+      // return previously let that write commit on its own: the item's
+      // endTime got set with no corresponding progress update, which is
+      // indistinguishable from a genuinely completed stop to the client (200
+      // OK) while leaving the student's currentItem pointer stuck. Matches
+      // the same missing-enrollment convention already used in
+      // updateEnrollmentProgressPercent above.
       if (!enrollment) {
-        return;
+        throw new NotFoundError(
+          'User has no enrollment for this course version — cannot record progress',
+        );
       }
 
       // ----------------------------------------------------
       // 8. DERIVED PROGRESS CALCULATION
       // ----------------------------------------------------
-      const completedItemsArray =
-        await this.progressRepository.getCompletedItems(
-          userId,
-          courseId,
-          courseVersionId,
-          cohortId,
-        );
-
+      // completedItemsArray was already fetched once above (step 3/4 reuse
+      // it too) - computeCourseProgressPercent takes it as a parameter
+      // specifically so callers that already have it don't fetch it again.
       const {percentCompleted, completedCourseItemsCount} =
         await this.computeCourseProgressPercent(
           completedItemsArray,
@@ -2706,10 +2773,16 @@ class ProgressService extends BaseService {
    * completed, and refresh their enrollment percentage.
    *
    * This is the non-quiz portion of what stopItem does after it closes a watch
-   * session, reused by the orphan recovery job. It deliberately leaves out
-   * stopItem's quiz rewind, its Guru Setu override and its follow-up invite
-   * trigger: the recovery job only ever handles watch-duration items, and it
-   * must not send a student an invite off the back of a background sweep.
+   * session, reused by the orphan recovery job (#1289) and the admin manual
+   * unstick path (#1295). It deliberately leaves out stopItem's quiz rewind,
+   * its Guru Setu override and its follow-up invite trigger — neither of
+   * those callers handles quizzes, and neither should trigger a student
+   * invite off the back of a background sweep or an admin action.
+   *
+   * If itemId has no next item in sequence, this marks the whole course
+   * completed rather than refusing — callers advancing a student off their
+   * literal last remaining item should be aware of that rather than
+   * surprised by it.
    */
   private async advanceProgressAfterItemCompletion(
     userId: string,
@@ -2796,6 +2869,103 @@ class ProgressService extends BaseService {
     );
 
     return Boolean(updatedProgress);
+  }
+
+  /**
+   * Admin-only manual unstick: advance a student's currentItem past whatever
+   * item they are currently stuck on, without a genuine completion.
+   *
+   * Deliberately narrow by design (see #1295): who can call this is enforced
+   * at the controller (admin only — not instructors, not the student), and
+   * this moves exactly one item per call. To unstick a student several items
+   * back, call it again — each call is independently audited.
+   *
+   * Never fabricates a completed watchTime, since the student didn't
+   * actually watch the item — isItemCompleted/getCompletedItems only look at
+   * watchTime, so this never shows up as a genuine completion. The skip is
+   * recorded via recordAdminSkip so it stays distinguishable from an item
+   * the student simply never reached, but — known, accepted limitation —
+   * it is NOT excluded from computeCourseProgressPercent's denominator in
+   * this version. A student advanced past N items this way will show a
+   * percentage capped below 100% until admin skips are taught to that
+   * calculation the way hidden/deleted items already are. Left out of this
+   * change deliberately: that calculation is also what the live stopItem
+   * completion path depends on, and widening it needs its own review rather
+   * than riding in on an admin utility.
+   */
+  async adminAdvanceStuckStudent(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    reason: string,
+    skippedBy: string,
+    cohortId?: string,
+  ): Promise<boolean> {
+    return this._withTransaction(async session => {
+      const progress = await this.progressRepository.findProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+        session,
+      );
+
+      if (!progress) {
+        throw new NotFoundError('Progress not found');
+      }
+
+      if (progress.completed) {
+        throw new BadRequestError(
+          'This student has already completed the course',
+        );
+      }
+
+      const courseVersion = await this.courseRepo.readVersion(
+        courseVersionId,
+        session,
+      );
+      if (!courseVersion) {
+        throw new NotFoundError('Course version not found');
+      }
+
+      const itemId = progress.currentItem.toString();
+      const moduleId = progress.currentModule.toString();
+      const sectionId = progress.currentSection.toString();
+
+      await this.progressRepository.recordAdminSkip(
+        userId,
+        courseId,
+        courseVersionId,
+        {
+          itemId,
+          reason,
+          skippedBy,
+          skippedAt: new Date(),
+        },
+        cohortId,
+        session,
+      );
+
+      const advanced = await this.advanceProgressAfterItemCompletion(
+        userId,
+        courseId,
+        courseVersionId,
+        courseVersion,
+        moduleId,
+        sectionId,
+        itemId,
+        cohortId,
+        session,
+      );
+
+      if (!advanced) {
+        throw new InternalServerError(
+          'Could not advance progress — enrollment not found',
+        );
+      }
+
+      return true;
+    });
   }
 
   /**

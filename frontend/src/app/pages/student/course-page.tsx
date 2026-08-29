@@ -1754,6 +1754,12 @@ const handleGoToNextItem = async () => {
     const itemIndex = sectionItemsList.findIndex((i: any) => i._id === itemId);
   const currentItemIndex = sectionItemsList.findIndex((i: any) => i._id === currentItemId);
 
+  // currentItemId not found in this section's (possibly not-yet-loaded) item
+  // list — every real itemIndex (>= 0) would otherwise fail the "next item"
+  // check below and fall through to locked, mass-locking the whole section
+  // even for already-completed items. Unknown position must not imply locked.
+  if (currentItemIndex === -1) return false;
+
   // Only unlock next item if it's a QUIZ paired with current VIDEO
   if (itemIndex === currentItemIndex + 1) {
     const currentItemInList = sectionItemsList[currentItemIndex] as any;
