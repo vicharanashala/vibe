@@ -10,6 +10,7 @@ import {
   useUpdateStudentQuestionStatus,
 } from '@/hooks/hooks';
 import type {
+  StudentQuestionGateStateFilter,
   StudentQuestionListItem,
   StudentQuestionStatusFilter,
   UpdateStudentQuestionPayload,
@@ -17,13 +18,27 @@ import type {
 import StudentQuestionRow from './components/StudentQuestionRow';
 import StudentQuestionRejectDialog from './components/StudentQuestionRejectDialog';
 import StudentQuestionEditDialog from './components/StudentQuestionEditDialog';
+import SegmentDetailsDialog from './components/SegmentDetailsDialog';
 import CourseBackButton from './CourseBackButton';
 
-const STATUS_FILTER_OPTIONS: StudentQuestionStatusFilter[] = [
-  'ALL',
-  'PENDING',
-  'APPROVED',
-  'REJECTED',
+/**
+ * One filter dropdown instead of status + gate-state as two separate
+ * controls — gate state only ever means anything for PENDING questions, so
+ * showing it as its own axis was confusing more often than it was useful.
+ * Each option here is a fixed (status, gateState) pair.
+ */
+const COMBINED_FILTER_OPTIONS: {
+  value: string;
+  label: string;
+  status: StudentQuestionStatusFilter;
+  gateState: StudentQuestionGateStateFilter;
+}[] = [
+  {value: 'all', label: 'All', status: 'ALL', gateState: 'ALL'},
+  {value: 'held', label: 'Needs review', status: 'HELD', gateState: 'ALL'},
+  {value: 'pending-eligible', label: 'Live — eligible for review', status: 'PENDING', gateState: 'ELIGIBLE'},
+  {value: 'pending-collecting', label: 'Live — collecting responses', status: 'PENDING', gateState: 'COLLECTING'},
+  {value: 'approved', label: 'Approved', status: 'APPROVED', gateState: 'ALL'},
+  {value: 'rejected', label: 'Rejected', status: 'REJECTED', gateState: 'ALL'},
 ];
 
 export default function StudentQuestionReview() {
@@ -31,7 +46,10 @@ export default function StudentQuestionReview() {
   const courseId = currentCourse?.courseId;
   const courseVersionId = currentCourse?.versionId;
 
-  const [statusFilter, setStatusFilter] = useState<StudentQuestionStatusFilter>('PENDING');
+  // Defaults to "All" so the first thing a teacher sees is never a false
+  // "nothing to do here" — PENDING+ELIGIBLE was empty in practice, since
+  // most live questions sit in COLLECTING and HELD wasn't even reachable.
+  const [combinedFilter, setCombinedFilter] = useState(COMBINED_FILTER_OPTIONS[0]);
   const [items, setItems] = useState<StudentQuestionListItem[]>([]);
   const [hasFetched, setHasFetched] = useState(false);
 
@@ -43,17 +61,24 @@ export default function StudentQuestionReview() {
 
   const [rejectTarget, setRejectTarget] = useState<StudentQuestionListItem | null>(null);
   const [editTarget, setEditTarget] = useState<StudentQuestionListItem | null>(null);
+  const [segmentTarget, setSegmentTarget] = useState<string | null>(null);
 
   const fetchQuestions = useCallback(async () => {
     if (!courseId || !courseVersionId) return;
     try {
-      const response = await listForCourseVersion(courseId, courseVersionId, statusFilter, 100);
+      const response = await listForCourseVersion(
+        courseId,
+        courseVersionId,
+        combinedFilter.status,
+        100,
+        combinedFilter.gateState,
+      );
       setItems(response?.items ?? []);
       setHasFetched(true);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to load student questions');
     }
-  }, [courseId, courseVersionId, listForCourseVersion, statusFilter]);
+  }, [courseId, courseVersionId, listForCourseVersion, combinedFilter]);
 
   useEffect(() => {
     void fetchQuestions();
@@ -123,16 +148,19 @@ export default function StudentQuestionReview() {
         </div>
         <div className="flex items-center gap-2">
           <Select
-            value={statusFilter}
-            onValueChange={value => setStatusFilter(value as StudentQuestionStatusFilter)}
+            value={combinedFilter.value}
+            onValueChange={value => {
+              const next = COMBINED_FILTER_OPTIONS.find(o => o.value === value);
+              if (next) setCombinedFilter(next);
+            }}
           >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Status" />
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Filter" />
             </SelectTrigger>
             <SelectContent>
-              {STATUS_FILTER_OPTIONS.map(option => (
-                <SelectItem key={option} value={option}>
-                  {option}
+              {COMBINED_FILTER_OPTIONS.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -168,6 +196,7 @@ export default function StudentQuestionReview() {
               onApprove={() => void handleApprove(question)}
               onReject={() => setRejectTarget(question)}
               onEdit={() => setEditTarget(question)}
+              onSegmentClick={() => setSegmentTarget(question.segmentId)}
             />
           ))}
         </div>
@@ -185,6 +214,13 @@ export default function StudentQuestionReview() {
         isSubmitting={isUpdatingContent}
         onCancel={() => setEditTarget(null)}
         onSubmit={handleEditSubmit}
+      />
+      <SegmentDetailsDialog
+        isOpen={segmentTarget !== null}
+        segmentId={segmentTarget}
+        courseId={courseId}
+        courseVersionId={courseVersionId}
+        onClose={() => setSegmentTarget(null)}
       />
     </div>
   );

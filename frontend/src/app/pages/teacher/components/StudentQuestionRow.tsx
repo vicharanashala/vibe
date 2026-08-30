@@ -2,13 +2,15 @@ import {Check, X, Pencil} from 'lucide-react';
 import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {Card, CardContent} from '@/components/ui/card';
-import type {
-  StudentQuestionListItem,
-  StudentQuestionStatus,
+import {
+  STUDENT_QUESTION_STATUS_LABELS,
+  type StudentQuestionListItem,
+  type StudentQuestionStatus,
 } from '@/types/student-question.types';
 
 const STATUS_VARIANT: Record<StudentQuestionStatus, 'default' | 'secondary' | 'destructive'> = {
   PENDING: 'secondary',
+  HELD: 'destructive',
   APPROVED: 'default',
   REJECTED: 'destructive',
 };
@@ -22,6 +24,8 @@ interface StudentQuestionRowProps {
   onApprove: () => void;
   onReject: () => void;
   onEdit: () => void;
+  /** Omit to render the segment id as plain text instead of a button. */
+  onSegmentClick?: () => void;
 }
 
 export default function StudentQuestionRow({
@@ -31,18 +35,43 @@ export default function StudentQuestionRow({
   onApprove,
   onReject,
   onEdit,
+  onSegmentClick,
 }: StudentQuestionRowProps) {
   const isPending = question.status === 'PENDING';
+  const isHeld = question.status === 'HELD';
+  // HELD questions never auto-promoted to a quiz bank, so a teacher still
+  // needs to approve, reject, or fix them up — same actions as PENDING.
+  const canAct = isPending || isHeld;
   return (
     <Card className="border">
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={STATUS_VARIANT[question.status]}>{question.status}</Badge>
+              <Badge variant={STATUS_VARIANT[question.status]}>
+                {STUDENT_QUESTION_STATUS_LABELS[question.status]}
+              </Badge>
+              {isPending && question.gateState && (
+                <Badge variant={question.gateState === 'ELIGIBLE' ? 'default' : 'outline'}>
+                  {question.gateState === 'ELIGIBLE' ? 'Eligible for review' : 'Collecting'}
+                  {typeof question.responseCount === 'number' && ` · ${question.responseCount} responses`}
+                </Badge>
+              )}
               {showSegmentBadge && (
                 <span className="text-xs text-muted-foreground">
-                  segment: <code className="font-mono">{question.segmentId.slice(-6)}</code>
+                  segment:{' '}
+                  {onSegmentClick ? (
+                    <button
+                      type="button"
+                      onClick={onSegmentClick}
+                      className="font-mono underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
+                      title="View segment details"
+                    >
+                      {question.segmentId.slice(-6)}
+                    </button>
+                  ) : (
+                    <code className="font-mono">{question.segmentId.slice(-6)}</code>
+                  )}
                 </span>
               )}
               <span className="text-xs text-muted-foreground">
@@ -85,7 +114,13 @@ export default function StudentQuestionRow({
           </p>
         )}
 
-        {isPending && (
+        {isHeld && question.screeningMessage && (
+          <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+            <span className="font-semibold">Held for review:</span> {question.screeningMessage}
+          </p>
+        )}
+
+        {canAct && (
           <div className="flex flex-wrap justify-end gap-2 pt-1">
             <Button
               variant="ghost"

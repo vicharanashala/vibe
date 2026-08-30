@@ -14,6 +14,7 @@ import { useCourseStore } from "@/store/course-store";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, lazy, useEffect } from "react";
 import { bufferToHex } from "@/utils/helpers";
+import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
@@ -112,13 +113,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const GURU_SETU_VERSION_ID = "6981df886e100cfe04f9c4ae";
   const isNotGuruSetu = versionId !== GURU_SETU_VERSION_ID;
 
-  // Robust check for HP system availability
-  const isHpSystem = !!(
-    (enrollment.hpSystem || (enrollment as any).hpSystem) ||
-    ((enrollment.course as any)?.hpSystem) ||
-    ((enrollment as any).versionDetails && (enrollment as any).versionDetails[0]?.hpSystem) ||
-    (courseVersionData as any)?.hpSystem
-  );
+  // The enrollment carries the live per-version setting, so it is the only
+  // source to trust — an instructor switching HP off has to hide the badge.
+  const isHpSystem = enrollment.hpSystem === true;
 
   const isStart = progress === 0 && variant !== 'available';
   const isRankVisible = variant !== 'available' && isNotGuruSetu;
@@ -142,10 +139,15 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       return;
     }
 
+    // Enter F11-style fullscreen from the click gesture (before any await) for a
+    // focused learn experience; back it out if the time-slot gate blocks entry.
+    enterFullscreen();
+
     // Time-slot ("commitment") gate at entry: only let the student in during a
     // booked window. The backend getItem gate is the safety net.
     const access = await checkTimeSlotAccess(courseId, versionId);
     if (!access.canAccess) {
+      exitFullscreen();
       toast.error(access.message || "You can only access this course during your booked time slot.");
       return;
     }

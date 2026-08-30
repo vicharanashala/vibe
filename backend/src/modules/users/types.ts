@@ -18,4 +18,8 @@ export interface EnrollmentStats {
   completedCount: number;
   averageProgressPercent: number;
   averageWatchHoursPerUser: number; // average hours watched per enrolled user
+  // When averageWatchHoursPerUser was last recomputed. Null means the stats
+  // job has not reached this course version yet, so the figure beside it is a
+  // placeholder rather than a measurement.
+  watchHoursComputedAt?: Date | null;
 }

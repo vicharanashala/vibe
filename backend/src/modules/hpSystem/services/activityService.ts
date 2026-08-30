@@ -7,6 +7,7 @@ import { BadRequestError, ForbiddenError, NotFoundError } from "routing-controll
 import { CreateActivityBody, ListActivitiesQuery, UpdateActivityBody } from "../classes/validators/activityValidators.js";
 import { ObjectId } from "mongodb";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
+import { HpAccessService } from "./hpAccessService.js";
 
 
 
@@ -26,6 +27,8 @@ export class ActivityService extends BaseService {
         @inject(HP_SYSTEM_TYPES.cohortRepository)
         private readonly cohortRepository: CohortRepository,
 
+        @inject(HP_SYSTEM_TYPES.hpAccessService)
+        private readonly hpAccessService: HpAccessService,
 
     ) {
         super(mongoDatabase);
@@ -34,6 +37,8 @@ export class ActivityService extends BaseService {
 
     async create(teacherId: string, body: CreateActivityBody) {
         return this._withTransaction(async (session) => {
+            await this.hpAccessService.assertEnabled(body.courseVersionId);
+
             if (body.submissionMode === "EXTERNAL_LINK" && !body.externalLink) {
                 throw new BadRequestError("externalLink is required when submissionMode is EXTERNAL_LINK");
             }
@@ -102,6 +107,7 @@ export class ActivityService extends BaseService {
         return this._withTransaction(async (session) => {
             const existing = await this.activityRepository.findById(activityId);
             if (!existing) throw new NotFoundError("Activity not found");
+            await this.hpAccessService.assertEnabled(existing.courseVersionId);
             if (existing.status === "ARCHIVED") throw new BadRequestError("Archived activity cannot be updated");
 
             if (body.submissionMode === "EXTERNAL_LINK" && !body.externalLink && !existing.externalLink) {
@@ -172,6 +178,7 @@ export class ActivityService extends BaseService {
         return this._withTransaction(async (session) => {
             const existing = await this.activityRepository.findById(activityId);
             if (!existing) throw new NotFoundError("Activity not found");
+            await this.hpAccessService.assertEnabled(existing.courseVersionId);
             // if (existing.status === "ARCHIVED") throw new BadRequestError("Archived activity cannot be published");
 
             if (existing.submissionMode === "EXTERNAL_LINK" && !existing.externalLink) {
@@ -188,6 +195,7 @@ export class ActivityService extends BaseService {
         return this._withTransaction(async (session) => {
             const existing = await this.activityRepository.findById(activityId);
             if (!existing) throw new NotFoundError("Activity not found");
+            await this.hpAccessService.assertEnabled(existing.courseVersionId);
 
             const archived = await this.activityRepository.archiveActivity(activityId, session);
             if (!archived) throw new NotFoundError("Activity not found");
@@ -214,6 +222,8 @@ export class ActivityService extends BaseService {
             if (!activity) {
                 throw new BadRequestError("Activity not found");
             }
+
+            await this.hpAccessService.assertEnabled(activity.courseVersionId);
 
             // Allow only owner (adjust if admins allowed)
             const createdBy = activity.createdByTeacherId

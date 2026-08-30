@@ -25,7 +25,7 @@ import { usersContainerModule } from '#root/modules/users/container.js';
 import { courseRegistrationContainerModule } from '#root/modules/courseRegistration/container.js';
 import { settingContainerModule } from '#root/modules/setting/container.js';
 import { anomaliesContainerModule } from '../container.js';
-import { NewAnomalyData } from '../classes/validators/AnomalyValidators.js';
+import {AnomalyData,  NewAnomalyData } from '../classes/validators/AnomalyValidators.js';
 import { AnomalyType } from '../classes/transformers/Anomaly.js';
 import { projectsContainerModule } from '#root/modules/projects/container.js';
 import { hpSystemContainerModule } from '#root/modules/hpSystem/container.js';

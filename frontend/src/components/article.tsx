@@ -83,6 +83,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     // ✅ Track if item has been started and if start request has been sent
     const itemStartedRef = useRef(false);
     const startRequestSentRef = useRef(false);
+    const stopInFlightRef = useRef(false);
 
     function handleSendStartItem() {
         if (!currentCourse?.itemId || startRequestSentRef.current) return;
@@ -108,7 +109,9 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
 
    async function handleStopItem() {
         if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
-        
+        if (stopInFlightRef.current) return;
+
+        stopInFlightRef.current = true;
         try {
             if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
                 await stopItem.mutateAsync({
@@ -128,12 +131,13 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                 });
                 completedItemIdsRef.current.add(currentCourse!.itemId);
             }
-            
+
             itemStartedRef.current = false;
         } catch (error: any) {
             console.error('❌ handleStopItem error:', error);
-            // Re-throw the error so it can be caught by the parent
             throw error;
+        } finally {
+            stopInFlightRef.current = false;
         }
     }
 
@@ -236,12 +240,12 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
         return () => {
             // Defense in depth: if this document was opened but is being left by a
             // path that didn't explicitly stop it (e.g. browser back / tab change),
-            // record its completion so it still gets ticked. No-op if already stopped
-            // (itemStartedRef is cleared by handleStopItem), so this never double-fires.
-            if (itemStartedRef.current) {
+            // record its completion so it still gets ticked. Skipped if a stop is
+            // already in flight (e.g. user clicked Next — handleNextClick awaited
+            // handleStopItem but the component unmounted before the Promise resolved).
+            if (itemStartedRef.current && !stopInFlightRef.current) {
                 void handleStopItemRef.current?.();
             }
-            // Reset refs on unmount
             itemStartedRef.current = false;
             startRequestSentRef.current = false;
         };

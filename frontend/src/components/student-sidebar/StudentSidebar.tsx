@@ -2,10 +2,10 @@
 
 import { useState } from "react"
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { LogOut, Settings, Circle, Moon } from "lucide-react"
+import { LogOut, Settings, Sun, Moon } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useAuthStore } from "@/store/auth-store"
-import { useUserEnrollments } from "@/hooks/hooks"
+import { useStudentHpEnabled } from "@/hooks/hooks"
 import { useNewAnnouncementIndicator } from "@/hooks/use-new-announcement-indicator"
 import { logout } from "@/utils/auth"
 import { AuroraText } from "@/components/magicui/aurora-text"
@@ -29,7 +29,7 @@ import { STUDENT_NAV_ITEMS } from "./nav-items"
 import { StudentNotifications } from "./StudentNotifications"
 
 export function StudentSidebar() {
-  const { user, token } = useAuthStore()
+  const { user } = useAuthStore()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { theme, setTheme } = useTheme()
@@ -38,10 +38,7 @@ export function StudentSidebar() {
   const { hasNew: hasNewAnnouncements, markSeen: markAnnouncementsSeen } = useNewAnnouncementIndicator()
 
   // HP System nav item only shows when the student has an active HP-enabled course.
-  const { data: enrollmentsData } = useUserEnrollments(1, 100, !!token && !!user?.uid)
-  const hasHpSystem = (enrollmentsData?.enrollments ?? []).some(
-    (e) => e.hpSystem === true && e.status === "ACTIVE" && e.percentCompleted !== 100,
-  )
+  const { hasCourseInProgress: hasHpSystem } = useStudentHpEnabled()
 
   const isActive = (path: string) =>
     path === "/student" ? pathname === "/student" : pathname === path || pathname.startsWith(path + "/")
@@ -170,7 +167,7 @@ export function StudentSidebar() {
                     title="Toggle theme"
                     className={`flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground ${yellowItem}`}
                   >
-                    <Circle className="size-4 dark:hidden" />
+                    <Sun className="size-4 dark:hidden" />
                     <Moon className="hidden size-4 dark:block" />
                   </button>
                 </div>
