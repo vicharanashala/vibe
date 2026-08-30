@@ -12,7 +12,13 @@ export const startCron = () => {
 
     console.log('✅ Delete cron job scheduled successfully');
 
-    deleteCronService.scheduleProgressUpdateCron();
+    // Fire-and-forget: scheduleProgressUpdateCron is async and runs an eager
+    // update pass immediately (not just at its cron tick). Left un-awaited,
+    // a rejection here (e.g. no courses yet on a fresh DB) becomes an
+    // unhandled promise rejection that crashes the whole process on boot.
+    deleteCronService.scheduleProgressUpdateCron().catch((error) => {
+      console.error('❌ Progress update cron failed:', error);
+    });
 
     console.log('✅ Progress update cron job scheduled successfully');
 

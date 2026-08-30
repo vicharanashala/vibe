@@ -29,6 +29,15 @@ export class CloudStorageService {
   ): Promise<string> {
     const ext = type.split('/')[1];
     const filename = `${userId}/${anomalyType}/${timestamp.toISOString()}.${ext}`;
+
+    // Local dev only: no real GCS bucket/credentials exist. Skip the real
+    // upload and return the same filename shape the caller expects, so the
+    // rest of the anomaly-recording pipeline (DB write, dashboard read) can
+    // still be exercised end-to-end. Never set in staging/production.
+    if (process.env.LOCAL_DEV_DISABLE_CLOUD_STORAGE === 'true') {
+      return filename;
+    }
+
     const bucket = this.googleStorage.bucket(this.anomalyBucketName);
     const createdFile = bucket.file(filename);
 

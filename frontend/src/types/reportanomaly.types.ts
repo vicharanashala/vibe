@@ -1,5 +1,13 @@
 // Types for AnomalyController
 
+export interface ViolationMetadata {
+  reason: string;
+  durationMs?: number;
+  consecutiveFrames?: number;
+  signalStrength?: number;
+  detectedAt: string;
+}
+
 export enum AnomalyType {
   VOICE_DETECTION = 'voiceDetection',
   NO_FACE = 'no_face',
@@ -8,6 +16,8 @@ export enum AnomalyType {
   FOCUS = 'focus',
   HAND_GESTURE_DETECTION = 'handGestureDetection',
   FACE_RECOGNITION = 'faceRecognition',
+  LIVENESS = 'LIVENESS',
+  LOOKING_AWAY = 'LOOKING_AWAY',
 
   VIRTUAL_CAMERA = 'VIRTUAL_CAMERA',
 }
@@ -23,6 +33,7 @@ export interface NewAnomalyData {
   versionId: string;
   itemId: string;
   cohortId?: string;
+  metadata?: ViolationMetadata;
 }
 
 export interface AnomalyData extends NewAnomalyData {

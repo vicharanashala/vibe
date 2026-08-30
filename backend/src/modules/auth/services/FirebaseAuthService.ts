@@ -106,7 +106,15 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
   ) {
     super(database);
     if (!admin.apps.length) {
-      if (appConfig.isDevelopment) {
+      if (process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+        // Local dev against the Firebase Auth Emulator: no real service
+        // account exists, and none is needed — the Admin SDK routes all
+        // auth() calls to the emulator once this env var is set, as long as
+        // an app was initialized with just a project ID (no credential).
+        admin.initializeApp({
+          projectId: appConfig.firebase.projectId || 'demo-vibe-local',
+        });
+      } else if (appConfig.isDevelopment) {
         admin.initializeApp({
           credential: admin.credential.cert({
             clientEmail: appConfig.firebase.clientEmail,

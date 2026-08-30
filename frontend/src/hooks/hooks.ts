@@ -77,7 +77,8 @@ import { RJSFSchema } from '@rjsf/utils';
 import type {
   NewAnomalyData,
   AnomalyData,
-  DeleteAnomalyBody
+  DeleteAnomalyBody,
+  ViolationMetadata
 } from '@/types/reportanomaly.types';
 
 import type { ProctoringSettings } from '@/types/video.types';
@@ -397,7 +398,8 @@ export interface Anomaly {
   date: string;
   status: 'Pending' | 'Investigated' | 'Resolved';
   cohortId?: string;
-  cohortId?: string;
+  cohortName?: string;
+  metadata?: ViolationMetadata;
 }
 
 export interface ExportFeedbackSubmissionsProps {
@@ -450,7 +452,11 @@ export function useAnomaliesByCourseItem(
     {
       enabled: !!courseId && !!versionId,
       retry: 1,
-      refetchOnWindowFocus: false
+      refetchOnWindowFocus: false,
+      // Live proctoring feed: a violation reported from the student side
+      // should show up here without the instructor having to hit Refresh.
+      refetchInterval: 5000,
+      refetchIntervalInBackground: true,
     }
   );
 

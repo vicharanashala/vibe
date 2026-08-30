@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import GestureDetector from './ai/GestureDetector';
 import BlurDetection from './ai/BlurDetector';
 import SpeechDetector from './ai/SpeechDetector';
-import FaceDetectors from './ai/FaceDetectors';
+import FaceDetectors, { isLookingAway } from './ai/FaceDetectors';
 import FaceRecognitionOverlay from './ai/FaceRecognitionOverlay';
 // import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
 import useCameraProcessor from './ai/useCameraProcessor';
-import { AnomalyType } from '@/types/reportanomaly.types';
+import LivenessDetector from './ai/LivenessDetector';
+import { AnomalyType, ViolationMetadata } from '@/types/reportanomaly.types';
 import { useAuthStore } from '@/store/auth-store';
 import { useCourseStore } from '@/store/course-store';
 import type { FloatingVideoProps } from '@/types/video.types';
@@ -19,6 +20,20 @@ import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { FaceRegistrationModal } from './ai/FaceRegistrationModal';
+
+// Converts a canvas data URL (screenshot) into a File for anomaly image uploads.
+function dataURLtoFile(dataurl: string, filename: string): File {
+  const arr = dataurl.split(',');
+  const match = arr[0].match(/:(.*?);/);
+  const mime = match ? match[1] : "image/png";
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+}
 
 // let flag = 0;
 function FloatingVideo({
@@ -251,20 +266,6 @@ const lastCalledRef = useRef<number>(0);
         return;
       }
 
-        // to convert binary to File type
-        function dataURLtoFile(dataurl: string, filename: string) {
-          const arr = dataurl.split(',');
-          const match = arr[0].match(/:(.*?);/);
-          const mime = match ? match[1] : "image/png";
-          const bstr = atob(arr[1]);
-          let n = bstr.length;
-          const u8arr = new Uint8Array(n);
-          while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
-          }
-          return new File([u8arr], filename, { type: mime });
-        }
-
         // to take screen shot from video
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth;
@@ -283,7 +284,11 @@ const lastCalledRef = useRef<number>(0);
         } else if (anomalyType === "faceCountDetection") {
           // Differentiate between no face and multiple faces
           if (facesCount === 0) {
-            reportAnomalyType = AnomalyType.NO_FACE;
+            // NO_FACE is reported separately, only after a sustained absence
+            // and with explainable metadata (see the interval effect below).
+            // Reporting it here too, instantly and without metadata, would
+            // double up every no-face incident on the dashboard.
+            return;
           } else if (facesCount > 1) {
             reportAnomalyType = AnomalyType.MULTIPLE_FACES;
           } else {
@@ -340,7 +345,86 @@ const lastCalledRef = useRef<number>(0);
     }
     handleImageAnomaly();
   }, [anomaly, anomalyType, courseStore.currentCourse?.courseId, courseStore.currentCourse?.itemId, courseStore.currentCourse?.moduleId, courseStore.currentCourse?.sectionId, courseStore.currentCourse?.versionId]);
- 
+
+  // Shared path for any anomaly type that carries PR1's explainable
+  // metadata (reason/durationMs/consecutiveFrames/signalStrength/detectedAt).
+  // `cooldownRef`/`cooldownMs` are per-caller so e.g. a NO_FACE cooldown
+  // doesn't suppress a LIVENESS report and vice versa.
+  const reportViolationWithMetadata = useCallback(
+    async (
+      type: AnomalyType,
+      metadata: ViolationMetadata,
+      cooldownRef: React.MutableRefObject<number>,
+      cooldownMs: number,
+      logTag: string,
+    ) => {
+      console.log(`${logTag} onViolation fired:`, type, metadata);
+
+      const now = Date.now();
+      if (now - cooldownRef.current < cooldownMs) {
+        console.log(`${logTag} skipped — still in cooldown window`);
+        return;
+      }
+
+      const video = videoRef.current;
+      if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+        console.log(`${logTag} skipped — video not ready for screenshot`);
+        return;
+      }
+
+      const { courseId, versionId, itemId } = courseStore.currentCourse || {};
+      if (!courseId || !versionId || !itemId) {
+        console.log(`${logTag} skipped — missing course/version/item in courseStore:`, courseStore.currentCourse);
+        return;
+      }
+
+      cooldownRef.current = now;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const screenshot = canvas.toDataURL("image/png");
+      const imageFile = dataURLtoFile(screenshot, `${type.toLowerCase()}.png`);
+
+      try {
+        const saved = await reportImage.mutateAsync({
+          body: { type, courseId, versionId, itemId, metadata },
+          file: imageFile,
+        });
+        console.log(`${logTag} reported successfully:`, saved);
+      } catch (error) {
+        console.log(`${logTag} report failed:`, error);
+      }
+    },
+    [courseStore.currentCourse, reportImage],
+  );
+
+  // Liveness / video-integrity anomaly reporting. LivenessDetector already
+  // enforces its own consecutive-frame + sustained-window requirements before
+  // calling this, so the only extra rule here is a cooldown so one ongoing
+  // violation (e.g. continuing to hold still) doesn't spam the endpoint.
+  const isLivenessDetectionEnabled = isComponentEnabled('livenessDetection');
+  const lastLivenessReportRef = useRef<number>(0);
+  const LIVENESS_REPORT_COOLDOWN_MS = 15000;
+
+  const handleLivenessViolation = useCallback(
+    (type: AnomalyType.LIVENESS | AnomalyType.LOOKING_AWAY, metadata: ViolationMetadata) =>
+      reportViolationWithMetadata(type, metadata, lastLivenessReportRef, LIVENESS_REPORT_COOLDOWN_MS, "🟣 [Liveness]"),
+    [reportViolationWithMetadata],
+  );
+
+  // Sustained no-face detection: fires once a face has been continuously
+  // absent for NO_FACE_SUSTAINED_MS (not on the very first missed frame —
+  // camera hiccups/brief look-downs shouldn't count), with the same
+  // explainable-metadata shape as the liveness checks.
+  const noFaceSinceRef = useRef<number | null>(null);
+  const lastNoFaceReportRef = useRef<number>(0);
+  const NO_FACE_SUSTAINED_MS = 7000; // within the requested 5-10s range
+  const NO_FACE_REPORT_COOLDOWN_MS = 15000;
+
   const reportAudio = useReportAnomalyAudio();
   
 
@@ -606,6 +690,30 @@ const lastCalledRef = useRef<number>(0);
             newPenaltyPoints += 1;
             // Surface the live camera frame so the learner can reposition
             setIsCollapsed(false);
+
+            // Sustained-absence report (with explainable metadata) — separate
+            // from the instant local penalty/UI feedback above, which stays
+            // unchanged. Only the actual backend report waits for a real
+            // multi-second absence instead of firing on the first missed frame.
+            if (noFaceSinceRef.current === null) {
+              noFaceSinceRef.current = Date.now();
+            }
+            const noFaceElapsedMs = Date.now() - noFaceSinceRef.current;
+            if (noFaceElapsedMs >= NO_FACE_SUSTAINED_MS) {
+              const seconds = Math.round(noFaceElapsedMs / 1000);
+              void reportViolationWithMetadata(
+                AnomalyType.NO_FACE,
+                {
+                  reason: `No face detected for ${seconds}s`,
+                  durationMs: noFaceElapsedMs,
+                  signalStrength: 0.9,
+                  detectedAt: new Date().toISOString(),
+                },
+                lastNoFaceReportRef,
+                NO_FACE_REPORT_COOLDOWN_MS,
+                "🟠 [NoFace]",
+              );
+            }
           }
         } else if (facesCount > 1) {
           // Multiple faces detected - this is an anomaly
@@ -615,8 +723,13 @@ const lastCalledRef = useRef<number>(0);
           activeAnomalies.push("faceCountDetection", "multipleFaces");
           newPenaltyType = "Multiple Faces";
           newPenaltyPoints += 2; // More severe penalty for multiple faces
+        } else {
+          // facesCount === 1 (normal) or a transient blip while disabled —
+          // a real face is back in frame, so the absence timer resets.
+          noFaceSinceRef.current = null;
         }
-        // facesCount === 1 is normal, no penalty
+      } else {
+        noFaceSinceRef.current = null;
       }
 
       // Condition 3: If the screen is blurred (only if blur detection is enabled)
@@ -1483,6 +1596,13 @@ const lastCalledRef = useRef<number>(0);
           //   // onDebugInfoUpdate={handleFaceRecognitionDebugUpdate}
           //   settings={isFaceCountDetectionEnabled, isFaceRecognitionEnabled, isFocusEnabled}
           // />
+        )}
+        {isLivenessDetectionEnabled && (
+          <LivenessDetector
+            faces={faces}
+            isLookingAway={isLookingAway}
+            onViolation={handleLivenessViolation}
+          />
         )}
       </div>
 
