@@ -18,13 +18,13 @@ import {CourseSettingService} from '../services/CourseSettingService.js';
 import {
   AddCourseProctoringBody,
   AddCourseProctoringParams,
-  CourseSetting,
   CreateCourseSettingBody,
   ReadCourseSettingParams,
   SettingNotFoundErrorResponse,
   UpdateCourseSettingResponse,
   UpdateFollowUpInviteBody,
 } from '../classes/index.js';
+import {CourseSetting} from '../classes/transformers/CourseSetting.js';
 import {BadRequestErrorResponse, IUser} from '#root/shared/index.js';
 import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
 import {setAuditTrail} from '#root/utils/setAuditTrail.js';
@@ -132,6 +132,7 @@ export class CourseSettingController {
       baseHp,
       randomizeItems,
       crowdsourcedQuestionSubmissionEnabled,
+      isLensEnabled,
     } = body;
     const userId = user._id.toString();
 
@@ -147,6 +148,7 @@ export class CourseSettingController {
       randomizeItems,
       userId,
       crowdsourcedQuestionSubmissionEnabled ?? false,
+      isLensEnabled ?? true,
     );
 
     setAuditTrail(req, {

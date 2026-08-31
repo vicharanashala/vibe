@@ -1457,6 +1457,8 @@ export function useItemById(
     },
     {
       enabled: !!courseId && !!versionId && !!itemId,
+      refetchOnWindowFocus: true,
+      staleTime: 0,
     }
   );
 
@@ -2165,6 +2167,7 @@ export function useEditProctoringSettings() {
     baseHp: number,
     randomizeItems: boolean,
     crowdsourcedQuestionSubmissionEnabled: boolean = false,
+    isLensEnabled?: boolean,
   ) => {
     setLoading(true);
     setError(null);
@@ -2187,6 +2190,7 @@ export function useEditProctoringSettings() {
         baseHp,
         randomizeItems,
         crowdsourcedQuestionSubmissionEnabled,
+        isLensEnabled,
       };
 
       const res = await fetch(url, {

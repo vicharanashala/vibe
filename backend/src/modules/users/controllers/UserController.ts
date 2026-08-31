@@ -136,10 +136,14 @@ export class UserController {
         courseId,
         versionId,
       );
-      const detector = courseSetting?.settings?.proctors?.detectors?.find(
-        d => d.detectorName === ProctoringComponent.FACERECOGNITION,
-      );
-      faceRecognitionAllowed = detector?.settings?.enabled ?? false;
+      if (courseSetting?.settings?.proctors?.detectors) {
+        const detector = courseSetting.settings.proctors.detectors.find(
+          d => d.detectorName === ProctoringComponent.FACERECOGNITION,
+        );
+        faceRecognitionAllowed = detector?.settings?.enabled ?? false;
+      } else {
+        faceRecognitionAllowed = true;
+      }
     }
 
     return {

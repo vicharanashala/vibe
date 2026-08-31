@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward, ChevronRight } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward, Camera, ChevronRight } from 'lucide-react';
 import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, useUpsertWatchTime } from '../hooks/hooks';
 import { fetchClient } from '@/lib/openapi';
 
@@ -18,6 +18,9 @@ import { getVideoPlaybackUrl } from '@/lib/api/media';
 import { toast } from 'sonner';
 import { Badge } from './ui/badge';
 import { WatchTimeTrackData } from '@/types/user_activity_event.types';
+import SnapshotSketchModal from './snapshot-sketch-modal';
+import VibeLensOverlay from './vibe-lens-overlay';
+import VibeLensPanel, { SavedSnapshot } from './vibe-lens-panel';
 
 
 // Helper to format seconds to HH:MM:SS
@@ -59,7 +62,8 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, assetId, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, pauseSignal, awayPaused = false }: VideoProps, ref) {
+const Video = forwardRef(function Video(props: VideoProps, ref: any) {
+  const { URL, source, assetId, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, pauseSignal, awayPaused = false, isLensEnabled = true } = props;
   /**
    * An uploaded lesson streams HLS instead of embedding YouTube. Everything else
    * in this component — proctoring, seek gating, watch-time, overlays, keyboard
@@ -68,6 +72,8 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
   const isUploadedVideo = resolveVideoSource({ source }) === 'GCS' && Boolean(assetId);
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
+  const nativeVideoRef = useRef<HTMLVideoElement | null>(null);
+  const isYouTube = URL.includes('youtube.com') || URL.includes('youtu.be');
   const stopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSeekTimeRef = useRef<number>(0);
   const lastSeekErrorToastRef = useRef<number>(0);
@@ -80,6 +86,22 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
   const { playbackRate, setPlaybackRate, volume, setVolume, subtitlesEnabled, setSubtitlesEnabled } = usePlayerStore();
   const [maxTime, setMaxTime] = useState(0);
   const [videoEnded, setVideoEnded] = useState(false);
+  const [snapshotImage, setSnapshotImage] = useState<string>('');
+  const [isSnapshotModalOpen, setIsSnapshotModalOpen] = useState(false);
+  const [isLensOverlayOpen, setIsLensOverlayOpen] = useState(false);
+  const [lensImage, setLensImage] = useState('');
+  const [cropArea, setCropArea] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [isLensPanelOpen, setIsLensPanelOpen] = useState(false);
+  const [snapshots, setSnapshots] = useState<SavedSnapshot[]>([]);
+  const [activeLensSnapshot, setActiveLensSnapshot] = useState<SavedSnapshot | null>(null);
+  const [croppingSnapshot, setCroppingSnapshot] = useState<SavedSnapshot | null>(null);
+
+  const getYouTubeId = (url: string): string | null => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
   /**
    * Selectable renditions reported by whichever player is active. Read once the
    * player is ready rather than on every render, since for HLS the ladder is only
@@ -96,6 +118,15 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
     }, 4000);
     return () => clearInterval(id);
   }, [readyToDetect]);
+
+  // Force close Lens overlay and panel if Lens is disabled
+  useEffect(() => {
+    if (!isLensEnabled) {
+      setIsLensPanelOpen(false);
+      setIsLensOverlayOpen(false);
+      setCroppingSnapshot(null);
+    }
+  }, [isLensEnabled]);
   const videoId = getYouTubeId(URL);
   const { currentCourse, setWatchItemId } = useCourseStore();
   const startItem = useStartItem();
@@ -1142,9 +1173,6 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
         },
       });
     }
-    // An uploaded lesson needs no YouTube IFrame API at all, so it must not wait
-    // on that script loading — which is also why player state is compared against
-    // PLAYER_STATE rather than window.YT.PlayerState.
     if (isUploadedVideo) {
       createUploadedPlayer();
       return () => {
@@ -1153,6 +1181,10 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
           playerRef.current = null;
         }
       };
+    }
+    const isYouTube = URL.includes('youtube.com') || URL.includes('youtu.be');
+    if (!isYouTube) {
+      return;
     }
     if (window.YT && window.YT.Player) {
       createPlayer();
@@ -1549,13 +1581,15 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
           maxWidth: '100%',
           maxHeight: '100%',
           display: 'flex',
-          flexDirection: 'column',
+          flexDirection: 'row',
           borderRadius: (focusMode || isFullscreen) ? '0' : '12px',
           overflow: 'hidden',
           position: 'relative',
         }}>
-        {/* Video Container — overflow-hidden so the enlarged YouTube iframe
-            (see onReady) is clipped, hiding YouTube's top/bottom chrome. */}
+        {/* Left Column: Player Stage + Control Bar */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, position: 'relative' }}>
+          {/* Video Container — overflow-hidden so the enlarged YouTube iframe
+              (see onReady) is clipped, hiding YouTube's top/bottom chrome. */}
         <div style={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden' }}>
 
           {!readyToDetect ? (  // Show preparing message before player is ready 
@@ -1610,37 +1644,90 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
           ) : (
             // YouTube iframe container
             <>
-              <div
-
-                ref={iframeRef}
-
-                style={{
-
-                  width: '100%',
-
-                  height: '100%',
-
-                  background: 'hsl(var(--background))',
-
-                  borderRadius: '12px 12px 0 0',
-
-                  overflow: 'hidden',
-
-                  pointerEvents: 'none',
-
-                  position: 'relative',
-
-                  userSelect: 'none',
-
-                  WebkitUserSelect: 'none',
-
-                  MozUserSelect: 'none',
-
-                  msUserSelect: 'none',
-
-                }}
-
-              />
+              {isYouTube ? (
+                <div
+                  ref={iframeRef}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: 'hsl(var(--background))',
+                    borderRadius: '12px 12px 0 0',
+                    overflow: 'hidden',
+                    pointerEvents: 'none',
+                    position: 'relative',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    MozUserSelect: 'none',
+                    msUserSelect: 'none',
+                  }}
+                />
+              ) : (
+                <video
+                  ref={nativeVideoRef}
+                  src={URL}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: 'black',
+                    borderRadius: '12px 12px 0 0',
+                    display: 'block',
+                  }}
+                  crossOrigin="anonymous"
+                  controls={false}
+                  onTimeUpdate={() => {
+                    if (nativeVideoRef.current) {
+                      setCurrentTime(nativeVideoRef.current.currentTime);
+                    }
+                  }}
+                  onLoadedMetadata={() => {
+                    if (nativeVideoRef.current) {
+                      const video = nativeVideoRef.current;
+                      const dur = video.duration;
+                      setDuration(dur);
+                      setPlayerReady(true);
+                      onDurationChange?.(dur);
+                      
+                      // Mock YouTube player interface on playerRef.current
+                      playerRef.current = {
+                        pauseVideo: () => {
+                          video.pause();
+                          setPlaying(false);
+                        },
+                        playVideo: () => {
+                          video.play().catch(console.error);
+                          setPlaying(true);
+                        },
+                        seekTo: (time: number) => {
+                          video.currentTime = time;
+                        },
+                        setVolume: (vol: number) => {
+                          video.volume = vol / 100;
+                        },
+                        setPlaybackRate: (rate: number) => {
+                          video.playbackRate = rate;
+                        },
+                        getDuration: () => video.duration,
+                        getCurrentTime: () => video.currentTime,
+                        getVolume: () => video.volume * 100,
+                        getPlaybackRate: () => video.playbackRate,
+                      } as any;
+                    }
+                  }}
+                  onEnded={async () => {
+                    setPlaying(false);
+                    setVideoEnded(true);
+                    if (!progressStoppedRef.current && currentCourse) {
+                      const watchItemId = watchItemIdRef.current || currentCourse.watchItemId;
+                      if (watchItemId) {
+                        const success = await handleStopItem(watchItemId, 0);
+                        if (success) {
+                          onNext?.();
+                        }
+                      }
+                    }
+                  }}
+                />
+              )}
 
               {/* With subtitles on, the iframe sits flush in its container so the
                   captions are not clipped (see applyIframeFraming) — which leaves
@@ -2145,6 +2232,21 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
 
             </>
           )}
+          {/* Vibe Lens Overlay */}
+          <VibeLensOverlay
+            isActive={isLensEnabled && isLensOverlayOpen}
+            imageSrc={lensImage}
+            onCancel={() => {
+              setIsLensOverlayOpen(false);
+              setCroppingSnapshot(null);
+            }}
+            onAskAI={(area) => {
+              setCropArea(area);
+              setActiveLensSnapshot(croppingSnapshot);
+              setIsLensOverlayOpen(false);
+              setIsLensPanelOpen(true);
+            }}
+          />
         </div>
 
 
@@ -2257,7 +2359,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
               }}
               className="w-full"
             />
-          </div>
+         </div>
 
             {/* Left Controls */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, order: 1 }}>
@@ -2435,6 +2537,72 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
                   </span>
                 </Card>
 
+                {/* Snapshot & Sketch (ViBe Lens AI) */}
+                {isLensEnabled && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isYouTube) {
+                            const video = nativeVideoRef.current;
+                            if (video) {
+                              try {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = video.videoWidth || 640;
+                                canvas.height = video.videoHeight || 360;
+                                const ctx = canvas.getContext('2d');
+                                if (ctx) {
+                                  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                  const dataUrl = canvas.toDataURL('image/png');
+                                  const newSnapshot: SavedSnapshot = {
+                                    id: Date.now().toString(),
+                                    timestamp: currentTime,
+                                    imageSrc: dataUrl
+                                  };
+                                  setSnapshots(prev => [...prev, newSnapshot]);
+                                  setIsLensPanelOpen(true);
+                                  toast.success(`Snapshot captured at ${formatSecondsToTime(currentTime)}! Added to Lens Notebook.`);
+                                }
+                              } catch (error) {
+                                console.error('Error taking video snapshot:', error);
+                                toast.error('Unable to take a screenshot of this video frame.');
+                              }
+                            }
+                          } else {
+                            const videoId = getYouTubeId(URL);
+                            if (videoId) {
+                              const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+                              const newSnapshot: SavedSnapshot = {
+                                id: Date.now().toString(),
+                                timestamp: currentTime,
+                                imageSrc: thumbnailUrl
+                              };
+                              setSnapshots(prev => [...prev, newSnapshot]);
+                              setIsLensPanelOpen(true);
+                              toast.success(`Snapshot captured at ${formatSecondsToTime(currentTime)}! Added to Lens Notebook.`);
+                            } else {
+                              toast.error('Unable to capture frame for this video format.');
+                            }
+                          }
+                        }}
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-sm relative group h-8 w-8 transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white mr-1"
+                        aria-label="ViBe Lens AI"
+                        title="ViBe Lens AI"
+                      >
+                        <span className="flex items-center justify-center">
+                          <Camera className="h-5 w-5" strokeWidth={2.25} />
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>ViBe Lens AI Solver</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+
                 {/* Fullscreen Toggle */}
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -2499,6 +2667,43 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
         </div>
       </div>
 
+      {/* ViBe Lens AI Sidebar Panel */}
+      <VibeLensPanel
+        isOpen={isLensEnabled && isLensPanelOpen}
+        onClose={() => setIsLensPanelOpen(false)}
+        videoUrl={URL}
+        currentTime={currentTime}
+        snapshots={snapshots}
+        onDeleteSnapshot={(id) => setSnapshots(prev => prev.filter(s => s.id !== id))}
+        onSeek={(time) => {
+          if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+            playerRef.current.seekTo(time, true);
+          }
+        }}
+        onSelectForLens={(snap) => {
+          if (playing) {
+            handlePlayPause();
+          }
+          setCroppingSnapshot(snap);
+          setLensImage(snap.imageSrc);
+          setIsLensOverlayOpen(true);
+        }}
+        onSelectForSketch={(snap) => {
+          if (playing) {
+            handlePlayPause();
+          }
+          setSnapshotImage(snap.imageSrc);
+          setIsSnapshotModalOpen(true);
+        }}
+        activeLensSnapshot={activeLensSnapshot}
+        cropArea={cropArea}
+        onBackToNotebook={() => {
+          setActiveLensSnapshot(null);
+          setCropArea(null);
+        }}
+      />
+    </div>
+
       {/* Global CSS to block YouTube interface */}
       <style>{`
         iframe[src*="youtube.com"] {
@@ -2538,6 +2743,11 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
           user-select: none !important;
         }
       `}</style>
+      <SnapshotSketchModal
+        isOpen={isSnapshotModalOpen}
+        onClose={() => setIsSnapshotModalOpen(false)}
+        imageSrc={snapshotImage}
+      />
     </div >
   );
 });

@@ -16,11 +16,9 @@ import {
 } from '#shared/database/index.js';
 import {
   AuditingDto,
-  CourseSetting,
   DetectorOptionsDto,
   DetectorSettingsDto,
   ProctoringSettingsDto,
-  UserSetting,
 } from '#root/modules/setting/classes/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {NotFoundError} from 'routing-controllers';
@@ -34,8 +32,8 @@ import { toObjectId } from '#root/modules/hpSystem/utils/toObjectId.js';
 @injectable()
 export class SettingRepository implements ISettingRepository {
   // Define types for the collections later.
-  private courseSettingsCollection: Collection<CourseSetting>;
-  private userSettingsCollection: Collection<UserSetting>;
+  private courseSettingsCollection: Collection<ICourseSetting>;
+  private userSettingsCollection: Collection<IUserSetting>;
   private cohortsCollection: Collection<ICohort>;
 
   constructor(@inject(GLOBAL_TYPES.Database) private db: MongoDatabase) {}
@@ -44,9 +42,9 @@ export class SettingRepository implements ISettingRepository {
   private async init() {
     if (!this.initialized) {
       this.courseSettingsCollection =
-        await this.db.getCollection<CourseSetting>('courseSettings');
+        await this.db.getCollection<ICourseSetting>('courseSettings');
       this.userSettingsCollection =
-        await this.db.getCollection<UserSetting>('userSettings');
+        await this.db.getCollection<IUserSetting>('userSettings');
       this.cohortsCollection = await this.db.getCollection<ICohort>('cohorts');
       this.initialized = true;
 
@@ -79,7 +77,13 @@ export class SettingRepository implements ISettingRepository {
         {session},
       );
 
-      return Object.assign(new UserSetting(), createdSettings) as UserSetting;
+      const {UserSetting} = await import('#root/modules/setting/classes/transformers/UserSetting.js');
+      const settingInstance = new UserSetting(createdSettings as any) as any;
+      settingInstance._id = createdSettings._id;
+      settingInstance.studentId = createdSettings.studentId;
+      settingInstance.createdAt = (createdSettings as any).createdAt;
+      settingInstance.updatedAt = (createdSettings as any).updatedAt;
+      return settingInstance;
     }
   }
 
@@ -106,7 +110,13 @@ export class SettingRepository implements ISettingRepository {
     }
 
     // If user settings exist, we will return them.
-    return Object.assign(new UserSetting(), userSettings) as UserSetting;
+    const {UserSetting} = await import('#root/modules/setting/classes/transformers/UserSetting.js');
+    const settingInstance = new UserSetting(userSettings as any) as any;
+    settingInstance._id = userSettings._id;
+    settingInstance.studentId = userSettings.studentId;
+    settingInstance.createdAt = (userSettings as any).createdAt;
+    settingInstance.updatedAt = (userSettings as any).updatedAt;
+    return settingInstance;
   }
 
   /**
@@ -207,7 +217,7 @@ export class SettingRepository implements ISettingRepository {
   // }
 
   async createCourseSettings(
-    courseSettings: CourseSetting,
+    courseSettings: ICourseSetting,
     session?: ClientSession,
   ): Promise<ICourseSetting | null> {
     await this.init();
@@ -224,6 +234,7 @@ export class SettingRepository implements ISettingRepository {
       );
 
       // Create a proper CourseSetting instance without Object.assign
+      const {CourseSetting} = await import('#root/modules/setting/classes/transformers/CourseSetting.js');
       return new CourseSetting({
         courseId: createdSettings.courseId.toString(),
         courseVersionId: createdSettings.courseVersionId.toString(),
@@ -251,7 +262,13 @@ export class SettingRepository implements ISettingRepository {
     if (!courseSettings) {
       return null;
     }
-    return Object.assign(new CourseSetting(), courseSettings) as CourseSetting;
+    const {CourseSetting} = await import('#root/modules/setting/classes/transformers/CourseSetting.js');
+    const settingInstance = new CourseSetting(courseSettings as any) as any;
+    settingInstance._id = courseSettings._id;
+    settingInstance.cohortId = (courseSettings as any).cohortId;
+    settingInstance.createdAt = (courseSettings as any).createdAt;
+    settingInstance.updatedAt = (courseSettings as any).updatedAt;
+    return settingInstance;
   }
 
   /**
@@ -302,6 +319,7 @@ export class SettingRepository implements ISettingRepository {
     audit: AuditingDto,
     session?: ClientSession,
     crowdsourcedQuestionSubmissionEnabled: boolean = false,
+    isLensEnabled?: boolean,
   ): Promise<UpdateResult | null> {
     await this.init();
 
@@ -361,6 +379,7 @@ export class SettingRepository implements ISettingRepository {
           'settings.randomizeItems': randomizeItems,
           'settings.crowdsourcedQuestionSubmissionEnabled':
             crowdsourcedQuestionSubmissionEnabled,
+          ...(isLensEnabled !== undefined && { 'settings.isLensEnabled': isLensEnabled }),
         },
         $push: {
           'settings.audit': audit,
@@ -568,6 +587,9 @@ export class SettingRepository implements ISettingRepository {
       {courseVersionId: new ObjectId(versionId)},
       {session},
     );
+    if (!result || !result.settings) {
+      return {jsonSchema: null, uiSchema: null, isActive: true};
+    }
     const registration = result.settings.registration || {};
     const jsonSchema = registration.jsonSchema;
     const uiSchema = registration.uiSchema;

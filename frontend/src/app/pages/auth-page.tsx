@@ -308,7 +308,8 @@ export default function AuthPage() {
           email: email,
           password: password,
           firstName: firstName,
-          lastName: lastName
+          lastName: lastName,
+          recaptchaToken: "NO_CAPTCHA"
         }
       });
       // const result = await loginWithEmail(email, password);

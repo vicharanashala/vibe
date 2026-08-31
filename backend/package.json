@@ -90,6 +90,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "@casl/ability": "^6.7.3",
+    "@distube/ytdl-core": "^4.16.12",
     "@google-cloud/storage": "^7.17.1",
     "@inversifyjs/container": "^1.15.0",
     "@inversifyjs/core": "^1.3.5",
@@ -133,6 +134,7 @@
     "routing-controllers-openapi": "github:adityabmv/routing-controllers-openapi",
     "socks-proxy-agent": "^8.0.5",
     "typedi": "^0.10.0",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "youtube-dl-exec": "^3.1.9"
   }
 }

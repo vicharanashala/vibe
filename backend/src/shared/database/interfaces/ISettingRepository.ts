@@ -68,6 +68,7 @@ export interface ISettingRepository {
     audit: AuditingDto,
     session?: ClientSession,
     crowdsourcedQuestionSubmissionEnabled?: boolean,
+    isLensEnabled?: boolean,
   ): Promise<UpdateResult | null>;
 
   updateRegistrationSchemas(

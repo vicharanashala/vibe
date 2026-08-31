@@ -66,7 +66,6 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
   @ValidateIf(o => (o.source ?? 'YOUTUBE') === 'YOUTUBE')
   @IsNotEmpty()
   @IsString()
-  @IsUrl()
   URL?: string;
 
   @JSONSchema({
@@ -114,6 +113,15 @@ class VideoDetailsPayloadValidator implements IVideoDetails {
   @IsNotEmpty()
   @IsNumber()
   points: number;
+
+  @JSONSchema({
+    title: 'Is Lens Enabled',
+    description: 'Allows students to use the ViBe Lens AI Solver on this video',
+    type: 'boolean',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isLensEnabled?: boolean;
 }
 
 class QuizDetailsPayloadValidator

@@ -131,13 +131,17 @@ class AttemptService extends BaseService {
     questionDetails: IQuestionDetails[];
     questionRenderViews: IQuestionRenderView[];
   }> {
-    const questionsBankRefs = quiz.details.questionBankRefs || [];
+    const questionsBankRefs = quiz.details?.questionBankRefs || [];
     const selectedQuestionIds: string[] = [];
 
     for (const questionBankRef of questionsBankRefs) {
       const questionIdsForBank =
         await this.questionBankService.getQuestions(questionBankRef);
       selectedQuestionIds.push(...questionIdsForBank);
+    }
+
+    if (selectedQuestionIds.length === 0 && Array.isArray((quiz as any).questionIds)) {
+      selectedQuestionIds.push(...(quiz as any).questionIds.map((id: any) => id.toString()));
     }
 
     const questionDetails: IQuestionDetails[] = [];

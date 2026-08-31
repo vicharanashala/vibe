@@ -59,7 +59,7 @@ class Module implements IModule {
       this.description = moduleBody.description;
     }
     const sortedModules = existingModules.sort((a, b) =>
-      a.order.localeCompare(b.order),
+      String(a.order).localeCompare(String(b.order)),
     );
     this.moduleId = new ObjectId();
     this.order = calculateNewOrder(

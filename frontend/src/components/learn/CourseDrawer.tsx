@@ -35,7 +35,11 @@ const getItemIcon = (type: string) => {
 };
 
 const sortItemsByOrder = (items: any[]) =>
-  [...items].sort((a, b) => (a.order || "").localeCompare(b.order || ""));
+  [...items].sort((a, b) => {
+    const orderA = a.order !== undefined && a.order !== null ? String(a.order) : '';
+    const orderB = b.order !== undefined && b.order !== null ? String(b.order) : '';
+    return orderA.localeCompare(orderB);
+  });
 
 const typeLabel = (type: string) => {
   switch ((type || "").toLowerCase()) {

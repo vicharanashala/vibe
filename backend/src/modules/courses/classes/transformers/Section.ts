@@ -56,7 +56,7 @@ class Section implements ISection {
       this.description = sectionBody.description;
     }
     const sortedSections = existingSections.sort((a, b) =>
-      a.order.localeCompare(b.order),
+      String(a.order).localeCompare(String(b.order)),
     );
     this.sectionId = new ObjectId();
     this.order = calculateNewOrder(

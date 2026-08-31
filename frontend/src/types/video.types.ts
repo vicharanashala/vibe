@@ -14,6 +14,7 @@ export interface VideoProps {
   doGesture?: boolean;
   onNext?: () => void;
   isProgressUpdating?: boolean;
+  isLensEnabled?: boolean;
   anomalies?: string[];
   readyToDetect: boolean;
   rewindVid: boolean;
@@ -182,5 +183,6 @@ export interface Video {
     startTime: string;
     endTime: string;
     points: number;
+    isLensEnabled?: boolean;
   };
 }
