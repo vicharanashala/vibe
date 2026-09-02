@@ -4130,6 +4130,67 @@ export function useProjectSubmissions(courseId: string, versionId: string, cohor
   };
 }
 
+// GET /project/my-submission
+export interface MyProjectSubmission {
+  submissionId?: string;
+  submissionURL?: string;
+  comment?: string;
+  grade?: string;
+  feedback?: string;
+  reviewedAt?: string;
+  submittedAt?: string;
+}
+
+export function useMyProjectSubmission(
+  courseId: string,
+  versionId: string,
+  cohortId?: string,
+): {
+  data: MyProjectSubmission | null | undefined;
+  isLoading: boolean;
+  error: string | null;
+} {
+  const result = api.useQuery(
+    'get',
+    '/project/my-submission' as any,
+    {
+      params: {
+        query: {
+          courseId,
+          versionId,
+          ...(cohortId ? { cohortId } : {}),
+        },
+      },
+    },
+    { enabled: !!courseId && !!versionId },
+  );
+  return {
+    data: result.data as MyProjectSubmission | null | undefined,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch submission') : null,
+  };
+}
+
+// PATCH /project/submissions/:submissionId/review
+export interface ReviewProjectBody {
+  feedback?: string;
+  grade?: string;
+}
+
+export function useReviewProjectSubmission(): {
+  mutateAsync: (variables: { submissionId: string; body: ReviewProjectBody }) => Promise<{ message: string }>;
+  isPending: boolean;
+  error: string | null;
+} {
+  const result = api.useMutation('patch', '/project/submissions/{submissionId}/review' as any);
+  return {
+    mutateAsync: ({ submissionId, body }: { submissionId: string; body: ReviewProjectBody }) =>
+      (result.mutateAsync as any)({ params: { path: { submissionId } }, body }),
+    isPending: result.isPending,
+    error: result.error ? (result.error.message || 'Failed to save review') : null,
+  };
+}
+
 // POST (copy course version)
 export function useCopyCourseVersion(): {
   mutate: (variables: { params: { path: { courseId: string; courseVersionId: string } } }) => void,

@@ -3,13 +3,11 @@ import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
 import { Textarea } from '../../../../components/ui/textarea';
-import { CheckCircle, Link as LinkIcon } from 'lucide-react';
+import { Badge } from '../../../../components/ui/badge';
+import { CheckCircle, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSubmitProject, SubmitProjectBody, useStartItem, useStopItem } from '../../../../hooks/hooks';
+import { useSubmitProject, SubmitProjectBody, useStartItem, useStopItem, useMyProjectSubmission } from '../../../../hooks/hooks';
 import { useCourseStore } from '../../../../store/course-store';
-
-// This file is a student-side ProjectItem component for project submission
-// It is adapted from the instructor-side ProjectItem, but only allows submission (not editing name/description)
 
 export type StudentProjectItemProps = {
   item: {
@@ -24,171 +22,98 @@ export type StudentProjectItemProps = {
   isAlreadyWatched?: boolean;
 };
 
-export default function StudentProjectItem({ item, onNext, isProgressUpdating, completedItemIdsRef,isAlreadyWatched }: StudentProjectItemProps) {
+export default function StudentProjectItem({ item, onNext, isProgressUpdating, completedItemIdsRef, isAlreadyWatched }: StudentProjectItemProps) {
+  const { currentCourse } = useCourseStore();
+  const courseId = currentCourse?.courseId ?? '';
+  const versionId = currentCourse?.versionId ?? '';
+  const cohortId = currentCourse?.cohortId ?? undefined;
+
+  const { data: existingSubmission, isLoading: loadingExisting } = useMyProjectSubmission(courseId, versionId, cohortId);
+
   const [link, setLink] = useState('');
   const [comment, setComment] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const { mutateAsync: submitProject, isPending: isSubmitting } = useSubmitProject();
   const startItem = useStartItem();
   const stopItem = useStopItem();
-  const { currentCourse } = useCourseStore();
   const [watchItemId, setWatchItemId] = useState<string>('');
-
-
-  // Track if item has been started and if start request has been sent
   const itemStartedRef = useRef(false);
-  const startRequestSentRef = useRef(false);
+
+  // Pre-fill form when existing submission loads
+  useEffect(() => {
+    if (existingSubmission?.submissionURL) {
+      setLink(existingSubmission.submissionURL);
+      setComment(existingSubmission.comment ?? '');
+    }
+  }, [existingSubmission]);
 
   const validateUrl = (url: string): boolean => {
-    try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
-    }
+    try { new URL(url); return true; } catch { return false; }
   };
 
-  // ===== COURSE ITEM TRACKING FUNCTIONS =====
   const handleStartItem = useCallback(async (): Promise<string> => {
-    if (!currentCourse?.itemId) {
-      console.error('Missing course item ID');
-      return '';
-    }
+    if (!currentCourse?.itemId) return '';
     try {
       const response = await startItem.mutateAsync({
-        params: {
-          path: {
-            courseId: currentCourse.courseId,
-            courseVersionId: currentCourse.versionId ?? '',
-          },
-        },
-        body: {
-          itemId: currentCourse.itemId,
-          moduleId: currentCourse.moduleId ?? '',
-          sectionId: currentCourse.sectionId ?? '',
-          cohortId: currentCourse.cohortId ?? '',
-        }
+        params: { path: { courseId: currentCourse.courseId, courseVersionId: currentCourse.versionId ?? '' } },
+        body: { itemId: currentCourse.itemId, moduleId: currentCourse.moduleId ?? '', sectionId: currentCourse.sectionId ?? '', cohortId: currentCourse.cohortId ?? '' },
       });
-
-      if (!response?.watchItemId) {
-        console.error('No watchItemId returned from startItem');
-        return '';
-      }
-      
+      if (!response?.watchItemId) return '';
       itemStartedRef.current = true;
       setWatchItemId(response.watchItemId);
-
       return response.watchItemId;
-    } catch (error) {
-      console.error('Failed to start item:', error);
-      return '';
-    }
+    } catch { return ''; }
   }, [currentCourse]);
 
-
-  // Function to stop watching the item
   const handleStopItem = useCallback(async (stopWatchItemId: string): Promise<boolean> => {
-    if (!currentCourse?.itemId || !stopWatchItemId) {
-      console.warn('Cannot stop item - missing required data', {
-        hasItemId: !!currentCourse?.itemId,
-        hasWatchItemId: !!stopWatchItemId
-      });
-      return false;
-    }
+    if (!currentCourse?.itemId || !stopWatchItemId) return false;
     try {
-      // Stop the watch item
       await stopItem.mutateAsync({
-        params: {
-          path: {
-            courseId: currentCourse.courseId,
-            courseVersionId: currentCourse.versionId ?? '',
-          },
-        },
-        body: {
-          watchItemId: stopWatchItemId,
-          itemId: currentCourse.itemId,
-          sectionId: currentCourse.sectionId ?? '',
-          moduleId: currentCourse.moduleId ?? '',
-          cohortId: currentCourse.cohortId ?? '',
-        }
+        params: { path: { courseId: currentCourse.courseId, courseVersionId: currentCourse.versionId ?? '' } },
+        body: { watchItemId: stopWatchItemId, itemId: currentCourse.itemId, sectionId: currentCourse.sectionId ?? '', moduleId: currentCourse.moduleId ?? '', cohortId: currentCourse.cohortId ?? '' },
       });
       completedItemIdsRef.current.add(currentCourse.itemId);
       return true;
-    } catch (error) {
-      console.error('Error stopping watch item:', error);
-      return false;
-    } finally {
-      itemStartedRef.current = false;
-    }
+    } catch { return false; }
+    finally { itemStartedRef.current = false; }
   }, [currentCourse, stopItem]);
-
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingLocal || isSubmitting || isProgressUpdating) return;
 
-    // Prevent multiple submissions
-    if (isSubmittingLocal || isSubmitting || isProgressUpdating) {
-      return;
-    }
+    if (!link.trim()) { toast.error('Please enter a link'); return; }
+    if (!validateUrl(link)) { toast.error('Please enter a valid URL'); return; }
+    if (!currentCourse?.itemId) { toast.error('Course item information not available'); return; }
 
+    setIsSubmittingLocal(true);
     try {
-      if (!link.trim()) {
-        toast.error('Please enter a link');
+      if (isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)) {
+        await submitProject({
+          body: {
+            projectId: item._id,
+            courseId: currentCourse.courseId,
+            versionId: currentCourse.versionId || '',
+            moduleId: currentCourse.moduleId || '',
+            sectionId: currentCourse.sectionId || '',
+            watchItemId: '',
+            submissionURL: link.trim(),
+            comment: comment.trim() || undefined,
+            cohortId: currentCourse.cohortId ?? '',
+          },
+        });
+        toast.success(existingSubmission ? 'Submission updated!' : 'Submitted successfully!');
+        setIsSubmitted(true);
+        setIsEditing(false);
+        if (onNext) onNext();
         return;
       }
 
-      if (!validateUrl(link)) {
-        toast.error('Please enter a valid URL');
-        return;
-      }
-
-      if (!currentCourse) {
-        toast.error('Course information not available');
-        return;
-      }
-      if(!currentCourse.itemId){
-        toast.error('Course item information not available');
-        return;
-      }
-
-      setIsSubmittingLocal(true);
-      try {
-        if(isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)){
-          await submitProject({
-            body: {
-              projectId: item._id,
-              courseId: currentCourse.courseId,
-              versionId: currentCourse.versionId || '',
-              moduleId: currentCourse.moduleId || '',
-              sectionId: currentCourse.sectionId || '',
-              watchItemId: '', // No watchItemId since we're not tracking
-              submissionURL: link.trim(),
-              comment: comment.trim() || undefined,
-              cohortId: currentCourse.cohortId ?? '',
-            }
-          });
-          toast.success('Form submitted successfully!');
-          setIsSubmitted(true);
-          if (onNext) {
-            onNext();
-          }
-          return;
-        }
-      } catch (error) {
-        console.error('Failed to submit form:', error);
-        toast.error('Failed to submit form. Please try again.');
-        return;
-      }
-
-      // Start watching the item and get the watchItemId
       const newWatchItemId = await handleStartItem();
-
-      // Use the returned watchItemId directly instead of state
-      if (!newWatchItemId) {
-        throw new Error('Failed to start watching the item');
-      }
+      if (!newWatchItemId) throw new Error('Failed to start watching the item');
 
       const submitData: SubmitProjectBody = {
         projectId: item._id,
@@ -202,48 +127,109 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
         cohortId: currentCourse.cohortId ?? '',
       };
 
-      // Submit the form with watchItemId
       await submitProject({ body: submitData });
-      
-      // Stop watching the item using the same watchItemId
       const stopSuccess = await handleStopItem(newWatchItemId);
       if (stopSuccess) {
-        toast.success('Form submitted successfully!');
-      setIsSubmitted(true);
+        toast.success(existingSubmission ? 'Submission updated!' : 'Submitted successfully!');
+        setIsSubmitted(true);
+        setIsEditing(false);
       } else {
-        toast.warning('Project submitted but failed to stop tracking');
+        toast.warning('Submitted but failed to stop tracking');
       }
-
-      // Call onNext if provided
-      if (onNext) {
-        onNext();
-      }
+      if (onNext) onNext();
     } catch (error) {
-      console.error('Failed to submit form:', error);
-      toast.error('Failed to submit form. Please try again.');
+      toast.error('Failed to submit. Please try again.');
     } finally {
       setIsSubmittingLocal(false);
     }
   };
 
-  const handleReset = () => {
-    if (isSubmittingLocal || isSubmitting || isProgressUpdating) {
-      return;
-    }
-    setLink('');
-    setComment('');
-    setIsSubmitted(false);
-  };
+  if (loadingExisting) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+        Loading…
+      </div>
+    );
+  }
+
+  // Show existing submission view (not editing)
+  if (existingSubmission?.submissionURL && !isEditing && !isSubmitted) {
+    return (
+      <div className="h-full w-full overflow-auto">
+        <div className="max-w-2xl mx-auto p-6 space-y-6">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <h2 className="text-xl font-semibold">{item.name}</h2>
+            </div>
+            {item.description && <p className="text-muted-foreground">{item.description}</p>}
+          </div>
+
+          <div className="rounded-lg border p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Your submission</span>
+              <Badge variant="outline" className="border-green-300 text-green-700 dark:border-green-700 dark:text-green-400">
+                Submitted
+              </Badge>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Link</p>
+              <a
+                href={existingSubmission.submissionURL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline break-all"
+              >
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                {existingSubmission.submissionURL}
+              </a>
+            </div>
+            {existingSubmission.comment && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Comment</p>
+                <p className="text-sm">{existingSubmission.comment}</p>
+              </div>
+            )}
+            {existingSubmission.submittedAt && (
+              <p className="text-xs text-muted-foreground">
+                Submitted {new Date(existingSubmission.submittedAt).toLocaleDateString()}
+              </p>
+            )}
+            {existingSubmission.grade && (
+              <div className="pt-2 border-t space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Instructor feedback</p>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{existingSubmission.grade}</Badge>
+                </div>
+                {existingSubmission.feedback && (
+                  <p className="text-sm mt-1">{existingSubmission.feedback}</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={() => setIsEditing(true)}>
+              Update Submission
+            </Button>
+            {onNext && (
+              <Button className="flex-1" onClick={onNext} disabled={isProgressUpdating}>
+                Continue
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isSubmitted) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Form Submitted Successfully!</h3>
-          <p className="text-muted-foreground mb-4">
-            Your submission has been recorded. You can now proceed to the next item.
-          </p>
+          <h3 className="text-lg font-semibold mb-2">Submitted Successfully!</h3>
+          <p className="text-muted-foreground mb-4">Your submission has been recorded.</p>
           <Button onClick={onNext} disabled={isProgressUpdating || isSubmittingLocal}>
             {isProgressUpdating || isSubmittingLocal ? 'Updating Progress...' : 'Continue'}
           </Button>
@@ -271,14 +257,14 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
               <Input
                 id="link"
                 type="url"
-                placeholder="https://drive.google.com/..."
+                placeholder="https://drive.google.com/…"
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
                 className="w-full"
                 required
               />
               <p className="text-xs text-muted-foreground">
-                Please provide a link to your work (e.g., Google Drive, Dropbox, etc.)
+                Share a link to your work (Google Drive, OneDrive, Dropbox, YouTube, etc.)
               </p>
             </div>
             <div className="space-y-2">
@@ -287,7 +273,7 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
               </Label>
               <Textarea
                 id="comment"
-                placeholder="Any additional notes or comments about your work..."
+                placeholder="Any notes about your submission…"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 className="w-full min-h-[100px]"
@@ -300,16 +286,17 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
                 className="flex-1"
                 disabled={isProgressUpdating || isSubmitting || isSubmittingLocal}
               >
-                {isProgressUpdating || isSubmitting || isSubmittingLocal ? 'Submitting...' : 'Submit Form'}
+                {isProgressUpdating || isSubmitting || isSubmittingLocal
+                  ? 'Submitting…'
+                  : existingSubmission
+                  ? 'Update Submission'
+                  : 'Submit'}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleReset}
-                disabled={isProgressUpdating || isSubmitting || isSubmittingLocal}
-              >
-                Reset
-              </Button>
+              {isEditing && (
+                <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </Button>
+              )}
             </div>
           </form>
         </div>

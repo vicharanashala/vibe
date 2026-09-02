@@ -28,6 +28,7 @@ import type {
   UpdateCaseBody,
 } from '@/lib/api/case-studies';
 import CourseBackButton from './CourseBackButton';
+import { ProjectSubmissionsTable } from './components/ProjectSubmissionsTable';
 
 interface VideoItem {
   itemId: string;
@@ -419,6 +420,7 @@ export default function CaseStudiesManagement() {
           <TabsList>
             <TabsTrigger value="cases">Cases</TabsTrigger>
             <TabsTrigger value="responses">Responses</TabsTrigger>
+            <TabsTrigger value="project">Final Project</TabsTrigger>
           </TabsList>
         </div>
 
@@ -503,6 +505,15 @@ export default function CaseStudiesManagement() {
 
         <TabsContent value="responses" className="mt-4">
           <ResponsesTab courseId={courseId} versionId={versionId} />
+        </TabsContent>
+
+        <TabsContent value="project" className="mt-4">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Review and grade student final project submissions. Click "Review" to add a grade and feedback — students will see it on their submission page.
+            </p>
+            <ProjectSubmissionsTable courseId={courseId} versionId={versionId} />
+          </div>
         </TabsContent>
       </Tabs>
 
