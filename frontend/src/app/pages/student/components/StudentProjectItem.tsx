@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '../../../../components/ui/button';
 import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
@@ -6,7 +6,7 @@ import { Textarea } from '../../../../components/ui/textarea';
 import { Badge } from '../../../../components/ui/badge';
 import { CheckCircle, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSubmitProject, SubmitProjectBody, useStartItem, useStopItem, useMyProjectSubmission } from '../../../../hooks/hooks';
+import { useSubmitProject, useMyProjectSubmission } from '../../../../hooks/hooks';
 import { useCourseStore } from '../../../../store/course-store';
 
 export type StudentProjectItemProps = {
@@ -37,10 +37,6 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
   const [isEditing, setIsEditing] = useState(false);
 
   const { mutateAsync: submitProject, isPending: isSubmitting } = useSubmitProject();
-  const startItem = useStartItem();
-  const stopItem = useStopItem();
-  const [watchItemId, setWatchItemId] = useState<string>('');
-  const itemStartedRef = useRef(false);
 
   // Pre-fill form when existing submission loads
   useEffect(() => {
@@ -54,33 +50,6 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
     try { new URL(url); return true; } catch { return false; }
   };
 
-  const handleStartItem = useCallback(async (): Promise<string> => {
-    if (!currentCourse?.itemId) return '';
-    try {
-      const response = await startItem.mutateAsync({
-        params: { path: { courseId: currentCourse.courseId, courseVersionId: currentCourse.versionId ?? '' } },
-        body: { itemId: currentCourse.itemId, moduleId: currentCourse.moduleId ?? '', sectionId: currentCourse.sectionId ?? '', cohortId: currentCourse.cohortId ?? '' },
-      });
-      if (!response?.watchItemId) return '';
-      itemStartedRef.current = true;
-      setWatchItemId(response.watchItemId);
-      return response.watchItemId;
-    } catch { return ''; }
-  }, [currentCourse]);
-
-  const handleStopItem = useCallback(async (stopWatchItemId: string): Promise<boolean> => {
-    if (!currentCourse?.itemId || !stopWatchItemId) return false;
-    try {
-      await stopItem.mutateAsync({
-        params: { path: { courseId: currentCourse.courseId, courseVersionId: currentCourse.versionId ?? '' } },
-        body: { watchItemId: stopWatchItemId, itemId: currentCourse.itemId, sectionId: currentCourse.sectionId ?? '', moduleId: currentCourse.moduleId ?? '', cohortId: currentCourse.cohortId ?? '' },
-      });
-      completedItemIdsRef.current.add(currentCourse.itemId);
-      return true;
-    } catch { return false; }
-    finally { itemStartedRef.current = false; }
-  }, [currentCourse, stopItem]);
-
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmittingLocal || isSubmitting || isProgressUpdating) return;
@@ -91,51 +60,24 @@ export default function StudentProjectItem({ item, onNext, isProgressUpdating, c
 
     setIsSubmittingLocal(true);
     try {
-      if (isAlreadyWatched || completedItemIdsRef.current.has(currentCourse.itemId)) {
-        await submitProject({
-          body: {
-            projectId: item._id,
-            courseId: currentCourse.courseId,
-            versionId: currentCourse.versionId || '',
-            moduleId: currentCourse.moduleId || '',
-            sectionId: currentCourse.sectionId || '',
-            watchItemId: '',
-            submissionURL: link.trim(),
-            comment: comment.trim() || undefined,
-            cohortId: currentCourse.cohortId ?? '',
-          },
-        });
-        toast.success(existingSubmission ? 'Submission updated!' : 'Submitted successfully!');
-        setIsSubmitted(true);
-        setIsEditing(false);
-        if (onNext) onNext();
-        return;
-      }
-
-      const newWatchItemId = await handleStartItem();
-      if (!newWatchItemId) throw new Error('Failed to start watching the item');
-
-      const submitData: SubmitProjectBody = {
-        projectId: item._id,
-        courseId: currentCourse.courseId,
-        versionId: currentCourse.versionId || '',
-        moduleId: currentCourse.moduleId || '',
-        sectionId: currentCourse.sectionId || '',
-        watchItemId: newWatchItemId,
-        submissionURL: link.trim(),
-        comment: comment.trim() || undefined,
-        cohortId: currentCourse.cohortId ?? '',
-      };
-
-      await submitProject({ body: submitData });
-      const stopSuccess = await handleStopItem(newWatchItemId);
-      if (stopSuccess) {
-        toast.success(existingSubmission ? 'Submission updated!' : 'Submitted successfully!');
-        setIsSubmitted(true);
-        setIsEditing(false);
-      } else {
-        toast.warning('Submitted but failed to stop tracking');
-      }
+      await submitProject({
+        body: {
+          projectId: item._id,
+          courseId: currentCourse.courseId,
+          versionId: currentCourse.versionId || '',
+          moduleId: currentCourse.moduleId || '',
+          sectionId: currentCourse.sectionId || '',
+          watchItemId: '',
+          submissionURL: link.trim(),
+          comment: comment.trim() || undefined,
+          cohortId: currentCourse.cohortId ?? '',
+        },
+      });
+      // Mark as locally completed so the sidebar reflects it
+      completedItemIdsRef.current.add(currentCourse.itemId);
+      toast.success(existingSubmission ? 'Submission updated!' : 'Submitted successfully!');
+      setIsSubmitted(true);
+      setIsEditing(false);
       if (onNext) onNext();
     } catch (error) {
       toast.error('Failed to submit. Please try again.');
