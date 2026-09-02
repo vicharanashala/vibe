@@ -1739,6 +1739,9 @@ const handleGoToNextItem = async () => {
     const item = sectionItemsList.find((i: any) => i._id === itemId) as any;
     if (item?.isCompleted) return false;
 
+    // PROJECT items are submission-gated — never lock them by position
+    if (item?.type === 'PROJECT') return false;
+
     // Current item is never locked
     if (itemId === currentItemId) return false;
 
