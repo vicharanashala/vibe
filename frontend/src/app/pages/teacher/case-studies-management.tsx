@@ -89,11 +89,12 @@ function CaseFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] max-w-lg flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{mode === 'create' ? 'Create case study' : 'Edit case study'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex-1 space-y-4 overflow-y-auto py-2 pr-1">
           <div className="space-y-1">
             <label className="text-sm font-medium">Sequence #</label>
             <Input
@@ -141,7 +142,8 @@ function CaseFormDialog({
               <p className="text-xs text-muted-foreground">No items found in this course version.</p>
             )}
           </div>
-          <div className="flex justify-end gap-2 pt-2">
+          </div>
+          <div className="flex shrink-0 justify-end gap-2 border-t pt-3">
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
               Cancel
             </Button>
