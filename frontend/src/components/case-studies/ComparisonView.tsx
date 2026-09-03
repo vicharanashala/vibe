@@ -99,7 +99,7 @@ export default function ComparisonView({pair, onPick, anomalyContext}: Compariso
           variant="outline"
           disabled={locked || Boolean(pending)}
           onClick={() => handlePick(pair.left.outcome)}
-          className={cn('h-auto py-3')}
+          className={cn('h-auto py-3 pick-option')}
         >
           {pending === pair.left.outcome ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Response A is better
@@ -109,7 +109,7 @@ export default function ComparisonView({pair, onPick, anomalyContext}: Compariso
           variant="outline"
           disabled={locked || Boolean(pending)}
           onClick={() => handlePick(pair.right.outcome)}
-          className={cn('h-auto py-3')}
+          className={cn('h-auto py-3 pick-option')}
         >
           {pending === pair.right.outcome ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Response B is better
@@ -119,7 +119,7 @@ export default function ComparisonView({pair, onPick, anomalyContext}: Compariso
           variant="outline"
           disabled={locked || Boolean(pending)}
           onClick={() => handlePick('BOTH_WEAK')}
-          className={cn('h-auto py-3')}
+          className={cn('h-auto py-3 pick-option')}
         >
           {pending === 'BOTH_WEAK' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Both are too weak

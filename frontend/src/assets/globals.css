@@ -229,6 +229,13 @@
   }
 }
 
+/* Dark mode: case study pick buttons get visible accent hover highlight */
+.dark .pick-option:not(:disabled):hover {
+  background-color: hsl(var(--accent) / 0.18);
+  border-color: hsl(var(--accent) / 0.55);
+  color: hsl(var(--foreground));
+}
+
 /* Text selection — keep highlight visible in dark mode */
 .dark ::selection {
   background: hsl(38 95% 60% / 0.45);

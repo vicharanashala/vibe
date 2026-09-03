@@ -10,6 +10,9 @@
 /** Minimum word count for the steelman field (element 2a) — enforced server-side. */
 export const ELEMENT_2A_MIN_WORDS = 25;
 
+/** Minimum word count for all other single-sentence response fields — enforced server-side. */
+export const FIELD_MIN_WORDS = 5;
+
 /** Soft guidance ceiling for the total of all six response fields — shown in the UI, not hard-blocked. */
 export const RESPONSE_TOTAL_GUIDANCE_MAX = 200;
 
@@ -64,6 +67,18 @@ export const UNJUDGEABLE_FLAG_THRESHOLD = 2;
 export function countWords(text: string): number {
   const matches = text.trim().match(/[\p{L}\p{M}\p{N}]+/gu);
   return matches ? matches.length : 0;
+}
+
+/**
+ * Detects obvious gibberish: text where the same word is repeated so often
+ * that fewer than 40% of tokens are distinct. Only applied when wordCount ≥ 4
+ * to avoid false positives on very short phrases.
+ */
+export function isGibberish(text: string): boolean {
+  const words = text.toLowerCase().match(/[\p{L}\p{M}\p{N}]+/gu) ?? [];
+  if (words.length < 4) return false;
+  const unique = new Set(words).size;
+  return unique < Math.max(3, Math.ceil(words.length * 0.4));
 }
 
 /**

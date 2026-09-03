@@ -1,5 +1,5 @@
 import {Fragment, useState} from 'react';
-import {AlertTriangle, ChevronDown, ChevronRight, Loader2, Pencil, Plus, Trash2, Video} from 'lucide-react';
+import {AlertTriangle, ChevronDown, ChevronRight, Link2, Loader2, Pencil, Plus, Trash2} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Textarea} from '@/components/ui/textarea';
@@ -30,20 +30,19 @@ import type {
 import CourseBackButton from './CourseBackButton';
 import { ProjectSubmissionsTable } from './components/ProjectSubmissionsTable';
 
-interface VideoItem {
+interface CourseItem {
   itemId: string;
   name: string;
+  type: string;
 }
 
-function extractVideoItems(versionData: any): VideoItem[] {
+function extractItems(versionData: any): CourseItem[] {
   const modules = (versionData as any)?.modules ?? (versionData as any)?.version?.modules ?? [];
-  const items: VideoItem[] = [];
+  const items: CourseItem[] = [];
   for (const mod of modules) {
     for (const section of mod.sections ?? []) {
       for (const item of section.items ?? []) {
-        if (item.type === 'VIDEO') {
-          items.push({itemId: item._id, name: item.name ?? item.title ?? item._id});
-        }
+        items.push({itemId: item._id, name: item.name ?? item.title ?? item._id, type: item.type ?? ''});
       }
     }
   }
@@ -65,7 +64,7 @@ function CaseFormDialog({
   initialValues,
   onSubmit,
   isPending,
-  videoItems,
+  courseItems,
   mode,
 }: {
   open: boolean;
@@ -73,7 +72,7 @@ function CaseFormDialog({
   initialValues: CaseFormValues;
   onSubmit: (values: CaseFormValues) => void;
   isPending: boolean;
-  videoItems: VideoItem[];
+  courseItems: CourseItem[];
   mode: 'create' | 'edit';
 }) {
   const [values, setValues] = useState<CaseFormValues>(initialValues);
@@ -125,21 +124,21 @@ function CaseFormDialog({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium">Linked video</label>
+            <label className="text-sm font-medium">Linked item (unlocks case when completed)</label>
             <select
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               value={values.linkedItemId}
               onChange={set('linkedItemId')}
             >
-              <option value="">— no video linked —</option>
-              {videoItems.map(v => (
+              <option value="">— no item linked —</option>
+              {courseItems.map(v => (
                 <option key={v.itemId} value={v.itemId}>
-                  {v.name}
+                  {v.type ? `[${v.type}] ` : ''}{v.name}
                 </option>
               ))}
             </select>
-            {videoItems.length === 0 && (
-              <p className="text-xs text-muted-foreground">No VIDEO items found in this course version.</p>
+            {courseItems.length === 0 && (
+              <p className="text-xs text-muted-foreground">No items found in this course version.</p>
             )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
@@ -351,7 +350,7 @@ export default function CaseStudiesManagement() {
 
   const {cases, isLoading: casesLoading} = useMyCaseResponses(ref, Boolean(courseId && versionId));
   const {data: versionData} = useCourseVersionById(versionId, Boolean(versionId));
-  const videoItems = versionData ? extractVideoItems(versionData) : [];
+  const courseItems = versionData ? extractItems(versionData) : [];
 
   const createCase = useCreateCase(ref);
   const updateCase = useUpdateCase(ref);
@@ -361,7 +360,7 @@ export default function CaseStudiesManagement() {
   const [editTarget, setEditTarget] = useState<CaseListEntry | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CaseListEntry | null>(null);
 
-  const videoNameById = new Map(videoItems.map(v => [v.itemId, v.name]));
+  const itemNameById = new Map(courseItems.map(v => [v.itemId, v.name]));
 
   const handleCreate = async (values: CaseFormValues) => {
     const body: CreateCaseBody = {
@@ -448,7 +447,7 @@ export default function CaseStudiesManagement() {
                   <tr>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">#</th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Title</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Linked video</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Linked item</th>
                     <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
@@ -463,13 +462,13 @@ export default function CaseStudiesManagement() {
                         <td className="px-4 py-3">
                           {c.linkedItemId ? (
                             <span className="flex items-center gap-1.5 text-muted-foreground">
-                              <Video className="h-3.5 w-3.5 shrink-0" />
-                              {videoNameById.get(c.linkedItemId) ?? c.linkedItemId}
+                              <Link2 className="h-3.5 w-3.5 shrink-0" />
+                              {itemNameById.get(c.linkedItemId) ?? c.linkedItemId}
                             </span>
                           ) : (
                             <Badge variant="outline" className="gap-1 border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
                               <AlertTriangle className="h-3 w-3" />
-                              No video linked
+                              No item linked
                             </Badge>
                           )}
                         </td>
@@ -523,7 +522,7 @@ export default function CaseStudiesManagement() {
         initialValues={{...EMPTY_FORM, sequenceIndex: nextSequenceIndex}}
         onSubmit={handleCreate}
         isPending={createCase.isPending}
-        videoItems={videoItems}
+        courseItems={courseItems}
         mode="create"
       />
 
@@ -539,7 +538,7 @@ export default function CaseStudiesManagement() {
           }}
           onSubmit={handleUpdate}
           isPending={updateCase.isPending}
-          videoItems={videoItems}
+          courseItems={courseItems}
           mode="edit"
         />
       ) : null}

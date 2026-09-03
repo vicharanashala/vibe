@@ -151,8 +151,7 @@ function CaseComposerPane({
   onSubmitted: () => void;
 }) {
   const submit = useSubmitCaseResponse({courseId, versionId}, caseStudyId);
-  // DEMO: skip declaration + date gate
-  const [gateStep, setGateStep] = useState<'declaration' | 'date' | 'composing'>('composing');
+  const [gateStep, setGateStep] = useState<'declaration' | 'date' | 'composing'>('declaration');
   const [declared, setDeclared] = useState(false);
   const [zoomSessionDate, setZoomSessionDate] = useState('');
 

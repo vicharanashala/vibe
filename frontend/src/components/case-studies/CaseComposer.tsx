@@ -9,6 +9,7 @@ import {reportCaseStudyAnomaly} from '@/lib/api/anomaly-events';
 import type {CaseResponseInput} from '@/lib/api/case-studies';
 
 const STEELMAN_MIN_WORDS = 25;
+const FIELD_MIN_WORDS = 5;
 const TOTAL_GUIDANCE_MAX = 200;
 
 interface CaseComposerProps {
@@ -52,10 +53,22 @@ export default function CaseComposer({
     countWords(roomPerspective) +
     countWords(changeCommitment);
 
+  const beat1aWords = countWords(beat1a);
+  const beat1bWords = countWords(beat1b);
+  const beat1cWords = countWords(beat1c);
+  const roomWords = countWords(roomPerspective);
+  const changeWords = countWords(changeCommitment);
+
   const steelmanTooShort = steelmanWords > 0 && steelmanWords < STEELMAN_MIN_WORDS;
+  const singleFieldsTooShort =
+    (beat1a.trim() && beat1aWords < FIELD_MIN_WORDS) ||
+    (beat1b.trim() && beat1bWords < FIELD_MIN_WORDS) ||
+    (beat1c.trim() && beat1cWords < FIELD_MIN_WORDS) ||
+    (roomPerspective.trim() && roomWords < FIELD_MIN_WORDS) ||
+    (changeCommitment.trim() && changeWords < FIELD_MIN_WORDS);
   const allFilled =
-    beat1a.trim() && beat1b.trim() && beat1c.trim() &&
-    steelman.trim() && roomPerspective.trim() && changeCommitment.trim();
+    beat1aWords >= FIELD_MIN_WORDS && beat1bWords >= FIELD_MIN_WORDS && beat1cWords >= FIELD_MIN_WORDS &&
+    steelman.trim() && roomWords >= FIELD_MIN_WORDS && changeWords >= FIELD_MIN_WORDS;
   const canSubmit = allFilled && steelmanWords >= STEELMAN_MIN_WORDS && !isSubmitting;
 
   const handleSubmit = async () => {
@@ -124,35 +137,53 @@ export default function CaseComposer({
         <section className="space-y-3 p-5">
           <p className="text-sm font-semibold text-foreground">Element 1 — Where I landed</p>
           <div className="space-y-2">
-            <label className="text-xs text-muted-foreground">a) What I thought going in</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-muted-foreground">a) What I thought going in</label>
+              {beat1a.trim() && beat1aWords < FIELD_MIN_WORDS && (
+                <span className="text-xs font-medium text-destructive">{beat1aWords}/{FIELD_MIN_WORDS}+ words</span>
+              )}
+            </div>
             <Input
               data-testid="beat1a"
               value={beat1a}
               onChange={e => setBeat1a(e.target.value)}
-              placeholder="~1 sentence"
+              placeholder="~1 sentence (min 5 words)"
               aria-label="What I thought going in"
+              className={cn(beat1a.trim() && beat1aWords < FIELD_MIN_WORDS && 'border-destructive/60')}
               {...blockProps}
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs text-muted-foreground">b) What challenged it — or what gave most pause if nothing did</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-muted-foreground">b) What challenged it — or what gave most pause if nothing did</label>
+              {beat1b.trim() && beat1bWords < FIELD_MIN_WORDS && (
+                <span className="text-xs font-medium text-destructive">{beat1bWords}/{FIELD_MIN_WORDS}+ words</span>
+              )}
+            </div>
             <Input
               data-testid="beat1b"
               value={beat1b}
               onChange={e => setBeat1b(e.target.value)}
-              placeholder="~1 sentence"
+              placeholder="~1 sentence (min 5 words)"
               aria-label="What challenged my initial view"
+              className={cn(beat1b.trim() && beat1bWords < FIELD_MIN_WORDS && 'border-destructive/60')}
               {...blockProps}
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs text-muted-foreground">c) Where I ended up</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-muted-foreground">c) Where I ended up</label>
+              {beat1c.trim() && beat1cWords < FIELD_MIN_WORDS && (
+                <span className="text-xs font-medium text-destructive">{beat1cWords}/{FIELD_MIN_WORDS}+ words</span>
+              )}
+            </div>
             <Input
               data-testid="beat1c"
               value={beat1c}
               onChange={e => setBeat1c(e.target.value)}
-              placeholder="~1 sentence"
+              placeholder="~1 sentence (min 5 words)"
               aria-label="Where I ended up"
+              className={cn(beat1c.trim() && beat1cWords < FIELD_MIN_WORDS && 'border-destructive/60')}
               {...blockProps}
             />
           </div>
@@ -198,7 +229,12 @@ export default function CaseComposer({
 
         {/* Element 2b — Room perspective */}
         <section className="space-y-3 p-5">
-          <p className="text-sm font-semibold text-foreground">2b — One perspective from the room</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-foreground">2b — One perspective from the room</p>
+            {roomPerspective.trim() && roomWords < FIELD_MIN_WORDS && (
+              <span className="text-xs font-medium text-destructive">{roomWords}/{FIELD_MIN_WORDS}+ words</span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">
             "Room broadly agreed with me" is a valid answer. This is not shown to reviewers.
           </p>
@@ -206,15 +242,21 @@ export default function CaseComposer({
             data-testid="roomPerspective"
             value={roomPerspective}
             onChange={e => setRoomPerspective(e.target.value)}
-            placeholder="~1 sentence"
+            placeholder="~1 sentence (min 5 words)"
             aria-label="One perspective from the room"
+            className={cn(roomPerspective.trim() && roomWords < FIELD_MIN_WORDS && 'border-destructive/60')}
             {...blockProps}
           />
         </section>
 
         {/* Element 3 — Change commitment */}
         <section className="space-y-3 p-5">
-          <p className="text-sm font-semibold text-foreground">3 — One thing I'll change</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-foreground">3 — One thing I'll change</p>
+            {changeCommitment.trim() && changeWords < FIELD_MIN_WORDS && (
+              <span className="text-xs font-medium text-destructive">{changeWords}/{FIELD_MIN_WORDS}+ words</span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">
             Answer the cost you named in your steelman above.
           </p>
@@ -222,8 +264,9 @@ export default function CaseComposer({
             data-testid="changeCommitment"
             value={changeCommitment}
             onChange={e => setChangeCommitment(e.target.value)}
-            placeholder="~1 sentence"
+            placeholder="~1 sentence (min 5 words)"
             aria-label="One thing I will change"
+            className={cn(changeCommitment.trim() && changeWords < FIELD_MIN_WORDS && 'border-destructive/60')}
             {...blockProps}
           />
         </section>

@@ -192,13 +192,6 @@ class CourseRegistrationController {
       registrationData,
     );
 
-    // DEMO: flip to false before final deploy to restore approval flow
-    const DEMO_AUTO_APPROVE = true;
-    if (DEMO_AUTO_APPROVE) {
-      await this.courseRegistrationService.updateStatus(result, "APPROVED", cohortId);
-      return { registrationId: result, status: "APPROVED" };
-    }
-
     if(version?.cohorts?.length > 0){
       if(registrationSettings?.cohortSettings?.length > 0 && registrationSettings?.cohortSettingDetails?.some(c => c.cohortId === cohortId)){
         const cohortSetting = registrationSettings.cohortSettingDetails.find(

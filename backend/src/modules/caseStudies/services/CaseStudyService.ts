@@ -12,9 +12,11 @@ import {CaseComparisonOutcome} from '../classes/transformers/CaseComparison.js';
 import {
   DEFAULT_WEAK_STREAK_THRESHOLD,
   ELEMENT_2A_MIN_WORDS,
+  FIELD_MIN_WORDS,
   MAX_LIST_LIMIT,
   computeMinimumScreenTimeSeconds,
   countWords,
+  isGibberish,
 } from '../constants.js';
 import {SETTING_TYPES} from '../../setting/types.js';
 import {CourseSettingService} from '../../setting/services/CourseSettingService.js';
@@ -258,8 +260,7 @@ export class CaseStudyService {
           );
           state = completed ? 'writable' : 'locked';
         } else {
-          // DEMO: no linkedItemId → writable; revert this commit to restore video-gate
-          state = 'writable';
+          state = 'locked';
         }
 
         const entry: CaseListEntry = {
@@ -326,13 +327,36 @@ export class CaseStudyService {
       changeCommitment: input.changeCommitment.trim(),
     };
 
-    const steelmanWordCount = countWords(fields.steelman);
-    if (steelmanWordCount === 0) {
-      throw new BadRequestError('The steelman field cannot be empty.');
+    const singleFields: Array<{name: string; value: string}> = [
+      {name: 'beat1a', value: fields.beat1a},
+      {name: 'beat1b', value: fields.beat1b},
+      {name: 'beat1c', value: fields.beat1c},
+      {name: 'roomPerspective', value: fields.roomPerspective},
+      {name: 'changeCommitment', value: fields.changeCommitment},
+    ];
+    for (const {name, value} of singleFields) {
+      const wc = countWords(value);
+      if (wc < FIELD_MIN_WORDS) {
+        throw new BadRequestError(
+          `The "${name}" field must be at least ${FIELD_MIN_WORDS} words (got ${wc}).`,
+        );
+      }
+      if (isGibberish(value)) {
+        throw new BadRequestError(
+          `The "${name}" field appears to contain repeated or meaningless text. Please write a genuine response.`,
+        );
+      }
     }
+
+    const steelmanWordCount = countWords(fields.steelman);
     if (steelmanWordCount < ELEMENT_2A_MIN_WORDS) {
       throw new BadRequestError(
         `The steelman must be at least ${ELEMENT_2A_MIN_WORDS} words (this one is ${steelmanWordCount}).`,
+      );
+    }
+    if (isGibberish(fields.steelman)) {
+      throw new BadRequestError(
+        'The steelman field appears to contain repeated or meaningless text. Please write a genuine argument.',
       );
     }
 
@@ -345,8 +369,11 @@ export class CaseStudyService {
 
     // Video-based unlock: the case must be linked to a video, and that video
     // must be completed by this student.
-    // DEMO: skip video-gate when no linkedItemId; revert to restore
-    if (caseStudy.linkedItemId) {
+    if (!caseStudy.linkedItemId) {
+      throw new BadRequestError(
+        'This case study is not yet linked to a video. Awaiting video link from instructor.',
+      );
+    }
     const videoCompleted = await this.progressService.isItemCompleted(
       input.userId,
       caseStudy.courseId.toString(),
@@ -358,7 +385,6 @@ export class CaseStudyService {
         'Watch the linked video first to unlock this case study.',
       );
     }
-    } // end DEMO linkedItemId gate
 
     // Fast path: a readable rejection for the common case. The unique
     // (userId, caseStudyId) index is the real race guard.
@@ -622,13 +648,36 @@ export class CaseStudyService {
       changeCommitment: input.changeCommitment.trim(),
     };
 
-    const steelmanWordCount = countWords(fields.steelman);
-    if (steelmanWordCount === 0) {
-      throw new BadRequestError('The steelman field cannot be empty.');
+    const singleFieldsRevise: Array<{name: string; value: string}> = [
+      {name: 'beat1a', value: fields.beat1a},
+      {name: 'beat1b', value: fields.beat1b},
+      {name: 'beat1c', value: fields.beat1c},
+      {name: 'roomPerspective', value: fields.roomPerspective},
+      {name: 'changeCommitment', value: fields.changeCommitment},
+    ];
+    for (const {name, value} of singleFieldsRevise) {
+      const wc = countWords(value);
+      if (wc < FIELD_MIN_WORDS) {
+        throw new BadRequestError(
+          `The "${name}" field must be at least ${FIELD_MIN_WORDS} words (got ${wc}).`,
+        );
+      }
+      if (isGibberish(value)) {
+        throw new BadRequestError(
+          `The "${name}" field appears to contain repeated or meaningless text. Please write a genuine response.`,
+        );
+      }
     }
+
+    const steelmanWordCount = countWords(fields.steelman);
     if (steelmanWordCount < ELEMENT_2A_MIN_WORDS) {
       throw new BadRequestError(
         `The steelman must be at least ${ELEMENT_2A_MIN_WORDS} words (this one is ${steelmanWordCount}).`,
+      );
+    }
+    if (isGibberish(fields.steelman)) {
+      throw new BadRequestError(
+        'The steelman field appears to contain repeated or meaningless text. Please write a genuine argument.',
       );
     }
 
