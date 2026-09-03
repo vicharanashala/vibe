@@ -91,6 +91,22 @@ class ProgressRepository {
     }
 
     try {
+      // The enrollment statistics job sums watch time across a whole course
+      // version. The userId-leading index above cannot serve that shape, so
+      // without this one the aggregation scans the entire collection.
+      await this.watchTimeCollection.createIndex(
+        {
+          courseId: 1,
+          courseVersionId: 1,
+          endTime: 1,
+        },
+        { background: true },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
       // The orphan recovery job sweeps open watch sessions by age. A partial
       // index keeps this to just the rows that are still open, so it stays
       // small however large the collection grows.
@@ -686,6 +702,7 @@ class ProgressRepository {
       {
         _id: new ObjectId(watchTimeId),
         isDeleted: { $ne: true },
+        endTime: { $exists: false },
       },
       { $set: { endTime: new Date() } },
       { returnDocument: 'after', session },

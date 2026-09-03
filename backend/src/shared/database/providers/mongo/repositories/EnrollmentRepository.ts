@@ -9,6 +9,7 @@ import {
   ID,
   courseVersionStatus,
   IUserActivityEvent,
+  ICourseVersionStats,
 } from '#shared/interfaces/models.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, Collection, ObjectId, OptionalId } from 'mongodb';
@@ -60,6 +61,8 @@ export class EnrollmentRepository {
   private reportCollection!: Collection<IReport>;
   private userQuizMetricsCollection!: Collection<IUserQuizMetrics>;
   private userActivityEventCollection!: Collection<IUserActivityEvent>;
+  private userCollection!: Collection<IUser>;
+  private courseVersionStatsCollection!: Collection<ICourseVersionStats>;
 
   constructor(
     @inject(GLOBAL_TYPES.Database) private db: MongoDatabase,
@@ -95,6 +98,9 @@ export class EnrollmentRepository {
       await this.db.getCollection<IUserQuizMetrics>('user_quiz_metrics');
     this.userActivityEventCollection =
       await this.db.getCollection<IUserActivityEvent>('user_activity_events');
+    this.userCollection = await this.db.getCollection<IUser>('users');
+    this.courseVersionStatsCollection =
+      await this.db.getCollection<ICourseVersionStats>('courseVersionStats');
   }
 
   /**
@@ -2173,7 +2179,144 @@ export class EnrollmentRepository {
       averageProgressPercent: 0,
     };
 
-    // second aggregation to compute average watch hours per user for this course version
+    // Average watch hours is read from the precomputed figure rather than
+    // aggregated here — see ICourseVersionStats for why it alone is cached.
+    // A course whose stats the job has not reached yet reports 0 with a null
+    // computedAt, which the dashboard renders as "not computed yet" instead
+    // of passing off a placeholder as a real measurement.
+    const cachedStats = await this.courseVersionStatsCollection.findOne(
+      {
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: {
+          $in: [courseVersionId, new ObjectId(courseVersionId)],
+        },
+      },
+      { session },
+    );
+
+    return {
+      totalEnrollments: baseStats.totalEnrollments,
+      completedCount: baseStats.completedCount,
+      averageProgressPercent: baseStats.averageProgressPercent,
+      averageWatchHoursPerUser: cachedStats?.averageWatchHoursPerUser ?? 0,
+      watchHoursComputedAt: cachedStats?.computedAt ?? null,
+    };
+  }
+
+  /**
+   * Recompute and store the average watch hours for one course version.
+   * Driven by the scheduled statistics job.
+   */
+  async refreshCourseVersionWatchStats(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<ICourseVersionStats> {
+    await this.init();
+
+    const averageWatchHoursPerUser =
+      await this.computeAverageWatchHoursPerUser(
+        courseId,
+        courseVersionId,
+        session,
+      );
+    const computedAt = new Date();
+
+    await this.courseVersionStatsCollection.updateOne(
+      {
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: {
+          $in: [courseVersionId, new ObjectId(courseVersionId)],
+        },
+      },
+      {
+        $set: { averageWatchHoursPerUser, computedAt },
+        $setOnInsert: {
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+        },
+      },
+      { upsert: true, session },
+    );
+
+    return {
+      courseId,
+      courseVersionId,
+      averageWatchHoursPerUser,
+      computedAt,
+    };
+  }
+
+  /**
+   * Course versions that currently have at least one active student, which is
+   * the set the stats job refreshes. Versions nobody is enrolled in have no
+   * dashboard to keep warm, so recomputing them would be wasted scanning.
+   */
+  async getCourseVersionsWithActiveEnrollments(
+    session?: ClientSession,
+  ): Promise<{ courseId: string; courseVersionId: string }[]> {
+    await this.init();
+
+    const pairs = await this.enrollmentCollection
+      .aggregate<{ _id: { courseId: ID; courseVersionId: ID } }>(
+        [
+          {
+            $match: {
+              role: 'STUDENT',
+              status: { $regex: /^active$/i },
+              isDeleted: { $ne: true },
+              isShareLinkGuest: { $ne: true },
+            },
+          },
+          {
+            $group: {
+              _id: {
+                courseId: '$courseId',
+                courseVersionId: '$courseVersionId',
+              },
+            },
+          },
+        ],
+        { session },
+      )
+      .toArray();
+
+    return pairs.map(pair => ({
+      courseId: String(pair._id.courseId),
+      courseVersionId: String(pair._id.courseVersionId),
+    }));
+  }
+
+  /**
+   * Average watch hours per user for a course version.
+   *
+   * This is the expensive half of the enrollment statistics, so it is kept
+   * separate: the scheduled stats job calls it directly to refresh the cached
+   * figure without recomputing the cheap enrollment counts alongside it.
+   *
+   * Both id fields are stored as either a string or an ObjectId depending on
+   * the write path, so each is matched against both forms. The match is a
+   * plain one rather than the `$expr` it used to be — `$expr` cannot use an
+   * index, which meant every call scanned the whole watchTime collection.
+   */
+  async computeAverageWatchHoursPerUser(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+
+    // Watch time is recorded for share-link guests too, so they have to be
+    // dropped or a heavy guest viewer would skew the average watch hours
+    // reported for enrolled learners. Guest-ness is a property of the user
+    // rather than of any one enrollment, so the guest ids are fetched once
+    // here instead of joining `users` per watch-time document as this
+    // previously did.
+    const guestUserIds = await this.userCollection
+      .find({ isShareLinkGuest: true }, { projection: { _id: 1 }, session })
+      .map(user => user._id)
+      .toArray();
+
     const watchAgg = await this.watchTimeCollection
       .aggregate<{
         averageWatchHoursPerUser: number;
@@ -2181,34 +2324,20 @@ export class EnrollmentRepository {
         [
           {
             $match: {
-              $expr: {
-                $and: [
-                  { $in: ['$courseId', [courseId, new ObjectId(courseId)]] },
-                  {
-                    $in: [
-                      '$courseVersionId',
-                      [courseVersionId, new ObjectId(courseVersionId)],
-                    ],
-                  },
-                  { $ne: ['$isDeleted', true] },
-                  { $ne: ['$endTime', null] },
-                ],
+              courseId: { $in: [courseId, new ObjectId(courseId)] },
+              courseVersionId: {
+                $in: [courseVersionId, new ObjectId(courseVersionId)],
               },
+              isDeleted: { $ne: true },
+              endTime: { $ne: null, $exists: true },
+              ...(guestUserIds.length
+                ? {
+                    userId: {
+                      $nin: guestUserIds.flatMap(id => [id, String(id)]),
+                    },
+                  }
+                : {}),
             },
-          },
-          // Watch time is recorded for share-link guests too, so they have to
-          // be dropped here or a heavy guest viewer would skew the average
-          // watch hours reported for enrolled learners.
-          {
-            $lookup: {
-              from: 'users',
-              localField: 'userId',
-              foreignField: '_id',
-              as: 'viewer',
-            },
-          },
-          {
-            $match: { 'viewer.isShareLinkGuest': { $ne: true } },
           },
           {
             $project: {
@@ -2242,22 +2371,8 @@ export class EnrollmentRepository {
       .toArray();
 
     const watchStats = watchAgg[0] || { averageWatchHoursPerUser: 0 };
-    // debug log
-    console.debug(
-      'Computed averageWatchHoursPerUser for course',
-      courseId,
-      courseVersionId,
-      watchStats.averageWatchHoursPerUser,
-    );
 
-    return {
-      totalEnrollments: baseStats.totalEnrollments,
-      completedCount: baseStats.completedCount,
-      averageProgressPercent: baseStats.averageProgressPercent,
-      averageWatchHoursPerUser: Number(
-        (watchStats.averageWatchHoursPerUser || 0).toFixed(2),
-      ),
-    };
+    return Number((watchStats.averageWatchHoursPerUser || 0).toFixed(2));
   }
 
   /**
@@ -2530,6 +2645,8 @@ export class EnrollmentRepository {
   }
 
   async addEnrollmentIndexes(session?: ClientSession): Promise<void> {
+    await this.init();
+
     try {
       await this.enrollmentCollection.dropIndex('courseVersionId_1');
       await this.enrollmentCollection.dropIndex('courseId_1');
@@ -2543,6 +2660,19 @@ export class EnrollmentRepository {
       // await this.enrollmentCollection.createIndex({ courseId: 1 });
       // await this.enrollmentCollection.createIndex({ courseVersionId: 1 });
       // await this.enrollmentCollection.createIndex({ enrollmentDate: -1 });
+    } catch (err) {
+      console.error(err);
+    }
+
+    // Kept out of the block above so that a failed drop there — the indexes it
+    // removes may already be gone — cannot stop this one being created.
+    try {
+      // The statistics endpoint looks the cached watch-hours figure up by
+      // course version on every load, and the job upserts by the same key.
+      await this.courseVersionStatsCollection.createIndex(
+        { courseId: 1, courseVersionId: 1 },
+        { name: 'courseId_1_courseVersionId_1', background: true },
+      );
     } catch (err) {
       console.error(err);
     }
@@ -2600,13 +2730,22 @@ export class EnrollmentRepository {
   ): Promise<number> {
     if (enrollments.length === 0) return 0;
 
+    // An enrollment with no cohort and one whose cohort simply wasn't loaded
+    // must not collapse to the same key, and neither may collide with a real
+    // cohort's. Normalising null/undefined to '' matches how the grouping
+    // stage below emits a missing cohortId.
+    const cohortKey = (cohortId: unknown) => cohortId?.toString() ?? '';
+
     const enrollmentMap = new Map<string, any>();
 
     enrollments.forEach(e => {
-      enrollmentMap.set(`${e.userId}_${e.courseId}_${e.courseVersionId}_${e.cohortId}`, {
-        id: e._id,
-        courseVersionId: e.courseVersionId.toString(),
-      });
+      enrollmentMap.set(
+        `${e.userId}_${e.courseId}_${e.courseVersionId}_${cohortKey(e.cohortId)}`,
+        {
+          id: e._id,
+          courseVersionId: e.courseVersionId.toString(),
+        },
+      );
     });
 
     const completedCounts = await this.watchTimeCollection
@@ -2615,13 +2754,22 @@ export class EnrollmentRepository {
           {
             $match: {
               isDeleted: { $ne: true },
-              isHidden: { $ne: true },
-              endTime: { $exists: true },
+              endTime: { $exists: true, $ne: null },
               $or: enrollments.map(e => ({
                 userId: e.userId,
                 courseId: e.courseId,
                 courseVersionId: e.courseVersionId,
-                ...(e.cohortId ? { cohortId: e.cohortId } : { cohortId: null }),
+                // A cohort-scoped enrollment counts only its own cohort's
+                // rows; one without a cohort counts the legacy rows that
+                // carry no cohortId (missing or explicitly null).
+                ...(e.cohortId
+                  ? { cohortId: e.cohortId }
+                  : {
+                      $or: [
+                        { cohortId: null },
+                        { cohortId: { $exists: false } },
+                      ],
+                    }),
               })),
             },
           },
@@ -2631,7 +2779,7 @@ export class EnrollmentRepository {
                 userId: '$userId',
                 courseId: '$courseId',
                 courseVersionId: '$courseVersionId',
-                cohortId: '$cohortId',
+                cohortId: { $ifNull: ['$cohortId', ''] },
               },
               completedItemsCount: { $addToSet: '$itemId' },
             },
@@ -2648,7 +2796,7 @@ export class EnrollmentRepository {
 
     const operations = completedCounts
       .map(c => {
-        const key = `${c._id.userId}_${c._id.courseId}_${c._id.courseVersionId}_${c._id.cohortId}`;
+        const key = `${c._id.userId}_${c._id.courseId}_${c._id.courseVersionId}_${cohortKey(c._id.cohortId)}`;
         const entry = enrollmentMap.get(key);
         if (!entry) return null;
 
@@ -2724,7 +2872,10 @@ export class EnrollmentRepository {
 
     const cursor = this.enrollmentCollection
       .find(match)
-      .project({ userId: 1, courseId: 1, courseVersionId: 1 })
+      // cohortId is required: the batch below scopes each enrollment's
+      // completions to its own cohort, and omitting it here silently counted
+      // every cohort-scoped enrollment as having completed nothing.
+      .project({ userId: 1, courseId: 1, courseVersionId: 1, cohortId: 1 })
       .batchSize(BATCH_SIZE);
 
     let batch: any[] = [];

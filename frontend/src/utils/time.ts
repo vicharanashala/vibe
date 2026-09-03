@@ -174,3 +174,30 @@ export function parsePastedTime(text: string): number | null {
 
   return null;
 }
+
+/**
+ * How long ago a moment was, coarsely — `just now`, `12m ago`, `3h ago`.
+ *
+ * For figures the backend recomputes on a schedule rather than per request.
+ * The exact second is never the point; a teacher only wants to know whether
+ * the number in front of them is current or from a while back, so the
+ * granularity stops at days.
+ */
+export function formatTimeAgo(when: Date | string | number): string {
+  const then = new Date(when).getTime();
+  if (!Number.isFinite(then)) return '';
+
+  const seconds = Math.floor((Date.now() - then) / 1000);
+  // Clock skew between the server and the viewer can put a fresh timestamp
+  // slightly in the future, which should read as current rather than negative.
+  if (seconds < 60) return 'just now';
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}

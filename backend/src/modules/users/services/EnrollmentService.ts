@@ -1423,6 +1423,44 @@ export class EnrollmentService extends BaseService {
   }
 
   /**
+   * Refresh the cached average watch hours for every course version that has
+   * active students. Driven by the scheduled statistics job.
+   *
+   * Versions are refreshed one at a time rather than in parallel: the point of
+   * moving this work off the request path was to stop it hurting the database,
+   * so it must not be replaced by a burst of concurrent aggregations. One
+   * version failing is logged and does not abandon the rest of the run.
+   */
+  async refreshCourseVersionWatchStats(): Promise<{
+    refreshed: number;
+    failed: number;
+  }> {
+    const versions =
+      await this.enrollmentRepo.getCourseVersionsWithActiveEnrollments();
+
+    let refreshed = 0;
+    let failed = 0;
+
+    for (const {courseId, courseVersionId} of versions) {
+      try {
+        await this.enrollmentRepo.refreshCourseVersionWatchStats(
+          courseId,
+          courseVersionId,
+        );
+        refreshed += 1;
+      } catch (err) {
+        failed += 1;
+        console.error(
+          `[enrollment-stats] failed to refresh ${courseId}/${courseVersionId}:`,
+          err,
+        );
+      }
+    }
+
+    return {refreshed, failed};
+  }
+
+  /**
    * Enrich enrollments with quiz score information
    * Handles the calculation in Node since we don't maintain reverse lookups in DB
    * @private

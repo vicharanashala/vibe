@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useImperativeHandle, forwardRef, useRef } from "react";
+import { useEffect, useMemo, useState, useImperativeHandle, forwardRef, useRef, useCallback } from "react";
 import MathRenderer from "./math-renderer";
 
 // Import Yoopta Editor Core
@@ -83,6 +83,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
     // ✅ Track if item has been started and if start request has been sent
     const itemStartedRef = useRef(false);
     const startRequestSentRef = useRef(false);
+    const stopInFlightRef = useRef(false);
 
     function handleSendStartItem() {
         if (!currentCourse?.itemId || startRequestSentRef.current) return;
@@ -108,7 +109,9 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
 
    async function handleStopItem() {
         if (!currentCourse?.itemId || !currentCourse.watchItemId || !itemStartedRef.current) return;
-        
+        if (stopInFlightRef.current) return;
+
+        stopInFlightRef.current = true;
         try {
             if(!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))){
                 await stopItem.mutateAsync({
@@ -128,14 +131,32 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                 });
                 completedItemIdsRef.current.add(currentCourse!.itemId);
             }
-            
+
             itemStartedRef.current = false;
         } catch (error: any) {
             console.error('❌ handleStopItem error:', error);
-            // Re-throw the error so it can be caught by the parent
             throw error;
+        } finally {
+            stopInFlightRef.current = false;
         }
     }
+
+    /**
+     * The Yoopta link plugin defaults new links to target="_self" (its own
+     * `props: { target: "_self" }` default) unless a content author manually
+     * overrode it per link, so resource links routinely open in the same tab
+     * rather than the new tab this flow is designed around. Force it here
+     * instead of depending on every author remembering to set target="_blank"
+     * on every link. Plain left-clicks only — modifier-key/middle clicks are
+     * left to the browser's own new-tab handling.
+     */
+    const handleContentClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        const anchor = (e.target as HTMLElement).closest('a[href]') as HTMLAnchorElement | null;
+        if (!anchor) return;
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+        window.open(anchor.href, '_blank', 'noopener,noreferrer');
+    };
 
     // // ✅ Handle Next button click - send stop request only when user clicks Next
     // const handleNextClick = () => {
@@ -236,16 +257,81 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
         return () => {
             // Defense in depth: if this document was opened but is being left by a
             // path that didn't explicitly stop it (e.g. browser back / tab change),
-            // record its completion so it still gets ticked. No-op if already stopped
-            // (itemStartedRef is cleared by handleStopItem), so this never double-fires.
-            if (itemStartedRef.current) {
+            // record its completion so it still gets ticked. Skipped if a stop is
+            // already in flight (e.g. user clicked Next — handleNextClick awaited
+            // handleStopItem but the component unmounted before the Promise resolved).
+            if (itemStartedRef.current && !stopInFlightRef.current) {
                 void handleStopItemRef.current?.();
             }
-            // Reset refs on unmount
             itemStartedRef.current = false;
             startRequestSentRef.current = false;
         };
     }, []);
+
+    // Snapshot for the pagehide flush below, refreshed every render so the
+    // handler (registered once) always reads current values.
+    const pageHideContextRef = useRef({ currentCourse, isAlreadyWatched });
+    pageHideContextRef.current = { currentCourse, isAlreadyWatched };
+
+    /**
+     * Mirrors video.tsx's pagehide handler: a resource link inside an article
+     * that navigates the same tab (many links default to target="_self", and
+     * some browsers/webviews override target="_blank" anyway) tears down this
+     * component before the unmount effect's stop request can complete, since
+     * a non-keepalive request gets cancelled by the navigation. Without this,
+     * the item is left "started" forever with no watchTime record, which is
+     * what locked students out of subsequent sections in production.
+     *
+     * Raw `fetch` with keepalive (not navigator.sendBeacon, which can't set
+     * the Authorization header this API requires) so the request survives the
+     * page unload. Fire-and-forget by design — the page may already be gone
+     * by the time this returns.
+     */
+    const handlePageHide = useCallback(() => {
+        const { currentCourse, isAlreadyWatched } = pageHideContextRef.current;
+        if (
+            !itemStartedRef.current ||
+            stopInFlightRef.current ||
+            isAlreadyWatched ||
+            !currentCourse?.itemId ||
+            !currentCourse.watchItemId ||
+            completedItemIdsRef.current.has(currentCourse.itemId)
+        ) {
+            return;
+        }
+
+        const token = localStorage.getItem('firebase-auth-token');
+        if (!token) return;
+
+        const url =
+            `${import.meta.env.VITE_BASE_URL}/users/progress/courses/${currentCourse.courseId}` +
+            `/versions/${currentCourse.versionId ?? ''}/stop`;
+
+        try {
+            void fetch(url, {
+                method: 'POST',
+                keepalive: true,
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    watchItemId: currentCourse.watchItemId,
+                    itemId: currentCourse.itemId,
+                    moduleId: currentCourse.moduleId ?? '',
+                    sectionId: currentCourse.sectionId ?? '',
+                    cohortId: currentCourse.cohortId || undefined,
+                }),
+            });
+        } catch {
+            // Best-effort — the tab is already closing, nothing left to do if this throws.
+        }
+    }, [completedItemIdsRef]);
+
+    useEffect(() => {
+        window.addEventListener('pagehide', handlePageHide);
+        return () => window.removeEventListener('pagehide', handlePageHide);
+    }, [handlePageHide]);
 
     // ✅ Add dark mode styles for Yoopta Editor
     useEffect(() => {
@@ -311,7 +397,7 @@ const Article = forwardRef<ArticleRef, ArticleProps>(({ content, estimatedReadTi
                 )}
                 
                 {/* Article Content */}
-                <div className="flex-1 w-full p-4 overflow-y-auto">
+                <div className="flex-1 w-full p-4 overflow-y-auto" onClick={handleContentClick}>
                     <YooptaEditor
                         width="100%"
                         value={value}
