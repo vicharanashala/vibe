@@ -75,8 +75,8 @@ async function seedCase(sequenceIndex: number): Promise<string> {
 function makeFields(steelman = VALID_STEELMAN) {
   return {
     beat1a: 'What I thought going in.',
-    beat1b: 'What challenged me.',
-    beat1c: 'Where I ended up.',
+    beat1b: 'What challenged it during the discussion.',
+    beat1c: 'Where I finally ended up landing.',
     steelman,
     roomPerspective: 'One perspective from the room.',
     changeCommitment: 'One thing I will change.',
@@ -292,7 +292,7 @@ describe('case studies — real MongoDB', () => {
     expect(cases.find(c => c.sequenceIndex === 1)!.title).toBe('Revised title');
   });
 
-  it('exposes steelman in the served pair — not text, beat1a, or roomPerspective', async () => {
+  it('exposes all six response fields in the served pair, but never the legacy text field', async () => {
     const caseId = await seedCase(1);
     await submit(caseId, new ObjectId().toString());
     await submit(caseId, new ObjectId().toString());
@@ -301,9 +301,12 @@ describe('case studies — real MongoDB', () => {
       caseStudyId: caseId,
     });
     expect(pair!.left).toHaveProperty('steelman');
+    expect(pair!.left).toHaveProperty('beat1a');
+    expect(pair!.left).toHaveProperty('beat1b');
+    expect(pair!.left).toHaveProperty('beat1c');
+    expect(pair!.left).toHaveProperty('roomPerspective');
+    expect(pair!.left).toHaveProperty('changeCommitment');
     expect(pair!.left).not.toHaveProperty('text');
-    expect(pair!.left).not.toHaveProperty('beat1a');
-    expect(pair!.left).not.toHaveProperty('roomPerspective');
   });
 
   it('reports integration progress facts without a completion boolean', async () => {

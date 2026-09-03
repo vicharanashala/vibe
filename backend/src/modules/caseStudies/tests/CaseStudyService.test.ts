@@ -434,8 +434,8 @@ function makeFields(overrides: Partial<{
 }> = {}) {
   return {
     beat1a: 'What I thought going in.',
-    beat1b: 'What challenged me.',
-    beat1c: 'Where I ended up.',
+    beat1b: 'What challenged it during the discussion.',
+    beat1c: 'Where I finally ended up landing.',
     steelman: VALID_STEELMAN,
     roomPerspective: 'One perspective from the room.',
     changeCommitment: 'One thing I will change.',
@@ -473,7 +473,8 @@ describe('submitResponse — steelman word count', () => {
 
   it('rejects an empty steelman', async () => {
     const caseId = seedCase(1);
-    await expect(submit(caseId, undefined, {steelman: '   '})).rejects.toThrow(/empty/i);
+    // Whitespace trims to zero words, so the word-count floor rejects it.
+    await expect(submit(caseId, undefined, {steelman: '   '})).rejects.toThrow(/at least 25 words/i);
   });
 
   it('counts a mixed Hindi-English steelman by word, not by character or byte', async () => {
@@ -603,7 +604,7 @@ describe('getNextPair / submitPick — timer and self-review', () => {
     ).rejects.toThrow(/cannot review your own/i);
   });
 
-  it('exposes only steelman in the served pair — no other response fields', async () => {
+  it('exposes all six response fields in the served pair', async () => {
     const caseId = seedCase(1);
     await submit(caseId, new ObjectId().toString());
     await submit(caseId, new ObjectId().toString());
@@ -611,8 +612,12 @@ describe('getNextPair / submitPick — timer and self-review', () => {
       reviewerId: new ObjectId().toString(),
       caseStudyId: caseId,
     });
-    expect(Object.keys(pair!.left).sort()).toEqual(['outcome', 'responseId', 'steelman', 'wordCount']);
-    expect(Object.keys(pair!.right).sort()).toEqual(['outcome', 'responseId', 'steelman', 'wordCount']);
+    const expectedKeys = [
+      'beat1a', 'beat1b', 'beat1c', 'changeCommitment', 'outcome',
+      'responseId', 'roomPerspective', 'steelman', 'wordCount',
+    ];
+    expect(Object.keys(pair!.left).sort()).toEqual(expectedKeys);
+    expect(Object.keys(pair!.right).sort()).toEqual(expectedKeys);
   });
 });
 
@@ -744,14 +749,14 @@ describe('listCasesForUser (video-based unlock)', () => {
     const case1 = seedCase(1);
     const user = new ObjectId().toString();
     await submit(case1, user, {
-      beat1a: 'Going in thought.',
+      beat1a: 'Going in I thought this through.',
       steelman: VALID_STEELMAN,
     });
 
     const list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
     const entry = list.find(c => c.caseStudyId === case1)!;
     expect(entry.myResponse).toMatchObject({
-      beat1a: 'Going in thought.',
+      beat1a: 'Going in I thought this through.',
       steelman: VALID_STEELMAN,
     });
   });
