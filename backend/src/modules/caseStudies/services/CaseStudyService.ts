@@ -373,22 +373,22 @@ export class CaseStudyService {
     );
     this.assertCaseStudiesEnabled(settings);
 
-    // Video-based unlock: the case must be linked to a video, and that video
-    // must be completed by this student.
+    // Item-based unlock: the case must be linked to an item (video or article),
+    // and that item must be completed by this student.
     if (!caseStudy.linkedItemId) {
       throw new BadRequestError(
-        'This case study is not yet linked to a video. Awaiting video link from instructor.',
+        'This case study is not yet linked to an item. Awaiting a link from the instructor.',
       );
     }
-    const videoCompleted = await this.progressService.isItemCompleted(
+    const itemCompleted = await this.progressService.isItemCompleted(
       input.userId,
       caseStudy.courseId.toString(),
       caseStudy.courseVersionId.toString(),
       caseStudy.linkedItemId.toString(),
     );
-    if (!videoCompleted) {
+    if (!itemCompleted) {
       throw new BadRequestError(
-        'Watch the linked video first to unlock this case study.',
+        'Complete the linked item first to unlock this case study.',
       );
     }
 

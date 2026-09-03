@@ -104,7 +104,7 @@ export class CreateCaseStudyBody {
   @IsOptional()
   @IsMongoId()
   @JSONSchema({
-    description: 'The video item ID that unlocks this case when watched. Cases without a linked video are always locked for students.',
+    description: 'The item ID (video or article) that unlocks this case when completed. Cases without a linked item are always locked for students.',
   })
   linkedItemId?: string;
 }

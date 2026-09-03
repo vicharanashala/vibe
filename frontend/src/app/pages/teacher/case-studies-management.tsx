@@ -1,5 +1,5 @@
 import {Fragment, useState} from 'react';
-import {AlertTriangle, ChevronDown, ChevronRight, Loader2, Pencil, Plus, Trash2, Video} from 'lucide-react';
+import {AlertTriangle, ChevronDown, ChevronRight, Link2, Loader2, Pencil, Plus, Trash2} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Textarea} from '@/components/ui/textarea';
@@ -33,6 +33,7 @@ import { ProjectSubmissionsTable } from './components/ProjectSubmissionsTable';
 interface CourseItem {
   itemId: string;
   name: string;
+  type: string;
 }
 
 function extractItems(versionData: any): CourseItem[] {
@@ -41,11 +42,12 @@ function extractItems(versionData: any): CourseItem[] {
   for (const mod of modules) {
     for (const section of mod.sections ?? []) {
       for (const item of section.items ?? []) {
-        // Only VIDEO items: isItemCompleted checks watch-time records exclusively;
-        // linking a non-video item would permanently lock the case for all students.
-        if (item.type !== 'VIDEO') continue;
+        // Only items whose completion is tracked by watch-time (VIDEO and BLOG/
+        // article — see article.tsx start/stop tracking). QUIZ and PROJECT never
+        // produce a watch-time endTime, so linking one would lock the case forever.
+        if (item.type !== 'VIDEO' && item.type !== 'BLOG') continue;
         if (!item._id) continue;
-        items.push({itemId: item._id, name: item.name ?? item.title ?? item._id});
+        items.push({itemId: item._id, name: item.name ?? item.title ?? item._id, type: item.type});
       }
     }
   }
@@ -128,21 +130,21 @@ function CaseFormDialog({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium">Linked video (unlocks case when watched)</label>
+            <label className="text-sm font-medium">Linked item (unlocks case when completed)</label>
             <select
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               value={values.linkedItemId}
               onChange={set('linkedItemId')}
             >
-              <option value="">— no video linked —</option>
+              <option value="">— no item linked —</option>
               {courseItems.map(v => (
                 <option key={v.itemId} value={v.itemId}>
-                  {v.name}
+                  {v.name} ({v.type === 'BLOG' ? 'article' : v.type.toLowerCase()})
                 </option>
               ))}
             </select>
             {courseItems.length === 0 && (
-              <p className="text-xs text-muted-foreground">No VIDEO items found in this course version.</p>
+              <p className="text-xs text-muted-foreground">No linkable (video or article) items found in this course version.</p>
             )}
           </div>
           </div>
@@ -452,7 +454,7 @@ export default function CaseStudiesManagement() {
                   <tr>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">#</th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Title</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Linked video</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Linked item</th>
                     <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
@@ -467,13 +469,13 @@ export default function CaseStudiesManagement() {
                         <td className="px-4 py-3">
                           {c.linkedItemId ? (
                             <span className="flex items-center gap-1.5 text-muted-foreground">
-                              <Video className="h-3.5 w-3.5 shrink-0" />
+                              <Link2 className="h-3.5 w-3.5 shrink-0" />
                               {itemNameById.get(c.linkedItemId) ?? c.linkedItemId}
                             </span>
                           ) : (
                             <Badge variant="outline" className="gap-1 border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
                               <AlertTriangle className="h-3 w-3" />
-                              No video linked
+                              No item linked
                             </Badge>
                           )}
                         </td>
