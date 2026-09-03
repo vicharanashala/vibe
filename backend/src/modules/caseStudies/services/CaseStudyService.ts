@@ -164,6 +164,43 @@ export class CaseStudyService {
     }
   }
 
+  private validateResponseFields(fields: {
+    beat1a: string; beat1b: string; beat1c: string;
+    steelman: string; roomPerspective: string; changeCommitment: string;
+  }): void {
+    const single: Array<{name: string; value: string}> = [
+      {name: 'beat1a', value: fields.beat1a},
+      {name: 'beat1b', value: fields.beat1b},
+      {name: 'beat1c', value: fields.beat1c},
+      {name: 'roomPerspective', value: fields.roomPerspective},
+      {name: 'changeCommitment', value: fields.changeCommitment},
+    ];
+    for (const {name, value} of single) {
+      const wc = countWords(value);
+      if (wc < FIELD_MIN_WORDS) {
+        throw new BadRequestError(
+          `The "${name}" field must be at least ${FIELD_MIN_WORDS} words (got ${wc}).`,
+        );
+      }
+      if (isGibberish(value)) {
+        throw new BadRequestError(
+          `The "${name}" field appears to contain repeated or meaningless text. Please write a genuine response.`,
+        );
+      }
+    }
+    const steelmanWc = countWords(fields.steelman);
+    if (steelmanWc < ELEMENT_2A_MIN_WORDS) {
+      throw new BadRequestError(
+        `The steelman must be at least ${ELEMENT_2A_MIN_WORDS} words (this one is ${steelmanWc}).`,
+      );
+    }
+    if (isGibberish(fields.steelman)) {
+      throw new BadRequestError(
+        'The steelman field appears to contain repeated or meaningless text. Please write a genuine argument.',
+      );
+    }
+  }
+
   private async notifyWeakResponseStreak(
     userId: ObjectId,
     caseStudy: ICaseStudy,
@@ -327,38 +364,7 @@ export class CaseStudyService {
       changeCommitment: input.changeCommitment.trim(),
     };
 
-    const singleFields: Array<{name: string; value: string}> = [
-      {name: 'beat1a', value: fields.beat1a},
-      {name: 'beat1b', value: fields.beat1b},
-      {name: 'beat1c', value: fields.beat1c},
-      {name: 'roomPerspective', value: fields.roomPerspective},
-      {name: 'changeCommitment', value: fields.changeCommitment},
-    ];
-    for (const {name, value} of singleFields) {
-      const wc = countWords(value);
-      if (wc < FIELD_MIN_WORDS) {
-        throw new BadRequestError(
-          `The "${name}" field must be at least ${FIELD_MIN_WORDS} words (got ${wc}).`,
-        );
-      }
-      if (isGibberish(value)) {
-        throw new BadRequestError(
-          `The "${name}" field appears to contain repeated or meaningless text. Please write a genuine response.`,
-        );
-      }
-    }
-
-    const steelmanWordCount = countWords(fields.steelman);
-    if (steelmanWordCount < ELEMENT_2A_MIN_WORDS) {
-      throw new BadRequestError(
-        `The steelman must be at least ${ELEMENT_2A_MIN_WORDS} words (this one is ${steelmanWordCount}).`,
-      );
-    }
-    if (isGibberish(fields.steelman)) {
-      throw new BadRequestError(
-        'The steelman field appears to contain repeated or meaningless text. Please write a genuine argument.',
-      );
-    }
+    this.validateResponseFields(fields);
 
     const caseStudy = await this.getCaseStudyOrThrow(input.caseStudyId);
     const settings = await this.getCaseStudySettings(
@@ -648,38 +654,7 @@ export class CaseStudyService {
       changeCommitment: input.changeCommitment.trim(),
     };
 
-    const singleFieldsRevise: Array<{name: string; value: string}> = [
-      {name: 'beat1a', value: fields.beat1a},
-      {name: 'beat1b', value: fields.beat1b},
-      {name: 'beat1c', value: fields.beat1c},
-      {name: 'roomPerspective', value: fields.roomPerspective},
-      {name: 'changeCommitment', value: fields.changeCommitment},
-    ];
-    for (const {name, value} of singleFieldsRevise) {
-      const wc = countWords(value);
-      if (wc < FIELD_MIN_WORDS) {
-        throw new BadRequestError(
-          `The "${name}" field must be at least ${FIELD_MIN_WORDS} words (got ${wc}).`,
-        );
-      }
-      if (isGibberish(value)) {
-        throw new BadRequestError(
-          `The "${name}" field appears to contain repeated or meaningless text. Please write a genuine response.`,
-        );
-      }
-    }
-
-    const steelmanWordCount = countWords(fields.steelman);
-    if (steelmanWordCount < ELEMENT_2A_MIN_WORDS) {
-      throw new BadRequestError(
-        `The steelman must be at least ${ELEMENT_2A_MIN_WORDS} words (this one is ${steelmanWordCount}).`,
-      );
-    }
-    if (isGibberish(fields.steelman)) {
-      throw new BadRequestError(
-        'The steelman field appears to contain repeated or meaningless text. Please write a genuine argument.',
-      );
-    }
+    this.validateResponseFields(fields);
 
     const caseStudy = await this.getCaseStudyOrThrow(input.caseStudyId);
     const settings = await this.getCaseStudySettings(

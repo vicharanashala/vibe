@@ -211,7 +211,7 @@ function CaseComposerPane({
       isSubmitting={submit.isPending}
       anomalyContext={{courseId, versionId, itemId: caseStudyId}}
       onSubmit={async response => {
-        await submit.mutateAsync({...response, zoomSessionDate});
+        await submit.mutateAsync({...response, ...(zoomSessionDate ? {zoomSessionDate} : {})});
         onSubmitted();
       }}
     />
@@ -307,6 +307,7 @@ function ReviewPane({
 
       {pair ? (
         <ComparisonView
+          key={pair.comparisonId}
           pair={pair}
           onPick={async outcome => {
             const result = await submitPick.mutateAsync({comparisonId: pair.comparisonId, outcome});
