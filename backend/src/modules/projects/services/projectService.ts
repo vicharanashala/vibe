@@ -7,7 +7,7 @@ import {
 import { inject, injectable } from 'inversify';
 import { PROJECTS_TYPES } from '../types.js';
 import { GLOBAL_TYPES } from '#root/types.js';
-import { SubmissionResponse } from '../classes/validators/ProjectValidators.js';
+import { MySubmissionResponse, SubmissionResponse } from '../classes/validators/ProjectValidators.js';
 import { ForbiddenError, InternalServerError, NotFoundError } from 'routing-controllers';
 import { IProjectSubmissionRepository } from '../interfaces/index.js';
 
@@ -93,6 +93,38 @@ export class ProjectService extends BaseService {
       });
     } catch (error) {
       throw new InternalServerError(`Failed to submit project /More: ${error}`);
+    }
+  }
+
+  async getMySubmission(
+    userId: string,
+    courseId: string,
+    versionId: string,
+    cohortId?: string,
+  ): Promise<MySubmissionResponse | null> {
+    const sub = await this._projectSubmissionRepository.getByUser(userId, versionId, courseId, cohortId);
+    if (!sub) return null;
+    return {
+      submissionId: sub._id?.toString(),
+      submissionURL: sub.submissionURL,
+      comment: sub.comment,
+      grade: sub.grade,
+      feedback: sub.feedback,
+      reviewedAt: sub.reviewedAt,
+      submittedAt: sub.createdAt,
+    };
+  }
+
+  async reviewSubmission(
+    submissionId: string,
+    reviewedById: string,
+    feedback?: string,
+    grade?: string,
+  ): Promise<void> {
+    try {
+      await this._projectSubmissionRepository.review(submissionId, reviewedById, feedback, grade);
+    } catch (error) {
+      throw new InternalServerError(`Failed to save review: ${error}`);
     }
   }
 

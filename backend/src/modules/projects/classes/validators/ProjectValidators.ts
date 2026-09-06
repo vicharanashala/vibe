@@ -1,4 +1,3 @@
-import {ID, IUser} from '#root/shared/index.js';
 import {
   IsString,
   IsUrl,
@@ -6,6 +5,7 @@ import {
   IsDate,
   IsNotEmpty,
   IsArray,
+  IsMongoId,
 } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 
@@ -84,9 +84,37 @@ export class SubmissionResponse {
   }>;
 }
 
+export class ReviewProjectBody {
+  @IsOptional()
+  @IsString()
+  feedback?: string;
+
+  @IsOptional()
+  @IsString()
+  grade?: string;
+}
+
+export class SubmissionIdParams {
+  @IsMongoId()
+  submissionId!: string;
+}
+
+export class MySubmissionResponse {
+  submissionId?: string;
+  submissionURL?: string;
+  comment?: string;
+  grade?: string;
+  feedback?: string;
+  reviewedAt?: Date;
+  submittedAt?: Date;
+}
+
 export const PROJECT_VALIDATORS = [
   SubmitProjectBody,
   SubmissionResponse,
   SuccessResponse,
   CourseVersionParams,
+  ReviewProjectBody,
+  SubmissionIdParams,
+  MySubmissionResponse,
 ];
