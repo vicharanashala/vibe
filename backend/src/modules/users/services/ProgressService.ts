@@ -127,6 +127,16 @@ class ProgressService extends BaseService {
     super(database);
   }
 
+  /** Whether a specific video/item has been completed by this user in this course version. */
+  public async isItemCompleted(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+  ): Promise<boolean> {
+    return this.progressRepository.isItemCompleted(userId, courseId, courseVersionId, itemId);
+  }
+
   private isGuruSetu(courseId: string, versionId: string): boolean {
     return (
       courseId?.toString() === GURU_SETU_COURSE_ID &&
@@ -275,6 +285,7 @@ class ProgressService extends BaseService {
     if (!firstSection) return null;
 
     // 3. Load items group
+    if (!firstSection.itemsGroupId) return null;
     const itemsGroup = await this.itemRepo.readItemsGroup(
       firstSection.itemsGroupId.toString(),
     );

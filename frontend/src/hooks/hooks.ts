@@ -94,8 +94,6 @@ import { ISubmitFeedbackBody } from '@/components/Item-container';
 import { TranscriptResponse } from '@/types/ai.types';
 import { VideoOverallAnalytics, VideoUserAnalytics, VideoUserAnalyticsResponse } from '@/app/pages/teacher/teacher-course-page';
 import { WatchTimeTrackData } from '@/types/user_activity_event.types';
-import { start } from 'repl';
-
 // Add missing ObjectId type
 type ObjectId = string;
 
@@ -2165,6 +2163,9 @@ export function useEditProctoringSettings() {
     baseHp: number,
     randomizeItems: boolean,
     crowdsourcedQuestionSubmissionEnabled: boolean = false,
+    caseStudiesEnabled: boolean = false,
+    caseStudyStrictUnlockEnabled: boolean = true,
+    caseStudyWeakStreakThreshold: number = 3,
   ) => {
     setLoading(true);
     setError(null);
@@ -2187,6 +2188,9 @@ export function useEditProctoringSettings() {
         baseHp,
         randomizeItems,
         crowdsourcedQuestionSubmissionEnabled,
+        caseStudiesEnabled,
+        caseStudyStrictUnlockEnabled,
+        caseStudyWeakStreakThreshold,
       };
 
       const res = await fetch(url, {
@@ -4126,6 +4130,67 @@ export function useProjectSubmissions(courseId: string, versionId: string, cohor
     isLoading: result.isLoading,
     error: result.error ? (result.error.message || 'Failed to fetch project submissions') : null,
     refetch: result.refetch
+  };
+}
+
+// GET /project/my-submission
+export interface MyProjectSubmission {
+  submissionId?: string;
+  submissionURL?: string;
+  comment?: string;
+  grade?: string;
+  feedback?: string;
+  reviewedAt?: string;
+  submittedAt?: string;
+}
+
+export function useMyProjectSubmission(
+  courseId: string,
+  versionId: string,
+  cohortId?: string,
+): {
+  data: MyProjectSubmission | null | undefined;
+  isLoading: boolean;
+  error: string | null;
+} {
+  const result = api.useQuery(
+    'get',
+    '/project/my-submission' as any,
+    {
+      params: {
+        query: {
+          courseId,
+          versionId,
+          ...(cohortId ? { cohortId } : {}),
+        },
+      },
+    },
+    { enabled: !!courseId && !!versionId },
+  );
+  return {
+    data: result.data as MyProjectSubmission | null | undefined,
+    isLoading: result.isLoading,
+    error: result.error ? (result.error.message || 'Failed to fetch submission') : null,
+  };
+}
+
+// PATCH /project/submissions/:submissionId/review
+export interface ReviewProjectBody {
+  feedback?: string;
+  grade?: string;
+}
+
+export function useReviewProjectSubmission(): {
+  mutateAsync: (variables: { submissionId: string; body: ReviewProjectBody }) => Promise<{ message: string }>;
+  isPending: boolean;
+  error: string | null;
+} {
+  const result = api.useMutation('patch', '/project/submissions/{submissionId}/review' as any);
+  return {
+    mutateAsync: ({ submissionId, body }: { submissionId: string; body: ReviewProjectBody }) =>
+      (result.mutateAsync as any)({ params: { path: { submissionId } }, body }),
+    isPending: result.isPending,
+    error: result.error ? (result.error.message || 'Failed to save review') : null,
   };
 }
 
