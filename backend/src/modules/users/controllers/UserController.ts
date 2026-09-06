@@ -72,27 +72,6 @@ export class UserController {
   }
 
   @OpenAPI({
-    summary: 'Get user information by user ID',
-    description: 'Retrieves user information based on the provided user ID.',
-  })
-  @Authorized()
-  @Get('/:userId')
-  @HttpCode(200)
-  @ResponseSchema(User, {
-    description: 'User information retrieved successfully',
-  })
-  @ResponseSchema(UserNotFoundErrorResponse, {
-    description: 'User not found',
-    statusCode: 404,
-  })
-  async getUserById(
-    @Params() params: GetUserParams,
-  ): Promise<GetUserResponse> {
-    const { userId } = params;
-    return await this.userService.getUserById(userId);
-  }
-
-  @OpenAPI({
     summary: 'Get current user profile',
     description: 'Retrieves user information for the currently authenticated user.',
   })
@@ -147,6 +126,27 @@ export class UserController {
       profileImage: user.profileImage || null,
       faceEmbedding: faceRecognitionAllowed ? (user.faceEmbedding || null) : null,
     };
+  }
+
+  @OpenAPI({
+    summary: 'Get user information by user ID',
+    description: 'Retrieves user information based on the provided user ID.',
+  })
+  @Authorized()
+  @Get('/:userId')
+  @HttpCode(200)
+  @ResponseSchema(User, {
+    description: 'User information retrieved successfully',
+  })
+  @ResponseSchema(UserNotFoundErrorResponse, {
+    description: 'User not found',
+    statusCode: 404,
+  })
+  async getUserById(
+    @Params() params: GetUserParams,
+  ): Promise<GetUserResponse> {
+    const { userId } = params;
+    return await this.userService.getUserById(userId);
   }
 
   @OpenAPI({

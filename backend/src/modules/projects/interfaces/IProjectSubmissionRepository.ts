@@ -41,6 +41,14 @@ export interface IProjectSubmissionRepository {
     session?: ClientSession,
   ): Promise<ID>;
 
+  review(
+    submissionId: string,
+    reviewedById: string,
+    feedback?: string,
+    grade?: string,
+    session?: ClientSession,
+  ): Promise<ID>;
+
   deleteByUserAndVersion(
     userId: string,
     courseVersionId: string,

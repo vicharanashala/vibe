@@ -131,6 +131,9 @@ export interface StudentProctoringSettings {
     };
     linearProgressionEnabled: boolean;
     seekForwardEnabled: boolean;
+    caseStudiesEnabled?: boolean;
+    caseStudyStrictUnlockEnabled?: boolean;
+    caseStudyWeakStreakThreshold?: number;
   };
 }
 

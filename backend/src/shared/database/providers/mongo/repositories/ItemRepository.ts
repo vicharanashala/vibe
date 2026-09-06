@@ -17,6 +17,7 @@ import {
   Item,
   FeedBackFormItem,
   ReflectionItem,
+  CaseStudyItem,
   ItemRef,
 } from '#courses/classes/transformers/Item.js';
 import { UpdateItemBody } from '#root/modules/courses/classes/index.js';
@@ -33,6 +34,7 @@ export class ItemRepository implements IItemRepository {
   private projectCollection: Collection<ProjectItem>;
   private feedbackFormCollection: Collection<FeedBackFormItem>;
   private reflectionCollection: Collection<ReflectionItem>;
+  private caseStudyItemCollection: Collection<CaseStudyItem>;
   private questionBankCollection: Collection<QuestionBank>;
   private questionsCollection: Collection<any>;
   private courseVersionCollection: Collection<any>;
@@ -61,6 +63,9 @@ export class ItemRepository implements IItemRepository {
     );
     this.reflectionCollection = await this.db.getCollection<ReflectionItem>(
       'reflection_items',
+    );
+    this.caseStudyItemCollection = await this.db.getCollection<CaseStudyItem>(
+      'case_study_items',
     );
 
     this.itemsGroupCollection.createIndex({ items: 1 });
@@ -189,6 +194,9 @@ export class ItemRepository implements IItemRepository {
         case ItemType.REFLECTION:
           collection = this.reflectionCollection;
           break;
+        case ItemType.CASE_STUDY:
+          collection = this.caseStudyItemCollection;
+          break;
         default:
           throw new InternalServerError(
             `Unsupported item type: ${(item as any).type}`,
@@ -311,6 +319,9 @@ export class ItemRepository implements IItemRepository {
       case ItemType.REFLECTION:
         collection = this.reflectionCollection;
         break;
+      case ItemType.CASE_STUDY:
+        collection = this.caseStudyItemCollection;
+        break;
       default:
         throw new Error(`Unsupported item type: ${(item as any).type}`);
     }
@@ -352,6 +363,9 @@ export class ItemRepository implements IItemRepository {
           break;
         case ItemType.REFLECTION:
           collection = this.reflectionCollection;
+          break;
+        case ItemType.CASE_STUDY:
+          collection = this.caseStudyItemCollection;
           break;
         default:
           throw new Error(`Unsupported item type: ${item.type}`);
@@ -441,6 +455,12 @@ export class ItemRepository implements IItemRepository {
                 isDeleted: { $ne: true },
               })) as ReflectionItem;
               break;
+            case ItemType.CASE_STUDY:
+              item = (await this.caseStudyItemCollection.findOne({
+                _id: new ObjectId(found._id),
+                isDeleted: { $ne: true },
+              })) as CaseStudyItem;
+              break;
             default:
               throw new InternalServerError(`Unknown item type: ${found.type}`);
           }
@@ -481,6 +501,10 @@ export class ItemRepository implements IItemRepository {
         _id: objectId,
       })) ||
       (await this.reflectionCollection.findOne({
+        _id: objectId,
+        isDeleted: { $ne: true },
+      })) ||
+      (await this.caseStudyItemCollection.findOne({
         _id: objectId,
         isDeleted: { $ne: true },
       }));
@@ -550,6 +574,9 @@ export class ItemRepository implements IItemRepository {
         break;
       case ItemType.REFLECTION:
         collection = this.reflectionCollection;
+        break;
+      case ItemType.CASE_STUDY:
+        collection = this.caseStudyItemCollection;
         break;
       default:
         throw new InternalServerError(
@@ -897,6 +924,7 @@ export class ItemRepository implements IItemRepository {
         [ItemType.PROJECT]: [],
         [ItemType.FEEDBACK]: [],
         [ItemType.REFLECTION]: [],
+        [ItemType.CASE_STUDY]: [],
       };
 
       for (const group of deletedItemGroups) {
@@ -936,9 +964,16 @@ export class ItemRepository implements IItemRepository {
         session,
       );
 
+      const deletedCaseStudyIds = await this.deleteAndReturnIds(
+        this.caseStudyItemCollection,
+        { ...deletedFilter, _id: { $in: itemMap[ItemType.CASE_STUDY] } },
+        session,
+      );
+
       // pull the items from items groups
       const allDeletedItemIds = [
         ...deletedReflectionIds,
+        ...deletedCaseStudyIds,
         ...deletedQuizIds,
         ...deletedVideoIds,
         ...deletedBlogIds,
@@ -1022,6 +1057,9 @@ export class ItemRepository implements IItemRepository {
         break;
       case ItemType.REFLECTION:
         collection = this.reflectionCollection;
+        break;
+      case ItemType.CASE_STUDY:
+        collection = this.caseStudyItemCollection;
         break;
       default:
         throw new InternalServerError(

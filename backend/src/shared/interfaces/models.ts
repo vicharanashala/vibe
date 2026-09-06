@@ -322,6 +322,7 @@ export enum ItemType {
   PROJECT = 'PROJECT',
   FEEDBACK = 'FEEDBACK',
   REFLECTION = 'REFLECTION',
+  CASE_STUDY = 'CASE_STUDY',
 }
 
 export interface IBaseItem {
@@ -439,6 +440,24 @@ export interface IReflectionDetails {
   requiredReviewsToUnlock?: number;
   /** Reviews needed before an average is shown at all. Defaults to 3. */
   minReviewsToReveal?: number;
+}
+
+/**
+ * A peer-reviewed case-study item placed inline in a section like any other
+ * item, so it inherits progression, completion and navigation. The learner
+ * writes a structured response to the case, then judges pairs of peers'
+ * responses; the win/comparison mechanic lives in the caseStudies module.
+ * Carries no answer key — scoring is purely by peer pairwise comparison.
+ */
+export interface ICaseStudyDetails {
+  /** The case scenario/prompt shown to the learner (markdown). */
+  bodyMarkdown?: string;
+  /** Wins a response needs before it leaves the review pool (1-25). Defaults to 7. */
+  reviewsRequired?: number;
+  /** Comparisons each learner must judge (1-25). Defaults to 7. */
+  picksRequired?: number;
+  /** Consecutive losses before the author is prompted to revise (0-25, 0 disables). Defaults to 3. */
+  weakStreakThreshold?: number;
 }
 
 export interface IFeedBackFormDetails {
@@ -820,6 +839,11 @@ export interface ISettings {
   baseHp?: number;
   randomizeItems?: boolean;
   crowdsourcedQuestionSubmissionEnabled?: boolean;
+  caseStudiesEnabled?: boolean;
+  /** true = a case unlocks only after its predecessor's response reaches WINS_REQUIRED peer wins; false = it unlocks as soon as the predecessor has any submitted response. */
+  caseStudyStrictUnlockEnabled?: boolean;
+  /** Consecutive non-winning peer verdicts before a "your response looks weak" notification fires. */
+  caseStudyWeakStreakThreshold?: number;
   // registration_settings?: IRegistrationSettings[];
   registration?: {
     jsonSchema?: any;

@@ -1467,6 +1467,7 @@ function VersionCard({
     storePageAndNavigate("/teacher/courses/reflections")
   }
 
+
   const viewInstructors = () => {
     // Set course info in store and navigate to instructors page
     setCurrentCourse({

@@ -5,6 +5,7 @@ import {
   JsonController,
   Params,
   Post,
+  Patch,
   ForbiddenError,
   Body,
   Get,
@@ -23,6 +24,9 @@ import {
 } from '../abilities/projectAbilites.js';
 import {
   CourseVersionParams,
+  MySubmissionResponse,
+  ReviewProjectBody,
+  SubmissionIdParams,
   SubmissionResponse,
   SubmitProjectBody,
   SuccessResponse,
@@ -121,6 +125,52 @@ export class ProjectController {
     return {
       message: 'Project submitted successfully',
     };
+  }
+
+  @OpenAPI({
+    summary: "Get my project submission",
+    description: "Returns the authenticated student's own submission for a course version, if it exists.",
+  })
+  @Authorized()
+  @Get('/my-submission')
+  @HttpCode(200)
+  async getMySubmission(
+    @Ability(projectAbility) {user},
+    @QueryParam('courseId') courseId: string,
+    @QueryParam('versionId') versionId: string,
+    @QueryParam('cohortId') cohortId?: string,
+  ): Promise<MySubmissionResponse | null> {
+    return this._projectService.getMySubmission(user._id.toString(), courseId, versionId, cohortId);
+  }
+
+  @OpenAPI({
+    summary: 'Review a project submission',
+    description: 'Instructor saves feedback and grade for a submission.',
+  })
+  @Authorized()
+  @Patch('/submissions/:submissionId/review')
+  @HttpCode(200)
+  @ResponseSchema(SuccessResponse, {statusCode: 200})
+  async reviewSubmission(
+    @Params() params: SubmissionIdParams,
+    @Ability(projectAbility) {user},
+    @Body() body: ReviewProjectBody,
+  ): Promise<SuccessResponse> {
+    const isStaff =
+      user.globalRole === 'admin' ||
+      user.enrollments.some((e: any) =>
+        ['INSTRUCTOR', 'MANAGER', 'STAFF', 'TA'].includes(e.role),
+      );
+    if (!isStaff) {
+      throw new ForbiddenError('You do not have permission to review submissions.');
+    }
+    await this._projectService.reviewSubmission(
+      params.submissionId,
+      user._id.toString(),
+      body.feedback,
+      body.grade,
+    );
+    return {message: 'Review saved'};
   }
 
   @OpenAPI({

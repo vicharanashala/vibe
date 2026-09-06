@@ -9,6 +9,7 @@ import type { VideoRef } from "@/types/video.types";
 import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
 import ReflectionItemPanel, {type ReflectionItemPanelRef} from '@/components/peer-reviews/ReflectionItemPanel';
+import CaseStudyItemPanel, {type CaseStudyItemPanelRef} from '@/components/case-studies/CaseStudyItemPanel';
 import { useSubmitFeedback } from '@/hooks/hooks';
 
 export interface ISubmitFeedbackBody {
@@ -22,6 +23,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
   const reflectionRef = useRef<ReflectionItemPanelRef>(null);
+  const caseStudyRef = useRef<CaseStudyItemPanelRef>(null);
   const videoRef = useRef<VideoRef>(null);
 
   // ✅ Expose stop function to parent - handles article, quiz, reflection and video
@@ -33,6 +35,8 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
         await quizRef.current.stopItem();
       } else if (reflectionRef.current) {
         await reflectionRef.current.stopItem();
+      } else if (caseStudyRef.current) {
+        await caseStudyRef.current.stopItem();
       } else if (videoRef.current) {
         await videoRef.current.stopItem();
       }
@@ -184,6 +188,20 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           itemId={item._id.toString()}
           title={item.name}
           prompt={item.details?.prompt}
+          onNext={onNext}
+          isProgressUpdating={isProgressUpdating}
+          isAlreadyWatched={item.isAlreadyWatched || false}
+          completedItemIdsRef={completedItemIdsRef}
+        />;
+
+      case 'case_study':
+        return <CaseStudyItemPanel
+          key={item._id.toString()}
+          ref={caseStudyRef}
+          courseId={courseId}
+          courseVersionId={versionId}
+          itemId={item._id.toString()}
+          title={item.name}
           onNext={onNext}
           isProgressUpdating={isProgressUpdating}
           isAlreadyWatched={item.isAlreadyWatched || false}

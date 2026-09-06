@@ -107,12 +107,17 @@ export class ProjectSubmissionRepository
               cohort: { $first: '$cohort' },
               userInfo: {
                 $push: {
+                  submissionId: { $toString: '$_id' },
                   firstName: { $arrayElemAt: ['$userInfo.firstName', 0] },
                   lastName: { $arrayElemAt: ['$userInfo.lastName', 0] },
                   email: { $arrayElemAt: ['$userInfo.email', 0] },
                   submissionURL: '$submissionURL',
                   comment: '$comment',
                   cohortName: { $arrayElemAt: ['$cohort.name', 0] },
+                  submittedAt: '$createdAt',
+                  reviewedAt: '$reviewedAt',
+                  feedback: '$feedback',
+                  grade: '$grade',
                 },
               },
             },
@@ -199,6 +204,30 @@ export class ProjectSubmissionRepository
     if (!result) {
       throw new Error(`Project submission with ID ${submissionId} not found`);
     }
+    return result._id;
+  }
+
+  async review(
+    submissionId: string,
+    reviewedById: string,
+    feedback?: string,
+    grade?: string,
+    session?: ClientSession,
+  ): Promise<ID> {
+    await this.init();
+    const result = await this._projectSubmissionCollection.findOneAndUpdate(
+      { _id: new ObjectId(submissionId) },
+      {
+        $set: {
+          reviewedAt: new Date(),
+          reviewedById: new ObjectId(reviewedById),
+          ...(feedback !== undefined ? { feedback } : {}),
+          ...(grade !== undefined ? { grade } : {}),
+        },
+      },
+      { session, returnDocument: 'after', projection: { _id: 1 } },
+    );
+    if (!result) throw new Error(`Submission ${submissionId} not found`);
     return result._id;
   }
 

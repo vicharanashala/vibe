@@ -149,11 +149,11 @@
   --secondary-foreground: 60 9.1% 97.8%;
 
   --muted: 12 6.5% 15.1%;
-  --muted-foreground: 24 5.4% 63.9%;
+  --muted-foreground: 24 5.4% 78%;
   --accent: 36 90% 60%;
   --accent-foreground: 60 9.1% 97.8%;
 
-  --destructive: 0 62.8% 30.6%;
+  --destructive: 0 72% 62%;
   --destructive-foreground: 60 9.1% 97.8%;
 
   --border: 12 6.5% 15.1%;
@@ -227,6 +227,19 @@
     color: hsl(var(--sidebar-foreground));
     border-right: 1px solid hsl(var(--sidebar-border));
   }
+}
+
+/* Dark mode: case study pick buttons get visible accent hover highlight */
+.dark .pick-option:not(:disabled):hover {
+  background-color: hsl(var(--accent) / 0.18);
+  border-color: hsl(var(--accent) / 0.55);
+  color: hsl(var(--foreground));
+}
+
+/* Text selection — keep highlight visible in dark mode */
+.dark ::selection {
+  background: hsl(38 95% 60% / 0.45);
+  color: hsl(60 9.1% 97.8%);
 }
 
 /* Custom Scrollbar Styles */

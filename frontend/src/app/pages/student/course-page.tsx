@@ -219,6 +219,9 @@ export default function CoursePage() {
 
   // --- Focused learn-page UI state ---
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Which pane the drawer's tab switcher points at — additive, defaults to
+  // the existing module-tree behaviour when case studies aren't enabled.
+  const [activeDrawerTab, setActiveDrawerTab] = useState<"content" | "case-studies">("content");
   const [aiExpanded, setAiExpanded] = useState(false);
   const [aiSheet, setAiSheet] = useState<"chat" | "talk" | "discussion" | null>(null);
   const [camPinned, setCamPinned] = useState(false);
@@ -1733,6 +1736,9 @@ const handleGoToNextItem = async () => {
     const item = sectionItemsList.find((i: any) => i._id === itemId) as any;
     if (item?.isCompleted) return false;
 
+    // PROJECT items are submission-gated — never lock them by position
+    if (item?.type === 'PROJECT') return false;
+
     // Current item is never locked
     if (itemId === currentItemId) return false;
 
@@ -2154,6 +2160,15 @@ return false;
         onToggleSection={toggleSection}
         onSelectItem={(m, s, i) => { handleSelectItem(m, s, i); setDrawerOpen(false); }}
         isItemLocked={isItemLocked}
+        caseStudiesEnabled={proctoringData?.settings.caseStudiesEnabled ?? false}
+        activeDrawerTab={activeDrawerTab}
+        onDrawerTabChange={(tab) => {
+          setActiveDrawerTab(tab);
+          // Same as selecting a lesson item: switching to the Case Studies
+          // pane in the main stage means the drawer's own backdrop would
+          // otherwise sit on top of it and block interaction.
+          if (tab === "case-studies") setDrawerOpen(false);
+        }}
         emotion={
           currentItem
             ? {
