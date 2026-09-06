@@ -8,6 +8,7 @@ import {countWords} from '@/utils/wordCount';
 import {reportCaseStudyAnomaly} from '@/lib/api/anomaly-events';
 import type {CaseResponseInput} from '@/lib/api/case-studies';
 
+// Must match ELEMENT_2A_MIN_WORDS and FIELD_MIN_WORDS in backend/src/modules/caseStudies/constants.ts
 const STEELMAN_MIN_WORDS = 25;
 const FIELD_MIN_WORDS = 5;
 const TOTAL_GUIDANCE_MAX = 200;

@@ -4,11 +4,11 @@ import {
   Authorized,
   Body,
   CurrentUser,
-  Delete,
   ForbiddenError,
   Get,
   HttpCode,
   JsonController,
+  Param,
   Params,
   Patch,
   Post,
@@ -17,19 +17,21 @@ import {OpenAPI} from 'routing-controllers-openapi';
 import {IUser} from '#root/shared/interfaces/models.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {
-  CourseVersionActions,
-  getCourseVersionAbility,
-} from '../../courses/abilities/versionAbilities.js';
+  ItemActions,
+  getItemAbility,
+} from '../../courses/abilities/itemAbilities.js';
+import {
+  CourseActions,
+  getCourseAbility,
+} from '../../courses/abilities/courseAbilities.js';
 import {CASE_STUDIES_TYPES} from '../types.js';
 import {CaseStudyService} from '../services/CaseStudyService.js';
 import {
-  CaseStudyCoursePathParams,
   CaseStudyIdPathParams,
   ComparisonIdPathParams,
-  CreateCaseStudyBody,
+  InstructorCaseResponsesPathParams,
   SubmitCaseResponseBody,
   SubmitPickBody,
-  UpdateCaseStudyBody,
 } from '../classes/validators/CaseStudyValidators.js';
 
 @OpenAPI({
@@ -47,21 +49,31 @@ export class CaseStudyController {
   // Participant-facing
   // -----------------------------------------------------------------
 
+  /**
+   * Sync + fetch the case backing a CASE_STUDY course item. The learner panel
+   * calls this on open with the course context it already has, so the runtime
+   * can key on the item's own id. Idempotent.
+   */
   @Authorized()
-  @Get('/courses/:courseId/versions/:versionId')
+  @Post('/courses/:courseId/versions/:versionId/items/:itemId/ensure')
   @HttpCode(200)
-  async listCases(
-    @Params() params: CaseStudyCoursePathParams,
-    @CurrentUser() user: IUser,
-    @Ability(getCourseVersionAbility) {ability}: any,
+  async ensureCaseForItem(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @Param('itemId') itemId: string,
+    @Ability(getItemAbility) {ability}: any,
   ) {
-    this.assertCanAccessVersion(ability, params.versionId);
-    const cases = await this.service.listCasesForUser({
-      userId: this.requireUserId(user),
-      courseId: params.courseId,
-      courseVersionId: params.versionId,
+    this.assertCanAccessItem(ability, {courseId, versionId, itemId});
+    const caseStudy = await this.service.ensureCaseForItem({
+      courseId,
+      courseVersionId: versionId,
+      itemId,
     });
-    return {cases};
+    return {
+      caseStudyId: caseStudy._id!.toString(),
+      title: caseStudy.title,
+      bodyMarkdown: caseStudy.bodyMarkdown,
+    };
   }
 
   @Authorized()
@@ -70,15 +82,18 @@ export class CaseStudyController {
   async getMyResponse(
     @Params() params: CaseStudyIdPathParams,
     @CurrentUser() user: IUser,
-    @Ability(getCourseVersionAbility) {ability}: any,
+    @Ability(getItemAbility) {ability}: any,
   ) {
     const caseStudy = await this.service.getCaseStudyOrThrow(params.caseStudyId);
-    this.assertCanAccessVersion(ability, caseStudy.courseVersionId.toString());
-    const response = await this.service.getMyResponse({
+    this.assertCanAccessItem(ability, {
+      courseId: caseStudy.courseId.toString(),
+      versionId: caseStudy.courseVersionId.toString(),
+      itemId: params.caseStudyId,
+    });
+    return this.service.getMyResponse({
       userId: this.requireUserId(user),
       caseStudyId: params.caseStudyId,
     });
-    return {response};
   }
 
   @Authorized()
@@ -88,10 +103,14 @@ export class CaseStudyController {
     @Params() params: CaseStudyIdPathParams,
     @Body() body: SubmitCaseResponseBody,
     @CurrentUser() user: IUser,
-    @Ability(getCourseVersionAbility) {ability}: any,
+    @Ability(getItemAbility) {ability}: any,
   ) {
     const caseStudy = await this.service.getCaseStudyOrThrow(params.caseStudyId);
-    this.assertCanAccessVersion(ability, caseStudy.courseVersionId.toString());
+    this.assertCanAccessItem(ability, {
+      courseId: caseStudy.courseId.toString(),
+      versionId: caseStudy.courseVersionId.toString(),
+      itemId: params.caseStudyId,
+    });
     return this.service.submitResponse({
       userId: this.requireUserId(user),
       caseStudyId: params.caseStudyId,
@@ -112,10 +131,14 @@ export class CaseStudyController {
     @Params() params: CaseStudyIdPathParams,
     @Body() body: SubmitCaseResponseBody,
     @CurrentUser() user: IUser,
-    @Ability(getCourseVersionAbility) {ability}: any,
+    @Ability(getItemAbility) {ability}: any,
   ) {
     const caseStudy = await this.service.getCaseStudyOrThrow(params.caseStudyId);
-    this.assertCanAccessVersion(ability, caseStudy.courseVersionId.toString());
+    this.assertCanAccessItem(ability, {
+      courseId: caseStudy.courseId.toString(),
+      versionId: caseStudy.courseVersionId.toString(),
+      itemId: params.caseStudyId,
+    });
     return this.service.reviseResponse({
       userId: this.requireUserId(user),
       caseStudyId: params.caseStudyId,
@@ -139,10 +162,14 @@ export class CaseStudyController {
   async getNextPair(
     @Params() params: CaseStudyIdPathParams,
     @CurrentUser() user: IUser,
-    @Ability(getCourseVersionAbility) {ability}: any,
+    @Ability(getItemAbility) {ability}: any,
   ) {
     const caseStudy = await this.service.getCaseStudyOrThrow(params.caseStudyId);
-    this.assertCanAccessVersion(ability, caseStudy.courseVersionId.toString());
+    this.assertCanAccessItem(ability, {
+      courseId: caseStudy.courseId.toString(),
+      versionId: caseStudy.courseVersionId.toString(),
+      itemId: params.caseStudyId,
+    });
     const pair = await this.service.getNextPair({
       reviewerId: this.requireUserId(user),
       caseStudyId: params.caseStudyId,
@@ -157,10 +184,14 @@ export class CaseStudyController {
     @Params() params: ComparisonIdPathParams,
     @Body() body: SubmitPickBody,
     @CurrentUser() user: IUser,
-    @Ability(getCourseVersionAbility) {ability}: any,
+    @Ability(getItemAbility) {ability}: any,
   ) {
     const context = await this.service.getComparisonContext(params.comparisonId);
-    this.assertCanAccessVersion(ability, context.courseVersionId);
+    this.assertCanAccessItem(ability, {
+      courseId: context.courseId,
+      versionId: context.courseVersionId,
+      itemId: context.caseStudyId,
+    });
     return this.service.submitPick({
       reviewerId: this.requireUserId(user),
       comparisonId: params.comparisonId,
@@ -169,78 +200,24 @@ export class CaseStudyController {
   }
 
   // -----------------------------------------------------------------
-  // Instructor / admin. Case content is authored via the version-controlled
-  // seed file + scripts/seedCaseStudies.ts (the primary path); these routes
-  // exist for operational fixes (reordering, corrections), not authoring.
+  // Instructor-facing
   // -----------------------------------------------------------------
 
+  /**
+   * All responses for a CASE_STUDY item, sorted newest first.
+   * Gated on instructor-level course access (same check as the reflection
+   * instructor listing) — author identities are visible to instructors.
+   */
   @Authorized()
-  @Post('/courses/:courseId/versions/:versionId')
-  @HttpCode(201)
-  async createCaseStudy(
-    @Params() params: CaseStudyCoursePathParams,
-    @Body() body: CreateCaseStudyBody,
-    @Ability(getCourseVersionAbility) {ability}: any,
-  ) {
-    this.assertCanManageVersion(ability, params.versionId);
-    return this.service.createCaseStudy({
-      courseId: params.courseId,
-      courseVersionId: params.versionId,
-      sequenceIndex: body.sequenceIndex,
-      title: body.title,
-      bodyMarkdown: body.bodyMarkdown,
-      linkedItemId: body.linkedItemId,
-    });
-  }
-
-  @Authorized()
-  @Patch('/:caseStudyId')
+  @Get('/courses/:courseId/versions/:versionId/items/:itemId/responses')
   @HttpCode(200)
-  async updateCaseStudy(
-    @Params() params: CaseStudyIdPathParams,
-    @Body() body: UpdateCaseStudyBody,
-    @Ability(getCourseVersionAbility) {ability}: any,
+  async listResponsesForInstructor(
+    @Params() params: InstructorCaseResponsesPathParams,
+    @Ability(getCourseAbility) {ability}: any,
   ) {
-    const caseStudy = await this.service.getCaseStudyOrThrow(params.caseStudyId);
-    this.assertCanManageVersion(ability, caseStudy.courseVersionId.toString());
-    await this.service.updateCaseStudy(params.caseStudyId, body);
-    return {success: true};
-  }
-
-  @Authorized()
-  @Delete('/:caseStudyId')
-  @HttpCode(200)
-  async deleteCaseStudy(
-    @Params() params: CaseStudyIdPathParams,
-    @Ability(getCourseVersionAbility) {ability}: any,
-  ) {
-    const caseStudy = await this.service.getCaseStudyOrThrow(params.caseStudyId);
-    this.assertCanManageVersion(ability, caseStudy.courseVersionId.toString());
-    await this.service.deleteCaseStudy(params.caseStudyId);
-    return {success: true};
-  }
-
-  @Authorized()
-  @Get('/courses/:courseId/versions/:versionId/stats')
-  @HttpCode(200)
-  async getStats(
-    @Params() params: CaseStudyCoursePathParams,
-    @Ability(getCourseVersionAbility) {ability}: any,
-  ) {
-    this.assertCanManageVersion(ability, params.versionId);
-    return this.service.getInstructorStats(params.versionId);
-  }
-
-  @Authorized()
-  @Get('/courses/:courseId/versions/:versionId/responses')
-  @HttpCode(200)
-  async listAllResponses(
-    @Params() params: CaseStudyCoursePathParams,
-    @Ability(getCourseVersionAbility) {ability}: any,
-  ) {
-    this.assertCanManageVersion(ability, params.versionId);
-    const cases = await this.service.getResponsesForInstructor(params.versionId);
-    return {cases};
+    this.assertCanManageCourse(ability, params.courseId);
+    const responses = await this.service.listResponsesForInstructor(params.itemId);
+    return {responses};
   }
 
   private requireUserId(user: IUser): string {
@@ -251,25 +228,36 @@ export class CaseStudyController {
     return userId;
   }
 
-  /**
-   * Participant routes: enrolled STUDENTs and course staff (view is implied
-   * by manage). Scoped to `versionId`, not just `courseId` — a course can
-   * have multiple versions, and CourseActions.View only bounds the enrolled
-   * course, not which version, which would otherwise let a learner enrolled
-   * in one version reach another version's case studies by id.
-   */
-  private assertCanAccessVersion(ability: any, versionId: string): void {
-    if (!ability.can(CourseVersionActions.View, subject('CourseVersion', {versionId}))) {
-      throw new ForbiddenError('You do not have access to this course version.');
+  private assertCanManageCourse(ability: any, courseId: string): void {
+    if (!ability.can(CourseActions.Modify, subject('Course', {courseId}))) {
+      throw new ForbiddenError(
+        'You do not have permission to view responses for this course.',
+      );
     }
   }
 
-  /** Admin routes: instructor/manager/admin only, same bar as editing the course version itself. */
-  private assertCanManageVersion(ability: any, versionId: string): void {
-    if (!ability.can(CourseVersionActions.Modify, subject('CourseVersion', {versionId}))) {
-      throw new ForbiddenError(
-        'You do not have permission to manage case studies for this course version.',
-      );
+  /**
+   * A learner may only act on a case-study item they can actually reach. The
+   * item ability encodes enrolment and, when linear progression is on, the
+   * completed-plus-current allow list — the same gate every other item type
+   * uses (see ReflectionController). Version-level access was too permissive:
+   * it let a learner open and submit a case study out of sequence, which then
+   * could never complete because start/stop require it to be the current item.
+   */
+  private assertCanAccessItem(
+    ability: any,
+    ref: {courseId: string; versionId: string; itemId: string},
+  ): void {
+    const allowed = ability.can(
+      ItemActions.View,
+      subject('Item', {
+        courseId: ref.courseId,
+        versionId: ref.versionId,
+        itemId: ref.itemId,
+      }),
+    );
+    if (!allowed) {
+      throw new ForbiddenError('You do not have access to this case study item.');
     }
   }
 }

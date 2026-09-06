@@ -1,9 +1,9 @@
 import 'reflect-metadata';
-import {Collection, ObjectId} from 'mongodb';
+import {ClientSession, Collection, ObjectId} from 'mongodb';
 import {inject, injectable} from 'inversify';
 import {MongoDatabase} from '#shared/database/providers/mongo/MongoDatabase.js';
 import {GLOBAL_TYPES} from '#root/types.js';
-import {CaseStudy, ICaseStudy} from '../../../classes/transformers/CaseStudy.js';
+import {ICaseStudy} from '../../../classes/transformers/CaseStudy.js';
 import {
   CaseResponse,
   ICaseResponse,
@@ -24,20 +24,6 @@ interface ICaseReviewQuota {
   reviewerId: ObjectId;
   caseStudyId: ObjectId;
   validPicks: number;
-}
-
-export interface ICaseStudyStats {
-  casesPublished: number;
-  totalResponses: number;
-  responsesPerCase: Array<{
-    caseStudyId: string;
-    sequenceIndex: number;
-    title: string;
-    responseCount: number;
-    wonCount: number;
-  }>;
-  flaggedCount: number;
-  averageComparisonsToWin: number | null;
 }
 
 export interface IIntegrationLearnerProgress {
@@ -75,10 +61,18 @@ export class CaseStudyRepository {
     this.initialized = true;
 
     try {
-      // Write-unlock order is unique per version.
+      // Case studies are now course items keyed by _id = itemId, so uniqueness
+      // is inherent to the item. The old (courseVersionId, sequenceIndex) unique
+      // index from the standalone-authoring model is retired; drop it if a dev
+      // DB still carries it, then keep only a non-unique lookup index.
+      try {
+        await this.caseStudies.dropIndex('courseVersionId_1_sequenceIndex_1');
+      } catch {
+        // Index absent (fresh DB) — nothing to drop.
+      }
       await this.caseStudies.createIndex(
-        {courseVersionId: 1, sequenceIndex: 1},
-        {unique: true, background: true},
+        {courseVersionId: 1},
+        {background: true},
       );
       // One response per participant per case.
       await this.caseResponses.createIndex(
@@ -115,17 +109,6 @@ export class CaseStudyRepository {
   // Case studies (authoring / listing)
   // ---------------------------------------------------------------------
 
-  async listByCourseVersion(courseVersionId: string): Promise<ICaseStudy[]> {
-    await this.init();
-    return this.caseStudies
-      .find({
-        courseVersionId: new ObjectId(courseVersionId),
-        isDeleted: {$ne: true},
-      })
-      .sort({sequenceIndex: 1})
-      .toArray();
-  }
-
   async findById(caseStudyId: string): Promise<ICaseStudy | null> {
     await this.init();
     return this.caseStudies.findOne({
@@ -135,185 +118,64 @@ export class CaseStudyRepository {
   }
 
   /**
-   * Locate a case by its position in the version's sequence. Used by the
-   * win-based unlock check: before a student can submit Case N, the service
-   * must verify that Case N-1 has already been won.
+   * Idempotent sync of the case record backing a CASE_STUDY course item.
+   * The case's `_id` is the item's `_id`, so the peer-review runtime keys on
+   * the item directly. Called whenever a learner opens the item; safe to call
+   * repeatedly. Content-bearing fields are refreshed from the item on each call
+   * so instructor edits propagate; runtime counters are left untouched.
    */
-  async findByVersionAndSequenceIndex(
-    courseVersionId: string,
-    sequenceIndex: number,
-  ): Promise<ICaseStudy | null> {
+  async upsertForItem(input: {
+    itemId: string;
+    courseId: string;
+    courseVersionId: string;
+    title: string;
+    bodyMarkdown: string;
+    reviewsRequired?: number;
+    picksRequired?: number;
+    weakStreakThreshold?: number;
+  }): Promise<void> {
     await this.init();
-    return this.caseStudies.findOne({
-      courseVersionId: new ObjectId(courseVersionId),
-      sequenceIndex,
-      isDeleted: {$ne: true},
-    });
-  }
+    const _id = new ObjectId(input.itemId);
 
-  /**
-   * Insert a case study. Returns null when the unique
-   * `(courseVersionId, sequenceIndex)` index rejects it as a duplicate
-   * position, mirroring `ReflectionRepository.create`'s null-on-duplicate
-   * contract.
-   */
-  async create(caseStudy: CaseStudy): Promise<string | null> {
-    await this.init();
-    try {
-      const result = await this.caseStudies.insertOne(caseStudy);
-      return result.insertedId.toString();
-    } catch (e: any) {
-      if (e?.code === 11000) return null;
-      throw e;
+    // Config knobs are synced every open so instructor edits take effect
+    // immediately. A knob left blank on the item is `$unset` here so the engine
+    // falls back to its module default rather than keeping a stale override.
+    const knobs = {
+      reviewsRequired: input.reviewsRequired,
+      picksRequired: input.picksRequired,
+      weakStreakThreshold: input.weakStreakThreshold,
+    };
+    const $set: Record<string, unknown> = {
+      title: input.title,
+      bodyMarkdown: input.bodyMarkdown,
+      isDeleted: false,
+      updatedAt: new Date(),
+    };
+    const $unset: Record<string, ''> = {};
+    for (const [key, value] of Object.entries(knobs)) {
+      if (value !== undefined) $set[key] = value;
+      else $unset[key] = '';
     }
-  }
 
-  async update(
-    caseStudyId: string,
-    patch: {
-      title?: string;
-      bodyMarkdown?: string;
-      sequenceIndex?: number;
-      linkedItemId?: string;
-    },
-  ): Promise<boolean> {
-    await this.init();
-    const $set: Record<string, unknown> = {updatedAt: new Date()};
-    if (patch.title !== undefined) $set.title = patch.title;
-    if (patch.bodyMarkdown !== undefined) $set.bodyMarkdown = patch.bodyMarkdown;
-    if (patch.sequenceIndex !== undefined) $set.sequenceIndex = patch.sequenceIndex;
-    if (patch.linkedItemId !== undefined) {
-      $set.linkedItemId = new ObjectId(patch.linkedItemId);
-    }
-    const result = await this.caseStudies.updateOne(
-      {_id: new ObjectId(caseStudyId)},
-      {$set},
-    );
-    return result.matchedCount > 0;
-  }
-
-  async softDelete(caseStudyId: string): Promise<boolean> {
-    await this.init();
-    const result = await this.caseStudies.updateOne(
-      {_id: new ObjectId(caseStudyId)},
-      {$set: {isDeleted: true, updatedAt: new Date()}},
-    );
-    return result.matchedCount > 0;
-  }
-
-  /**
-   * Idempotent upsert from the version-controlled seed file, keyed on
-   * `(courseVersionId, sequenceIndex)` — re-running the seed script updates
-   * existing cases in place rather than duplicating them.
-   */
-  async upsertFromSeed(
-    courseVersionId: string,
-    courseId: string,
-    entries: Array<{
-      sequenceIndex: number;
-      title: string;
-      bodyMarkdown: string;
-      linkedItemId?: string;
-    }>,
-  ): Promise<{inserted: number; updated: number}> {
-    await this.init();
-    let inserted = 0;
-    let updated = 0;
-    for (const entry of entries) {
-      const result = await this.caseStudies.updateOne(
-        {
-          courseVersionId: new ObjectId(courseVersionId),
-          sequenceIndex: entry.sequenceIndex,
+    await this.caseStudies.updateOne(
+      {_id},
+      {
+        $set,
+        ...(Object.keys($unset).length ? {$unset} : {}),
+        $setOnInsert: {
+          courseId: new ObjectId(input.courseId),
+          courseVersionId: new ObjectId(input.courseVersionId),
+          sequenceIndex: 0,
+          createdAt: new Date(),
         },
-        {
-          $set: {
-            title: entry.title,
-            bodyMarkdown: entry.bodyMarkdown,
-            ...(entry.linkedItemId
-              ? {linkedItemId: new ObjectId(entry.linkedItemId)}
-              : {}),
-            isDeleted: false,
-            updatedAt: new Date(),
-          },
-          $setOnInsert: {
-            courseVersionId: new ObjectId(courseVersionId),
-            courseId: new ObjectId(courseId),
-            sequenceIndex: entry.sequenceIndex,
-            createdAt: new Date(),
-          },
-        },
-        {upsert: true},
-      );
-      if (result.upsertedCount > 0) inserted++;
-      else updated++;
-    }
-    return {inserted, updated};
+      },
+      {upsert: true},
+    );
   }
 
   // ---------------------------------------------------------------------
   // Responses
   // ---------------------------------------------------------------------
-
-  /**
-   * How many cases in this version the user has already submitted a response
-   * for. Drives the derived unlock rule — no separate "unlock pointer" is
-   * stored. `excludeCaseStudyId` excludes the case currently being
-   * submitted: without it, two concurrent submissions for the *same* case
-   * can race so that whichever insert commits first bumps the count the
-   * other reads, making the second (still in-flight) request see itself as
-   * "one case further along" and fail with a misleading "not yet unlocked"
-   * instead of the correct "already submitted".
-   */
-  async countUserResponses(
-    userId: string,
-    courseVersionId: string,
-    excludeCaseStudyId?: string,
-  ): Promise<number> {
-    await this.init();
-    return this.caseResponses.countDocuments({
-      userId: new ObjectId(userId),
-      courseVersionId: new ObjectId(courseVersionId),
-      ...(excludeCaseStudyId
-        ? {caseStudyId: {$ne: new ObjectId(excludeCaseStudyId)}}
-        : {}),
-    });
-  }
-
-  async listUserResponsesForVersion(
-    userId: string,
-    courseVersionId: string,
-  ): Promise<ICaseResponse[]> {
-    await this.init();
-    return this.caseResponses
-      .find({
-        userId: new ObjectId(userId),
-        courseVersionId: new ObjectId(courseVersionId),
-      })
-      .toArray();
-  }
-
-  async listAllResponsesByVersion(
-    courseVersionId: string,
-  ): Promise<Array<ICaseResponse & {student: {firstName: string; lastName?: string; email: string} | null}>> {
-    await this.init();
-    return this.caseResponses
-      .aggregate<any>([
-        {$match: {courseVersionId: new ObjectId(courseVersionId)}},
-        {$sort: {caseStudyId: 1, createdAt: 1}},
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'userId',
-            foreignField: '_id',
-            pipeline: [{$project: {firstName: 1, lastName: 1, email: 1}}],
-            as: '_user',
-          },
-        },
-        {$addFields: {student: {$arrayElemAt: ['$_user', 0]}}},
-        {$project: {_user: 0}},
-      ])
-      .toArray();
-  }
 
   async findUserResponse(
     userId: string,
@@ -541,15 +403,15 @@ export class CaseStudyRepository {
    * comparison can't both succeed, mirroring the capped update in
    * `ReflectionRepository.recordReview`.
    */
-  async recordPick(input: {
-    comparisonId: string;
-    outcome: CaseComparisonOutcome;
-  }): Promise<ICaseComparison | null> {
+  async recordPick(
+    input: {comparisonId: string; outcome: CaseComparisonOutcome},
+    session?: ClientSession,
+  ): Promise<ICaseComparison | null> {
     await this.init();
     return this.caseComparisons.findOneAndUpdate(
       {_id: new ObjectId(input.comparisonId), outcome: {$exists: false}},
       {$set: {outcome: input.outcome, decidedAt: new Date()}},
-      {returnDocument: 'after'},
+      {returnDocument: 'after', session},
     );
   }
 
@@ -567,20 +429,27 @@ export class CaseStudyRepository {
    * that was NOT reset, so the caller can compare against the course's
    * configured notification threshold without a second read.
    */
-  async applyPickEffects(input: {
-    responseAId: ObjectId;
-    responseBId: ObjectId;
-    outcome: CaseComparisonOutcome;
-  }): Promise<{
+  async applyPickEffects(
+    input: {
+      responseAId: ObjectId;
+      responseBId: ObjectId;
+      outcome: CaseComparisonOutcome;
+      /** Wins needed to settle this case; falls back to WINS_REQUIRED when omitted. */
+      winsRequired?: number;
+    },
+    session?: ClientSession,
+  ): Promise<{
     weakStreaks: Array<{responseId: ObjectId; userId: ObjectId; weakStreak: number}>;
     withdrawals: Array<{responseId: ObjectId; userId: ObjectId; withdrawn: boolean}>;
   }> {
     await this.init();
     const {responseAId, responseBId, outcome} = input;
+    const winsRequired = input.winsRequired ?? WINS_REQUIRED;
 
     await this.caseResponses.updateMany(
       {_id: {$in: [responseAId, responseBId]}},
       {$inc: {comparisonsSeenCount: 1}, $set: {updatedAt: new Date()}},
+      {session},
     );
 
     const weakStreaks: Array<{responseId: ObjectId; userId: ObjectId; weakStreak: number}> = [];
@@ -589,22 +458,28 @@ export class CaseStudyRepository {
     if (outcome === 'A' || outcome === 'B') {
       const winnerId = outcome === 'A' ? responseAId : responseBId;
       const loserId = outcome === 'A' ? responseBId : responseAId;
-      await Promise.all([this.incrementWin(winnerId), this.resetWeakStreak(winnerId)]);
-      const loserStreak = await this.incrementWeakStreak(loserId);
+      await Promise.all([
+        this.incrementWin(winnerId, winsRequired, session),
+        this.resetWeakStreak(winnerId, session),
+      ]);
+      const loserStreak = await this.incrementWeakStreak(loserId, session);
       if (loserStreak) weakStreaks.push(loserStreak);
     } else if (outcome === 'FLAGGED') {
       // Increment flags and atomically withdraw if threshold is crossed.
       // Does not fold into the weak-response streak — it wasn't judged.
       const [flagA, flagB] = await Promise.all([
-        this.incrementFlag(responseAId),
-        this.incrementFlag(responseBId),
+        this.incrementFlag(responseAId, session),
+        this.incrementFlag(responseBId, session),
       ]);
-      withdrawals.push(flagA, flagB);
+      // incrementFlag returns null when the response document was not found
+      // (deleted between recordPick and this step); skip phantom entries.
+      if (flagA) withdrawals.push(flagA);
+      if (flagB) withdrawals.push(flagB);
     } else {
       // BOTH_WEAK: a substantive judgment against both sides.
       const [a, b] = await Promise.all([
-        this.incrementWeakStreak(responseAId),
-        this.incrementWeakStreak(responseBId),
+        this.incrementWeakStreak(responseAId, session),
+        this.incrementWeakStreak(responseBId, session),
       ]);
       if (a) weakStreaks.push(a);
       if (b) weakStreaks.push(b);
@@ -613,16 +488,21 @@ export class CaseStudyRepository {
     return {weakStreaks, withdrawals};
   }
 
-  private async incrementWin(responseId: ObjectId): Promise<void> {
+  private async incrementWin(
+    responseId: ObjectId,
+    winsRequired: number = WINS_REQUIRED,
+    session?: ClientSession,
+  ): Promise<void> {
     const updated = await this.caseResponses.findOneAndUpdate(
       {_id: responseId},
       {$inc: {winCount: 1}, $set: {updatedAt: new Date()}},
-      {returnDocument: 'after'},
+      {returnDocument: 'after', session},
     );
-    if (updated && updated.status === 'OPEN' && updated.winCount >= WINS_REQUIRED) {
+    if (updated && updated.status === 'OPEN' && updated.winCount >= winsRequired) {
       await this.caseResponses.updateOne(
         {_id: responseId, status: 'OPEN'},
         {$set: {status: 'WON', updatedAt: new Date()}},
+        {session},
       );
     }
   }
@@ -630,44 +510,52 @@ export class CaseStudyRepository {
   /** Increments the flag counter for analytics. Flags never change a response's status. */
   private async incrementFlag(
     responseId: ObjectId,
-  ): Promise<{responseId: ObjectId; userId: ObjectId; withdrawn: boolean}> {
+    session?: ClientSession,
+  ): Promise<{responseId: ObjectId; userId: ObjectId; withdrawn: boolean} | null> {
     const updated = await this.caseResponses.findOneAndUpdate(
       {_id: responseId},
       {$inc: {flagCount: 1}, $set: {updatedAt: new Date()}},
-      {returnDocument: 'after'},
+      {returnDocument: 'after', session},
     );
-    if (!updated) return {responseId, userId: new ObjectId(), withdrawn: false};
+    // Document was deleted between recordPick and this step — skip it.
+    if (!updated) return null;
     return {responseId, userId: updated.userId, withdrawn: false};
   }
 
   private async incrementWeakStreak(
     responseId: ObjectId,
+    session?: ClientSession,
   ): Promise<{responseId: ObjectId; userId: ObjectId; weakStreak: number} | null> {
     const updated = await this.caseResponses.findOneAndUpdate(
       {_id: responseId},
       {$inc: {weakStreak: 1}, $set: {updatedAt: new Date()}},
-      {returnDocument: 'after'},
+      {returnDocument: 'after', session},
     );
     if (!updated) return null;
     return {responseId, userId: updated.userId, weakStreak: updated.weakStreak};
   }
 
-  private async resetWeakStreak(responseId: ObjectId): Promise<void> {
+  private async resetWeakStreak(
+    responseId: ObjectId,
+    session?: ClientSession,
+  ): Promise<void> {
     await this.caseResponses.updateOne(
       {_id: responseId},
       {$set: {weakStreak: 0, updatedAt: new Date()}},
+      {session},
     );
   }
 
   async incrementReviewerQuota(
     reviewerId: string,
     caseStudyId: string,
+    session?: ClientSession,
   ): Promise<void> {
     await this.init();
     await this.caseReviewQuota.updateOne(
       {reviewerId: new ObjectId(reviewerId), caseStudyId: new ObjectId(caseStudyId)},
       {$inc: {validPicks: 1}},
-      {upsert: true},
+      {upsert: true, session},
     );
   }
 
@@ -707,63 +595,27 @@ export class CaseStudyRepository {
     return counts;
   }
 
-  // ---------------------------------------------------------------------
-  // Instructor stats / Samagama integration roster
-  // ---------------------------------------------------------------------
-
-  async getStats(courseVersionId: string): Promise<ICaseStudyStats> {
+  /** All responses for a case study, newest first — for the instructor response viewer. */
+  async listResponsesForInstructor(caseStudyId: string): Promise<ICaseResponse[]> {
     await this.init();
-    const cases = await this.listByCourseVersion(courseVersionId);
-    const caseIds = cases.map(c => c._id!);
-
-    const responseAgg = await this.caseResponses
-      .aggregate<{_id: ObjectId; count: number; won: number}>([
-        {$match: {caseStudyId: {$in: caseIds}}},
-        {
-          $group: {
-            _id: '$caseStudyId',
-            count: {$sum: 1},
-            won: {$sum: {$cond: [{$eq: ['$status', 'WON']}, 1, 0]}},
-          },
-        },
-      ])
+    return this.caseResponses
+      .find({caseStudyId: new ObjectId(caseStudyId)})
+      .sort({createdAt: -1})
       .toArray();
-    const byCase = new Map(responseAgg.map(r => [r._id.toString(), r]));
-
-    const flaggedCount = await this.caseResponses.countDocuments({
-      caseStudyId: {$in: caseIds},
-      flagCount: {$gt: 0},
-    });
-
-    const wonAgg = await this.caseResponses
-      .aggregate<{avgComparisons: number}>([
-        {$match: {caseStudyId: {$in: caseIds}, status: 'WON'}},
-        {$group: {_id: null, avgComparisons: {$avg: '$comparisonsSeenCount'}}},
-      ])
-      .toArray();
-
-    return {
-      casesPublished: cases.length,
-      totalResponses: responseAgg.reduce((sum, r) => sum + r.count, 0),
-      responsesPerCase: cases.map(c => ({
-        caseStudyId: c._id!.toString(),
-        sequenceIndex: c.sequenceIndex,
-        title: c.title,
-        responseCount: byCase.get(c._id!.toString())?.count ?? 0,
-        wonCount: byCase.get(c._id!.toString())?.won ?? 0,
-      })),
-      flaggedCount,
-      averageComparisonsToWin: wonAgg[0]
-        ? Math.round(wonAgg[0].avgComparisons * 100) / 100
-        : null,
-    };
   }
+
+  // ---------------------------------------------------------------------
+  // Samagama integration roster
+  // ---------------------------------------------------------------------
 
   /**
    * Per-learner facts for the Samagama-facing integration roster. Reports
    * `casesSubmitted`/`casesWon`/`casesInReview` only — it never computes a
    * "N of ~20 complete" boolean, since that completion rule is Samagama's to
    * apply (PLANNING.md §4.2), not ViBe's.
+   *
+   * Uses a single $facet pipeline to compute paged data and total count in
+   * one collection pass.
    */
   async getIntegrationProgress(input: {
     courseVersionId: string;
@@ -774,41 +626,46 @@ export class CaseStudyRepository {
     const versionObjId = new ObjectId(input.courseVersionId);
     const skip = (input.page - 1) * input.limit;
 
-    const rows = await this.caseResponses
+    const [result] = await this.caseResponses
       .aggregate<{
-        _id: ObjectId;
-        casesSubmitted: number;
-        casesWon: number;
-        casesInReview: number;
-        lastActivityAt: Date;
+        data: Array<{
+          _id: ObjectId;
+          casesSubmitted: number;
+          casesWon: number;
+          casesInReview: number;
+          lastActivityAt: Date;
+        }>;
+        total: Array<{count: number}>;
       }>([
         {$match: {courseVersionId: versionObjId}},
         {
-          $group: {
-            _id: '$userId',
-            casesSubmitted: {$sum: 1},
-            casesWon: {$sum: {$cond: [{$eq: ['$status', 'WON']}, 1, 0]}},
-            casesInReview: {$sum: {$cond: [{$eq: ['$status', 'OPEN']}, 1, 0]}},
-            lastActivityAt: {$max: '$updatedAt'},
+          $facet: {
+            data: [
+              {
+                $group: {
+                  _id: '$userId',
+                  casesSubmitted: {$sum: 1},
+                  casesWon: {$sum: {$cond: [{$eq: ['$status', 'WON']}, 1, 0]}},
+                  casesInReview: {$sum: {$cond: [{$eq: ['$status', 'OPEN']}, 1, 0]}},
+                  lastActivityAt: {$max: '$updatedAt'},
+                },
+              },
+              {$sort: {_id: 1}},
+              {$skip: skip},
+              {$limit: input.limit},
+            ],
+            total: [
+              {$group: {_id: '$userId'}},
+              {$count: 'count'},
+            ],
           },
         },
-        {$sort: {_id: 1}},
-        {$skip: skip},
-        {$limit: input.limit},
-      ])
-      .toArray();
-
-    const countRows = await this.caseResponses
-      .aggregate<{total: number}>([
-        {$match: {courseVersionId: versionObjId}},
-        {$group: {_id: '$userId'}},
-        {$count: 'total'},
       ])
       .toArray();
 
     return {
-      totalLearners: countRows[0]?.total ?? 0,
-      learners: rows.map(r => ({
+      totalLearners: result?.total[0]?.count ?? 0,
+      learners: (result?.data ?? []).map(r => ({
         userId: r._id.toString(),
         casesSubmitted: r.casesSubmitted,
         casesWon: r.casesWon,

@@ -4,25 +4,27 @@ import {
   caseStudyApi,
   type CaseResponseInput,
   type CourseVersionRef,
-  type CreateCaseBody,
   type PickOutcome,
-  type UpdateCaseBody,
 } from '@/lib/api/case-studies';
 
 export const caseStudyKeys = {
-  list: (r: CourseVersionRef) => ['case-studies', 'list', r.courseId, r.versionId],
   myResponse: (caseStudyId: string) => ['case-studies', 'mine', caseStudyId],
   nextPair: (caseStudyId: string) => ['case-studies', 'pair', caseStudyId],
-  instructorResponses: (r: CourseVersionRef) => ['case-studies', 'instructor-responses', r.courseId, r.versionId],
 };
 
-export function useMyCaseResponses(ref: CourseVersionRef, enabled = true) {
+/**
+ * Syncs the case record backing a CASE_STUDY item and returns its content.
+ * Runs once when the learner opens the item; the peer-review hooks below then
+ * key on the item's own id.
+ */
+export function useEnsureCaseForItem(ref: CourseVersionRef, itemId: string, enabled = true) {
   const result = useQuery({
-    queryKey: caseStudyKeys.list(ref),
-    queryFn: () => caseStudyApi.listCases(ref),
-    enabled: enabled && Boolean(ref.courseId && ref.versionId),
+    queryKey: ['case-studies', 'ensure', itemId],
+    queryFn: () => caseStudyApi.ensureCase(ref, itemId),
+    enabled: enabled && Boolean(ref.courseId && ref.versionId && itemId),
+    staleTime: Infinity,
   });
-  return {...result, cases: result.data?.cases ?? []};
+  return {...result, caseStudy: result.data ?? null};
 }
 
 export function useMyCaseResponse(caseStudyId: string, enabled = true) {
@@ -31,7 +33,13 @@ export function useMyCaseResponse(caseStudyId: string, enabled = true) {
     queryFn: () => caseStudyApi.getMyResponse(caseStudyId),
     enabled: enabled && Boolean(caseStudyId),
   });
-  return {...result, response: result.data?.response ?? null};
+  return {
+    ...result,
+    response: result.data?.response ?? null,
+    eligibleForRevision: result.data?.eligibleForRevision ?? false,
+    picksRequired: result.data?.picksRequired ?? 0,
+    picksCompleted: result.data?.picksCompleted ?? 0,
+  };
 }
 
 export function useSubmitCaseResponse(ref: CourseVersionRef, caseStudyId: string) {
@@ -39,9 +47,6 @@ export function useSubmitCaseResponse(ref: CourseVersionRef, caseStudyId: string
   return useMutation({
     mutationFn: (response: CaseResponseInput) => caseStudyApi.submitResponse(caseStudyId, response),
     onSuccess: () => {
-      // The case list's locked/writable states move together — case N+1
-      // unlocks in the same instant case N is submitted.
-      queryClient.invalidateQueries({queryKey: caseStudyKeys.list(ref)});
       queryClient.invalidateQueries({queryKey: caseStudyKeys.myResponse(caseStudyId)});
       toast.success('Response submitted');
     },
@@ -71,7 +76,8 @@ export function useSubmitPick(ref: CourseVersionRef, caseStudyId: string) {
       caseStudyApi.submitPick(input.comparisonId, input.outcome),
     onSuccess: () => {
       queryClient.invalidateQueries({queryKey: caseStudyKeys.nextPair(caseStudyId)});
-      queryClient.invalidateQueries({queryKey: caseStudyKeys.list(ref)});
+      // Refresh my-response so the "reviews done" counter advances after a pick.
+      queryClient.invalidateQueries({queryKey: caseStudyKeys.myResponse(caseStudyId)});
     },
     onError: (error: Error) => toast.error(error.message || 'Could not submit your pick'),
   });
@@ -82,7 +88,6 @@ export function useReviseResponse(ref: CourseVersionRef, caseStudyId: string) {
   return useMutation({
     mutationFn: (response: CaseResponseInput) => caseStudyApi.reviseResponse(caseStudyId, response),
     onSuccess: () => {
-      queryClient.invalidateQueries({queryKey: caseStudyKeys.list(ref)});
       queryClient.invalidateQueries({queryKey: caseStudyKeys.myResponse(caseStudyId)});
       toast.success('Response resubmitted');
     },
@@ -90,50 +95,17 @@ export function useReviseResponse(ref: CourseVersionRef, caseStudyId: string) {
   });
 }
 
-export function useInstructorCaseResponses(ref: CourseVersionRef, enabled = true) {
+export function useCaseStudyResponses(
+  courseId: string,
+  versionId: string,
+  itemId: string,
+  enabled = true,
+) {
   const result = useQuery({
-    queryKey: caseStudyKeys.instructorResponses(ref),
-    queryFn: () => caseStudyApi.listAllResponses(ref),
-    enabled: enabled && Boolean(ref.courseId && ref.versionId),
+    queryKey: ['case-studies', 'instructor-responses', itemId],
+    queryFn: () => caseStudyApi.listResponses(courseId, versionId, itemId),
+    enabled: enabled && Boolean(courseId && versionId && itemId),
   });
-  return {...result, cases: result.data?.cases ?? []};
+  return {...result, responses: result.data?.responses ?? []};
 }
 
-// Teacher mutations
-
-export function useCreateCase(ref: CourseVersionRef) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: CreateCaseBody) => caseStudyApi.createCase(ref, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({queryKey: caseStudyKeys.list(ref)});
-      toast.success('Case created');
-    },
-    onError: (error: Error) => toast.error(error.message || 'Could not create case'),
-  });
-}
-
-export function useUpdateCase(ref: CourseVersionRef) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: {caseStudyId: string; body: UpdateCaseBody}) =>
-      caseStudyApi.updateCase(input.caseStudyId, input.body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({queryKey: caseStudyKeys.list(ref)});
-      toast.success('Case updated');
-    },
-    onError: (error: Error) => toast.error(error.message || 'Could not update case'),
-  });
-}
-
-export function useDeleteCase(ref: CourseVersionRef) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (caseStudyId: string) => caseStudyApi.deleteCase(caseStudyId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({queryKey: caseStudyKeys.list(ref)});
-      toast.success('Case deleted');
-    },
-    onError: (error: Error) => toast.error(error.message || 'Could not delete case'),
-  });
-}

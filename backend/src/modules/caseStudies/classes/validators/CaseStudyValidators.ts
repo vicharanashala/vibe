@@ -81,6 +81,17 @@ export class SubmitPickBody {
   outcome!: 'A' | 'B' | 'BOTH_WEAK' | 'FLAGGED';
 }
 
+export class InstructorCaseResponsesPathParams {
+  @IsMongoId()
+  courseId!: string;
+
+  @IsMongoId()
+  versionId!: string;
+
+  @IsMongoId()
+  itemId!: string;
+}
+
 export class CreateCaseStudyBody {
   @IsInt()
   @Min(1)

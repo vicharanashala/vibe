@@ -203,38 +203,6 @@ export function CourseDrawer({
           )}
         </div>
 
-        {/* Case Studies tab switcher — only when the course setting is on. */}
-        {caseStudiesEnabled && (
-          <div className="shrink-0 border-b border-border px-3 pt-2.5" data-testid="drawer-tab-switcher">
-            <div className="flex gap-1 rounded-lg bg-muted p-1 text-sm">
-              <button
-                type="button"
-                data-testid="drawer-tab-content"
-                onClick={() => onDrawerTabChange?.("content")}
-                className={`flex-1 rounded-md px-3 py-1.5 font-medium transition-colors ${
-                  activeDrawerTab === "content"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Course Content
-              </button>
-              <button
-                type="button"
-                data-testid="drawer-tab-case-studies"
-                onClick={() => onDrawerTabChange?.("case-studies")}
-                className={`flex-1 rounded-md px-3 py-1.5 font-medium transition-colors ${
-                  activeDrawerTab === "case-studies"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Case Studies
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Emotion check-in for the current item — compact */}
         {emotion && (
           <div className="shrink-0 border-b border-border px-3 py-2">

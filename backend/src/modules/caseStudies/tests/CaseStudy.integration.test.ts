@@ -20,10 +20,10 @@ class FakeNotificationService {
   async createNotification() {}
 }
 
-/** All items are considered completed; every case seeded here has a linked video. */
-class FakeProgressService {
-  async isItemCompleted() {
-    return true;
+/** Returns a CASE_STUDY item shape for ensureCaseForItem. */
+class FakeItemRepository {
+  async readItemById() {
+    return {type: 'CASE_STUDY', name: 'Case', details: {bodyMarkdown: 'A prompt.'}} as any;
   }
 }
 
@@ -41,9 +41,12 @@ class FakeProgressService {
  */
 
 class TestDb {
-  constructor(private db: Db) {}
+  constructor(private db: Db, private mongoClient: MongoClient) {}
   async getCollection<T>(name: string) {
     return this.db.collection<T>(name) as any;
+  }
+  async getClient() {
+    return this.mongoClient;
   }
 }
 
@@ -59,17 +62,19 @@ const VERSION = new ObjectId().toString();
 const VALID_STEELMAN = Array.from({length: ELEMENT_2A_MIN_WORDS}, (_, i) => `word${i}`).join(' ');
 const LONG_STEELMAN = Array.from({length: 50}, (_, i) => `word${i}`).join(' ');
 
-async function seedCase(sequenceIndex: number): Promise<string> {
-  const linkedItemId = new ObjectId().toString();
-  const {caseStudyId} = await service.createCaseStudy({
+/**
+ * Seed a case the way production does: a CASE_STUDY item is opened, which syncs
+ * its backing case record keyed on the item's own id. The returned id is both
+ * the itemId and the caseStudyId.
+ */
+async function seedCase(_sequenceIndex: number): Promise<string> {
+  const itemId = new ObjectId().toString();
+  await service.ensureCaseForItem({
     courseId: COURSE,
     courseVersionId: VERSION,
-    sequenceIndex,
-    title: `Case ${sequenceIndex}`,
-    bodyMarkdown: 'A prompt.',
-    linkedItemId,
+    itemId,
   });
-  return caseStudyId;
+  return itemId;
 }
 
 function makeFields(steelman = VALID_STEELMAN) {
@@ -103,13 +108,14 @@ beforeAll(async () => {
   await client.connect();
   db = client.db('caseStudiesTest');
 
-  const testDb = new TestDb(db) as any;
+  const testDb = new TestDb(db, client) as any;
   repo = new CaseStudyRepository(testDb);
   service = new CaseStudyService(
+    testDb,
     repo,
     new FakeCourseSettingService() as never,
     new FakeNotificationService() as never,
-    new FakeProgressService() as never,
+    new FakeItemRepository() as never,
   );
 }, 60_000);
 
@@ -266,30 +272,6 @@ describe('case studies — real MongoDB', () => {
     const doc = await db.collection('caseResponses').findOne({_id: new ObjectId(responseId)});
     expect(doc?.flagCount).toBeGreaterThan(0);
     expect(doc?.status).not.toBe('WITHDRAWN');
-  });
-
-  it('upserts idempotently from a seed payload, keyed on (courseVersionId, sequenceIndex)', async () => {
-    const entries = [
-      {sequenceIndex: 1, title: 'Original title', bodyMarkdown: 'v1'},
-      {sequenceIndex: 2, title: 'Second case', bodyMarkdown: 'v1'},
-    ];
-    const first = await service.upsertFromSeed({courseId: COURSE, courseVersionId: VERSION, entries});
-    expect(first).toEqual({inserted: 2, updated: 0});
-
-    const second = await service.upsertFromSeed({
-      courseId: COURSE,
-      courseVersionId: VERSION,
-      entries: [{sequenceIndex: 1, title: 'Revised title', bodyMarkdown: 'v2'}],
-    });
-    expect(second).toEqual({inserted: 0, updated: 1});
-
-    const cases = await service.listCasesForUser({
-      userId: new ObjectId().toString(),
-      courseId: COURSE,
-      courseVersionId: VERSION,
-    });
-    expect(cases).toHaveLength(2);
-    expect(cases.find(c => c.sequenceIndex === 1)!.title).toBe('Revised title');
   });
 
   it('exposes all six response fields in the served pair, but never the legacy text field', async () => {

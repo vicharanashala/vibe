@@ -2,18 +2,17 @@ import {ObjectId} from 'mongodb';
 import {inject, injectable} from 'inversify';
 import {BadRequestError, ForbiddenError, NotFoundError} from 'routing-controllers';
 import {CASE_STUDIES_TYPES} from '../types.js';
-import {
-  CaseStudyRepository,
-  ICaseStudyStats,
-} from '../repositories/providers/mongodb/CaseStudyRepository.js';
+import {CaseStudyRepository} from '../repositories/providers/mongodb/CaseStudyRepository.js';
 import {CaseResponse, ICaseResponse} from '../classes/transformers/CaseResponse.js';
-import {CaseStudy, ICaseStudy} from '../classes/transformers/CaseStudy.js';
+import {ICaseStudy} from '../classes/transformers/CaseStudy.js';
 import {CaseComparisonOutcome} from '../classes/transformers/CaseComparison.js';
 import {
   DEFAULT_WEAK_STREAK_THRESHOLD,
   ELEMENT_2A_MIN_WORDS,
   FIELD_MIN_WORDS,
   MAX_LIST_LIMIT,
+  REVIEWER_MIN_PICKS_PER_CASE,
+  WINS_REQUIRED,
   computeMinimumScreenTimeSeconds,
   countWords,
   isGibberish,
@@ -22,63 +21,11 @@ import {SETTING_TYPES} from '../../setting/types.js';
 import {CourseSettingService} from '../../setting/services/CourseSettingService.js';
 import {NOTIFICATIONS_TYPES} from '../../notifications/types.js';
 import {NotificationService} from '../../notifications/services/NotificationService.js';
-import {USERS_TYPES} from '../../users/types.js';
-import {ProgressService} from '../../users/services/ProgressService.js';
-
-export type CaseStateForUser =
-  | 'locked'
-  | 'writable'
-  | 'submitted-awaiting-verdict'
-  | 'won'
-  | 'withdrawn';
-
-export interface CaseListEntry {
-  caseStudyId: string;
-  sequenceIndex: number;
-  title: string;
-  bodyMarkdown: string;
-  linkedItemId: string | null;
-  state: CaseStateForUser;
-  /** Present only when the user has a response for this case. */
-  myResponse?: {
-    beat1a: string;
-    beat1b: string;
-    beat1c: string;
-    steelman: string;
-    roomPerspective: string;
-    changeCommitment: string;
-    weakStreak: number;
-    /** true when weakStreak >= the course's weakStreakThreshold — client shows "Needs revision" CTA. */
-    eligibleForRevision: boolean;
-  };
-}
-
-export interface InstructorResponseRow {
-  responseId: string;
-  userId: string;
-  studentName: string;
-  studentEmail: string;
-  status: 'OPEN' | 'WON' | 'WITHDRAWN';
-  beat1a: string;
-  beat1b: string;
-  beat1c: string;
-  steelman: string;
-  roomPerspective: string;
-  changeCommitment: string;
-  zoomSessionDate?: string;
-  winCount: number;
-  weakStreak: number;
-  comparisonsSeenCount: number;
-  flagCount: number;
-  submittedAt: string;
-}
-
-export interface InstructorCaseGroup {
-  caseStudyId: string;
-  sequenceIndex: number;
-  title: string;
-  responses: InstructorResponseRow[];
-}
+import {COURSES_TYPES} from '../../courses/types.js';
+import {IItemRepository} from '../../../shared/database/interfaces/IItemRepository.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {GLOBAL_TYPES} from '#root/types.js';
 
 /**
  * A response as shown to a reviewing peer.
@@ -88,8 +35,8 @@ export interface InstructorCaseGroup {
  * identifying field added to `ICaseResponse` later can never leak into a
  * review payload by default.
  *
- * Only `steelman` (element 2a) is exposed — the other five fields are
- * private to the author.
+ * All six response fields are exposed to peer reviewers — anonymised by
+ * omitting `userId`, but not field-filtered.
  */
 export interface ServedPairResponseView {
   responseId: string;
@@ -123,18 +70,59 @@ interface CaseStudySettings {
   weakStreakThreshold: number;
 }
 
+type ResponseFields = {
+  beat1a: string;
+  beat1b: string;
+  beat1c: string;
+  steelman: string;
+  roomPerspective: string;
+  changeCommitment: string;
+};
+
 @injectable()
-export class CaseStudyService {
+export class CaseStudyService extends BaseService {
   constructor(
+    @inject(GLOBAL_TYPES.Database) db: MongoDatabase,
     @inject(CASE_STUDIES_TYPES.CaseStudyRepo)
     private readonly repository: CaseStudyRepository,
     @inject(SETTING_TYPES.CourseSettingService)
     private readonly courseSettingService: CourseSettingService,
     @inject(NOTIFICATIONS_TYPES.NotificationService)
     private readonly notificationService: NotificationService,
-    @inject(USERS_TYPES.ProgressService)
-    private readonly progressService: ProgressService,
-  ) {}
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
+  ) {
+    super(db);
+  }
+
+  /**
+   * Sync the case record backing a CASE_STUDY course item, then return it.
+   * Idempotent — the learner panel calls this on open, passing the course
+   * context it already has, so the peer-review runtime can key on the item's
+   * own id without a separate authoring step or an item→version lookup.
+   */
+  async ensureCaseForItem(input: {
+    courseId: string;
+    courseVersionId: string;
+    itemId: string;
+  }): Promise<ICaseStudy> {
+    const item = await this.itemRepo.readItemById(input.itemId);
+    if (!item || (item as any).type !== 'CASE_STUDY') {
+      throw new NotFoundError('Case study item not found.');
+    }
+    const details = (item as any).details ?? {};
+    await this.repository.upsertForItem({
+      itemId: input.itemId,
+      courseId: input.courseId,
+      courseVersionId: input.courseVersionId,
+      title: (item as any).name ?? 'Case study',
+      bodyMarkdown: details.bodyMarkdown ?? '',
+      reviewsRequired: details.reviewsRequired,
+      picksRequired: details.picksRequired,
+      weakStreakThreshold: details.weakStreakThreshold,
+    });
+    return this.getCaseStudyOrThrow(input.itemId);
+  }
 
   /** Resolves the course-version-level toggles that govern this feature. */
   private async getCaseStudySettings(
@@ -153,21 +141,18 @@ export class CaseStudyService {
     };
   }
 
-  /**
-   * The `caseStudiesEnabled` toggle used to only gate the frontend drawer tab
-   * — every backend route stayed reachable by URL regardless of the flag.
-   * Every participant-facing entry point below now re-checks it server-side.
-   */
-  private assertCaseStudiesEnabled(settings: CaseStudySettings): void {
-    if (!settings.enabled) {
-      throw new ForbiddenError('Case studies are not enabled for this course version.');
-    }
+  private trimResponseFields(input: ResponseFields): ResponseFields {
+    return {
+      beat1a: input.beat1a.trim(),
+      beat1b: input.beat1b.trim(),
+      beat1c: input.beat1c.trim(),
+      steelman: input.steelman.trim(),
+      roomPerspective: input.roomPerspective.trim(),
+      changeCommitment: input.changeCommitment.trim(),
+    };
   }
 
-  private validateResponseFields(fields: {
-    beat1a: string; beat1b: string; beat1c: string;
-    steelman: string; roomPerspective: string; changeCommitment: string;
-  }): void {
+  private validateResponseFields(fields: ResponseFields): void {
     const single: Array<{name: string; value: string}> = [
       {name: 'beat1a', value: fields.beat1a},
       {name: 'beat1b', value: fields.beat1b},
@@ -253,91 +238,50 @@ export class CaseStudyService {
   }
 
   /**
-   * Every case in a version, annotated with this user's own state.
-   *
-   * Unlock is video-gated: a case is writable when the student has completed
-   * the case's `linkedItemId` video. Cases with no `linkedItemId` are always
-   * locked until an instructor links a video.
+   * This learner's own response to a case, plus the two per-item facts the
+   * panel needs: whether it is eligible for revision (weak-streak nudge), and
+   * their review progress against the case's `picksRequired` soft floor.
    */
-  async listCasesForUser(input: {
-    userId: string;
-    courseId: string;
-    courseVersionId: string;
-  }): Promise<CaseListEntry[]> {
-    const settings = await this.getCaseStudySettings(input.courseId, input.courseVersionId);
-    this.assertCaseStudiesEnabled(settings);
-
-    const [cases, responses] = await Promise.all([
-      this.repository.listByCourseVersion(input.courseVersionId),
-      this.repository.listUserResponsesForVersion(
-        input.userId,
-        input.courseVersionId,
-      ),
-    ]);
-    const responseByCase = new Map(
-      responses.map(r => [r.caseStudyId.toString(), r]),
-    );
-
-    return Promise.all(
-      cases.map(async c => {
-        const caseId = c._id!.toString();
-        const response = responseByCase.get(caseId);
-        let state: CaseStateForUser;
-
-        if (response) {
-          if (response.status === 'WON') state = 'won';
-          else if (response.status === 'WITHDRAWN') state = 'withdrawn';
-          else state = 'submitted-awaiting-verdict';
-        } else if (c.linkedItemId) {
-          const completed = await this.progressService.isItemCompleted(
-            input.userId,
-            input.courseId,
-            input.courseVersionId,
-            c.linkedItemId.toString(),
-          );
-          state = completed ? 'writable' : 'locked';
-        } else {
-          state = 'locked';
-        }
-
-        const entry: CaseListEntry = {
-          caseStudyId: caseId,
-          sequenceIndex: c.sequenceIndex,
-          title: c.title,
-          bodyMarkdown: c.bodyMarkdown,
-          linkedItemId: c.linkedItemId ? c.linkedItemId.toString() : null,
-          state,
-        };
-        if (response) {
-          entry.myResponse = {
-            beat1a: response.beat1a,
-            beat1b: response.beat1b,
-            beat1c: response.beat1c,
-            steelman: response.steelman,
-            roomPerspective: response.roomPerspective,
-            changeCommitment: response.changeCommitment,
-            weakStreak: response.weakStreak,
-            eligibleForRevision:
-              settings.weakStreakThreshold > 0 &&
-              response.weakStreak >= settings.weakStreakThreshold,
-          };
-        }
-        return entry;
-      }),
-    );
-  }
-
   async getMyResponse(input: {
     userId: string;
     caseStudyId: string;
-  }): Promise<ICaseResponse | null> {
+  }): Promise<{
+    response: ICaseResponse | null;
+    eligibleForRevision: boolean;
+    picksRequired: number;
+    picksCompleted: number;
+  }> {
     const caseStudy = await this.getCaseStudyOrThrow(input.caseStudyId);
-    const settings = await this.getCaseStudySettings(
-      caseStudy.courseId.toString(),
-      caseStudy.courseVersionId.toString(),
+    const picksRequired =
+      caseStudy.picksRequired ?? REVIEWER_MIN_PICKS_PER_CASE;
+    const response = await this.repository.findUserResponse(
+      input.userId,
+      input.caseStudyId,
     );
-    this.assertCaseStudiesEnabled(settings);
-    return this.repository.findUserResponse(input.userId, input.caseStudyId);
+    if (!response) {
+      return {
+        response: null,
+        eligibleForRevision: false,
+        picksRequired,
+        picksCompleted: 0,
+      };
+    }
+    const [settings, picksCompleted] = await Promise.all([
+      this.getCaseStudySettings(
+        caseStudy.courseId.toString(),
+        caseStudy.courseVersionId.toString(),
+      ),
+      this.repository.getReviewerQuota(input.userId, input.caseStudyId),
+    ]);
+    const weakStreakThreshold =
+      caseStudy.weakStreakThreshold ?? settings.weakStreakThreshold;
+    // A response can be revised once it has lost the configured number of times
+    // in a row (the weak-streak nudge). Winning responses are locked.
+    const eligibleForRevision =
+      response.status !== 'WON' &&
+      weakStreakThreshold > 0 &&
+      response.weakStreak >= weakStreakThreshold;
+    return {response, eligibleForRevision, picksRequired, picksCompleted};
   }
 
   /**
@@ -355,49 +299,26 @@ export class CaseStudyService {
     changeCommitment: string;
     zoomSessionDate?: string;
   }): Promise<{responseId: string}> {
-    const fields = {
-      beat1a: input.beat1a.trim(),
-      beat1b: input.beat1b.trim(),
-      beat1c: input.beat1c.trim(),
-      steelman: input.steelman.trim(),
-      roomPerspective: input.roomPerspective.trim(),
-      changeCommitment: input.changeCommitment.trim(),
-    };
-
+    const fields = this.trimResponseFields(input);
     this.validateResponseFields(fields);
 
     const caseStudy = await this.getCaseStudyOrThrow(input.caseStudyId);
-    const settings = await this.getCaseStudySettings(
-      caseStudy.courseId.toString(),
-      caseStudy.courseVersionId.toString(),
-    );
-    this.assertCaseStudiesEnabled(settings);
 
-    // Item-based unlock: the case must be linked to an item (video or article),
-    // and that item must be completed by this student.
-    if (!caseStudy.linkedItemId) {
-      throw new BadRequestError(
-        'This case study is not yet linked to an item. Awaiting a link from the instructor.',
-      );
-    }
-    const itemCompleted = await this.progressService.isItemCompleted(
-      input.userId,
-      caseStudy.courseId.toString(),
-      caseStudy.courseVersionId.toString(),
-      caseStudy.linkedItemId.toString(),
-    );
-    if (!itemCompleted) {
-      throw new BadRequestError(
-        'Complete the linked item first to unlock this case study.',
-      );
+    // Fetch settings and check for an existing submission in parallel.
+    const [settings, existing] = await Promise.all([
+      this.getCaseStudySettings(
+        caseStudy.courseId.toString(),
+        caseStudy.courseVersionId.toString(),
+      ),
+      this.repository.findUserResponse(input.userId, input.caseStudyId),
+    ]);
+
+    if (!settings.enabled) {
+      throw new ForbiddenError('Case studies are not enabled for this course version.');
     }
 
     // Fast path: a readable rejection for the common case. The unique
     // (userId, caseStudyId) index is the real race guard.
-    const existing = await this.repository.findUserResponse(
-      input.userId,
-      input.caseStudyId,
-    );
     if (existing) {
       throw new BadRequestError(
         'You have already submitted a response for this case study.',
@@ -432,16 +353,20 @@ export class CaseStudyService {
     caseStudyId: string;
   }): Promise<ServedPair | null> {
     const caseStudy = await this.getCaseStudyOrThrow(input.caseStudyId);
-    const settings = await this.getCaseStudySettings(
-      caseStudy.courseId.toString(),
-      caseStudy.courseVersionId.toString(),
-    );
-    this.assertCaseStudiesEnabled(settings);
 
-    const pending = await this.repository.findPendingComparison(
-      input.reviewerId,
-      input.caseStudyId,
-    );
+    // Fetch settings and check for a pending comparison in parallel.
+    const [settings, pending] = await Promise.all([
+      this.getCaseStudySettings(
+        caseStudy.courseId.toString(),
+        caseStudy.courseVersionId.toString(),
+      ),
+      this.repository.findPendingComparison(input.reviewerId, input.caseStudyId),
+    ]);
+
+    if (!settings.enabled) {
+      throw new ForbiddenError('Case studies are not enabled for this course version.');
+    }
+
     if (pending) {
       return this.toServedPair(pending);
     }
@@ -536,6 +461,10 @@ export class CaseStudyService {
    * already excludes the reviewer's own responses, but this must never be
    * reachable even if that changes later) — mirrors
    * `ReflectionService.submitReview`'s equivalent guard.
+   *
+   * The three writes (recordPick, applyPickEffects, incrementReviewerQuota)
+   * run inside a single MongoDB transaction so a process crash between them
+   * cannot leave a comparison permanently decided but counters unstamped.
    */
   async submitPick(input: {
     reviewerId: string;
@@ -563,7 +492,9 @@ export class CaseStudyService {
       caseStudy.courseId.toString(),
       caseStudy.courseVersionId.toString(),
     );
-    this.assertCaseStudiesEnabled(settings);
+    const winsRequired = caseStudy.reviewsRequired ?? WINS_REQUIRED;
+    const weakStreakThreshold =
+      caseStudy.weakStreakThreshold ?? settings.weakStreakThreshold;
 
     const [responseA, responseB] = await Promise.all([
       this.repository.findResponseById(comparison.responseAId.toString()),
@@ -583,36 +514,47 @@ export class CaseStudyService {
       );
     }
 
-    const decided = await this.repository.recordPick({
-      comparisonId: input.comparisonId,
-      outcome: input.outcome,
-    });
-    if (!decided) {
-      throw new BadRequestError('This comparison has already been decided.');
-    }
-
-    const {weakStreaks, withdrawals} = await this.repository.applyPickEffects({
-      responseAId: comparison.responseAId,
-      responseBId: comparison.responseBId,
-      outcome: input.outcome,
-    });
-
-    if (input.outcome !== 'FLAGGED') {
-      // A/B/BOTH_WEAK are substantive judgments and count toward the
-      // reviewer's own progress; an unjudgeable flag does not
-      // (PLANNING.md §4.5/§4.8).
-      await this.repository.incrementReviewerQuota(
-        input.reviewerId,
-        comparison.caseStudyId.toString(),
+    // Wrap the three writes atomically so a mid-flight crash cannot leave the
+    // comparison decided but response counters / reviewer quota unstamped.
+    const {weakStreaks} = await this._withTransaction(async session => {
+      const decided = await this.repository.recordPick(
+        {comparisonId: input.comparisonId, outcome: input.outcome},
+        session,
       );
-    }
+      if (!decided) {
+        throw new BadRequestError('This comparison has already been decided.');
+      }
+
+      const effects = await this.repository.applyPickEffects(
+        {
+          responseAId: comparison.responseAId,
+          responseBId: comparison.responseBId,
+          outcome: input.outcome,
+          winsRequired,
+        },
+        session,
+      );
+
+      if (input.outcome !== 'FLAGGED') {
+        // A/B/BOTH_WEAK are substantive judgments and count toward the
+        // reviewer's own progress; an unjudgeable flag does not
+        // (PLANNING.md §4.5/§4.8).
+        await this.repository.incrementReviewerQuota(
+          input.reviewerId,
+          comparison.caseStudyId.toString(),
+          session,
+        );
+      }
+
+      return effects;
+    });
 
     // Fire once, exactly on the round the streak crosses the threshold —
     // not on every subsequent loss — so an author isn't spammed once they're
     // already below the bar.
-    if (settings.weakStreakThreshold > 0) {
+    if (weakStreakThreshold > 0) {
       for (const streak of weakStreaks) {
-        if (streak.weakStreak === settings.weakStreakThreshold) {
+        if (streak.weakStreak === weakStreakThreshold) {
           await this.notifyWeakResponseStreak(streak.userId, caseStudy, streak.weakStreak);
         }
       }
@@ -645,15 +587,7 @@ export class CaseStudyService {
     roomPerspective: string;
     changeCommitment: string;
   }): Promise<{responseId: string}> {
-    const fields = {
-      beat1a: input.beat1a.trim(),
-      beat1b: input.beat1b.trim(),
-      beat1c: input.beat1c.trim(),
-      steelman: input.steelman.trim(),
-      roomPerspective: input.roomPerspective.trim(),
-      changeCommitment: input.changeCommitment.trim(),
-    };
-
+    const fields = this.trimResponseFields(input);
     this.validateResponseFields(fields);
 
     const caseStudy = await this.getCaseStudyOrThrow(input.caseStudyId);
@@ -661,7 +595,13 @@ export class CaseStudyService {
       caseStudy.courseId.toString(),
       caseStudy.courseVersionId.toString(),
     );
-    this.assertCaseStudiesEnabled(settings);
+
+    if (!settings.enabled) {
+      throw new ForbiddenError('Case studies are not enabled for this course version.');
+    }
+
+    const weakStreakThreshold =
+      caseStudy.weakStreakThreshold ?? settings.weakStreakThreshold;
 
     const existing = await this.repository.findUserResponse(
       input.userId,
@@ -676,11 +616,11 @@ export class CaseStudyService {
     // Withdrawn responses are always eligible for revision regardless of weakStreak.
     if (existing.status !== 'WITHDRAWN') {
       if (
-        settings.weakStreakThreshold === 0 ||
-        existing.weakStreak < settings.weakStreakThreshold
+        weakStreakThreshold === 0 ||
+        existing.weakStreak < weakStreakThreshold
       ) {
         throw new BadRequestError(
-          `Your response is not yet eligible for revision. It must receive ${settings.weakStreakThreshold} consecutive weak verdicts first (current streak: ${existing.weakStreak}).`,
+          `Your response is not yet eligible for revision. It must receive ${weakStreakThreshold} consecutive weak verdicts first (current streak: ${existing.weakStreak}).`,
         );
       }
     }
@@ -696,110 +636,24 @@ export class CaseStudyService {
     return {responseId: existing._id!.toString()};
   }
 
-  // ---------------------------------------------------------------------
-  // Instructor / admin
-  // ---------------------------------------------------------------------
-
-  async getResponsesForInstructor(courseVersionId: string): Promise<InstructorCaseGroup[]> {
-    const [cases, responses] = await Promise.all([
-      this.repository.listByCourseVersion(courseVersionId),
-      this.repository.listAllResponsesByVersion(courseVersionId),
-    ]);
-
-    const byCase = new Map<string, InstructorResponseRow[]>();
-    for (const c of cases) byCase.set(c._id!.toString(), []);
-
-    for (const r of responses) {
-      const caseId = r.caseStudyId.toString();
-      if (!byCase.has(caseId)) continue;
-      byCase.get(caseId)!.push({
-        responseId: r._id!.toString(),
-        userId: r.userId.toString(),
-        studentName: r.student
-          ? [r.student.firstName, r.student.lastName].filter(Boolean).join(' ')
-          : r.userId.toString(),
-        studentEmail: r.student?.email ?? '—',
-        status: r.status,
-        // Fall back to legacy `text` field for responses submitted before the 6-field schema.
-        beat1a: r.beat1a ?? (r as any).text ?? '',
-        beat1b: r.beat1b ?? '',
-        beat1c: r.beat1c ?? '',
-        steelman: r.steelman ?? '',
-        roomPerspective: r.roomPerspective ?? '',
-        changeCommitment: r.changeCommitment ?? '',
-        zoomSessionDate: r.zoomSessionDate,
-        winCount: r.winCount,
-        weakStreak: r.weakStreak,
-        comparisonsSeenCount: r.comparisonsSeenCount,
-        flagCount: r.flagCount,
-        submittedAt: r.createdAt.toISOString(),
-      });
-    }
-
-    return cases.map(c => ({
-      caseStudyId: c._id!.toString(),
-      sequenceIndex: c.sequenceIndex,
-      title: c.title,
-      responses: byCase.get(c._id!.toString()) ?? [],
+  /** All responses for a case study, newest first — for the instructor response viewer. */
+  async listResponsesForInstructor(caseStudyId: string) {
+    await this.getCaseStudyOrThrow(caseStudyId);
+    const docs = await this.repository.listResponsesForInstructor(caseStudyId);
+    // ObjectId fields don't survive class-transformer serialization as strings
+    // unless explicitly converted; do it here at the service boundary.
+    return docs.map(doc => ({
+      ...doc,
+      _id: doc._id?.toString(),
+      userId: doc.userId.toString(),
+      caseStudyId: doc.caseStudyId.toString(),
+      courseVersionId: doc.courseVersionId.toString(),
     }));
   }
 
-  async createCaseStudy(input: {
-    courseId: string;
-    courseVersionId: string;
-    sequenceIndex: number;
-    title: string;
-    bodyMarkdown: string;
-    linkedItemId?: string;
-  }): Promise<{caseStudyId: string}> {
-    const id = await this.repository.create(new CaseStudy(input));
-    if (id === null) {
-      throw new BadRequestError(
-        `A case study already exists at sequence position ${input.sequenceIndex} for this version.`,
-      );
-    }
-    return {caseStudyId: id};
-  }
-
-  async updateCaseStudy(
-    caseStudyId: string,
-    patch: {
-      title?: string;
-      bodyMarkdown?: string;
-      sequenceIndex?: number;
-      linkedItemId?: string;
-    },
-  ): Promise<void> {
-    const ok = await this.repository.update(caseStudyId, patch);
-    if (!ok) throw new NotFoundError('Case study not found.');
-  }
-
-  async deleteCaseStudy(caseStudyId: string): Promise<void> {
-    const ok = await this.repository.softDelete(caseStudyId);
-    if (!ok) throw new NotFoundError('Case study not found.');
-  }
-
-  async getInstructorStats(courseVersionId: string): Promise<ICaseStudyStats> {
-    return this.repository.getStats(courseVersionId);
-  }
-
-  /** Used by `scripts/seedCaseStudies.ts` — the version-controlled authoring path. */
-  async upsertFromSeed(input: {
-    courseId: string;
-    courseVersionId: string;
-    entries: Array<{
-      sequenceIndex: number;
-      title: string;
-      bodyMarkdown: string;
-      linkedItemId?: string;
-    }>;
-  }): Promise<{inserted: number; updated: number}> {
-    return this.repository.upsertFromSeed(
-      input.courseVersionId,
-      input.courseId,
-      input.entries,
-    );
-  }
+  // ---------------------------------------------------------------------
+  // Integration (Samagama roster poll)
+  // ---------------------------------------------------------------------
 
   /**
    * Per-learner facts for Samagama's roster poll. Never computes or returns

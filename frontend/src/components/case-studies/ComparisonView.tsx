@@ -42,10 +42,9 @@ function ResponseCard({side, label}: {side: ServedPairSide; label: string}) {
 }
 
 /**
- * Split-view pair showing two steelman arguments (element 2a only — no other
- * response fields are exposed to reviewers). Pick buttons stay disabled until
- * `ReadingTimerGate` clears; that is UX only — the server independently
- * re-validates the real elapsed time (§4.8).
+ * Split-view pair showing all six response fields for both sides. Pick buttons
+ * stay disabled until `ReadingTimerGate` clears; that is UX only — the server
+ * independently re-validates the real elapsed time (§4.8).
  */
 export default function ComparisonView({pair, onPick, anomalyContext}: ComparisonViewProps) {
   const [locked, setLocked] = useState(true);

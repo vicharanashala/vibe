@@ -35,8 +35,6 @@ export interface CourseVersionRef {
   versionId: string;
 }
 
-export type CaseState = 'locked' | 'writable' | 'submitted-awaiting-verdict' | 'won' | 'withdrawn';
-
 /** The six structured response fields the student writes, plus optional Zoom declaration metadata. */
 export interface CaseResponseInput {
   beat1a: string;
@@ -47,25 +45,6 @@ export interface CaseResponseInput {
   changeCommitment: string;
   /** ISO date string (YYYY-MM-DD) from the Zoom declaration gate — stored verbatim, not validated. */
   zoomSessionDate?: string;
-}
-
-export interface CaseListEntry {
-  caseStudyId: string;
-  sequenceIndex: number;
-  title: string;
-  bodyMarkdown: string;
-  linkedItemId: string | null;
-  state: CaseState;
-  myResponse?: {
-    beat1a: string;
-    beat1b: string;
-    beat1c: string;
-    steelman: string;
-    roomPerspective: string;
-    changeCommitment: string;
-    weakStreak: number;
-    eligibleForRevision: boolean;
-  };
 }
 
 export interface MyCaseResponse {
@@ -81,6 +60,7 @@ export interface MyCaseResponse {
   changeCommitment: string;
   status: 'OPEN' | 'WON' | 'WITHDRAWN';
   winCount: number;
+  weakStreak: number;
   comparisonsSeenCount: number;
   flagCount: number;
   createdAt: string;
@@ -125,56 +105,26 @@ export interface PickResult {
   totalJudged: number;
 }
 
-export interface InstructorResponseRow {
-  responseId: string;
-  userId: string;
-  studentName: string;
-  studentEmail: string;
-  status: 'OPEN' | 'WON' | 'WITHDRAWN';
-  beat1a: string;
-  beat1b: string;
-  beat1c: string;
-  steelman: string;
-  roomPerspective: string;
-  changeCommitment: string;
-  zoomSessionDate?: string;
-  winCount: number;
-  weakStreak: number;
-  comparisonsSeenCount: number;
-  flagCount: number;
-  submittedAt: string;
-}
-
-export interface InstructorCaseGroup {
-  caseStudyId: string;
-  sequenceIndex: number;
-  title: string;
-  responses: InstructorResponseRow[];
-}
-
-export interface CreateCaseBody {
-  sequenceIndex: number;
-  title: string;
-  bodyMarkdown: string;
-  linkedItemId?: string;
-}
-
-export interface UpdateCaseBody {
-  sequenceIndex?: number;
-  title?: string;
-  bodyMarkdown?: string;
-  linkedItemId?: string;
-}
-
 const coursePath = (r: CourseVersionRef) => `${BASE_URL}/courses/${r.courseId}/versions/${r.versionId}`;
 
 export const caseStudyApi = {
-  listCases(ref: CourseVersionRef) {
-    return apiFetch<{cases: CaseListEntry[]}>(coursePath(ref));
+  /** Sync + fetch the case backing a CASE_STUDY course item. Idempotent. */
+  ensureCase(ref: CourseVersionRef, itemId: string) {
+    return apiFetch<{caseStudyId: string; title: string; bodyMarkdown: string}>(
+      `${coursePath(ref)}/items/${itemId}/ensure`,
+      {method: 'POST'},
+    );
   },
 
   getMyResponse(caseStudyId: string) {
-    return apiFetch<{response: MyCaseResponse | null}>(`${BASE_URL}/${caseStudyId}/my-response`);
+    return apiFetch<{
+      response: MyCaseResponse | null;
+      eligibleForRevision: boolean;
+      /** Reviews the learner is asked to complete for this case (per-item config). */
+      picksRequired: number;
+      /** Substantive reviews (A/B/BOTH_WEAK) this learner has already submitted. */
+      picksCompleted: number;
+    }>(`${BASE_URL}/${caseStudyId}/my-response`);
   },
 
   submitResponse(caseStudyId: string, response: CaseResponseInput) {
@@ -202,28 +152,9 @@ export const caseStudyApi = {
     });
   },
 
-  // Teacher CRUD
-  createCase(ref: CourseVersionRef, body: CreateCaseBody) {
-    return apiFetch<{caseStudyId: string}>(`${coursePath(ref)}`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-  },
-
-  updateCase(caseStudyId: string, body: UpdateCaseBody) {
-    return apiFetch<{success: boolean}>(`${BASE_URL}/${caseStudyId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    });
-  },
-
-  deleteCase(caseStudyId: string) {
-    return apiFetch<{success: boolean}>(`${BASE_URL}/${caseStudyId}`, {
-      method: 'DELETE',
-    });
-  },
-
-  listAllResponses(ref: CourseVersionRef) {
-    return apiFetch<{cases: InstructorCaseGroup[]}>(`${coursePath(ref)}/responses`);
+  listResponses(courseId: string, versionId: string, itemId: string) {
+    return apiFetch<{responses: MyCaseResponse[]}>(
+      `${BASE_URL}/courses/${courseId}/versions/${versionId}/items/${itemId}/responses`,
+    );
   },
 };

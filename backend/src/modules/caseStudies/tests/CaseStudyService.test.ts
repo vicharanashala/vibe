@@ -46,22 +46,25 @@ class FakeNotificationService {
   }
 }
 
-/** Stands in for ProgressService — tracks which video item IDs are "completed". */
-class FakeProgressService {
-  completedItems = new Set<string>();
-
-  async isItemCompleted(
-    _userId: string,
-    _courseId: string,
-    _courseVersionId: string,
-    itemId: string,
-  ): Promise<boolean> {
-    return this.completedItems.has(itemId);
-  }
-}
 
 const VERSION = new ObjectId().toString();
 const COURSE = new ObjectId().toString();
+
+/** Minimal db stub: makes BaseService._withTransaction just run the callback with a no-op session. */
+const fakeDb = {
+  getClient: async () => ({
+    startSession: () => {
+      let inTx = false;
+      return {
+        startTransaction: () => { inTx = true; },
+        commitTransaction: async () => { inTx = false; },
+        abortTransaction: async () => { inTx = false; },
+        endSession: async () => {},
+        inTransaction: () => inTx,
+      };
+    },
+  }),
+} as any;
 
 function normalizePair(a: ObjectId, b: ObjectId): [ObjectId, ObjectId] {
   return a.toString() <= b.toString() ? [a, b] : [b, a];
@@ -239,7 +242,9 @@ class FakeRepo {
     responseAId: ObjectId;
     responseBId: ObjectId;
     outcome: CaseComparisonOutcome;
+    winsRequired?: number;
   }) {
+    const winsRequired = input.winsRequired ?? WINS_REQUIRED;
     const a = this.responses.find(r => r._id!.toString() === input.responseAId.toString());
     const b = this.responses.find(r => r._id!.toString() === input.responseBId.toString());
     if (a) a.comparisonsSeenCount++;
@@ -254,7 +259,7 @@ class FakeRepo {
       if (winner) {
         winner.winCount++;
         (winner as any).weakStreak = 0;
-        if (winner.status === 'OPEN' && winner.winCount >= WINS_REQUIRED) {
+        if (winner.status === 'OPEN' && winner.winCount >= winsRequired) {
           winner.status = 'WON' as CaseResponseStatus;
         }
       }
@@ -386,13 +391,18 @@ class FakeRepo {
 let repo: FakeRepo;
 let courseSettings: FakeCourseSettingService;
 let notifications: FakeNotificationService;
-let progressService: FakeProgressService;
 let service: CaseStudyService;
 
-/** Seeds a case with a linked video; auto-marks the video as completed. */
-function seedCase(sequenceIndex: number): string {
+/** Seeds a case study record directly in the fake repo. */
+function seedCase(
+  sequenceIndex: number,
+  config: {
+    reviewsRequired?: number;
+    picksRequired?: number;
+    weakStreakThreshold?: number;
+  } = {},
+): string {
   const _id = new ObjectId();
-  const videoId = new ObjectId();
   repo.caseStudies.push({
     _id,
     courseId: new ObjectId(COURSE),
@@ -400,28 +410,10 @@ function seedCase(sequenceIndex: number): string {
     sequenceIndex,
     title: `Case ${sequenceIndex}`,
     bodyMarkdown: 'A prompt.',
-    linkedItemId: videoId,
     isDeleted: false,
     createdAt: new Date(),
     updatedAt: new Date(),
-  });
-  progressService.completedItems.add(videoId.toString());
-  return _id.toString();
-}
-
-/** Seeds a case without any linked video (always locked). */
-function seedCaseUnlinked(sequenceIndex: number): string {
-  const _id = new ObjectId();
-  repo.caseStudies.push({
-    _id,
-    courseId: new ObjectId(COURSE),
-    courseVersionId: new ObjectId(VERSION),
-    sequenceIndex,
-    title: `Case ${sequenceIndex} (unlinked)`,
-    bodyMarkdown: 'A prompt.',
-    isDeleted: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    ...config,
   });
   return _id.toString();
 }
@@ -451,12 +443,12 @@ beforeEach(() => {
   repo = new FakeRepo();
   courseSettings = new FakeCourseSettingService();
   notifications = new FakeNotificationService();
-  progressService = new FakeProgressService();
   service = new CaseStudyService(
+    fakeDb,
     repo as never,
     courseSettings as never,
     notifications as never,
-    progressService as never,
+    {readItemById: async () => ({type: 'CASE_STUDY', name: 'Case', details: {bodyMarkdown: 'A prompt.'}})} as never,
   );
 });
 
@@ -487,22 +479,10 @@ describe('submitResponse — steelman word count', () => {
   });
 });
 
-describe('submitResponse — video-based unlock', () => {
-  it('allows submission when the linked video is completed', async () => {
+describe('submitResponse', () => {
+  it('accepts a valid submission (access is gated by the item, not a video unlock)', async () => {
     const caseId = seedCase(1);
     await expect(submit(caseId)).resolves.toHaveProperty('responseId');
-  });
-
-  it('rejects submission when the linked video is not completed', async () => {
-    const caseId = seedCase(1);
-    const caseDoc = repo.caseStudies.find(c => c._id!.toString() === caseId)!;
-    progressService.completedItems.delete(caseDoc.linkedItemId!.toString());
-    await expect(submit(caseId)).rejects.toThrow(/linked video/i);
-  });
-
-  it('rejects submission when the case has no linked video', async () => {
-    const caseId = seedCaseUnlinked(1);
-    await expect(submit(caseId)).rejects.toThrow(/not yet linked/i);
   });
 });
 
@@ -622,6 +602,28 @@ describe('getNextPair / submitPick — timer and self-review', () => {
 });
 
 describe('win / flag thresholds', () => {
+  it('settles a response to WON at the per-item reviewsRequired, not the default 7', async () => {
+    // reviewsRequired=1: with exactly one opponent there is only one possible
+    // pair, so a single winning pick must flip the author to WON — proving the
+    // per-item knob overrides WINS_REQUIRED.
+    const caseId = seedCase(1, {reviewsRequired: 1});
+    const author = new ObjectId().toString();
+    const {responseId} = await submit(caseId, author);
+    await submit(caseId, new ObjectId().toString());
+
+    const reviewer = new ObjectId().toString();
+    const pair = await service.getNextPair({reviewerId: reviewer, caseStudyId: caseId});
+    const comparison = repo.comparisons.find(c => c._id!.toString() === pair!.comparisonId)!;
+    comparison.servedAt = new Date(Date.now() - 999_000);
+    const outcome =
+      pair!.left.responseId === responseId ? pair!.left.outcome : pair!.right.outcome;
+    await service.submitPick({reviewerId: reviewer, comparisonId: pair!.comparisonId, outcome});
+
+    const response = repo.responses.find(r => r._id!.toString() === responseId)!;
+    expect(response.winCount).toBe(1);
+    expect(response.status).toBe('WON');
+  });
+
   it(`moves a response to WON after ${WINS_REQUIRED} wins`, async () => {
     const caseId = seedCase(1);
     const author = new ObjectId().toString();
@@ -706,74 +708,6 @@ describe('win / flag thresholds', () => {
     const result2 = await service.submitPick({reviewerId: reviewer2, comparisonId: pair2!.comparisonId, outcome: outcome2});
     expect(result2.agreementCount).toBe(2);
     expect(result2.totalJudged).toBe(2);
-  });
-});
-
-describe('listCasesForUser (video-based unlock)', () => {
-  it('reports writable when the linked video is completed', async () => {
-    const case1 = seedCase(1);
-    const user = new ObjectId().toString();
-
-    const list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
-    expect(list.find(c => c.caseStudyId === case1)!.state).toBe('writable');
-  });
-
-  it('reports locked when the linked video is not completed', async () => {
-    const case1 = seedCase(1);
-    const caseDoc = repo.caseStudies.find(c => c._id!.toString() === case1)!;
-    progressService.completedItems.delete(caseDoc.linkedItemId!.toString());
-    const user = new ObjectId().toString();
-
-    const list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
-    expect(list.find(c => c.caseStudyId === case1)!.state).toBe('locked');
-  });
-
-  it('reports locked when the case has no linkedItemId', async () => {
-    const case1 = seedCaseUnlinked(1);
-    const user = new ObjectId().toString();
-
-    const list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
-    expect(list.find(c => c.caseStudyId === case1)!.state).toBe('locked');
-  });
-
-  it('reports submitted-awaiting-verdict after submission', async () => {
-    const case1 = seedCase(1);
-    const user = new ObjectId().toString();
-    await submit(case1, user);
-
-    const list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
-    expect(list.find(c => c.caseStudyId === case1)!.state).toBe('submitted-awaiting-verdict');
-  });
-
-  it('exposes all six response fields in myResponse', async () => {
-    const case1 = seedCase(1);
-    const user = new ObjectId().toString();
-    await submit(case1, user, {
-      beat1a: 'Going in I thought this through.',
-      steelman: VALID_STEELMAN,
-    });
-
-    const list = await service.listCasesForUser({userId: user, courseId: COURSE, courseVersionId: VERSION});
-    const entry = list.find(c => c.caseStudyId === case1)!;
-    expect(entry.myResponse).toMatchObject({
-      beat1a: 'Going in I thought this through.',
-      steelman: VALID_STEELMAN,
-    });
-  });
-});
-
-describe('caseStudiesEnabled — server-side enforcement', () => {
-  it('rejects every participant route when the feature flag is off for the course version', async () => {
-    const case1 = seedCase(1);
-    courseSettings.caseStudiesEnabled = false;
-
-    await expect(submit(case1)).rejects.toThrow(/not enabled/i);
-    await expect(
-      service.listCasesForUser({userId: new ObjectId().toString(), courseId: COURSE, courseVersionId: VERSION}),
-    ).rejects.toThrow(/not enabled/i);
-    await expect(
-      service.getNextPair({reviewerId: new ObjectId().toString(), caseStudyId: case1}),
-    ).rejects.toThrow(/not enabled/i);
   });
 });
 

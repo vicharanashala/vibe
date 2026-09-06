@@ -53,7 +53,6 @@ import { ProctorAlertOverlay } from "@/components/learn/ProctorAlertOverlay";
 import { NoiseIndicator } from "@/components/learn/NoiseIndicator";
 import { AwayOverlay } from "@/components/learn/AwayOverlay";
 import { CourseDrawer } from "@/components/learn/CourseDrawer";
-import CaseStudyWorkspace from "@/components/case-studies/CaseStudyWorkspace";
 
 // Proctoring anomalies that should block the video and surface the buttonless
 // alert (with webcam) — covers "no person" (noFace) and "more than one person".
@@ -1922,11 +1921,7 @@ return false;
         onClick={() => setAiExpanded(false)}
       >
         {/* Lesson content */}
-        {activeDrawerTab === "case-studies" ? (
-          <div className="absolute inset-0 z-30 overflow-y-auto bg-card text-card-foreground">
-            <CaseStudyWorkspace courseId={COURSE_ID} versionId={VERSION_ID} />
-          </div>
-        ) : currentItem ? (
+        {currentItem ? (
           currentItem.type === "PROJECT" ? (
             <div className="z-30 absolute inset-0 px-3 sm:px-6 py-16 overflow-y-auto">
               <div className="mx-auto w-full max-w-5xl">
