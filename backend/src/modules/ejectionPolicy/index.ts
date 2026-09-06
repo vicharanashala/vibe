@@ -12,7 +12,6 @@ import {currentUserChecker} from '#root/shared/functions/currentUserChecker.js';
 import {ManualEjectionController} from './controllers/ManualEjectionController.js';
 import {ReinstatementController} from './controllers/ReinstatementController.js';
 import {AutoEjectionController} from './controllers/AutoEjectionController.js';
-import {NotificationController} from '../notifications/controllers/NotificationController.js';
 import {AppealController} from './controllers/AppealController.js';
 // Container modules that this module depends on
 export const ejectionPolicyContainerModules: ContainerModule[] = [
@@ -28,7 +27,6 @@ export const ejectionPolicyModuleControllers: Function[] = [
   ManualEjectionController,
   ReinstatementController,
   AutoEjectionController,
-  NotificationController,
   AppealController,
 ];
 

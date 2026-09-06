@@ -7,7 +7,7 @@
     "dev": "vite",
     "d": "bash scripts/deploy.sh",
     "copy": "cd ../backend && node scripts/generate-openapi.cjs --output ../../frontend/openapi.json",
-    "gen-schema": "pnpx openapi-typescript openapi.json --output src/lib/api/schema.ts ",
+    "gen-schema": "pnpx openapi-typescript openapi.json --output src/types/schema.ts ",
     "build": "vite build",
     "typecheck": "tsc -b",
     "test": "vitest run",

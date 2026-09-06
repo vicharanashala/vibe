@@ -6,12 +6,14 @@ import {
   useContainer,
 } from 'routing-controllers';
 import {InviteController} from './controllers/InviteController.js';
+import {NotificationController} from './controllers/NotificationController.js';
 import { notificationsContainerModule } from './container.js';
 import {usersContainerModule} from '#root/modules/users/container.js';
 
 
 export const notificationsModuleControllers: Function[] = [
   InviteController,
+  NotificationController,
 ];
 
 
@@ -31,6 +33,7 @@ export async function setupNotificationsContainer(): Promise<void> {
 export const notificationsModuleOptions: RoutingControllersOptions = {
   controllers: [
     InviteController,
+    NotificationController,
   ],
   middlewares: [],
   defaultErrorHandler: true,
