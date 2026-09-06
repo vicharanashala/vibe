@@ -194,6 +194,37 @@ export class SettingsDto {
   hpSystem?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the Case Studies tab is enabled for this course version',
+    examples: [true, false],
+    default: false,
+  })
+  caseStudiesEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description:
+      'Case-study unlock mode: true requires the previous case to reach the peer-review win threshold before the next unlocks; false unlocks the next case as soon as the previous one has any submitted response.',
+    examples: [true, false],
+    default: false,
+  })
+  caseStudyStrictUnlockEnabled?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(20)
+  @JSONSchema({
+    description:
+      'Consecutive non-winning peer verdicts on a case-study response before the author is notified it may need revising.',
+    example: 3,
+    default: 3,
+  })
+  caseStudyWeakStreakThreshold?: number;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(100)
@@ -441,6 +472,37 @@ export class AddCourseProctoringBody {
     default: false,
   })
   hpSystem?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Indicates whether the Case Studies tab is enabled for this course version',
+    examples: [true, false],
+    default: false,
+  })
+  caseStudiesEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description:
+      'Case-study unlock mode: true requires the previous case to reach the peer-review win threshold before the next unlocks; false unlocks the next case as soon as the previous one has any submitted response.',
+    examples: [true, false],
+    default: false,
+  })
+  caseStudyStrictUnlockEnabled?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(20)
+  @JSONSchema({
+    description:
+      'Consecutive non-winning peer verdicts on a case-study response before the author is notified it may need revising.',
+    example: 3,
+    default: 3,
+  })
+  caseStudyWeakStreakThreshold?: number;
 
   @IsOptional()
   @IsBoolean()

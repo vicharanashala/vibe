@@ -190,8 +190,12 @@ export class AuthController {
     }
 
     // Proceed with Firebase authentication
+    const emulatorHost = process.env.FIREBASE_AUTH_EMULATOR_HOST;
+    const firebaseAuthBase = emulatorHost
+      ? `http://${emulatorHost}/identitytoolkit.googleapis.com/v1`
+      : 'https://identitytoolkit.googleapis.com/v1';
     const data = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
+      `${firebaseAuthBase}/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
       {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},

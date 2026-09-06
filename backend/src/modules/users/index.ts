@@ -11,6 +11,7 @@ import {UserActivityEventController} from './controllers/UserActivityEventContro
 import {IntegrationController} from './controllers/IntegrationController.js';
 import { CourseController } from '../courses/controllers/CourseController.js';
 import { coursesContainerModule } from '../courses/container.js';
+import { caseStudiesContainerModule } from '../caseStudies/container.js';
 import { ENROLLMENT_VALIDATORS, PROGRESS_VALIDATORS, USER_VALIDATORS } from './classes/validators/index.js';
 import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 
@@ -20,6 +21,11 @@ export const usersContainerModules: ContainerModule[] = [
   sharedContainerModule,
   authContainerModule,
   coursesContainerModule,
+  // Bindings only (not caseStudiesModuleControllers) — IntegrationController
+  // injects CaseStudyService for the case-studies progress route below, but
+  // the caseStudies module's own controller/routes are registered once, from
+  // caseStudiesModuleControllers, not duplicated here.
+  caseStudiesContainerModule,
 ];
 
 export const usersModuleControllers: Function[] = [

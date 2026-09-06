@@ -39,6 +39,7 @@ import {
   ArrowDown,
   Pencil,
   MessageSquareQuote,
+  Scale,
 } from "lucide-react";
 
 import { useNavigate } from "@tanstack/react-router";
@@ -61,6 +62,8 @@ import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import ReflectionItemEditor from './components/ReflectionItemEditor';
+import CaseStudyItemEditor from './components/CaseStudyItemEditor';
+import CaseStudyResponsesPanel from './components/CaseStudyResponsesPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/utils/utils";
@@ -101,6 +104,7 @@ const getItemIcon = (type: string) => {
     case "PROJECT": return <FolderKanban className="h-3 w-3" />;
     case "FEEDBACK": return <MessageSquare className="h-3 w-3" />;
     case "REFLECTION": return <NotebookPen className="h-3 w-3" />;
+    case "CASE_STUDY": return <Scale className="h-3 w-3" />;
     default: return null;
   }
 };
@@ -146,6 +150,7 @@ function TeacherCourseContent() {
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const invitesRef = useRef<HTMLDivElement | null>(null);
   const [videoTab, setVideoTab] = useState("video");
+  const [caseStudyTab, setCaseStudyTab] = useState("settings");
   const [isReorderEnabled, setIsReorderEnabled] = useState(false);
 
 
@@ -2306,6 +2311,34 @@ function TeacherCourseContent() {
                                                           console.error(err);
                                                         });
                                                     }
+                                                    else if (type === "case_study") {
+                                                      createItemAsync({
+                                                        params: {
+                                                          path: {
+                                                            versionId: versionId!,
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                          },
+                                                        },
+                                                        body: {
+                                                          type: "CASE_STUDY",
+                                                          name: "Case study",
+                                                          description: "Write a structured response to the case, then judge pairs of peers' responses",
+                                                          caseStudyDetails: {},
+                                                        } as any,
+                                                      })
+                                                        .then(() => {
+                                                          refetchVersion();
+                                                          if (shouldFetchItems) {
+                                                            refetchItems();
+                                                          }
+                                                          toast.success("Case study added");
+                                                        })
+                                                        .catch((err) => {
+                                                          toast.error("Failed to add case study");
+                                                          console.error(err);
+                                                        });
+                                                    }
                                                     else if (type === "csv_upload") {
                                                       setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
                                                       setShowCSVUpload(true);
@@ -2335,6 +2368,8 @@ function TeacherCourseContent() {
                                                 <option value="feedback">Feedback Form</option>
 
                                                 <option value="reflection">Reflection (peer reviewed)</option>
+
+                                                <option value="case_study">Case Study (peer reviewed)</option>
 
                                                 <option
                                                   value="project"
@@ -3502,6 +3537,37 @@ function TeacherCourseContent() {
                             refetchItem();
                           }}
                         />
+                      )}
+
+                      {selectedEntity.type === "item" && selectedEntity.data.type === "CASE_STUDY" && (
+                        <Tabs value={caseStudyTab} onValueChange={setCaseStudyTab} className="mb-4">
+                          <TabsList>
+                            <TabsTrigger value="settings">Settings</TabsTrigger>
+                            <TabsTrigger value="responses">Responses</TabsTrigger>
+                          </TabsList>
+                          {caseStudyTab === "settings" && (
+                            <CaseStudyItemEditor
+                              itemId={selectedEntity.data._id}
+                              courseId={courseId!}
+                              versionId={versionId!}
+                              name={selectedEntity.data.name}
+                              description={selectedEntity.data.description}
+                              details={(selectedItemData as any)?.details}
+                              onSaved={() => {
+                                refetchVersion();
+                                refetchItems();
+                                refetchItem();
+                              }}
+                            />
+                          )}
+                          {caseStudyTab === "responses" && (
+                            <CaseStudyResponsesPanel
+                              courseId={courseId!}
+                              versionId={versionId!}
+                              itemId={selectedEntity.data._id}
+                            />
+                          )}
+                        </Tabs>
                       )}
 
                       {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (

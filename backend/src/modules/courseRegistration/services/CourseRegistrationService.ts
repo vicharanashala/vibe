@@ -541,12 +541,6 @@ export class CourseRegistrationService extends BaseService {
           new ObjectId(cohort),
         ]);
 
-        await this.inviteService.courseContentLength(
-          data.courseId.toString(),
-          data.versionId.toString(),
-          session,
-        );
-
         // return await this.courseRegistrationRepo.updateStatus(
         //   registrationId,
         //   status,
@@ -624,11 +618,6 @@ export class CourseRegistrationService extends BaseService {
             'Cannot process registrations. Because course version is archived.',
           );
         }
-        await this.inviteService.courseContentLength(
-          first.courseId.toString(),
-          first.versionId.toString(),
-          session,
-        );
         for (let registrationId of registrationIds) {
           const item = await this.courseRegistrationRepo.getRegistration(
             registrationId,

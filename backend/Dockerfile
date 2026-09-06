@@ -1,6 +1,6 @@
-FROM node:22-alpine AS builder
+FROM node:22-slim AS builder
 
-RUN apk add --no-cache git
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.4.1 --activate && npm install -g rimraf
 
 WORKDIR /app
@@ -12,9 +12,9 @@ RUN pnpm install
 COPY . .
 RUN pnpm tsc
 
-FROM node:22-alpine
+FROM node:22-slim
 
-RUN apk add --no-cache dumb-init wget
+RUN apt-get update && apt-get install -y dumb-init wget && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
