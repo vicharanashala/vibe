@@ -28,11 +28,18 @@ export interface IUser {
   faceEmbedding?: number[];
   roles: 'admin' | 'user';
   /**
+   * Streak milestones (day counts like 3, 7, 30) the user has already been
+   * shown a celebration for, so the achievement toast fires only once each.
+   */
+  acknowledgedStreakMilestones?: number[];
+
+  /**
    * A passwordless identity created for a share-link recipient. They never
    * signed up, so they are excluded from the course's own analytics.
    */
   isShareLinkGuest?: boolean;
 }
+
 
 export type Versions = {
   version: string;

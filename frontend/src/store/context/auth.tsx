@@ -1,5 +1,5 @@
 import React, { createContext, useEffect, useRef, useCallback } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onIdTokenChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth-store';
 import { logout, loginWithGoogle, loginWithEmail, refreshFirebaseToken } from '@/utils/auth';
@@ -32,58 +32,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearUser();
   }, [clearUser]);
 
-  // Firebase auth state listener and token management
+  // Firebase auth state listener and token management.
+  // Uses onIdTokenChanged instead of onAuthStateChanged: it fires whenever the
+  // auth state changes AND whenever the SDK refreshes the ID token (Firebase
+  // auto-refreshes before the 1-hour expiry), so the token we store in
+  // localStorage is kept fresh automatically instead of only at login.
   useEffect(() => {
     // Register the token refresh function with the API client
     setTokenRefreshFunction(refreshFirebaseToken);
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('[Auth] onAuthStateChanged fired, user:', firebaseUser ? 'exists' : 'null');
+    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
+      console.log('[Auth] onIdTokenChanged fired, user:', firebaseUser ? 'exists' : 'null');
       if (firebaseUser) {
         try {
-          console.log('[Auth] Getting fresh token...');
           const token = await firebaseUser.getIdToken(true);
-          console.log('[Auth] Fresh token obtained, setting token and authReady');
           setToken(token);
           setAuthReady(true);
 
-          // Set up automatic token refresh every 50 minutes (tokens expire in 1 hour)
+          // Safety net for the emulator (which doesn't proactively rotate
+          // tokens before expiry): also refresh on a fixed cadence. ID tokens
+          // last 1 hour, so 50 minutes leaves plenty of headroom.
           if (tokenRefreshIntervalRef.current) {
             clearInterval(tokenRefreshIntervalRef.current);
           }
-
           tokenRefreshIntervalRef.current = setInterval(async () => {
             try {
               await refreshFirebaseToken();
             } catch (error) {
               console.error('Failed to refresh token:', error);
-              // If refresh fails, sign out user
-              // handleLogout();
-
-              // Retry token refresh 
               try {
-                console.log('Retrying token refresh...');
-                const firebaseUser = auth.currentUser;
-                if (firebaseUser) {
-                  const newToken = await firebaseUser.getIdToken(true);
+                const retryUser = auth.currentUser;
+                if (retryUser) {
+                  const newToken = await retryUser.getIdToken(true);
                   setToken(newToken);
                 }
               } catch (retryError) {
                 console.error('Token refresh retry failed:', retryError);
-
               }
             }
           }, 50 * 60 * 1000); // 50 minutes in milliseconds
-
         } catch (error) {
           console.error('Error getting initial token:', error);
-          // Instead of logging out trying to refresh the token once more
+          // Don't bail out of auth on a transient token failure - try once more.
           try {
             const retryToken = await firebaseUser.getIdToken(true);
             setToken(retryToken);
           } catch (retryError) {
             console.error('Token refresh on page load failed:', retryError);
-
           }
         }
       } else {

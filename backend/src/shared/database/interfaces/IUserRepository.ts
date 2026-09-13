@@ -86,6 +86,23 @@ export interface IUserRepository {
    * @returns A promise that resolves to an array of users.
    */
   getUsersByIds(ids: string[]): Promise<IUser[]>;
+
+  /**
+   * Reads the streak milestones already acknowledged (shown) for a user.
+   */
+  getAcknowledgedStreakMilestones(
+    userId: string,
+    session?: ClientSession,
+  ): Promise<number[]>;
+
+  /**
+   * Idempotently marks streak milestones as acknowledged for a user.
+   */
+  acknowledgeStreakMilestones(
+    userId: string,
+    milestones: number[],
+    session?: ClientSession,
+  ): Promise<void>;
   searchUsers(searchTerm: string, session?: ClientSession,): Promise<UserSearchResult[]>;
   deleteDuplicateUsers(): any
 }

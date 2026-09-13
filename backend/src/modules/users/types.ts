@@ -2,6 +2,7 @@
   //Services
   EnrollmentService: Symbol.for('EnrollmentService'),
   ProgressService: Symbol.for('ProgressService'),
+  StreakService: Symbol.for('StreakService'),
   UserService: Symbol.for('UserService'),
   UserActivityEventService: Symbol.for('UserActivityEventService'),
 
