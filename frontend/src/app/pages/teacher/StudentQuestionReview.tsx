@@ -21,19 +21,24 @@ import StudentQuestionEditDialog from './components/StudentQuestionEditDialog';
 import SegmentDetailsDialog from './components/SegmentDetailsDialog';
 import CourseBackButton from './CourseBackButton';
 
-const STATUS_FILTER_OPTIONS: StudentQuestionStatusFilter[] = [
-  'ALL',
-  'PENDING',
-  'APPROVED',
-  'REJECTED',
-];
-
-// Peer-validation gate state filter — only meaningful while status is PENDING
-// (or ALL). Defaults to ELIGIBLE: "what should I review right now."
-const GATE_STATE_FILTER_OPTIONS: StudentQuestionGateStateFilter[] = [
-  'ELIGIBLE',
-  'COLLECTING',
-  'ALL',
+/**
+ * One filter dropdown instead of status + gate-state as two separate
+ * controls — gate state only ever means anything for PENDING questions, so
+ * showing it as its own axis was confusing more often than it was useful.
+ * Each option here is a fixed (status, gateState) pair.
+ */
+const COMBINED_FILTER_OPTIONS: {
+  value: string;
+  label: string;
+  status: StudentQuestionStatusFilter;
+  gateState: StudentQuestionGateStateFilter;
+}[] = [
+  {value: 'all', label: 'All', status: 'ALL', gateState: 'ALL'},
+  {value: 'held', label: 'Needs review', status: 'HELD', gateState: 'ALL'},
+  {value: 'pending-eligible', label: 'Live — eligible for review', status: 'PENDING', gateState: 'ELIGIBLE'},
+  {value: 'pending-collecting', label: 'Live — collecting responses', status: 'PENDING', gateState: 'COLLECTING'},
+  {value: 'approved', label: 'Approved', status: 'APPROVED', gateState: 'ALL'},
+  {value: 'rejected', label: 'Rejected', status: 'REJECTED', gateState: 'ALL'},
 ];
 
 export default function StudentQuestionReview() {
@@ -41,8 +46,10 @@ export default function StudentQuestionReview() {
   const courseId = currentCourse?.courseId;
   const courseVersionId = currentCourse?.versionId;
 
-  const [statusFilter, setStatusFilter] = useState<StudentQuestionStatusFilter>('PENDING');
-  const [gateStateFilter, setGateStateFilter] = useState<StudentQuestionGateStateFilter>('ELIGIBLE');
+  // Defaults to "All" so the first thing a teacher sees is never a false
+  // "nothing to do here" — PENDING+ELIGIBLE was empty in practice, since
+  // most live questions sit in COLLECTING and HELD wasn't even reachable.
+  const [combinedFilter, setCombinedFilter] = useState(COMBINED_FILTER_OPTIONS[0]);
   const [items, setItems] = useState<StudentQuestionListItem[]>([]);
   const [hasFetched, setHasFetched] = useState(false);
 
@@ -62,16 +69,16 @@ export default function StudentQuestionReview() {
       const response = await listForCourseVersion(
         courseId,
         courseVersionId,
-        statusFilter,
+        combinedFilter.status,
         100,
-        gateStateFilter,
+        combinedFilter.gateState,
       );
       setItems(response?.items ?? []);
       setHasFetched(true);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to load student questions');
     }
-  }, [courseId, courseVersionId, listForCourseVersion, statusFilter, gateStateFilter]);
+  }, [courseId, courseVersionId, listForCourseVersion, combinedFilter]);
 
   useEffect(() => {
     void fetchQuestions();
@@ -141,31 +148,19 @@ export default function StudentQuestionReview() {
         </div>
         <div className="flex items-center gap-2">
           <Select
-            value={statusFilter}
-            onValueChange={value => setStatusFilter(value as StudentQuestionStatusFilter)}
+            value={combinedFilter.value}
+            onValueChange={value => {
+              const next = COMBINED_FILTER_OPTIONS.find(o => o.value === value);
+              if (next) setCombinedFilter(next);
+            }}
           >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Status" />
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Filter" />
             </SelectTrigger>
             <SelectContent>
-              {STATUS_FILTER_OPTIONS.map(option => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={gateStateFilter}
-            onValueChange={value => setGateStateFilter(value as StudentQuestionGateStateFilter)}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Gate state" />
-            </SelectTrigger>
-            <SelectContent>
-              {GATE_STATE_FILTER_OPTIONS.map(option => (
-                <SelectItem key={option} value={option}>
-                  {option === 'ALL' ? 'Any gate state' : option}
+              {COMBINED_FILTER_OPTIONS.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>

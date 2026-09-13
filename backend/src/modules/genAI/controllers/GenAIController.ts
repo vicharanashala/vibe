@@ -12,6 +12,7 @@ import {
   ForbiddenError,
   OnUndefined,
   Patch,
+  QueryParams,
   Req,
   Res,
 } from "routing-controllers";
@@ -30,6 +31,8 @@ import {
   EditTranscript,
   TaskStatus,
   TaskStatusdetailsResponse,
+  VideoSnapPointsQuery,
+  VideoSnapPointsResponse,
 } from '../classes/validators/GenAIValidators.js';
 import { GenAIService } from '../services/GenAIService.js';
 import { WebhookService } from '../services/WebhookService.js';
@@ -165,6 +168,40 @@ export class GenAIController {
     const result = await this.genAIService.getTaskStatus(id, type);
 
     return result;
+  }
+
+  @OpenAPI({
+    summary: 'Get snap points for a video',
+    description: `Timeline positions worth snapping a segment boundary to, resolved from a
+    video URL rather than a job id — topic boundaries from segmentation, plus transcript
+    chunks whose ends act as sentence-level snap points and whose text can be shown at the cut.<br/>
+    Returns 200 with an empty payload and an explanatory <code>status</code> when the video has
+    no usable AI output, since a video that never went through the AI workflow is the normal
+    case rather than an error.`,
+  })
+  @Get("/videos/snap-points")
+  @Authorized()
+  @HttpCode(200)
+  @ResponseSchema(VideoSnapPointsResponse, {
+    description: 'Snap points resolved (check `status` for whether any were found)'
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'The url could not be recognised as a video',
+    statusCode: 400,
+  })
+  async getVideoSnapPoints(
+    @QueryParams() query: VideoSnapPointsQuery,
+    @Ability(getGenAIAbility) {ability},
+  ) {
+    /*
+     * The lookup is by video, so it can surface a job created by a different
+     * teacher on the same course. Access is therefore decided per candidate
+     * job against its own course, not against the caller's ownership of it.
+     */
+    const canAccess = (courseId?: string, versionId?: string) =>
+      ability.can('modify', subject('GenAI', {courseId, versionId}));
+
+    return await this.genAIService.getVideoSnapPoints(query.url, canAccess);
   }
 
   @OpenAPI({

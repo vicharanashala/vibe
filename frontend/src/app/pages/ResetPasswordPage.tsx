@@ -148,7 +148,7 @@ export default function ResetPasswordPage() {
             <CardFooter>
               <Button
                 className="w-full"
-                onClick={() => navigate({ to: "/login" })}
+                onClick={() => navigate({ to: "/student/login" })}
               >
                 Go to Login
               </Button>

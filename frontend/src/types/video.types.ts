@@ -42,6 +42,14 @@ export interface VideoProps {
   awayPaused?: boolean;
 }
 
+/**
+ * Imperative handle exposed by the video player, matching ArticleRef/QuizRef so
+ * the parent can await a stop before navigating away from an in-progress video.
+ */
+export interface VideoRef {
+  stopItem: () => void;
+}
+
 
 
 /**
@@ -73,6 +81,12 @@ export interface YTPlayerInstance {
   getPlaybackQuality?: () => string;
   loadModule?: (module: string) => void;
   setOption?: (module: string, option: string, value: unknown) => void;
+  /**
+   * Only meaningful for YouTube, and only once the relevant module has loaded —
+   * it returns undefined until then, which is why callers must treat "no answer
+   * yet" as different from "no such option".
+   */
+  getOption?: (module: string, option: string) => unknown;
   destroy?: () => void;
   anomalies?: string[];
 }

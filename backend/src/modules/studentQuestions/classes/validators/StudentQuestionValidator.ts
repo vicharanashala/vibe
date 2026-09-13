@@ -20,7 +20,7 @@ const QUESTION_TYPES = ['SELECT_ONE_IN_LOT'] as const;
 type QuestionTypeLiteral = (typeof QUESTION_TYPES)[number];
 const STATUS_VALUES = ['PENDING', 'HELD', 'APPROVED', 'REJECTED'] as const;
 type StatusLiteral = (typeof STATUS_VALUES)[number];
-const STATUS_FILTER_VALUES = ['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as const;
+const STATUS_FILTER_VALUES = ['PENDING', 'HELD', 'APPROVED', 'REJECTED', 'ALL'] as const;
 type StatusFilterLiteral = (typeof STATUS_FILTER_VALUES)[number];
 const GATE_STATE_FILTER_VALUES = ['COLLECTING', 'ELIGIBLE'] as const;
 type GateStateFilterLiteral = (typeof GATE_STATE_FILTER_VALUES)[number];
@@ -198,6 +198,11 @@ export class StudentQuestionListItemResponse {
   @IsOptional()
   @IsString()
   rejectionReason?: string;
+
+  /** Why an automated screen HELD this question — only set when status === HELD. */
+  @IsOptional()
+  @IsString()
+  screeningMessage?: string;
 
   /** Peer-validation lifecycle state; only meaningful while status === PENDING. */
   @IsOptional()

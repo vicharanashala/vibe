@@ -14,6 +14,7 @@ import {
   ChatMessageBody,
   ChatMessageQuery,
   CreateFAQBody,
+  EscalateQuestionBody,
   FAQPathParams,
   FAQSearchQuery,
   RateQuestionBody,
@@ -57,6 +58,7 @@ export const supportChatModuleValidators: Function[] = [
   ChatHistoryQuery,
   SupportQuestionPathParams,
   RateQuestionBody,
+  EscalateQuestionBody,
   FAQSearchQuery,
   AdminDashboardQuery,
   AdminQuestionsQuery,
@@ -67,6 +69,7 @@ export const supportChatModuleValidators: Function[] = [
   UpdateFAQBody,
 ];
 
+export * from './abilities/index.js';
 export * from './classes/validators/SupportChatValidators.js';
 export * from './controllers/index.js';
 export * from './services/index.js';

@@ -8,6 +8,7 @@ import {
   Command,
   Frame,
   GalleryVerticalEnd,
+  LifeBuoy,
   Map,
   Megaphone,
   PieChart,
@@ -31,11 +32,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useAuthStore } from "@/store/auth-store"
+import { useInstructorHasHpCourses } from "@/hooks/hooks"
 
 export function AppSidebar() {
   // Set default state to "expanded"
   const { state } = useSidebar()
   const { user } = useAuthStore.getState()
+  const { hasHpCourses } = useInstructorHasHpCourses()
 
   const data = {
     user: {
@@ -55,6 +58,11 @@ export function AppSidebar() {
         items: [
           { title: "Create Course", url: "/teacher/courses/create" },
           { title: "All Courses", url: "/teacher" },
+          // Sharing a video needs no course, so it sits beside the builder
+          // rather than inside a course.
+          { title: "Share a video", url: "/teacher/share-video" },
+          // Was reachable only by typing the URL directly — no nav entry existed.
+          { title: "Generate Section (AI)", url: "/teacher/jobs/create" },
         ],
       },
       {
@@ -62,10 +70,19 @@ export function AppSidebar() {
         url: "/teacher/announcements",
         icon: Megaphone,
       },
+      // The HP System is opt-in per course, so this only appears once the
+      // instructor has a course that uses it.
+      ...(hasHpCourses
+        ? [{
+          title: "HP System",
+          url: "/teacher/hp-system",
+          icon: SquareTerminal,
+        }]
+        : []),
       {
-        title: "HP System",
-        url: "/teacher/hp-system",
-        icon: SquareTerminal,
+        title: "Support Queue",
+        url: "/teacher/support",
+        icon: LifeBuoy,
       },
       // {
       //   title: "Notifications",

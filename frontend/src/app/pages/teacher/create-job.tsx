@@ -32,26 +32,29 @@ export default function GenerateSectionPage() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem('firebase-auth-token')}`,
                 },
                 body: JSON.stringify({
                     type: "VIDEO",
                     url: videoUrl,
-                    metadata: {
+                    uploadParameters: {
                         courseId,
                         versionId,
                         moduleId,
+                        videoItemBaseName: 'video_item',
+                        quizItemBaseName: 'quiz_item',
                     }
                 }),
             });
 
             const data = await res.json();
 
-            if(!res.ok || !data.id) {
+            if(!res.ok || !data.jobId) {
                 throw new Error(data.message || "Job creation failed");
             }
 
-            toast.success("Job started successfully!", { 
-                description: `Your Job has been created with ID: ${data.id}`,
+            toast.success("Job started successfully!", {
+                description: `Your Job has been created with ID: ${data.jobId}`,
             });
             setShowDialog(false);
 

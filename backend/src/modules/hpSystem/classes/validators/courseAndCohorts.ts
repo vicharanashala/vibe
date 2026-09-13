@@ -18,6 +18,13 @@ export class CourseVersionDto {
 
     @IsString() // ISO date string
     createdAt!: string;
+
+    /**
+     * False for a version whose HP System has been switched off but which still
+     * holds HP data. Instructors may read that data; nothing may be written to it.
+     */
+    @IsBoolean()
+    hpEnabled!: boolean;
 }
 
 export class CourseWithVersionsDto {

@@ -69,7 +69,8 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
     : '';
   const completedItems = Number(enrollment.completedItems ?? 0);
   const totalItems = Number(enrollment.contentCounts?.totalItems ?? 0);
-  const hpSystem = !!(courseVersionData as any)?.hpSystem;
+  // Same single source as CourseCard: the enrollment reflects the live setting.
+  const hpSystem = enrollment.hpSystem === true;
   const isMoreVideosSoon = enrollment.courseId === "6981df886e100cfe04f9c4ad";
 
   // Subtle icon-tile accent, varied by position for visual rhythm.

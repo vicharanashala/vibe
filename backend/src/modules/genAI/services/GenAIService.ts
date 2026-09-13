@@ -47,6 +47,7 @@ import { appConfig } from '#root/config/app.js';
 import { ANOMALIES_TYPES } from '#root/modules/anomalies/types.js';
 import { CloudStorageService } from '#root/modules/anomalies/index.js';
 import { storageConfig } from '#root/config/storage.js';
+import { extractVideoKey } from '../utils/videoKey.js';
 import { ObjectId } from 'mongodb';
 
 type BloomLevelKey =
@@ -629,6 +630,194 @@ export class GenAIService extends BaseService {
       return taskData;
     });
   }
+
+  /**
+   * Cut points a teacher can snap a segment boundary to, for one video.
+   *
+   * The instructor dashboard sets start/end times by typing them; this gives it
+   * the timeline positions worth snapping to. Two sources, both already
+   * produced by the AI pipeline and until now reachable only if you knew the
+   * job id:
+   *   - `segmentationMap` — topic boundaries, the better snap target
+   *   - transcript chunk ends — sentence-ish ends, plus the text to show at the
+   *     cut so the teacher reads where they are landing instead of guessing
+   *
+   * Always resolves rather than throwing for the "no data" cases: a video that
+   * never went through the AI workflow is the normal state, not an error, and
+   * the picker degrades to plain nudge controls. The distinct `status` values
+   * let the UI say which it is.
+   */
+  async getVideoSnapPoints(
+    videoUrl: string,
+    canAccess: (courseId?: string, versionId?: string) => boolean,
+  ): Promise<{
+    status: 'READY' | 'PENDING' | 'NO_JOB' | 'NO_ACCESS';
+    videoKey: string;
+    jobId: string | null;
+    segmentBoundaries: number[];
+    chunks: {start: number; end: number | null; text: string}[];
+  }> {
+    const videoKey = extractVideoKey(videoUrl);
+    if (!videoKey) {
+      throw new BadRequestError(
+        'Could not identify a video from the given url',
+      );
+    }
+
+    const empty = {videoKey, jobId: null, segmentBoundaries: [], chunks: []};
+
+    // DB work only — the transcript download happens after this closure so a
+    // slow GCS fetch cannot hold a Mongo session open.
+    const resolved = await this._withTransaction(async session => {
+      const jobs = await this.genAIRepository.findRecentByVideoKey(
+        videoKey,
+        10,
+        session,
+      );
+      if (jobs.length === 0) return {outcome: 'NO_JOB' as const};
+
+      const permitted = jobs.filter(job =>
+        canAccess(
+          job.uploadParameters?.courseId,
+          job.uploadParameters?.versionId,
+        ),
+      );
+      if (permitted.length === 0) return {outcome: 'NO_ACCESS' as const};
+
+      // Newest first, but the newest job is often a failed re-run sitting on
+      // top of a good one — so take the newest that actually produced data.
+      for (const job of permitted) {
+        const taskData = await this.genAIRepository.getTaskDataByJobId(
+          job._id.toString(),
+          session,
+        );
+        if (!taskData) continue;
+
+        const segmentBoundaries = this.latestOf(
+          taskData.segmentation,
+          entry => entry?.segmentationMap?.length > 0,
+        )?.segmentationMap;
+
+        const transcriptFileUrl = this.latestOf(
+          taskData.transcriptGeneration,
+          entry => Boolean(entry?.fileUrl),
+        )?.fileUrl;
+
+        if (segmentBoundaries || transcriptFileUrl) {
+          return {
+            outcome: 'FOUND' as const,
+            jobId: job._id.toString(),
+            segmentBoundaries: segmentBoundaries ?? [],
+            transcriptFileUrl,
+          };
+        }
+      }
+
+      // Jobs exist and are readable, but none has finished a task we can use.
+      return {outcome: 'PENDING' as const, jobId: permitted[0]._id.toString()};
+    });
+
+    if (resolved.outcome === 'NO_JOB') return {...empty, status: 'NO_JOB'};
+    if (resolved.outcome === 'NO_ACCESS') return {...empty, status: 'NO_ACCESS'};
+    if (resolved.outcome === 'PENDING') {
+      return {...empty, status: 'PENDING', jobId: resolved.jobId};
+    }
+
+    const chunks = resolved.transcriptFileUrl
+      ? await this.fetchTranscriptChunks(resolved.transcriptFileUrl)
+      : [];
+
+    return {
+      status: 'READY',
+      videoKey,
+      jobId: resolved.jobId,
+      segmentBoundaries: this.normalizeBoundaries(resolved.segmentBoundaries),
+      chunks,
+    };
+  }
+
+  /** Last entry satisfying `predicate` — task data arrays append on each re-run. */
+  private latestOf<T>(entries: T[] | undefined, predicate: (e: T) => boolean) {
+    if (!Array.isArray(entries)) return undefined;
+    for (let i = entries.length - 1; i >= 0; i--) {
+      if (predicate(entries[i])) return entries[i];
+    }
+    return undefined;
+  }
+
+  /** Strictly increasing, finite, non-negative seconds. */
+  private normalizeBoundaries(values: number[] | undefined): number[] {
+    if (!Array.isArray(values)) return [];
+    const clean = values
+      .map(Number)
+      .filter(n => Number.isFinite(n) && n >= 0)
+      .sort((a, b) => a - b);
+    return clean.filter((n, i) => i === 0 || n !== clean[i - 1]);
+  }
+
+  /**
+   * Transcript JSON lives in the storage bucket, one file per job, and is
+   * immutable once written — `editTranscript` writes a new `_updated` file
+   * rather than overwriting. That makes it safe to cache by url.
+   */
+  private async fetchTranscriptChunks(
+    fileUrl: string,
+  ): Promise<{start: number; end: number | null; text: string}[]> {
+    const cached = GenAIService.transcriptCache.get(fileUrl);
+    if (cached && Date.now() - cached.at < GenAIService.TRANSCRIPT_CACHE_TTL_MS) {
+      return cached.chunks;
+    }
+
+    let raw: any;
+    try {
+      const response = await axios.get(fileUrl, {timeout: 20000});
+      raw = typeof response.data === 'string'
+        ? JSON.parse(response.data)
+        : response.data;
+    } catch {
+      // A missing or unreachable transcript costs the teacher snap points, not
+      // the ability to edit timestamps — so this degrades rather than throws.
+      return [];
+    }
+
+    const source = Array.isArray(raw?.chunks) ? raw.chunks : [];
+    const chunks = source
+      .map((chunk: any) => {
+        const [start, end] = Array.isArray(chunk?.timestamp)
+          ? chunk.timestamp
+          : [];
+        /*
+         * Whisper leaves the final chunk's end null; keep it null rather than
+         * inventing a boundary the teacher could snap to. Checked before the
+         * cast because `Number(null)` is 0, which is both finite and a
+         * plausible-looking timestamp.
+         */
+        const hasEnd = end !== null && end !== undefined && end !== '';
+        const hasStart = start !== null && start !== undefined && start !== '';
+        return {
+          // NaN here is what the filter below drops the chunk on.
+          start: hasStart ? Number(start) : Number.NaN,
+          end: hasEnd && Number.isFinite(Number(end)) ? Number(end) : null,
+          text: typeof chunk?.text === 'string' ? chunk.text.trim() : '',
+        };
+      })
+      .filter(chunk => Number.isFinite(chunk.start) && chunk.start >= 0)
+      .sort((a, b) => a.start - b.start);
+
+    if (GenAIService.transcriptCache.size >= GenAIService.TRANSCRIPT_CACHE_MAX) {
+      GenAIService.transcriptCache.clear();
+    }
+    GenAIService.transcriptCache.set(fileUrl, {chunks, at: Date.now()});
+
+    return chunks;
+  }
+
+  private static readonly TRANSCRIPT_CACHE_TTL_MS = 5 * 60 * 1000;
+  private static readonly TRANSCRIPT_CACHE_MAX = 50;
+  private static readonly transcriptCache = new Map<
+    string,
+    {chunks: {start: number; end: number | null; text: string}[]; at: number}
+  >();
 
   async getAllJobsData(userId: string): Promise<any> {
     return this._withTransaction(async session => {

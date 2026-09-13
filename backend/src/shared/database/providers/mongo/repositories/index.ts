@@ -5,3 +5,4 @@ export * from './InviteRepository.js'
 export * from './CourseRepository.js';
 export * from './SettingRepository.js';
 export * from './UserActivityEventRepository.js';
+export * from './ShareLinkRepository.js';

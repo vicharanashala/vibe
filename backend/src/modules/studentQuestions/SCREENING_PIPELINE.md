@@ -1,8 +1,8 @@
 # Crowd-Question Screening Pipeline — Feature Design
 
-> **Status:** Active (demo on Groq free tier; production-ready to switch to Anthropic).
+> **Status:** Active (default provider: MiniMax; Groq and Anthropic remain selectable).
 > **Module:** `backend/src/modules/studentQuestions`
-> **Last updated:** 2026-07-02
+> **Last updated:** 2026-08-13
 >
 > This document is the living design reference for the AI screening filter. **Keep it
 > updated whenever the pipeline, prompts, config, decisions, or data model change** —
@@ -87,7 +87,7 @@ submission
 | 4 | Answer correctness | `ANSWER_PROMPT` | 1 LLM call | Confident the marked correct option is wrong | Ambiguous / low-confidence |
 
 Cost note: most junk dies at checks 0/1a (free) or 1b (one call). A clean question
-costs up to ~3 short LLM calls (meaningful + duplicate + answer). At Groq free-tier /
+costs up to ~3 short LLM calls (meaningful + duplicate + answer). At MiniMax's
 small-model pricing this stays well under the $1/1,000 target.
 
 ---
@@ -118,9 +118,11 @@ ones — is what lets a repeat be caught *before* any teacher acts.
 
 - **Per-call timeout:** `AbortController`, `timeoutMs` = 9000ms.
 - **Retries:** `maxRetries` = 2 on 429 / 5xx / abort, with linear backoff (800ms → 4000ms).
-- **Forced JSON:** Groq `response_format: json_object`, temperature 0; defensive
-  `parseJsonObject` strips fences / trailing commas; `verdicts.ts` validates shape and
-  throws `VerdictSchemaError` on a bad object.
+- **JSON extraction:** Groq forces `response_format: json_object`; MiniMax and
+  Anthropic have no documented JSON mode, so they rely on the prompts' "reply ONLY
+  with JSON" instruction plus a defensive `parseJsonObject` that strips fences /
+  trailing commas. `verdicts.ts` validates shape and throws `VerdictSchemaError` on
+  a bad object either way. Temperature 0 for all providers.
 - **Fail-closed:** any thrown error in `ScreeningService.screen` → `hold`
   (`screen_unavailable`), never an exception into the submission path.
 - **Idempotent / non-fatal staging:** promotion + bank writes are best-effort and
@@ -148,8 +150,11 @@ coercion) — **0 currently slip through**, control question still passes.
 
 | Key | Env | Default | Purpose |
 |-----|-----|---------|---------|
-| `provider` | `SCREENING_PROVIDER` | `groq` | `groq` (demo/free) or `anthropic` (prod) |
+| `provider` | `SCREENING_PROVIDER` | `minimax` | `minimax` (default), `groq`, or `anthropic` |
 | `enabled` | `SCREENING_ENABLED` | `true` | Master switch; off = fail-open (dev only) |
+| `minimax.apiKey` | `MINIMAX_API_KEY` | — | Required when `provider=minimax` (the default) |
+| `minimax.model` | `MINIMAX_MODEL` | `MiniMax-M3` | MiniMax model |
+| `minimax.url` | `MINIMAX_URL` | OpenAI-compatible MiniMax endpoint | |
 | `groq.model` | `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model |
 | `groq.url` | `GROQ_URL` | OpenAI-compatible Groq endpoint | |
 | `anthropic.model` | `ANTHROPIC_MODEL` | `claude-haiku-4-5` | Prod model |
@@ -159,8 +164,18 @@ coercion) — **0 currently slip through**, control question still passes.
 | `contextCheckEnabled` | `SCREENING_CONTEXT_ENABLED` | `false` | On-topic (relevance) checking — ON HOLD by default |
 | `contextCharBudget` | `SCREENING_CONTEXT_CHARS` | `2000` | Lesson-context chars for on-topic + answer checks |
 
-**Provider-agnostic:** `createScreeningLlm()` picks `GroqScreeningLlm` or
-`AnthropicScreeningLlm` by config; the four checks are identical across providers.
+**Local dev setup:** copy `backend/.example.env` → `backend/.env` and set
+`MINIMAX_API_KEY` (get one at https://platform.minimax.io). With no key set,
+screening fails closed to `hold` on every submission rather than crashing —
+see §6. To run the live provider tests (`screening.demo.test.ts`,
+`screening.accuracy.test.ts`, etc.) locally: `MINIMAX_API_KEY=... npx vitest
+run src/modules/studentQuestions/tests/screening.demo.test.ts`. To use Groq or
+Anthropic instead, set `SCREENING_PROVIDER=groq` or `anthropic` plus that
+provider's own key.
+
+**Provider-agnostic:** `createScreeningLlm()` picks `MinimaxScreeningLlm`,
+`GroqScreeningLlm`, or `AnthropicScreeningLlm` by config; the four checks are
+identical across providers.
 
 > **🛑 On-topic (context) check is ON HOLD** (`SCREENING_CONTEXT_ENABLED=false`,
 > the default). While on hold, `createQuestion` passes `context: null`, so the
@@ -208,6 +223,7 @@ strings.
 | `config/screening.ts` | Provider/model/timeouts/thresholds |
 | `services/screening/ScreeningService.ts` | Orchestrates the 4 ordered checks, decisions |
 | `services/screening/ScreeningLlm.ts` | Provider interface + defensive JSON parse |
+| `services/screening/MinimaxScreeningLlm.ts` | MiniMax client (default provider; timeout, retries) |
 | `services/screening/GroqScreeningLlm.ts` | Groq client (timeout, retries, forced JSON) |
 | `services/screening/AnthropicScreeningLlm.ts` | Anthropic client |
 | `services/screening/screeningLlmFactory.ts` | Provider selection |
@@ -248,6 +264,15 @@ strings.
 
 ## Changelog
 
+- **2026-08-13** — **Default provider switched Groq → MiniMax.** Added
+  `MinimaxScreeningLlm` (OpenAI-compatible chat completions, `MiniMax-M3`)
+  implementing the existing `ScreeningLlm` interface; `SCREENING_PROVIDER`
+  now defaults to `minimax`. Groq and Anthropic remain selectable. No
+  documented JSON mode for MiniMax-M3, so it relies on the prompts' JSON
+  instruction + the shared defensive `parseJsonObject` parser (same approach
+  as the Anthropic client). Verified live against the real MiniMax API
+  (local demo reel) and end-to-end through a deployed instance (real student
+  login → real submission → correct `reject`/`pass` verdicts).
 - **2026-07-17** — **Context-aware screening wired up + adopted onto `feat/crowd-q-context-screening`.**
   Built the `SegmentContextProvider` (layered: precomputed transcript → graded-stem proxy →
   title/desc → null/fail-open), replacing the old `fetchSegmentContext` that read an

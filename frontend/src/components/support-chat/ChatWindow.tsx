@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, AlertCircle, ThumbsUp, ThumbsDown, Loader } from 'lucide-react';
+import { Send, ThumbsUp, ThumbsDown, Loader } from 'lucide-react';
 import MessageBubble from './MessageBubble';
+import EscalationForm from './EscalationForm';
 import useSupportChat from '@/hooks/useSupportChat';
 
 interface ChatWindowProps {
@@ -169,11 +170,8 @@ export default function ChatWindow({
               </div>
             )}
 
-            {msg.isEscalated && (
-              <div className='ml-8 p-2 bg-blue-50 border-l-2 border-blue-400 rounded text-xs text-blue-700'>
-                <AlertCircle className='w-3 h-3 inline mr-1' />
-                A support team member will review this shortly
-              </div>
+            {msg.isEscalated && msg.questionId && (
+              <EscalationForm questionId={msg.questionId} page={window.location.pathname} />
             )}
           </div>
         ))}

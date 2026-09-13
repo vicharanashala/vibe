@@ -105,6 +105,15 @@ const getItemIcon = (type: string) => {
   }
 };
 
+// Items (video/quiz/blog) don't carry their own createdAt field, but their
+// Mongo ObjectId does: the first 4 bytes are a big-endian Unix timestamp set
+// at generation time, and item _ids are generated once, at creation.
+function getCreatedAtFromObjectId(id?: string | null): Date | null {
+  if (!id || id.length < 8) return null;
+  const seconds = parseInt(id.substring(0, 8), 16);
+  return Number.isNaN(seconds) ? null : new Date(seconds * 1000);
+}
+
 interface LabelOptions {
   itemId: string;
   itemType: "VIDEO" | "QUIZ" | "BLOG" | "PROJECT" | "FEEDBACK" | "REFLECTION";
@@ -2925,6 +2934,18 @@ function TeacherCourseContent() {
                             {selectedEntity.data?.updatedAt
                               ? new Date(selectedEntity.data.updatedAt).toLocaleString()
                               : "N/A"}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedEntity.type === "item" && (
+                        <div className="flex gap-6 text-xs text-muted-foreground">
+                          <div>
+                            <span className="font-semibold">Created:</span>{" "}
+                            {(() => {
+                              const createdAt = getCreatedAtFromObjectId(selectedItemData?.item?._id);
+                              return createdAt ? createdAt.toLocaleString() : "N/A";
+                            })()}
                           </div>
                         </div>
                       )}

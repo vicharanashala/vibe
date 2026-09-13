@@ -113,13 +113,9 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const GURU_SETU_VERSION_ID = "6981df886e100cfe04f9c4ae";
   const isNotGuruSetu = versionId !== GURU_SETU_VERSION_ID;
 
-  // Robust check for HP system availability
-  const isHpSystem = !!(
-    (enrollment.hpSystem || (enrollment as any).hpSystem) ||
-    ((enrollment.course as any)?.hpSystem) ||
-    ((enrollment as any).versionDetails && (enrollment as any).versionDetails[0]?.hpSystem) ||
-    (courseVersionData as any)?.hpSystem
-  );
+  // The enrollment carries the live per-version setting, so it is the only
+  // source to trust — an instructor switching HP off has to hide the badge.
+  const isHpSystem = enrollment.hpSystem === true;
 
   const isStart = progress === 0 && variant !== 'available';
   const isRankVisible = variant !== 'available' && isNotGuruSetu;

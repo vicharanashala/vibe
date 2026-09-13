@@ -19,6 +19,7 @@ import { ID } from "../constants.js";
 import { getHpLedgerOperationId } from "../utils/getHpLedgerOperationId .js";
 import { ISettingRepository } from "#root/shared/database/interfaces/ISettingRepository.js";
 import { ICourseRepository } from "#root/shared/database/interfaces/ICourseRepository.js";
+import { HpAccessService } from "./hpAccessService.js";
 
 
 @injectable()
@@ -50,6 +51,9 @@ export class ActivitySubmissionsService extends BaseService {
 
         @inject(HP_SYSTEM_TYPES.activityRepository)
         private readonly activityRepository: ActivityRepository,
+
+        @inject(HP_SYSTEM_TYPES.hpAccessService)
+        private readonly hpAccessService: HpAccessService,
 
         @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
         @inject(GLOBAL_TYPES.SettingRepo) private readonly settingRepository: ISettingRepository,
@@ -234,6 +238,8 @@ export class ActivitySubmissionsService extends BaseService {
             if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohortId) {
                 throw new BadRequestError("Missing required fields");
             }
+
+            await this.hpAccessService.assertEnabled(body.courseVersionId);
 
             const activityId = body.activityId;
 
@@ -533,6 +539,8 @@ export class ActivitySubmissionsService extends BaseService {
             if (!body.courseId || !body.courseVersionId || !body.activityId || !body.cohortId) {
                 throw new BadRequestError("Missing required fields");
             }
+
+            await this.hpAccessService.assertEnabled(body.courseVersionId);
 
             const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
             if (!submission) {
@@ -847,6 +855,8 @@ export class ActivitySubmissionsService extends BaseService {
             const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
             if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
 
+            await this.hpAccessService.assertEnabled(submission.courseVersionId);
+
             // Use the new resolver to handle both ID and legacy names
             const resolvedCohort = await this.cohortRepository.resolveCohort(
                 submission.cohortId?.toString() || submission.cohort,
@@ -1041,6 +1051,8 @@ export class ActivitySubmissionsService extends BaseService {
         // 1. Fetch submission
         const submission = await this.activitySubmissionsRepository.findById(submissionId, { session });
         if (!submission) throw new NotFoundError(`Submission ${submissionId} not found.`);
+
+        await this.hpAccessService.assertEnabled(submission.courseVersionId);
 
         // 2. Validate — only REVERTED or REJECTED submissions can be restored
         if (submission.status !== "REVERTED" && submission.status !== "REJECTED") {

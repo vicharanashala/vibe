@@ -1,6 +1,11 @@
 import { useCallback } from 'react';
-import { ChatMessageResponse } from '@/modules/supportChat/types';
+import {
+  ChatMessageResponse,
+  EscalateQuestionRequest,
+} from '@/modules/supportChat/types';
 
+// VITE_BASE_URL already ends in the API prefix (e.g. http://localhost:4001/api),
+// which is why paths below start at the resource, not at /api.
 const API_BASE = import.meta.env.VITE_BASE_URL ?? '';
 
 const authHeaders = (): Record<string, string> => {
@@ -22,7 +27,7 @@ export default function useSupportChat() {
       if (cohortId) queryParams.append('cohortId', cohortId);
 
       const response = await fetch(
-        `${API_BASE}/api/support/chat/message?${queryParams.toString()}`,
+        `${API_BASE}/support/chat/message?${queryParams.toString()}`,
         {
           method: 'POST',
           headers: {
@@ -50,7 +55,7 @@ export default function useSupportChat() {
   const getHistory = useCallback(
     async (limit: number = 50) => {
       const response = await fetch(
-        `${API_BASE}/api/support/chat/history?limit=${limit}`,
+        `${API_BASE}/support/chat/history?limit=${limit}`,
         {
           headers: authHeaders(),
         }
@@ -67,7 +72,7 @@ export default function useSupportChat() {
 
   const getQuestion = useCallback(
     async (questionId: string) => {
-      const response = await fetch(`${API_BASE}/api/support/chat/${questionId}`, {
+      const response = await fetch(`${API_BASE}/support/chat/${questionId}`, {
         headers: authHeaders(),
       });
 
@@ -80,10 +85,38 @@ export default function useSupportChat() {
     []
   );
 
+  /**
+   * Files a technical-issue report against a question the assistant could not
+   * answer. Resubmitting replaces the earlier report rather than opening a
+   * second ticket.
+   */
+  const submitEscalation = useCallback(
+    async (questionId: string, request: EscalateQuestionRequest) => {
+      const response = await fetch(
+        `${API_BASE}/support/chat/${questionId}/escalate`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders(),
+          },
+          body: JSON.stringify(request),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Escalation API error: ${response.statusText}`);
+      }
+
+      return response.json();
+    },
+    []
+  );
+
   const rateResolution = useCallback(
     async (questionId: string, rating: 'helpful' | 'not_helpful') => {
       const response = await fetch(
-        `${API_BASE}/api/support/chat/${questionId}/rate`,
+        `${API_BASE}/support/chat/${questionId}/rate`,
         {
           method: 'PATCH',
           headers: {
@@ -107,6 +140,7 @@ export default function useSupportChat() {
     sendMessage,
     getHistory,
     getQuestion,
+    submitEscalation,
     rateResolution,
   };
 }

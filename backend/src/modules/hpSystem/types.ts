@@ -17,6 +17,7 @@ const TYPES = {
     ruleConfigsService: Symbol.for('ruleConfigsService'),
     ledgerService: Symbol.for('ledgerService'),
     cohortsService: Symbol.for('cohortsService'),
+    hpAccessService: Symbol.for('hpAccessService'),
 
     // Repositories
     ruleConfigsRepository: Symbol.for('ruleConfigsRepository'),

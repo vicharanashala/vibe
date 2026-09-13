@@ -77,7 +77,7 @@ export class StudentQuestionService {
       correctOptionIndex: number;
       createdBy: string;
     },
-  ): Promise<void> {
+  ): Promise<string | null> {
     try {
       // `segmentId` is the VIDEO item the student just finished. The question
       // belongs to the quiz immediately following that video. We do NOT add it
@@ -86,11 +86,11 @@ export class StudentQuestionService {
       // "Submitted – Pending Validation" bank until peer-validated + instructor
       // approved, so they never enter graded quiz draws.
       const quizItem = await this._resolveTargetQuiz(input.segmentId);
-      if (!quizItem) return;
+      if (!quizItem) return null;
 
       const gradedBankId = ((quizItem as any).details as IQuizDetails | undefined)
         ?.questionBankRefs?.[0]?.bankId?.toString();
-      if (!gradedBankId) return;
+      if (!gradedBankId) return null;
 
       const solution: ISOLSolution = {
         correctLotItem: {
@@ -123,8 +123,10 @@ export class StudentQuestionService {
         .addQuestion(submittedBankId, promotedId)
         .catch(e => console.warn('crowd-q: failed to add to submitted bank', e));
       await this.repository.setPromotedQuestionId(studentQuestionId, promotedId).catch(() => {});
+      return promotedId;
     } catch (err) {
       console.warn('crowd-q: staging to submitted bank failed (non-fatal)', err);
+      return null;
     }
   }
 
@@ -606,7 +608,7 @@ export class StudentQuestionService {
   async listCourseVersionQuestions(input: {
     courseId: string;
     courseVersionId: string;
-    status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
+    status?: 'PENDING' | 'HELD' | 'APPROVED' | 'REJECTED' | 'ALL';
     gateState?: 'COLLECTING' | 'ELIGIBLE';
     limit: number;
   }) {
@@ -642,9 +644,9 @@ export class StudentQuestionService {
     if (!existing) {
       throw new NotFoundError('Student question not found for the given segment.');
     }
-    if (existing.status !== 'PENDING') {
+    if (existing.status !== 'PENDING' && existing.status !== 'HELD') {
       throw new ForbiddenError(
-        'Only PENDING questions can be edited.',
+        'Only PENDING or HELD questions can be edited.',
       );
     }
 
@@ -735,6 +737,12 @@ export class StudentQuestionService {
     if (!matched) {
       throw new NotFoundError('Student question not found for the given segment.');
     }
+    // Keep `existing` in sync with what was just written, so a staging call
+    // below (for a HELD question with no promotedQuestionId yet) picks up the
+    // corrected wording rather than the pre-edit content.
+    existing.questionText = nextQuestionText;
+    existing.options = nextOptions;
+    existing.correctOptionIndex = nextCorrectIndex;
 
     // Push the instructor's edits onto the staged quiz Question first, so a
     // promotion below carries the corrected wording rather than the original.
@@ -745,12 +753,11 @@ export class StudentQuestionService {
     });
 
     if (statusTransition) {
-      await this._notifyStatusChange(
+      await this._stageIfNeededThenSync(
         existing,
         statusTransition.status,
         statusTransition.rejectionReason,
       );
-      await this._syncPromotedQuestion(existing, statusTransition.status);
     }
   }
 
@@ -839,14 +846,36 @@ export class StudentQuestionService {
         questionId: input.questionId,
       });
       if (question) {
-        await this._notifyStatusChange(
-          question,
-          input.status,
-          input.reason?.trim(),
-        );
-        await this._syncPromotedQuestion(question, input.status);
+        await this._stageIfNeededThenSync(question, input.status, input.reason?.trim());
       }
     }
+  }
+
+  /**
+   * A HELD question (screening was unsure) never went through
+   * _stageToSubmittedBank on submit — only a screening PASS does that — so it
+   * has no promotedQuestionId yet. Approving it needs to stage it now,
+   * otherwise _syncPromotedQuestion below silently no-ops and the question
+   * never reaches the quiz. Shared by both approval paths (status-only and
+   * edit-then-approve).
+   */
+  private async _stageIfNeededThenSync(
+    question: IStudentSegmentQuestion,
+    status: StudentQuestionStatus,
+    reason?: string,
+  ): Promise<void> {
+    if (status === 'APPROVED' && !question.promotedQuestionId) {
+      const promotedId = await this._stageToSubmittedBank(question._id!.toString(), {
+        segmentId: question.segmentId.toString(),
+        questionText: question.questionText,
+        options: question.options,
+        correctOptionIndex: question.correctOptionIndex,
+        createdBy: question.createdBy.toString(),
+      });
+      if (promotedId) question.promotedQuestionId = new ObjectId(promotedId);
+    }
+    await this._notifyStatusChange(question, status, reason);
+    await this._syncPromotedQuestion(question, status);
   }
 
   /**

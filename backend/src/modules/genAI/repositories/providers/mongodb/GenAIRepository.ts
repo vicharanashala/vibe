@@ -5,6 +5,7 @@ import {
   TaskStatus,
 } from '#root/modules/genAI/classes/transformers/GenAI.js';
 import {JobBody} from '#root/modules/genAI/classes/validators/GenAIValidators.js';
+import {extractVideoKey} from '#root/modules/genAI/utils/videoKey.js';
 import {MongoDatabase} from '#root/shared/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {inject, injectable} from 'inversify';
@@ -14,6 +15,12 @@ import {ClientSession, Collection, ObjectId} from 'mongodb';
 export class GenAIRepository {
   private genAICollection: Collection<GenAIBody>;
   private taskDataCollection: Collection<TaskData>;
+  /**
+   * `init()` runs on every call below, so index creation is guarded — otherwise
+   * each request pays an extra round trip to re-declare an index that already
+   * exists.
+   */
+  private indexesEnsured = false;
 
   constructor(
     @inject(GLOBAL_TYPES.Database)
@@ -25,6 +32,13 @@ export class GenAIRepository {
     this.taskDataCollection = await this.db.getCollection<TaskData>(
       'job_task_status',
     );
+
+    if (!this.indexesEnsured) {
+      // Sorted descending on createdAt so "latest job for this video" is served
+      // straight from the index.
+      await this.genAICollection.createIndex({videoKey: 1, createdAt: -1});
+      this.indexesEnsured = true;
+    }
   }
 
   async save(
@@ -47,12 +61,15 @@ export class GenAIRepository {
       jobStatus.segmentation = TaskStatus.WAITING;
       delete jobDataToSave.transcript;
     }
+    // Derived from the job's own url, so the two can never drift apart.
+    const videoKey = extractVideoKey(jobDataToSave.url);
     const result = await this.genAICollection.insertOne(
       {
         userId: new ObjectId(userId),
         audioProvided: audioProvided,
         transcriptProvided: transcriptProvided,
         ...jobDataToSave,
+        ...(videoKey ? {videoKey} : {}),
         createdAt: new Date(),
         jobStatus: jobStatus,
       },
@@ -249,5 +266,43 @@ export class GenAIRepository {
     //   .find({userId: new ObjectId(userId)}, {session})
     //   .toArray();
     return results;
+  }
+
+  /**
+   * Jobs run against one video, newest first.
+   *
+   * Returns several rather than just the newest because the caller has two
+   * filters to apply that this layer cannot: whether the requester may read the
+   * job's course, and whether the job actually produced a transcript. The most
+   * recent job is often a failed or aborted re-run sitting on top of a good one.
+   */
+  async findRecentByVideoKey(
+    videoKey: string,
+    limit = 10,
+    session?: ClientSession,
+  ): Promise<GenAIBody[]> {
+    await this.init();
+
+    const indexed = await this.genAICollection
+      .find({videoKey}, {session})
+      .sort({createdAt: -1})
+      .limit(limit)
+      .toArray();
+    if (indexed.length > 0) return indexed;
+
+    /*
+     * Fallback for jobs written before `videoKey` existed. A YouTube id is
+     * `[\w-]{11}`, so it needs no regex escaping, but this is a collection scan
+     * — acceptable only because it is bounded by the small `genAI_jobs`
+     * collection and disappears per-video once the backfill script has run.
+     */
+    const id = videoKey.startsWith('yt:') ? videoKey.slice(3) : null;
+    if (!id) return [];
+
+    return this.genAICollection
+      .find({videoKey: {$exists: false}, url: {$regex: id}}, {session})
+      .sort({createdAt: -1})
+      .limit(limit)
+      .toArray();
   }
 }

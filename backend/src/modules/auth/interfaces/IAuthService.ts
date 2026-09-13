@@ -51,6 +51,29 @@ export interface IAuthService {
     firebaseUID: string,
     body: Partial<IUser>,
   ): Promise<void>;
+
+  /**
+   * Creates a passwordless identity for a share-link recipient, who is
+   * identified by the link's token rather than by signing in.
+   */
+  createGuestFirebaseUser(email: string, displayName: string): Promise<string>;
+
+  /**
+   * Mints a custom token the client exchanges for an ID token, so a share-link
+   * viewer can call the normal APIs without signing up.
+   */
+  createCustomToken(firebaseUID: string): Promise<string>;
+
+  /**
+   * Looks up which sign-in providers (e.g. 'password', 'google.com') are
+   * linked to a Firebase account by email, using the Admin SDK -- unlike the
+   * client SDK's fetchSignInMethodsForEmail, this isn't subject to Firebase's
+   * email enumeration protection, so it's the only reliable way left to tell
+   * "wrong password" apart from "this account has no password credential"
+   * (e.g. it was created via Google Sign-In). Returns an empty array if no
+   * account exists for that email.
+   */
+  getSignInProviders(email: string): Promise<string[]>;
 }
 
 /**

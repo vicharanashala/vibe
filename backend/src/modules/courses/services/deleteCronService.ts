@@ -46,53 +46,34 @@ export class DeleteCronService extends BaseService {
     console.log('Delete cron job scheduled for 1:00 AM daily');
   }
 
-  public async scheduleProgressUpdateCron() {
-    // const courseVersionMap = [
-    //   { courseId: "6968e12cbf2860d6e39051ae", versionId: "6968e12cbf2860d6e39051af" },
-    //   {
-    //     courseId: "6970f87e30644cbc74b6714f", versionId:
-    //       "6970f87e30644cbc74b67150"
-    //   },
-
-    // ];
-
+  /**
+   * Nightly reconciliation of enrollment completed-item counts and percentages
+   * across every course version, from watchTime records that already have an
+   * endTime. This does not create or close watchTime rows — it only keeps
+   * enrollment.percentCompleted/completedItemsCount in sync with what the
+   * watchTime collection already shows, correcting drift from any path that
+   * updates progress without going through the normal stop flow.
+   *
+   * Previously this call sat outside the cron.schedule callback below, so it
+   * ran once — un-awaited — on every process boot instead of at 3 AM, and
+   * never ran on the schedule its own log message described. On Cloud Run
+   * that meant a full-database recompute on every cold start.
+   */
+  public scheduleProgressUpdateCron() {
     cron.schedule('0 3 * * *', async () => {
-      console.log(
-        `⏰ Running parallel progress cron for ${/*courseVersionMap.length*/''} course versions`,
-      );
+      console.log('⏰ Running nightly progress recompute cron');
+      try {
+        const response =
+          await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
+        console.log(
+          `🎉 Progress recompute completed — total: ${response.totalCount}, updated: ${response.updatedCount}`,
+        );
+      } catch (err) {
+        console.error('❌ Progress recompute cron failed:', err);
+      }
     });
 
-    // const results = await Promise.allSettled(
-    //   courseVersionMap.map(({ courseId, versionId }) =>
-    //     this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion(
-    //       courseId,
-    //       versionId,
-    //     ),
-    //   ),
-    // );
-    const response = await this.enrollmentService.bulkUpdateCompletedItemsCountParallelPerCourseVersion();
-    // results.forEach((result, index) => {
-    //   const { courseId, versionId } = courseVersionMap[index];
-
-    //   if (result.status === 'fulfilled') {
-    //     console.log(
-    //       `✅ Course ${courseId} | Version ${versionId} completed`,
-    //       `Total count:${result.value.totalCount}`, `Updated count:${result.value.updatedCount}`,
-    //     );
-    //   } else {
-    //     console.error(
-    //       `❌ Course ${courseId} | Version ${versionId} failed`,
-    //       result.reason?.message || result.reason,
-    //     );
-    //   }
-    // });
-
-    console.log(`🎉 Parallel progress cron completed \n
-        Total count : ${response.totalCount} \n
-        Updated count : ${response.updatedCount}`);
-    // });
-
-    // console.log('🗓️ Progress update cron scheduled (hourly, parallel)');
+    console.log('Progress recompute cron scheduled for 3:00 AM daily');
   }
 
 

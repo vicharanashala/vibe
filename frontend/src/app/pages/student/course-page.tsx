@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress, useInvites, useAcceptInvite } from "@/hooks/hooks";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
+import { useShareLinkStore } from "@/store/share-link-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
 import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
@@ -493,7 +494,14 @@ export default function CoursePage() {
         data.settings.proctors.detectors.every(
           (detector: any) => detector.settings.enabled === false
         );
-      if (allProctorsDisabled) {
+      // A guest who opened a PLAIN share link is watching a video someone sent
+      // them, not working through a proctored course — they take the same path
+      // as a course with every detector switched off. Enrolled learners never
+      // match this, so proctoring is unchanged for them.
+      const isPlainShareViewer = useShareLinkStore
+        .getState()
+        .isPlainViewerFor(COURSE_ID, VERSION_ID);
+      if (allProctorsDisabled || isPlainShareViewer) {
         setShowProctorDialog(false);
         setAllProctorsDisabled(true);
         setReadyToDetect(true);
@@ -1733,6 +1741,13 @@ const handleGoToNextItem = async () => {
     const moduleIndex = allModules.findIndex((m: any) => m.moduleId === moduleId);
     const currentModuleIndex = allModules.findIndex((m: any) => m.moduleId === currentModuleId);
 
+    // Same failure mode as the currentItemIndex guard below: if currentModuleId
+    // doesn't resolve in this course structure (e.g. a stale/cross-version
+    // pointer left behind by an admin reset), currentModuleIndex is -1 and
+    // *every* real module (index >= 0) would compare greater than it, locking
+    // already-completed modules. Unknown position must not imply locked.
+    if (currentModuleIndex === -1) return false;
+
     if (moduleIndex > currentModuleIndex) return true;
     if (moduleIndex < currentModuleIndex) return false;
 
@@ -1740,11 +1755,19 @@ const handleGoToNextItem = async () => {
     const sectionIndex = sections.findIndex((s: any) => s.sectionId === sectionId);
     const currentSectionIndex = sections.findIndex((s: any) => s.sectionId === currentSectionId);
 
+    if (currentSectionIndex === -1) return false;
+
     if (sectionIndex > currentSectionIndex) return true;
     if (sectionIndex < currentSectionIndex) return false;
 
     const itemIndex = sectionItemsList.findIndex((i: any) => i._id === itemId);
   const currentItemIndex = sectionItemsList.findIndex((i: any) => i._id === currentItemId);
+
+  // currentItemId not found in this section's (possibly not-yet-loaded) item
+  // list — every real itemIndex (>= 0) would otherwise fail the "next item"
+  // check below and fall through to locked, mass-locking the whole section
+  // even for already-completed items. Unknown position must not imply locked.
+  if (currentItemIndex === -1) return false;
 
   // Only unlock next item if it's a QUIZ paired with current VIDEO
   if (itemIndex === currentItemIndex + 1) {

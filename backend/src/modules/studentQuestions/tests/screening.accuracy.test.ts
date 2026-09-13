@@ -1,17 +1,17 @@
 /**
  * Accuracy harness for the screening filter against the labelled set (brief §4/§8).
  *
- * Runs the REAL provider (Groq by default) over SCREENING_CASES, prints a
+ * Runs the REAL provider (MiniMax by default) over SCREENING_CASES, prints a
  * per-case report + overall agreement score, and asserts ≥ 90%.
  *
  * Skipped automatically when no key is set, so CI stays green without a key:
- *   GROQ_API_KEY=... npx vitest run src/modules/studentQuestions/tests/screening.accuracy.test.ts
+ *   MINIMAX_API_KEY=... npx vitest run src/modules/studentQuestions/tests/screening.accuracy.test.ts
  */
 import {describe, it, expect} from 'vitest';
 import {ScreeningService} from '../services/screening/ScreeningService.js';
 import {SCREENING_CASES, Decision} from './screening.dataset.js';
 
-const hasKey = !!process.env.GROQ_API_KEY || !!process.env.ANTHROPIC_CRED;
+const hasKey = !!process.env.MINIMAX_API_KEY || !!process.env.GROQ_API_KEY || !!process.env.ANTHROPIC_CRED;
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 describe.skipIf(!hasKey)('Screening accuracy (live LLM)', () => {

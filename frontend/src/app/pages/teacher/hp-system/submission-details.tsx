@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
-import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission, useAddFeedback } from "@/hooks/hooks";
+import { useHpStudentSubmissions, useHpStudents, useRevertHpEntry, useRestoreHpEntry, useReviewSubmission, useAddFeedback, useHpVersionAccess } from "@/hooks/hooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -485,6 +485,8 @@ export default function SubmissionDetailsPage() {
     const { data: students, isLoading: studentsLoading } = useHpStudents(courseVersionId || "", cohortId || "");
     const student = students.find(s => s._id === studentId);
 
+    const { readOnly } = useHpVersionAccess(courseVersionId);
+
     const { mutateAsync: revertEntry, isPending: isReverting } = useRevertHpEntry();
     const { mutateAsync: restoreEntry, isPending: isRestoring } = useRestoreHpEntry();
     const { mutateAsync: reviewSubmission, isPending: isReviewing } = useReviewSubmission();
@@ -726,7 +728,9 @@ export default function SubmissionDetailsPage() {
                 {/* Feedback Section */}
                 {status !== 'PENDING' && (
                     <>
-                        {/* Review Actions Card */}
+                        {/* Review Actions Card — gone once the course's HP System is off,
+                            since every action here moves the student's HP balance. */}
+                        {!readOnly && (
                         <Card className="bg-muted/50 border">
                             <CardHeader className="pb-3">
                                 <CardTitle className="text-base flex items-center gap-2">
@@ -804,6 +808,7 @@ export default function SubmissionDetailsPage() {
                                 </div>
                             </CardContent>
                         </Card>
+                        )}
 
                         {/* Feedback & Review Card */}
                         <Card>

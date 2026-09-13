@@ -204,6 +204,38 @@ export class AuthController {
     );
     const result = await data.json();
 
+    if (!data.ok) {
+      const errorReason = (result as {error?: {message?: string}})?.error?.message;
+
+      // These aren't credential mismatches -- treating them as one would
+      // both show a misleading message and run a needless provider lookup.
+      if (errorReason === 'USER_DISABLED') {
+        throw new HttpError(401, 'Your account has been disabled. Please contact support.');
+      }
+      if (errorReason === 'TOO_MANY_ATTEMPTS_TRY_LATER') {
+        throw new HttpError(429, 'Too many failed attempts. Please try again later.');
+      }
+
+      // Every other failure here (EMAIL_NOT_FOUND, INVALID_PASSWORD, or the
+      // unified INVALID_LOGIN_CREDENTIALS Firebase now returns for both) is a
+      // credential mismatch. Firebase's client SDK collapses wrong-password
+      // and no-such-account into the same generic error for anyone but us
+      // (email enumeration protection) -- but the Admin SDK still tells us
+      // exactly which providers are on an account, so this is the only
+      // reliable place left to tell "wrong password" apart from "this
+      // account has no password credential" (e.g. it was created via
+      // Google Sign-In).
+      const providers = await this.authService.getSignInProviders(email);
+      if (providers.length > 0 && !providers.includes('password')) {
+        const provider = providers.includes('google.com') ? 'Google Sign-In' : providers[0];
+        throw new HttpError(
+          401,
+          `This email is registered with ${provider}. Please use that to sign in instead.`,
+        );
+      }
+      throw new HttpError(401, 'Incorrect email or password. Please try again.');
+    }
+
     // ✅ fetch your app user from DB
     // const user = await this.authService.getCurrentUserFromToken(result.idToken);
     return result;

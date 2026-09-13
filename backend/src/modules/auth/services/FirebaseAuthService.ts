@@ -202,7 +202,19 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     // ==========================================================
     const existingUser = await this.userRepository.findByEmail(body.email);
     if (existingUser) {
-      throw new InternalServerError('User with this email already exists');
+      // A duplicate email is a normal user-driven validation failure, not a
+      // server fault -- a 4xx here (rather than the 500 this used to throw)
+      // lets the frontend treat it as an expected auth/validation error.
+      const providers = await this.getSignInProviders(body.email);
+      if (providers.length > 0 && !providers.includes('password')) {
+        const provider = providers.includes('google.com') ? 'Google Sign-In' : providers[0];
+        throw new BadRequestError(
+          `This email already has an account via ${provider}. Please use that to sign in instead.`,
+        );
+      }
+      throw new BadRequestError(
+        'An account with this email already exists. Please sign in instead.',
+      );
     }
 
     let userRecord: any;
@@ -453,5 +465,64 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     await this.auth.updateUser(firebaseUID, {
       displayName: `${firstName} ${lastName}`.trim(),
     });
+  }
+
+  /**
+   * Creates a passwordless Firebase identity for a share-link recipient.
+   *
+   * The recipient never signs in themselves — the link's token is what
+   * identifies them — so the account exists purely to give their watching a
+   * real uid. It carries no password and cannot be signed into directly; the
+   * only way in is a custom token minted for a valid share link.
+   */
+  async createGuestFirebaseUser(
+    email: string,
+    displayName: string,
+  ): Promise<string> {
+    try {
+      const userRecord = await this.auth.createUser({
+        email,
+        emailVerified: false,
+        displayName,
+        disabled: false,
+      });
+      return userRecord.uid;
+    } catch (error) {
+      // The detail goes to the log, not to the response: this one surfaces on
+      // a share-link recipient's screen, and they are an outsider who must
+      // not be shown credential paths or other internals.
+      console.error('Failed to create guest user in Firebase:', error);
+      throw new InternalServerError(
+        'Could not open this video right now. Ask whoever shared it to try again.',
+      );
+    }
+  }
+
+  /**
+   * Mints a Firebase custom token the client exchanges for an ID token, so a
+   * share-link viewer can call the normal APIs without ever signing up.
+   */
+  async createCustomToken(firebaseUID: string): Promise<string> {
+    try {
+      return await this.auth.createCustomToken(firebaseUID);
+    } catch (error) {
+      console.error('Failed to create custom token:', error);
+      throw new InternalServerError(
+        'Could not open this video right now. Ask whoever shared it to try again.',
+      );
+    }
+  }
+
+  async getSignInProviders(email: string): Promise<string[]> {
+    try {
+      const userRecord = await this.auth.getUserByEmail(email);
+      return userRecord.providerData.map(provider => provider.providerId);
+    } catch (error: any) {
+      if (error?.code === 'auth/user-not-found') {
+        return [];
+      }
+      console.error('Failed to look up sign-in providers:', error);
+      return [];
+    }
   }
 }

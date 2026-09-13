@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Edit3, Trash2, Power, Shield, AlertTriangle, Flag } from "lucide-react";
 import { EjectionPolicy } from "@/types/ejection-policy.types";
-import { useTogglePolicyStatus, useDeleteEjectionPolicy } from "@/hooks/ejection-policy-hooks";
+import { useUpdateEjectionPolicy, useDeleteEjectionPolicy } from "@/hooks/ejection-policy-hooks";
 import { toast } from "sonner";
 import ConfirmationModal from "@/app/pages/teacher/components/confirmation-modal";
 
@@ -17,18 +17,34 @@ interface EjectionPolicyCardProps {
 
 export const EjectionPolicyCard = ({ policy, onEdit, canEdit, canDelete }: EjectionPolicyCardProps) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const toggleStatus = useTogglePolicyStatus();
+  const [showActivateModal, setShowActivateModal] = useState(false);
+  const updatePolicy = useUpdateEjectionPolicy();
   const deletePolicy = useDeleteEjectionPolicy();
 
-  const handleToggle = async () => {
+  // Sets isActive to an explicit value rather than flipping whatever the
+  // server currently holds. The toggle endpoint negates the stored value, so a
+  // double click — or two admins acting at once — could switch ejection back
+  // ON. For a feature that unenrolls students, the intended state is stated.
+  const setActive = async (isActive: boolean) => {
     try {
-      await toggleStatus.mutateAsync({
-        params: { path: { policyId: policy._id } }
-      });
-      toast.success(`Policy ${policy.isActive ? 'deactivated' : 'activated'} successfully`);
+      await updatePolicy.mutateAsync({
+        params: { path: { policyId: policy._id } },
+        body: { isActive },
+      } as any);
+      toast.success(`Policy ${isActive ? 'activated' : 'deactivated'} successfully`);
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to toggle policy status');
+      toast.error(error?.message || 'Failed to update policy status');
     }
+  };
+
+  const handleToggle = async () => {
+    // Deactivating is always safe, so it applies immediately. Activating turns
+    // on automatic ejection of students, so it is confirmed first.
+    if (policy.isActive) {
+      await setActive(false);
+      return;
+    }
+    setShowActivateModal(true);
   };
 
   const handleDelete = async () => {
@@ -123,7 +139,7 @@ export const EjectionPolicyCard = ({ policy, onEdit, canEdit, canDelete }: Eject
                     variant="outline"
                     size="sm"
                     onClick={handleToggle}
-                    disabled={toggleStatus.isPending}
+                    disabled={updatePolicy.isPending}
                   >
                     <Power className="h-3 w-3 mr-1" />
                     {policy.isActive ? 'Deactivate' : 'Activate'}
@@ -194,6 +210,21 @@ export const EjectionPolicyCard = ({ policy, onEdit, canEdit, canDelete }: Eject
         </CardContent>
       </Card>
 
+      <ConfirmationModal
+        isOpen={showActivateModal}
+        onClose={() => setShowActivateModal(false)}
+        onConfirm={async () => {
+          await setActive(true);
+          setShowActivateModal(false);
+        }}
+        title="Activate Policy"
+        description="Activating this policy lets the system automatically eject students from this cohort when they meet its triggers. Review the triggers before continuing."
+        confirmText="Activate"
+        cancelText="Cancel"
+        isDestructive={true}
+        isLoading={updatePolicy.isPending}
+        loadingText="Activating..."
+      />
       <ConfirmationModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
