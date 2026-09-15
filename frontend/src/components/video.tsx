@@ -646,9 +646,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
   }, [handleStopItem]);
 
   useImperativeHandle(ref, () => ({
-    stopItem: () => {
-      void stopIfInProgress();
-    },
+    stopItem: () => stopIfInProgress(),
   }), [stopIfInProgress]);
 
   // Pause/resume video based on doGesture

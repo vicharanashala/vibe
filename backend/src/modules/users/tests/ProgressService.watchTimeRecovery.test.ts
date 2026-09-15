@@ -27,6 +27,12 @@ const VIDEO_ITEM = {
   details: {startTime: '00:00:00', endTime: '00:10:00'},
 };
 
+const BLOG_ITEM = {
+  _id: ITEM_ID,
+  type: 'BLOG',
+  details: {},
+};
+
 const START = new Date('2026-08-19T10:00:00Z');
 const secondsAfterStart = (n: number) =>
   new Date(START.getTime() + n * 1000);
@@ -154,7 +160,7 @@ describe('ProgressService.recoverOrphanedWatchTimes', () => {
     expect(calls.markedAttempted).toEqual([record._id.toString()]);
   });
 
-  it('skips a session with no heartbeat, since nothing evidences time spent', async () => {
+  it('skips a video session with no heartbeat, since nothing evidences time spent', async () => {
     const record = orphan({lastSeenAt: undefined});
     const {service, calls} = makeService({orphans: [record]});
 
@@ -163,6 +169,21 @@ describe('ProgressService.recoverOrphanedWatchTimes', () => {
     expect(summary).toMatchObject({scanned: 1, closed: 0, skipped: 1});
     expect(calls.closed).toHaveLength(0);
     expect(calls.markedAttempted).toEqual([record._id.toString()]);
+  });
+
+  it('closes a blog session with no heartbeat, since BLOG has no minimum reading time', async () => {
+    // Read fast enough to lose the stop call before the first 15s heartbeat
+    // ever fired -- exactly the case the live path already accepts
+    // unconditionally for BLOG, but which the heartbeat-required check used
+    // to make permanently unrecoverable here.
+    const record = orphan({lastSeenAt: undefined});
+    const {service, calls} = makeService({orphans: [record], item: BLOG_ITEM});
+
+    const summary = await service.recoverOrphanedWatchTimes();
+
+    expect(summary).toMatchObject({scanned: 1, closed: 1, advanced: 1, skipped: 0, rejected: 0});
+    // Falls back to startTime -- there's no heartbeat to close it at.
+    expect(calls.closed[0].endTime).toEqual(record.startTime);
   });
 
   it('never fabricates completion for submission-based items', async () => {

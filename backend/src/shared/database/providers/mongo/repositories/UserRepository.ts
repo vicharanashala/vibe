@@ -40,7 +40,35 @@ export class UserRepository implements IUserRepository {
   private async init(): Promise<void> {
     if (!this.usersCollection) {
       this.usersCollection = await this.db.getCollection<IUser>('users');
-      this.usersCollection.createIndex({email: 1, firebaseUID: 1});
+      this.usersCollection
+        .createIndex({email: 1, firebaseUID: 1})
+        .catch(err =>
+          console.error('Failed to create users email+firebaseUID index:', err),
+        );
+      // create()'s upsert (findOneAndUpdate + $setOnInsert, keyed on
+      // firebaseUID) only prevents concurrent duplicate inserts if the
+      // database actually enforces uniqueness -- without this index, MongoDB
+      // has no reason to serialize concurrent upserts matching the same
+      // filter, and each one just inserts its own document. Confirmed live:
+      // 10 concurrent first-logins for one brand-new Google SSO user (a real
+      // SPA's normal burst of parallel authenticated requests on first load)
+      // created 3 separate user documents sharing one firebaseUID before this
+      // index existed.
+      // .catch(), not await: if the database already has pre-existing
+      // duplicate firebaseUID documents (the exact state this fix targets),
+      // the build fails with E11000 -- confirmed live that an un-awaited,
+      // unhandled rejection here crashes the whole process on startup
+      // (Node's default unhandledRejection behavior). Catching logs it
+      // instead so the app keeps serving existing users while the
+      // duplicates get cleaned up server-side.
+      this.usersCollection
+        .createIndex({firebaseUID: 1}, {unique: true})
+        .catch(err =>
+          console.error(
+            'Failed to create unique firebaseUID index (likely pre-existing duplicate firebaseUID documents -- new duplicates are NOT yet prevented until these are cleaned up and this index builds successfully):',
+            err,
+          ),
+        );
     }
   }
 

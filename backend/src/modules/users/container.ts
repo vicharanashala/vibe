@@ -7,6 +7,7 @@ import {ProgressController} from './controllers/ProgressController.js';
 import {UserController} from './controllers/UserController.js';
 import {UserActivityEventController} from './controllers/UserActivityEventController.js';
 import {IntegrationController} from './controllers/IntegrationController.js';
+import {JobsController} from './controllers/JobsController.js';
 import {ApiKeyAuthMiddleware} from '#root/shared/middleware/ApiKeyAuthMiddleware.js';
 import {EnrollmentService} from './services/EnrollmentService.js';
 import {ProgressService} from './services/ProgressService.js';
@@ -48,6 +49,7 @@ export const usersContainerModule = new ContainerModule(options => {
   options.bind(UserController).toSelf().inSingletonScope();
   options.bind(UserActivityEventController).toSelf().inSingletonScope();
   options.bind(IntegrationController).toSelf().inSingletonScope();
+  options.bind(JobsController).toSelf().inSingletonScope();
 
   // Middleware
   options.bind(ApiKeyAuthMiddleware).toSelf().inSingletonScope();
