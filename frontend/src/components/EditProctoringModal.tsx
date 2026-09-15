@@ -352,7 +352,6 @@ export function ProctoringModal({
                     </div>
                     <Switch checked={linearProgressionEnabled}
                      onCheckedChange={()=>setLinearProgressionEnabled(prev=>!prev)}
-                     disabled 
                      />
                   </div>
 

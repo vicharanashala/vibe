@@ -441,6 +441,20 @@ export default function CoursePage() {
 
     if (itemError && selectedItemId && itemErrorName === "ForbiddenError") {
 
+      // Three different 403s reach here: out-of-order progression, an
+      // archived course version, and the time-slot/study-window gate. Only
+      // the first is actually a locked lesson -- the other two were both
+      // rendering as "ViBe lessons unlock in order" regardless, which told
+      // a student outside their booked window (or looking at an archived
+      // version) the wrong thing entirely. The amber time-slot banner below
+      // already existed for this; it just never had this branch routing
+      // into it, so it was unreachable dead code.
+      if (/time slot|study window|book a slot|choose a slot/i.test(itemError)) {
+        setTimeSlotBlock(itemError);
+        setIsNavigatingToNext(false);
+        return;
+      }
+
       // toast.error(itemError);
       // Clear loading state on error
       setIsNavigatingToNext(false);
@@ -850,18 +864,21 @@ export default function CoursePage() {
       setPendingStudentQuestionContext(null);
 
       try {
-        // Record completion for the current item before leaving.
-        // Documents (BLOG) only get their completion recorded by an explicit stop
-        // call; unlike video/quiz/project they don't auto-complete on their own
-        // event. Without this, leaving a document via the sidebar (instead of the
-        // "Next Lesson" button) left it un-ticked and stuck students below 100%.
-        // Scoped to BLOG so half-watched videos / unfinished quizzes are untouched,
-        // and wrapped so a stop failure can never block navigation.
-        if (itemContainerRef.current && currentItem?.type === 'BLOG') {
+        // Record completion for the current item before leaving. Awaited for
+        // every item type: the stop must reach the server before the next
+        // item's GET, or the backend still sees this item as incomplete and
+        // 403s the next one -- this was previously scoped to BLOG only, which
+        // left videos left via the sidebar (instead of the "Next Lesson"
+        // button) relying on an unmount fallback that raced the next lesson's
+        // request. A half-watched video is rejected server-side inside the
+        // stop transaction, so the row rolls back and stays open and
+        // recoverable -- this can never record a completion that wasn't
+        // earned. Wrapped so a stop failure can never block navigation.
+        if (itemContainerRef.current) {
           try {
             await itemContainerRef.current.stopCurrentItem();
           } catch (e) {
-            console.error('Failed to record document completion on sidebar nav:', e);
+            console.error('Failed to record completion on sidebar nav:', e);
           }
         }
         // Small delay for API/callback cleanup
@@ -1769,11 +1786,17 @@ const handleGoToNextItem = async () => {
   // even for already-completed items. Unknown position must not imply locked.
   if (currentItemIndex === -1) return false;
 
-  // Only unlock next item if it's a QUIZ paired with current VIDEO
+  // Unlock the paired quiz only once the video is actually completed. The
+  // backend serves it on the same condition, so unlocking earlier hands the
+  // student a link that 403s mid-video.
   if (itemIndex === currentItemIndex + 1) {
     const currentItemInList = sectionItemsList[currentItemIndex] as any;
     const thisItem = sectionItemsList[itemIndex] as any;
-    if (currentItemInList?.type === 'VIDEO' && thisItem?.type === 'QUIZ') {
+    if (
+      currentItemInList?.type === 'VIDEO' &&
+      thisItem?.type === 'QUIZ' &&
+      currentItemInList?.isCompleted
+    ) {
       return false; // unlock paired quiz
     }
     return true; // lock everything else
