@@ -80,4 +80,5 @@ build/
 
 *txt
 
-/gcp-service-account.json
+/gcp-service-account.json 
+.local-mongo-data/

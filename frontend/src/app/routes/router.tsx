@@ -29,6 +29,7 @@ import CoursePage from '@/app/pages/student/course-page'
 import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
+import ExamAppShell from '@/app/pages/exam/ExamAppShell'
 import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
 // import CourseEnrollments from '../pages/teacher/course-enrollments'
@@ -319,6 +320,12 @@ const teacherNotificationsRoute = new Route({
   component: NotificationsPage,
 });
 
+const teacherExamAppRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/exam-app',
+  component: ExamAppShell,
+});
+
 // Teacher courses page route
 const teacherCoursesPageRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -526,6 +533,33 @@ const studentAnalyticsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/analytics',
   component: LearningAnalytics,
+});
+
+const studentExamAppRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/exam-app',
+  component: ExamAppShell,
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+
+    if (!isAuthenticated) {
+      throw redirect({ to: '/auth' });
+    }
+
+    if (user?.role === 'student') {
+      return;
+    }
+
+    if (user?.role === 'teacher') {
+      if (currentPath.startsWith('/exam-app/admin')) {
+        return;
+      }
+      throw redirect({ to: '/teacher' });
+    }
+
+    throw redirect({ to: '/auth' });
+  },
 });
 
 // Student notifications route
@@ -771,6 +805,7 @@ const routeTree = rootRoute.addChildren([
     teacherStudentSubmissionsRoute,
     teacherSubmissionDetailsRoute,
     teacherNotificationsRoute,
+    teacherExamAppRoute,
     teacherShareVideoRoute,
   ]),
   studentLayoutRoute.addChildren([
@@ -790,6 +825,7 @@ const routeTree = rootRoute.addChildren([
     studentHpSystemLedgerRoute,
     studentNotificationsRoute,
   ]),
+  studentExamAppRoute,
   coursePageRoute,
 ]);
 
