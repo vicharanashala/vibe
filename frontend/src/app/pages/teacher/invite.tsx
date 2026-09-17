@@ -96,6 +96,7 @@ export default function InvitePage() {
   // exactly one cohort — course-wide access is granted by assigning cohorts on
   // the instructors page, not by inviting without one.
   const [cohort, setCohort] = useState<string | null>(null);
+  const [cohortSearch, setCohortSearch] = useState("");
 
   // handle edit or remove csv parsed emails starts
   const startEdit = (item: { id: string, email: string }) => {
@@ -830,6 +831,7 @@ const hasInvalidEmail = inviteEmails.some(
                 <Select
                   value={cohort ?? ""}
                   onValueChange={(value) => setCohort(value)}
+                  onOpenChange={(open) => { if (!open) setCohortSearch(""); }}
                 >
                   <SelectTrigger
                     aria-label="Cohort to invite into"
@@ -839,11 +841,26 @@ const hasInvalidEmail = inviteEmails.some(
                     <SelectValue placeholder="Select cohort *" />
                   </SelectTrigger>
                   <SelectContent>
-                    {courseVersion?.cohortDetails?.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
+                    {(courseVersion?.cohortDetails?.length ?? 0) > 8 && (
+                      <div className="p-1">
+                        <Input
+                          placeholder="Search cohorts..."
+                          value={cohortSearch}
+                          onChange={(e) => setCohortSearch(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          className="h-8"
+                          autoFocus
+                        />
+                      </div>
+                    )}
+                    {courseVersion?.cohortDetails
+                      ?.filter((c) => c.name.toLowerCase().includes(cohortSearch.toLowerCase()))
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
                     {canInviteAllCohorts && (
                       <SelectItem value={ALL_COHORTS}>All cohorts</SelectItem>
                     )}

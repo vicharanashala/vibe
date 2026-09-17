@@ -190,7 +190,19 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
     // ==========================================================
     const existingUser = await this.userRepository.findByEmail(body.email);
     if (existingUser) {
-      throw new InternalServerError('User with this email already exists');
+      // A duplicate email is a normal user-driven validation failure, not a
+      // server fault -- a 4xx here (rather than the 500 this used to throw)
+      // lets the frontend treat it as an expected auth/validation error.
+      const providers = await this.getSignInProviders(body.email);
+      if (providers.length > 0 && !providers.includes('password')) {
+        const provider = providers.includes('google.com') ? 'Google Sign-In' : providers[0];
+        throw new BadRequestError(
+          `This email already has an account via ${provider}. Please use that to sign in instead.`,
+        );
+      }
+      throw new BadRequestError(
+        'An account with this email already exists. Please sign in instead.',
+      );
     }
 
     let userRecord: any;
@@ -472,6 +484,19 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       throw new InternalServerError(
         'Could not open this video right now. Ask whoever shared it to try again.',
       );
+    }
+  }
+
+  async getSignInProviders(email: string): Promise<string[]> {
+    try {
+      const userRecord = await this.auth.getUserByEmail(email);
+      return userRecord.providerData.map(provider => provider.providerId);
+    } catch (error: any) {
+      if (error?.code === 'auth/user-not-found') {
+        return [];
+      }
+      console.error('Failed to look up sign-in providers:', error);
+      return [];
     }
   }
 }

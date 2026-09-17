@@ -1708,6 +1708,9 @@ export interface CourseEnrollmentStats {
   completedCount: number;
   averageProgressPercent: number;
   averageWatchHoursPerUser?: number;
+  // Null until the statistics job has computed watch hours for this course
+  // version; the dashboard shows it as not measured rather than as zero.
+  watchHoursComputedAt?: string | null;
 }
 
 export function useCourseEnrollmentsStats(

@@ -96,3 +96,10 @@ backend/html/
 
 # Firebase hosting cache
 .firebase/
+
+# Personal/local-only files, not for the shared repo
+personal/
+
+# Local-only research extractors (read-only DB probes for the RQ5 paper).
+# The app's own scripts in this folder are .ts and stay tracked.
+backend/src/modules/users/scripts/*.cjs

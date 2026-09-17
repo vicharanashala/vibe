@@ -1,16 +1,17 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signInWithEmailAndPassword, 
-  signOut, 
-  createUserWithEmailAndPassword, 
-  updateProfile, 
+import { getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  signOut,
+  createUserWithEmailAndPassword,
+  updateProfile,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   confirmPasswordReset,
-  verifyPasswordResetCode } from "firebase/auth";
+  verifyPasswordResetCode,
+  fetchSignInMethodsForEmail } from "firebase/auth";
 import { useAuthStore } from "../store/auth-store";
 import { useLoginWithGoogle } from "@/hooks/hooks";
 
@@ -47,30 +48,107 @@ export const loginWithGoogle = async () => {
   return result;
 };
 
+/**
+ * `signInWithEmailAndPassword` alone can't tell "wrong password" apart from
+ * "this email only has a Google account" -- recent Firebase Auth versions
+ * collapse both into the same generic auth/invalid-credential error for
+ * security (so a failed login can't be used to probe which emails are
+ * registered). fetchSignInMethodsForEmail is the *documented* way to try to
+ * tell them apart, but it's best-effort only: projects with Firebase's email
+ * enumeration protection enabled make it return an empty list unconditionally,
+ * same as the error code above -- when that happens this silently returns
+ * null (see below) rather than claiming an answer it doesn't have. The
+ * backend's Admin-SDK-based lookup (FirebaseAuthService.getSignInProviders)
+ * is not subject to that restriction and is the reliable version of this
+ * check; this client-side one is a nice-to-have on top when it works.
+ *
+ * Returns null when there's nothing more specific to say than the original
+ * error already conveys, so callers can fall back to their own handling
+ * (several callers switch on error.code themselves) instead of this
+ * silently overwriting a message they already handle better.
+ */
+const describeGoogleOnlyAccountError = async (email: string, error: any): Promise<string | null> => {
+  const code = error?.code;
+  if (code !== 'auth/user-not-found' && code !== 'auth/invalid-credential' && code !== 'auth/wrong-password') {
+    return null;
+  }
+  try {
+    const methods = await fetchSignInMethodsForEmail(auth, email);
+    if (methods.length > 0 && !methods.includes('password')) {
+      const provider = methods.includes('google.com') ? 'Google Sign-In' : methods[0];
+      return `This email is registered with ${provider}. Please use that to sign in instead.`;
+    }
+  } catch {
+    // Best-effort -- fall through to null if this lookup itself fails.
+  }
+  return null;
+};
+
 export const loginWithEmail = async (email: string, password: string) => {
-  const result = await signInWithEmailAndPassword(auth, email, password);
-  
-  // Get ID token for backend authentication
-  const idToken = await result.user.getIdToken();
-  
-  // Store the token
-  useAuthStore.getState().setToken(idToken);
-  
-  return result;
+  try {
+    const result = await signInWithEmailAndPassword(auth, email, password);
+
+    // Get ID token for backend authentication
+    const idToken = await result.user.getIdToken();
+
+    // Store the token
+    useAuthStore.getState().setToken(idToken);
+
+    return result;
+  } catch (error: any) {
+    const message = await describeGoogleOnlyAccountError(email, error);
+    if (message) {
+      // Preserve the original code so callers with their own code-based
+      // error handling (there are a couple) still see a recognizable error.
+      const wrapped = new Error(message);
+      (wrapped as any).code = error?.code;
+      throw wrapped;
+    }
+    throw error;
+  }
 };
 
 // Add a function to create a user with email and password
 export const createUserWithEmail = async (email: string, password: string, displayName?: string) => {
   const auth = getAuth(app);
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  
+  let userCredential;
+  try {
+    userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  } catch (error: any) {
+    if (error?.code === 'auth/email-already-in-use') {
+      let message = 'An account with this email already exists. Please sign in instead.';
+      try {
+        const methods = await fetchSignInMethodsForEmail(auth, email);
+        if (methods.includes('google.com') && !methods.includes('password')) {
+          message = 'This email already has an account via Google Sign-In. Please use "Continue with Google" instead.';
+        }
+      } catch {
+        // Best-effort -- fall back to the generic message above if this lookup itself fails.
+      }
+      const wrapped = new Error(message);
+      (wrapped as any).code = error.code;
+      throw wrapped;
+    }
+    if (error?.code === 'auth/weak-password' || error?.code === 'auth/invalid-email') {
+      // Firebase's own default message for these is a raw "Firebase: Error
+      // (auth/weak-password)." string, not something to show a user.
+      const message = error.code === 'auth/weak-password'
+        ? 'Password is too weak. Please choose a stronger password.'
+        : 'Invalid email address.';
+      const wrapped = new Error(message);
+      (wrapped as any).code = error.code;
+      throw wrapped;
+    }
+    throw error;
+  }
+
   // Update user profile if display name is provided
   if (displayName && userCredential.user) {
     await updateProfile(userCredential.user, {
       displayName
     });
   }
-  
+
   return userCredential;
 };
 

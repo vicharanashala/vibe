@@ -850,18 +850,21 @@ export default function CoursePage() {
       setPendingStudentQuestionContext(null);
 
       try {
-        // Record completion for the current item before leaving.
-        // Documents (BLOG) only get their completion recorded by an explicit stop
-        // call; unlike video/quiz/project they don't auto-complete on their own
-        // event. Without this, leaving a document via the sidebar (instead of the
-        // "Next Lesson" button) left it un-ticked and stuck students below 100%.
-        // Scoped to BLOG so half-watched videos / unfinished quizzes are untouched,
-        // and wrapped so a stop failure can never block navigation.
-        if (itemContainerRef.current && currentItem?.type === 'BLOG') {
+        // Record completion for the current item before leaving. Awaited for
+        // every item type: the stop must reach the server before the next
+        // item's GET, or the backend still sees this item as incomplete and
+        // 403s the next one -- this was previously scoped to BLOG only, which
+        // left videos left via the sidebar (instead of the "Next Lesson"
+        // button) relying on an unmount fallback that raced the next lesson's
+        // request. A half-watched video is rejected server-side inside the
+        // stop transaction, so the row rolls back and stays open and
+        // recoverable -- this can never record a completion that wasn't
+        // earned. Wrapped so a stop failure can never block navigation.
+        if (itemContainerRef.current) {
           try {
             await itemContainerRef.current.stopCurrentItem();
           } catch (e) {
-            console.error('Failed to record document completion on sidebar nav:', e);
+            console.error('Failed to record completion on sidebar nav:', e);
           }
         }
         // Small delay for API/callback cleanup
@@ -1741,6 +1744,13 @@ const handleGoToNextItem = async () => {
     const moduleIndex = allModules.findIndex((m: any) => m.moduleId === moduleId);
     const currentModuleIndex = allModules.findIndex((m: any) => m.moduleId === currentModuleId);
 
+    // Same failure mode as the currentItemIndex guard below: if currentModuleId
+    // doesn't resolve in this course structure (e.g. a stale/cross-version
+    // pointer left behind by an admin reset), currentModuleIndex is -1 and
+    // *every* real module (index >= 0) would compare greater than it, locking
+    // already-completed modules. Unknown position must not imply locked.
+    if (currentModuleIndex === -1) return false;
+
     if (moduleIndex > currentModuleIndex) return true;
     if (moduleIndex < currentModuleIndex) return false;
 
@@ -1748,11 +1758,19 @@ const handleGoToNextItem = async () => {
     const sectionIndex = sections.findIndex((s: any) => s.sectionId === sectionId);
     const currentSectionIndex = sections.findIndex((s: any) => s.sectionId === currentSectionId);
 
+    if (currentSectionIndex === -1) return false;
+
     if (sectionIndex > currentSectionIndex) return true;
     if (sectionIndex < currentSectionIndex) return false;
 
     const itemIndex = sectionItemsList.findIndex((i: any) => i._id === itemId);
   const currentItemIndex = sectionItemsList.findIndex((i: any) => i._id === currentItemId);
+
+  // currentItemId not found in this section's (possibly not-yet-loaded) item
+  // list — every real itemIndex (>= 0) would otherwise fail the "next item"
+  // check below and fall through to locked, mass-locking the whole section
+  // even for already-completed items. Unknown position must not imply locked.
+  if (currentItemIndex === -1) return false;
 
   // Only unlock next item if it's a QUIZ paired with current VIDEO
   if (itemIndex === currentItemIndex + 1) {

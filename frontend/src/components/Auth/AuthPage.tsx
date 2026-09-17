@@ -521,7 +521,11 @@ export default function AuthPage({ role }: AuthPageProps) {
     else if (!/\S+@\S+\.\S+/.test(email)) errors.email = "Invalid email format";
 
     if (!password) errors.password = "Password is required";
-    else if (isSignUp && password.length < 8) errors.password = "Password must be at least 8 characters";
+    // The backend's LoginBody requires 8+ characters too (every real account's
+    // password is at least that long, enforced at signup), so a shorter one is
+    // guaranteed wrong either way -- catch it here instead of round-tripping to
+    // the backend just to get its raw validation-framework message back.
+    else if (password.length < 8) errors.password = "Password must be at least 8 characters";
 
     if (isSignUp && !fullName) errors.fullName = "Full name is required";
 
@@ -816,6 +820,19 @@ export default function AuthPage({ role }: AuthPageProps) {
         ...formErrors,
         auth: (() => {
           const code = (error as any)?.code;
+          // A failed fetch() itself (offline, DNS failure, ...) throws a
+          // TypeError with no .code either, same shape as our own backend
+          // errors below -- but its message ("Failed to fetch") is a raw
+          // browser string, not something to show a user. Route it to the
+          // network message instead of the "trust the message" branch.
+          if (error instanceof TypeError) return "Network error. Please check your connection and try again.";
+          // Errors thrown from the backend /auth/login response never carry a
+          // Firebase .code (only client SDK errors do) and already have a
+          // human-friendly message -- including the Google-only-account case,
+          // which the backend can now detect reliably via the Admin SDK
+          // (unlike the client SDK, which Firebase's email enumeration
+          // protection prevents from telling us anything useful here).
+          if (!code && typeof error?.message === "string" && error.message.length > 0) return error.message;
           if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") return "Incorrect email or password. Please try again.";
           if (code === "auth/too-many-requests") return "Too many failed attempts. Please try again later.";
           if (code === "auth/user-disabled") return "Your account has been disabled. Please contact support.";
@@ -830,7 +847,7 @@ export default function AuthPage({ role }: AuthPageProps) {
 
   //SignUp
 
-  const { mutateAsync: signupMutation, error: signupError, isError: isSignUpError } = useSignup();
+  const { mutateAsync: signupMutation } = useSignup();
 
   // New function for handling signup
   const handleEmailSignup = async () => {
@@ -887,17 +904,45 @@ export default function AuthPage({ role }: AuthPageProps) {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ' ';
 
-      await signupMutation({
-        body: {
-          email: email,
-          password: password,
-          firstName: firstName,
-          lastName: lastName,
-          recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA",
-          profileImage,
-          faceEmbedding,
+      try {
+        await signupMutation({
+          body: {
+            email: email,
+            password: password,
+            firstName: firstName,
+            lastName: lastName,
+            recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA",
+            profileImage,
+            faceEmbedding,
+          }
+        });
+      } catch (mutationError: any) {
+        // Caught locally (rather than read off the useSignup() hook's error/isError
+        // state) because that hook state is stale across attempts: it only updates
+        // when mutateAsync is called, so a later attempt that fails after this step
+        // (e.g. the loginWithEmail call below) would otherwise still see isError=true
+        // from this mutation's *previous* failure and show its stale message instead
+        // of the real one.
+        let message = "";
+        if (mutationError?.message === "Invalid body, check 'errors' property for more info.") {
+          for (const err of mutationError?.errors || []) {
+            message += `${Object.values(err.constraints).join(', ')}`;
+          }
+        } else {
+          message = mutationError?.message || "An error occurred during signup";
         }
-      });
+
+        setFormErrors({
+          ...formErrors,
+          auth: message || "Failed to create account. Please try again.",
+          email: Object.values(mutationError?.errors?.find((e: any) => e.property === 'email')?.constraints || {}).join(', ') || "",
+          fullName:
+            (Object.values(mutationError?.errors?.find((e: any) => e.property === 'firstName')?.constraints || {}).join(', ') +
+              (Object.values(mutationError?.errors?.find((e: any) => e.property === 'lastName')?.constraints || {}).join(', '))).trim() || "",
+          password: Object.values(mutationError?.errors?.find((e: any) => e.property === 'password')?.constraints || {}).join(', ') || ""
+        });
+        return;
+      }
       const result = await loginWithEmail(email, password);
 
       // Set user in store
@@ -920,27 +965,15 @@ export default function AuthPage({ role }: AuthPageProps) {
       }
 
     } catch (error: any) {
+      // Reaches here only if loginWithEmail (the step right after a successful
+      // signupMutation) itself fails -- backend-mutation failures are handled in
+      // the inner catch above instead, so this message is never masked by a stale
+      // error from a previous attempt.
       console.error("Email Signup Failed", error);
-      console.log(signupError, isSignUpError);
-      if (isSignUpError) {
-        let message = "";
-        if (signupError?.message === "Invalid body, check 'errors' property for more info.") {
-          for (const error of signupError?.errors || []) {
-            message += `${Object.values(error.constraints).join(', ')}`;
-          }
-        }
-        else message = signupError?.message || "An error occurred during signup";
-
-        setFormErrors({
-          ...formErrors,
-          auth: message || "Failed to create account. Please try again.",
-          email: Object.values(signupError?.errors?.find((e: any) => e.property === 'email')?.constraints || {}).join(', ') || "",
-          fullName:
-            (Object.values(signupError?.errors?.find((e: any) => e.property === 'firstName')?.constraints || {}).join(', ') +
-              (Object.values(signupError?.errors?.find((e: any) => e.property === 'lastName')?.constraints || {}).join(', '))).trim() || "",
-          password: Object.values(signupError?.errors?.find((e: any) => e.property === 'password')?.constraints || {}).join(', ') || ""
-        });
-      }
+      setFormErrors({
+        ...formErrors,
+        auth: error?.message || "Failed to create account. Please try again."
+      });
     } finally {
       setLoading(false);
     }
@@ -1723,6 +1756,34 @@ export default function AuthPage({ role }: AuthPageProps) {
                         disabled={!passwordsMatch || passwordStrength.value < 50 || loading || (!recaptchaToken && isRecaptchaEnabled)}
                       >
                         {loading ? "Creating account..." : "Create Account"}
+                      </Button>
+
+                      {/* Divider */}
+                      <div className="relative my-6">
+                        <div className="absolute inset-0 flex items-center">
+                          <Separator />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-background px-2 text-muted-foreground">
+                            or continue with
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Google Signup */}
+                      <Button
+                        variant="outline"
+                        className="w-full h-11 font-medium border-2 hover:bg-muted/50 transition-all duration-200"
+                        onClick={handleGoogleLogin}
+                        disabled={loading}
+                      >
+                        <svg className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                        </svg>
+                        Continue with Google
                       </Button>
                     </CardContent>
 
