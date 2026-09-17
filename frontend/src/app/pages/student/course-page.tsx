@@ -9,6 +9,7 @@ import { useShareLinkStore } from "@/store/share-link-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
 import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
+import { classifyItemForbiddenError } from "@/utils/itemForbiddenError";
 const LazyStudentTimeslotModal = lazy(() => import("@/components/course/StudentTimeslotModal"));
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import type { PendingStudentQuestionContext } from "@/types/student-question.types";
@@ -440,6 +441,33 @@ export default function CoursePage() {
     }
 
     if (itemError && selectedItemId && itemErrorName === "ForbiddenError") {
+
+      // Several different 403s reach here from ItemService.readItem. Only
+      // the out-of-order-progression case is actually a locked lesson; the
+      // archived-course and time-slot cases were both rendering as "ViBe
+      // lessons unlock in order" regardless, which told a student outside
+      // their booked window (or looking at an archived version) the wrong
+      // thing entirely. The amber time-slot banner below already existed
+      // for this; it just never had this branch routing into it, so it was
+      // unreachable dead code. See classifyItemForbiddenError's own doc
+      // comment for the exact backend message strings this matches against,
+      // including the "not enrolled" gap that's a known, deliberately
+      // unfixed case (see there for why).
+      const forbiddenKind = classifyItemForbiddenError(itemError);
+      if (forbiddenKind === 'time-slot') {
+        setTimeSlotBlock(itemError);
+        setIsNavigatingToNext(false);
+        return;
+      }
+      if (forbiddenKind === 'unrecognized') {
+        console.warn(
+          'Unrecognized ForbiddenError message reached the item-error handler -- ' +
+            'falling back to the generic "locked lesson" message. If this is actually ' +
+            'a time-slot or archived-course error with new wording, ' +
+            'classifyItemForbiddenError needs updating:',
+          itemError,
+        );
+      }
 
       // toast.error(itemError);
       // Clear loading state on error
