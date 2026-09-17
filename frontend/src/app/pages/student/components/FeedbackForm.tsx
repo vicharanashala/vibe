@@ -162,31 +162,46 @@ const FeedbackForm = ({
 
     } catch (err) {
       console.error("Feedback submit or stopItem failed:", err);
+      toast.error("We could not save your progress. Please try again.");
     }
   };
 
 
 
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     // onSkip();
-    stopItem.mutate({
-      params: {
-        path: {
-          courseId: currentCourse!.courseId,
-          courseVersionId: currentCourse!.versionId ?? '',
-        },
-      },
-      body: {
-        watchItemId: watchItemId ?? '',
-        itemId: currentCourse!.itemId ?? '',
-        moduleId: currentCourse!.moduleId ?? '',
-        sectionId: currentCourse!.sectionId ?? '',
-        cohortId: currentCourse!.cohortId || undefined,
+    // Same fix as handleSubmit above: await the stop and only navigate on
+    // success. This used to fire the mutation and call onNext() immediately
+    // regardless of outcome, so a failed stop (e.g. an empty watchItemId
+    // from a start that hadn't resolved yet) silently lost the attempt.
+    try {
+      if (!isAlreadyWatched && (currentCourse!.itemId && !completedItemIdsRef.current.has(currentCourse!.itemId))) {
+        await stopItem.mutateAsync({
+          params: {
+            path: {
+              courseId: currentCourse!.courseId,
+              courseVersionId: currentCourse!.versionId ?? '',
+            },
+          },
+          body: {
+            watchItemId: watchItemId ?? '',
+            itemId: currentCourse!.itemId ?? '',
+            moduleId: currentCourse!.moduleId ?? '',
+            sectionId: currentCourse!.sectionId ?? '',
+            cohortId: currentCourse!.cohortId || undefined,
+          }
+        });
       }
-    });
-    onNext()
-
+      // Mirrors handleSubmit: mark completed once we're past the stop
+      // (or didn't need one) regardless of which branch ran, not just
+      // when the network call actually fired.
+      completedItemIdsRef.current.add(currentCourse!.itemId!);
+      onNext();
+    } catch (err) {
+      console.error("Feedback skip or stopItem failed:", err);
+      toast.error("We could not save your progress. Please try again.");
+    }
   };
  
 
