@@ -2725,6 +2725,23 @@ class ProgressService extends BaseService {
             session,
           );
         } catch (err) {
+          // Only swallow the specific validation-edge-case errors
+          // recalculateStudentProgress deliberately throws BEFORE any
+          // write (NotFoundError/BadRequestError, e.g. "no items found for
+          // this course version"). A genuine MongoDB-level error from one
+          // of its own now-session-threaded writes must NOT be swallowed
+          // here: by the time it's thrown, MongoDB has already marked
+          // this transaction dead server-side, so silently continuing
+          // doesn't "protect" step 10's write -- it just means the next
+          // operation (step 11, the actual completion write) throws a
+          // confusing NoSuchTransaction instead of the original, useful
+          // error, while step 10 survives as a stale, inconsistent
+          // partial write instead of a clean rollback. Let it propagate
+          // so _withTransaction's existing retry/abort handling does the
+          // right thing, the same as any other failure in this transaction.
+          if (!(err instanceof NotFoundError || err instanceof BadRequestError)) {
+            throw err;
+          }
           console.error(
             `recalculateStudentProgress failed as a post-completion consistency check for user ${userId}, course ${courseId}/${courseVersionId}:`,
             err,
@@ -4828,12 +4845,18 @@ class ProgressService extends BaseService {
     // "items up to the current one" could silently include items that are
     // actually later in the course and exclude ones that are earlier,
     // corrupting the missed-item backfill below.
+    // `order` is a required field on every module/section/item per the
+    // schema, but legacy or partially-migrated documents can still lack it
+    // at the DB level -- CourseVersionService.sortItemsByOrder (the
+    // codebase's canonical sort for this same data) defends against that
+    // with `a.order || ''` before comparing. Match that here so a missing
+    // `order` degrades to "sorts first", not a crash.
     const sortedModules = [...courseVersion.modules].sort((a, b) =>
-      a.order.localeCompare(b.order),
+      (a.order || '').localeCompare(b.order || ''),
     );
     for (const module of sortedModules) {
       const sortedSections = [...module.sections].sort((a, b) =>
-        a.order.localeCompare(b.order),
+        (a.order || '').localeCompare(b.order || ''),
       );
       for (const section of sortedSections) {
         const itemGroupId = section.itemsGroupId;
@@ -4845,7 +4868,7 @@ class ProgressService extends BaseService {
         if (!itemGroup || !itemGroup.items) continue;
 
         const sortedItems = [...itemGroup.items].sort((a, b) =>
-          a.order.localeCompare(b.order),
+          (a.order || '').localeCompare(b.order || ''),
         );
         for (const item of sortedItems) {
           if (!item._id) continue;
@@ -4887,12 +4910,15 @@ class ProgressService extends BaseService {
     // Same insertion-order-vs-display-order issue as getItemIdsUntilItem --
     // sort before walking so a drag-drop-reordered course still produces
     // its items in the order the student actually sees them.
+    // Same missing-order defensiveness as getItemIdsUntilItem above --
+    // matches CourseVersionService.sortItemsByOrder's `a.order || ''`
+    // fallback instead of crashing on a legacy/malformed document.
     const sortedModules = [...courseVersion.modules].sort((a, b) =>
-      a.order.localeCompare(b.order),
+      (a.order || '').localeCompare(b.order || ''),
     );
     for (const module of sortedModules) {
       const sortedSections = [...module.sections].sort((a, b) =>
-        a.order.localeCompare(b.order),
+        (a.order || '').localeCompare(b.order || ''),
       );
       for (const section of sortedSections) {
         const itemGroupId = section.itemsGroupId;
@@ -4904,7 +4930,7 @@ class ProgressService extends BaseService {
         if (!itemGroup || !itemGroup.items) continue;
 
         const sortedItems = [...itemGroup.items].sort((a, b) =>
-          a.order.localeCompare(b.order),
+          (a.order || '').localeCompare(b.order || ''),
         );
         for (const item of sortedItems) {
           if (item._id) {
