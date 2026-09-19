@@ -3182,7 +3182,21 @@ class ProgressService extends BaseService {
             `(user ${userId}, item ${itemId}):`,
           err,
         );
-        summary.skipped++;
+        // A NotFoundError here means something this record depends on is
+        // permanently gone -- itemRepo.readItemById and courseRepo.readVersion
+        // both throw (not return null) when the item / course version can't
+        // be found, so their `if (!item)` / `if (!courseVersion)` guards above
+        // are unreachable and a deleted item or deleted course version ends
+        // up here instead. That's not transient: leaving it unmarked (like
+        // every other throw) means findOrphanedWatchTimes returns this exact
+        // record again next sweep, hits the identical NotFoundError, forever.
+        // Reject it like any other permanently-unrecoverable record instead.
+        if (err instanceof NotFoundError) {
+          rejectedIds.push(orphan._id);
+          summary.rejected++;
+        } else {
+          summary.skipped++;
+        }
       }
     }
 
