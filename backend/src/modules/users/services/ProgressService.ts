@@ -2983,6 +2983,11 @@ class ProgressService extends BaseService {
    * and stays incomplete, so this recovers lost progress without handing out
    * completions and without weakening linear progression.
    *
+   * BLOG is the one exception to needing a heartbeat at all: isValidWatchTime
+   * never checks duration for it (no minimum reading time exists in the live
+   * path either), so a blog read fast enough to lose its stop call before the
+   * first 15s heartbeat still gets closed here, falling back to startTime.
+   *
    * Safe to run concurrently across instances and safe to re-run: closing is
    * guarded on the row still being open, and the pointer only moves when it is
    * still parked on the recovered item.
@@ -3024,19 +3029,27 @@ class ProgressService extends BaseService {
       const cohortId = orphan.cohortId?.toString();
 
       try {
-        // Without a heartbeat there is no evidence of time spent, so there is
-        // nothing to justify a completion.
-        if (!orphan.lastSeenAt) {
-          rejectedIds.push(orphan._id);
-          summary.skipped++;
-          continue;
-        }
-
         const item = await this.itemRepo.readItemById(itemId);
 
         // QUIZ and PROJECT completion depends on a submission this job must
         // not invent; only watch-duration items can be judged from timestamps.
         if (!item || !WATCH_TIME_RECOVERABLE_ITEMS.has(item.type)) {
+          rejectedIds.push(orphan._id);
+          summary.skipped++;
+          continue;
+        }
+
+        // Without a heartbeat there is no evidence of time spent -- for VIDEO
+        // that is nothing to justify a completion against, since its
+        // isValidWatchTime check depends on measuring elapsed time. BLOG is
+        // different: isValidWatchTime never checks duration for it at all
+        // ("no minimum reading time exists in the live path either" -- see
+        // that check), so requiring a heartbeat here is stricter than the
+        // rule this job is supposed to mirror. A blog read fast enough to
+        // lose its stop call before the first 15s heartbeat would otherwise
+        // never be recoverable. Fall back to startTime (0 measured duration)
+        // for BLOG, matching what the live path already accepts unconditionally.
+        if (!orphan.lastSeenAt && item.type !== 'BLOG') {
           rejectedIds.push(orphan._id);
           summary.skipped++;
           continue;
@@ -3058,7 +3071,7 @@ class ProgressService extends BaseService {
           continue;
         }
 
-        const endTime = new Date(orphan.lastSeenAt);
+        const endTime = new Date(orphan.lastSeenAt ?? orphan.startTime);
 
         if (!this.isValidWatchTime({...orphan, endTime}, item)) {
           rejectedIds.push(orphan._id);
@@ -3124,7 +3137,21 @@ class ProgressService extends BaseService {
             `(user ${userId}, item ${itemId}):`,
           err,
         );
-        summary.skipped++;
+        // A NotFoundError here means something this record depends on is
+        // permanently gone -- itemRepo.readItemById and courseRepo.readVersion
+        // both throw (not return null) when the item / course version can't
+        // be found, so their `if (!item)` / `if (!courseVersion)` guards above
+        // are unreachable and a deleted item or deleted course version ends
+        // up here instead. That's not transient: leaving it unmarked (like
+        // every other throw) means findOrphanedWatchTimes returns this exact
+        // record again next sweep, hits the identical NotFoundError, forever.
+        // Reject it like any other permanently-unrecoverable record instead.
+        if (err instanceof NotFoundError) {
+          rejectedIds.push(orphan._id);
+          summary.rejected++;
+        } else {
+          summary.skipped++;
+        }
       }
     }
 
