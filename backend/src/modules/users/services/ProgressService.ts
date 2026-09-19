@@ -1008,8 +1008,16 @@ class ProgressService extends BaseService {
     let isFirstSection = false;
     let isFirstModule = false;
 
+    // order is missing on some legacy/partially-migrated documents (#1402
+    // hit the same thing for a different sort in this file) -- `|| ''`
+    // matches CourseVersionService.sortItemsByOrder's canonical guard, so an
+    // undefined order sorts first instead of crashing
+    // ("Cannot read properties of undefined (reading 'localeCompare')").
+    // getPreviousItemInSequence is now reachable from startItem's hot path
+    // (#1393's whole point is unsticking deadlocked students), so a legacy
+    // course crashing here would 500 the exact students this fix exists for.
     const sortedModules = [...courseVersion.modules].sort((a, b) =>
-      a.order.localeCompare(b.order),
+      (a.order || '').localeCompare(b.order || ''),
     );
     const firstModule = sortedModules[0].moduleId;
     if (firstModule?.toString() === moduleId) {
@@ -1018,8 +1026,14 @@ class ProgressService extends BaseService {
 
     const sortedSections = courseVersion.modules
       .find(module => module.moduleId?.toString() === moduleId)
-      ?.sections.sort((a, b) => a.order.localeCompare(b.order));
-    const firstSection = sortedSections?.[0].sectionId;
+      ?.sections.sort((a, b) => (a.order || '').localeCompare(b.order || ''));
+    // A module can genuinely have zero sections (right after creation, before
+    // its first section is added -- ModuleService.createModule's own "previous
+    // module has no sections" guard confirms this is a real authoring-time
+    // state). sortedSections?.[0] is then undefined (a valid array index, not
+    // a nullish base), so the `?.` on sortedSections alone doesn't protect the
+    // .sectionId access after it -- needs its own `?.` too.
+    const firstSection = sortedSections?.[0]?.sectionId;
     if (firstSection?.toString() === sectionId) {
       isFirstSection = true;
     }
@@ -1038,7 +1052,7 @@ class ProgressService extends BaseService {
     // Same empty-section guard as getNextItemInSequence: nothing visible means
     // treat the item as first here, so we look to the previous section.
     const sortedItems = (itemsGroup?.items ?? []).sort((a, b) =>
-      a.order.localeCompare(b.order),
+      (a.order || '').localeCompare(b.order || ''),
     );
     const firstItem = sortedItems.length ? sortedItems[0]._id : undefined;
     if (!sortedItems.length || firstItem?.toString() === itemId) {
@@ -1055,7 +1069,7 @@ class ProgressService extends BaseService {
       );
       const prevModule = sortedModules[currentModuleIndex - 1];
       const lastSection = prevModule?.sections.sort((a, b) =>
-        a.order.localeCompare(b.order),
+        (a.order || '').localeCompare(b.order || ''),
       )[prevModule.sections.length - 1];
       const itemsGroup = await this.itemRepo.readItemsGroup(
         lastSection?.itemsGroupId.toString(),
@@ -1063,14 +1077,19 @@ class ProgressService extends BaseService {
       if (itemsGroup && itemsGroup.items) {
         itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
       }
+      // Same as above: the previous module's last section can genuinely have
+      // zero items in its items group (a section created but not yet
+      // populated), leaving lastItem undefined -- matches the `?.`/`|| ''`
+      // guard the isFirstItem && !isFirstSection branch below already uses
+      // for the identical situation.
       const lastItem = itemsGroup.items.sort((a, b) =>
-        a.order.localeCompare(b.order),
+        (a.order || '').localeCompare(b.order || ''),
       )[itemsGroup.items.length - 1];
 
       return {
         moduleId: prevModule?.moduleId.toString(),
         sectionId: lastSection?.sectionId.toString(),
-        itemId: lastItem._id.toString(),
+        itemId: lastItem?._id?.toString() || '',
       };
     }
 
@@ -1086,7 +1105,7 @@ class ProgressService extends BaseService {
         itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
       }
       const lastItem = itemsGroup?.items?.sort((a, b) =>
-        a.order.localeCompare(b.order),
+        (a.order || '').localeCompare(b.order || ''),
       )[itemsGroup.items.length - 1];
 
       return {
