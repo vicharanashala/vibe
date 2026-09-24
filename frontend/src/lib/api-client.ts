@@ -29,11 +29,28 @@ async function request<T>(
     },
   });
 
-  const data = await response.json();
-
   if (!response.ok) {
-    throw new Error(data?.message || "Request failed");
+    let errorMessage = `HTTP ${response.status} ${response.statusText}`;
+    let errorsDetail: any = null;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData?.message || errorMessage;
+      errorsDetail = errorData?.errors || null;
+      console.error(`[apiClient] HTTP ${response.status} Error on ${path}:`, {
+        message: errorMessage,
+        errors: errorsDetail,
+        fullResponse: errorData,
+      });
+    } catch {
+      console.error(`[apiClient] HTTP ${response.status} Non-JSON Error on ${path}`);
+    }
+    const err: any = new Error(errorMessage);
+    err.status = response.status;
+    err.errors = errorsDetail;
+    throw err;
   }
+
+  const data = await response.json();
 
   return { data };
 }
