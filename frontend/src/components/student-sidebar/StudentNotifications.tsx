@@ -86,8 +86,9 @@ export function StudentNotifications({ compact = false }: { compact?: boolean })
 
     const getUserInvites = async () => {
       const result = await getInvites()
-      if (result.invites.length > 0) {
-        setPendingInvites(result.invites)
+      const invites = result?.invites ?? []
+      if (invites.length > 0) {
+        setPendingInvites(invites)
         if (!toastShown) {
           toast.info("You have a new invite! Check invites dropdown.", { richColors: true })
           sessionStorage.setItem("inviteToastShown", "true")
