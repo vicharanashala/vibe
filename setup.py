@@ -4,17 +4,26 @@ import shutil
 import platform
 import os
 import textwrap
-import urllib.request
-import tempfile
+import logging
 import json
+import socket
 from pathlib import Path
 from typing import List, Dict, Optional
+
+# Setup File Logging
+LOG_FILE = ".vibe_setup.log"
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
 # Install third-party packages if missing
 for pkg in ["rich", "questionary"]:
     try:
         __import__(pkg)
     except ImportError:
+        logging.info(f"Installing missing package: {pkg}")
         subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
 
 from rich.console import Console
@@ -22,9 +31,7 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.align import Align
 from rich import box
-from rich.markdown import Markdown
 from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 import questionary
 
 console = Console()
@@ -55,6 +62,14 @@ class SetupState:
         with open(STATE_FILE, "w") as f:
             json.dump(self.state, f, indent=2)
 
+    def clear(self):
+        self.state = {}
+        if os.path.exists(STATE_FILE):
+            os.remove(STATE_FILE)
+        if os.path.exists(LOG_FILE):
+            os.remove(LOG_FILE)
+        console.print("[green]✅ Cleaned previous setup state and logs.[/green]")
+
     def update(self, key: str, value):
         self.state[key] = value
         self.save()
@@ -80,11 +95,13 @@ class SetupState:
             return
 
         for index, step in enumerate(steps, 1):
-            if self.get(step["name"]): #Access name as a dictionary key
+            if self.get(step["name"]):
                 status = "✅"
+            elif self.get(step["name"] + "_skipped"):
+                status = "⏭️ (Skipped)"
             else:
                 status = "❌"
-            table.add_row(str(index), step["name"], step["description"], status) #Access name and description as dictionary keys
+            table.add_row(str(index), step["name"], step["description"], status)
 
         console.print(table)
 
@@ -97,7 +114,7 @@ class PipelineStep:
         self.instructions = instructions
 
     def should_run(self, state: SetupState) -> bool:
-        return not state.get(self.name)
+        return not state.get(self.name) and not state.get(self.name + "_skipped")
 
     def run(self, state: SetupState):
         raise NotImplementedError("Each step must implement a run method")
@@ -121,13 +138,26 @@ class WelcomeStep(PipelineStep):
         console.print("\n")
         environment = questionary.select("Choose environment:", choices=["Development", "Production"]).ask()
         state.update("environment", environment)
-        if environment == "Development":
-            pass
-        elif environment == "Production":
-            console.print("[red]Production setup is not ready yet.[/red]")
-            sys.exit(1)
+        if environment == "Production":
+            raise Exception("Production setup is not ready yet.")
         state.update(self.name, True)
         return environment
+
+class PortCheckStep(PipelineStep):
+    def __init__(self):
+        super().__init__("Port Check", "Verify required dev ports are accessible")
+        
+    def run(self, state):
+        ports_to_check = [3000, 5173, 4000, 5001, 8080, 9099] # backend, frontend, emulators
+        in_use = []
+        for port in ports_to_check:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                if s.connect_ex(('127.0.0.1', port)) == 0:
+                    in_use.append(port)
+        if in_use:
+            raise Exception(f"The following ports are currently in use: {', '.join(map(str, in_use))}. Please free them up for the dev environment.")
+        console.print("[green]✅ Required ports are available.[/green]")
+        state.update(self.name, True)
 
 class ToolchainCheckStep(PipelineStep):
     def __init__(self):
@@ -139,32 +169,32 @@ class ToolchainCheckStep(PipelineStep):
 
         if not check_command_exists("node"):
             console.print("[yellow]⚠ Node.js is not installed. Installing using fnm...[/yellow]")
-            try:
-                if platform.system() == "Windows":
-                    subprocess.run(["winget", "install", "Schniz.fnm"], check=True)
-                else:
-                    subprocess.run("curl -o- https://fnm.vercel.app/install | bash", check=True, shell=True)
-                subprocess.run(["fnm", "install", "22"], check=True)
-            except subprocess.CalledProcessError as e:
-                console.print(f"[red]❌ Failed to install Node.js: {e}[/red]")
-                sys.exit(1)
+            logging.info("Installing Node.js with fnm.")
+            if platform.system() == "Windows":
+                subprocess.run(["winget", "install", "Schniz.fnm"], check=True)
+            else:
+                subprocess.run("curl -o- https://fnm.vercel.app/install | bash", check=True, shell=True)
+            subprocess.run(["fnm", "install", "22"], check=True)
             console.print("[green]✅ Node.js installed successfully.[/green]")
             
         if not check_command_exists("npm"):
-            console.print("[red]❌ npm is not installed.")
-            sys.exit(1)
+            raise Exception("npm is not installed. Node.js installation may have failed.")
+
         if not check_command_exists("pnpm"):
             console.print("[yellow]⚠ Installing pnpm...[/yellow]")
+            logging.info("Installing pnpm.")
             subprocess.run([NPM_CLI, "install", "-g", "pnpm"], check=True, shell=(platform.system() == "Windows"))
 
         if not check_command_exists("firebase"):
             console.print("[yellow]⚠ Installing firebase-tools...[/yellow]")
+            logging.info("Installing firebase-tools.")
             subprocess.run(["pnpm", "install", "-g", "firebase-tools"], check=True, shell=(platform.system() == "Windows"))
 
         console.print(":white_check_mark: [green]Toolchain verified.[/green]")
         
         # run pnpm install command in the current directory
         console.print("[yellow]⚠ Installing pnpm dependencies...[/yellow]")
+        logging.info("Installing root pnpm dependencies.")
         subprocess.run(["pnpm", "install"], check=True, shell=(platform.system() == "Windows"))
         console.print("[green]✅ pnpm dependencies installed successfully.[/green]")
         state.update(self.name, True)
@@ -211,8 +241,10 @@ class EnvFileStep(PipelineStep):
         env_path = os.path.join(self.backend_dir, ".env")
         if not os.path.exists(env_path):
             uri = questionary.text("Paste your MongoDB URI:").ask()
+            if not uri:
+                raise Exception("MongoDB URI cannot be empty.")
             with open(env_path, "w") as f:
-                f.write(f"DB_URL=\"{uri}\"\n")
+                f.write(f'DB_URL="{uri}"\n')
         state.update(self.name, True)
 
 class PackageInstallStep(PipelineStep):
@@ -241,12 +273,9 @@ class MongoDBBinaryStep(PipelineStep):
             await mongod.stop();
         })();
         """)
-        try:
-            subprocess.run(["pnpx", "ts-node", "-e", script], check=True, cwd=self.backend_dir, shell=(platform.system() == "Windows"))
-            state.update(self.name, True)
-        except subprocess.CalledProcessError as e:
-            console.print(f"[red]❌ Failed to download MongoDB binaries: {e}[/red]")
-            sys.exit(1)
+        logging.info("Downloading MongoDB binaries.")
+        subprocess.run(["pnpx", "ts-node", "-e", script], check=True, cwd=self.backend_dir, shell=(platform.system() == "Windows"))
+        state.update(self.name, True)
 
 class TestStep(PipelineStep):
     def __init__(self, backend_dir):
@@ -255,13 +284,15 @@ class TestStep(PipelineStep):
 
     def run(self, state):
         with console.status("Running backend tests..."):
-            result = subprocess.run(["pnpm", "run", "test:ci"], cwd=self.backend_dir, shell=(platform.system() == "Windows"))
+            logging.info("Executing backend tests via pnpm run test:ci")
+            result = subprocess.run(["pnpm", "run", "test:ci"], cwd=self.backend_dir, capture_output=True, text=True, shell=(platform.system() == "Windows"))
+            logging.info(f"Backend Test STDOUT: {result.stdout}")
+            logging.error(f"Backend Test STDERR: {result.stderr}")
             if result.returncode == 0:
-                console.print("[green]✅ All tests passed! Backend setup complete.")
+                console.print("[green]✅ All tests passed! Backend setup complete.[/green]")
                 state.update(self.name, True)
             else:
-                console.print("[red]❌ Tests failed. Please fix and re-run the setup.")
-                sys.exit(1)
+                raise Exception("Backend Tests failed. Check .vibe_setup.log for details.")
 
 class FrontendPackageInstallStep(PipelineStep):
     def __init__(self, frontend_dir):
@@ -269,8 +300,33 @@ class FrontendPackageInstallStep(PipelineStep):
         self.frontend_dir = frontend_dir
 
     def run(self, state):
-        subprocess.run(["pnpm", "install"], cwd=self.frontend_dir, check=True, shell=(platform.system() == "Windows"))
-        state.update(self.name, True)
+        with console.status("Installing frontend dependencies..."):
+            subprocess.run(["pnpm", "install"], cwd=self.frontend_dir, check=True, shell=(platform.system() == "Windows"))
+            state.update(self.name, True)
+
+class FrontendIntegrityStep(PipelineStep):
+    def __init__(self, frontend_dir):
+        super().__init__("Frontend Integrity", "Compile and lint the frontend")
+        self.frontend_dir = frontend_dir
+
+    def run(self, state):
+        with console.status("Checking frontend integrity (compilation & linting)..."):
+            logging.info("Running frontend compile")
+            res_compile = subprocess.run(["pnpm", "run", "compile"], cwd=self.frontend_dir, capture_output=True, text=True, shell=(platform.system() == "Windows"))
+            logging.info(f"Frontend Compile STDOUT: {res_compile.stdout}")
+            if res_compile.returncode != 0:
+                logging.error(f"Frontend Compile failed: {res_compile.stderr}")
+                raise Exception("Frontend compilation failed.")
+            
+            logging.info("Running frontend lint")
+            res_lint = subprocess.run(["pnpm", "run", "lint"], cwd=self.frontend_dir, capture_output=True, text=True, shell=(platform.system() == "Windows"))
+            logging.info(f"Frontend Lint STDOUT: {res_lint.stdout}")
+            if res_lint.returncode != 0:
+                logging.error(f"Frontend Lint failed: {res_lint.stderr}")
+                raise Exception("Frontend linting failed.")
+            
+            console.print("[green]✅ Frontend checks passed![/green]")
+            state.update(self.name, True)
 
 # ------------------ Pipeline Manager ------------------
 
@@ -289,6 +345,8 @@ class SetupPipeline:
         for index, step in enumerate(self.steps, 1):
             if self.state.get(step.name):
                 status = "✅"
+            elif self.state.get(step.name + "_skipped"):
+                status = "⏭️"
             elif step.name == current_step_name:
                 status = "🔄"
             else:
@@ -303,29 +361,59 @@ class SetupPipeline:
 
         for step in self.steps:
             if step.should_run(self.state):
-                clear_screen()
-                self.print_progress_table(step.name)
-                if step.instructions:
-                    step.display_instructions()
-                step.run(self.state)
+                while True:
+                    clear_screen()
+                    self.print_progress_table(step.name)
+                    if step.instructions:
+                        step.display_instructions()
+                    try:
+                        step.run(self.state)
+                        break
+                    except Exception as e:
+                        logging.error(f"Step '{step.name}' encountered an error: {e}")
+                        console.print(f"\n[red]❌ Error in {step.name}: {e}[/red]")
+                        console.print(f"[yellow]Detailed logs are available in {LOG_FILE}[/yellow]\n")
+                        
+                        choice = questionary.select(
+                            "How would you like to proceed?",
+                            choices=["Retry", "Skip", "Abort"]
+                        ).ask()
+                        
+                        if choice == "Retry":
+                            continue
+                        elif choice == "Skip":
+                            console.print(f"[yellow]⚠ Skipping {step.name}...[/yellow]")
+                            self.state.update(step.name + "_skipped", True)
+                            break
+                        else:
+                            console.print("[red]Aborting setup.[/red]")
+                            sys.exit(1)
+                            
         clear_screen()
         self.print_progress_table("done")
         console.print("\n[bold green]🎉 Setup completed![/bold green]")
+        console.print(f"\n[bold blue]👉 Logs saved to {LOG_FILE}[/bold blue]")
         console.print("\n[bold blue]👉 Run `pnpm run dev` in the backend and frontend directories to start the servers.[/bold blue]")
 
 # ------------------ Main ------------------
 
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "--summary":
-        state = SetupState()
-        state.show_summary()
-        return
+    state = SetupState()
+
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--summary":
+            state.show_summary()
+            return
+        elif sys.argv[1] == "--clean":
+            state.clear()
+            console.print("[green]Ready to start fresh setup.[/green]")
+            return
 
     backend_dir = os.path.join(os.getcwd(), "backend")
     frontend_dir = os.path.join(os.getcwd(), "frontend")
-    state = SetupState()
 
     development_steps = [
+        PortCheckStep(),
         ToolchainCheckStep(),
         FirebaseLoginStep(),
         FirebaseEmulatorsStep(backend_dir),
@@ -333,18 +421,30 @@ def main():
         PackageInstallStep(backend_dir),
         MongoDBBinaryStep(backend_dir),
         TestStep(backend_dir),
-        FrontendPackageInstallStep(frontend_dir)
+        FrontendPackageInstallStep(frontend_dir),
+        FrontendIntegrityStep(frontend_dir)
     ]
 
     welcome_step = WelcomeStep()
-    environment = welcome_step.run(state)
+    environment = "Development"
+    
+    if welcome_step.should_run(state):
+        try:
+            environment = welcome_step.run(state)
+        except Exception as e:
+            console.print(f"[red]{e}[/red]")
+            sys.exit(1)
+    else:
+        environment = state.get("environment", "Development")
+
     if environment == "Development":
         development_pipeline = SetupPipeline(development_steps, state)
         development_pipeline.run()
     elif environment == "Production":
         console.print("[red]Production setup is not ready yet.[/red]")
         sys.exit(1)
-    console.print("\n[bold cyan]Setup Summary[/bold cyan]")
+        
+    console.print("\n[bold cyan]Setup Summary (Run `python setup.py --summary` anytime)[/bold cyan]")
 
 if __name__ == "__main__":
     main()
