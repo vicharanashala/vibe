@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/client';
 import { AuthProvider } from '@/store/context/auth';
 import { ThemeProvider } from '@/components/theme-provider';
+import { HoneypotButton } from '@/components/HoneypotButton';
 import '@/assets/globals.css';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -14,6 +15,7 @@ export function App(){
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <HoneypotButton />
           <RouterProvider router={router} />
           <Toaster />
         </ThemeProvider>
