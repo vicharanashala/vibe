@@ -36,7 +36,13 @@ export const fetchClient = createFetchClient<paths>({
      * intentionally-empty responses in this API; GET bodies are never re-read
      * here, avoiding the double-buffering cost for the large ones.
      */
-    const method = (options?.method ?? 'GET').toUpperCase();
+    // openapi-fetch bundles the method onto `url` itself (as a Request) for
+    // some calls -- PATCH /users/edit is one -- in which case `options.method`
+    // is null and this used to silently read as GET, skipping the fix below
+    // for exactly the empty-body responses it exists to handle.
+    const method = (
+      (url instanceof Request ? url.method : options?.method) ?? 'GET'
+    ).toUpperCase();
     if (response.ok && response.status !== 204 && method !== 'GET') {
       const text = await response.clone().text();
       if (text.length === 0) {
