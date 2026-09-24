@@ -4,10 +4,11 @@ on:
   push:
     paths:
       - 'docs/**'
+      - 'backend/src/**'
   pull_request:
     paths:
       - 'docs/**'
-  # Add manual trigger capability
+      - 'backend/src/**'
   workflow_dispatch:
     inputs:
       reason:
@@ -19,38 +20,45 @@ jobs:
   docs-build:
     name: Check Docusaurus Build
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-        
+        uses: actions/checkout@v4
+
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          
+          node-version: '22'
+
       - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        
-          
+        uses: pnpm/action-setup@v4
+
       - name: Get pnpm store directory
         id: pnpm-cache
         shell: bash
         run: |
           echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-          
+
       - name: Setup pnpm cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
-          
-      - name: Install dependencies
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: pnpm install
+
+      - name: Build backend (required for OpenAPI spec generation)
+        working-directory: ./backend
+        run: pnpm build
+
+      - name: Install docs dependencies
         working-directory: ./docs
         run: pnpm install
-        
+
       - name: Build Docusaurus site
         working-directory: ./docs
         run: pnpm build

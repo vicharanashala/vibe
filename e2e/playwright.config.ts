@@ -1,6 +1,14 @@
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
+  // Generate both terminal list output and a persistent HTML report.
+  // The HTML report is uploaded by CI to GitHub Actions artifacts on every run,
+  // allowing failures to be inspected without re-running tests.
+  reporter: [
+    ['list'],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
+  ],
+
   testDir: './tests',
 
   // Keep artifacts predictable and easy to ignore
@@ -8,12 +16,12 @@ export default defineConfig({
 
   // Long timeout supports full course traversal with media playback and quizzes.
   timeout: 10 * 60 * 60 * 1000, //10 hours
-  retries: 0,
+  retries: 1,
   // Single worker avoids cross-test interference for shared learner/course state.
   workers: 1,
 
   use: {
-    // Base URL for the app
+    // Base URL for the app — overridden in CI via the BASE_URL env variable.
     baseURL: process.env.BASE_URL || 'http://localhost:5173',
 
     // Required for lesson flows that request webcam/microphone access.
