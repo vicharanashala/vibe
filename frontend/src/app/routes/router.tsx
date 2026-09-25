@@ -29,6 +29,7 @@ import CoursePage from '@/app/pages/student/course-page'
 import TeacherCoursePage from "@/app/pages/teacher/teacher-course-page";
 import TeacherCoursesPage from '@/app/pages/teacher/course-page'
 import Editor from '@/app/pages/teacher/create-article'
+import ExamAppShell from '@/app/pages/exam/ExamAppShell'
 import { NotFoundComponent } from '@/components/not-found'
 import { useCourseStore } from '@/store/course-store'
 // import CourseEnrollments from '../pages/teacher/course-enrollments'
@@ -319,6 +320,24 @@ const teacherNotificationsRoute = new Route({
   component: NotificationsPage,
 });
 
+const teacherExamAppRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/exam-app',
+  component: ExamAppShell,
+});
+
+// Catch-all for everything under /teacher/exam-app (ExamAppShell's own
+// nested react-router-dom router — see that file). Without this, only the
+// bare /teacher/exam-app path matches this route; a real URL for a deeper
+// path like /teacher/exam-app/exam/:examId (which ExamAppShell now pushes
+// to the actual browser URL, not just its own in-memory history) would 404
+// at the TanStack Router level on a hard refresh.
+const teacherExamAppSplatRoute = new Route({
+  getParentRoute: () => teacherExamAppRoute,
+  path: '$',
+  component: ExamAppShell,
+});
+
 // Teacher courses page route
 const teacherCoursesPageRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -526,6 +545,44 @@ const studentAnalyticsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/analytics',
   component: LearningAnalytics,
+});
+
+const studentExamAppRoute = new Route({
+  getParentRoute: () => rootRoute,
+  path: '/exam-app',
+  component: ExamAppShell,
+  beforeLoad: () => {
+    const { isAuthenticated, user } = useAuthStore.getState();
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+
+    if (!isAuthenticated) {
+      throw redirect({ to: '/auth' });
+    }
+
+    if (user?.role === 'student') {
+      return;
+    }
+
+    if (user?.role === 'teacher') {
+      if (currentPath.startsWith('/exam-app/admin')) {
+        return;
+      }
+      throw redirect({ to: '/teacher' });
+    }
+
+    throw redirect({ to: '/auth' });
+  },
+});
+
+// Catch-all for everything under /exam-app (see teacherExamAppSplatRoute's
+// comment above — same reasoning, student-facing side). beforeLoad on the
+// parent route above still runs for this child match (TanStack Router runs
+// every matched route's beforeLoad, parent-first), so the auth/role guard
+// isn't duplicated here.
+const studentExamAppSplatRoute = new Route({
+  getParentRoute: () => studentExamAppRoute,
+  path: '$',
+  component: ExamAppShell,
 });
 
 // Student notifications route
@@ -771,6 +828,7 @@ const routeTree = rootRoute.addChildren([
     teacherStudentSubmissionsRoute,
     teacherSubmissionDetailsRoute,
     teacherNotificationsRoute,
+    teacherExamAppRoute.addChildren([teacherExamAppSplatRoute]),
     teacherShareVideoRoute,
   ]),
   studentLayoutRoute.addChildren([
@@ -790,6 +848,7 @@ const routeTree = rootRoute.addChildren([
     studentHpSystemLedgerRoute,
     studentNotificationsRoute,
   ]),
+  studentExamAppRoute.addChildren([studentExamAppSplatRoute]),
   coursePageRoute,
 ]);
 
