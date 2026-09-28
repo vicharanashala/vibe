@@ -96,7 +96,22 @@ export async function transcribeMediaFile(
     signal?: AbortSignal;
   } = {},
 ): Promise<TranscriptChunk[]> {
-  const { model = DEFAULT_BROWSER_WHISPER_MODEL, onProgress, signal } = options;
+  const { model = DEFAULT_BROWSER_WHISPER_MODEL, signal } = options;
+
+  // The worker posts an update per generated token (thousands per lecture);
+  // pass on only changes a progress bar can show, so the page is not re-rendered for each.
+  let lastReported = "";
+  const onProgress = (progress: TranscriptionProgress) => {
+    const key =
+      progress.stage === "loading-model"
+        ? `model:${progress.percent}`
+        : progress.stage === "transcribing"
+          ? `text:${Math.floor(progress.processedSeconds)}`
+          : progress.stage;
+    if (key === lastReported) return;
+    lastReported = key;
+    options.onProgress?.(progress);
+  };
 
   if (file.size > MAX_MEDIA_FILE_BYTES) {
     throw new Error(
@@ -106,7 +121,7 @@ export async function transcribeMediaFile(
   }
   if (signal?.aborted) throw new DOMException("Transcription cancelled.", "AbortError");
 
-  onProgress?.({ stage: "decoding" });
+  onProgress({ stage: "decoding" });
   const { audio, durationSeconds } = await decodeMediaToMono(file);
   if (signal?.aborted) throw new DOMException("Transcription cancelled.", "AbortError");
   if (!audio.length) throw new Error(`${file.name} has no audio to transcribe.`);
@@ -146,17 +161,17 @@ export async function transcribeMediaFile(
             loaded += entry.loaded;
             total += entry.total;
           });
-          onProgress?.({ stage: "loading-model", percent: total ? Math.round((loaded / total) * 100) : 0 });
+          onProgress({ stage: "loading-model", percent: total ? Math.round((loaded / total) * 100) : 0 });
           break;
         }
         case "ready":
-          onProgress?.({ stage: "transcribing", processedSeconds: 0, totalSeconds: durationSeconds });
+          onProgress({ stage: "transcribing", processedSeconds: 0, totalSeconds: durationSeconds });
           break;
         case "update": {
           const chunks: RawChunk[] = message.data?.[1]?.chunks ?? [];
           const last = chunks[chunks.length - 1];
           const processedSeconds = last ? (last.timestamp[1] ?? last.timestamp[0]) : 0;
-          onProgress?.({
+          onProgress({
             stage: "transcribing",
             processedSeconds: Math.min(processedSeconds, durationSeconds),
             totalSeconds: durationSeconds,
