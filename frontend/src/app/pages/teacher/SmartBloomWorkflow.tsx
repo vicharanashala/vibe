@@ -10,6 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { aiSectionAPI, connectToLiveStatusUpdates, getApiUrl } from "@/lib/genai-api";
 import { DirectApiError, smartBloomDirectAPI, textInWindow, type TranscriptChunk } from "@/lib/smart-bloom-direct-api";
 import { readTranscriptFile } from "@/lib/transcript-file-reader";
+import {
+  BROWSER_WHISPER_MODELS,
+  DEFAULT_BROWSER_WHISPER_MODEL,
+  transcribeMediaFile,
+  type TranscriptionProgress,
+} from "@/lib/browser-transcriber";
+import { Progress } from "@/components/ui/progress";
 import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowRight, BookOpen, BrainCircuit, Check, CheckCircle, ChevronLeft, ChevronRight, FlaskConical, Loader2, Pencil, X, XCircle } from "lucide-react";
@@ -108,7 +115,11 @@ type PipelineStep =
   | "UPLOAD_CONTENT"
   | "COMPLETED";
 
-type TranscriptInput = { kind: "file"; file: File } | { kind: "text"; text: string };
+type TranscriptInput =
+  | { kind: "file"; file: File }
+  | { kind: "text"; text: string }
+  // A video or audio file, transcribed in the browser with Whisper.
+  | { kind: "media"; file: File; model: string };
 
 /** Seconds as m:ss or h:mm:ss, for log lines. */
 const formatClock = (seconds: number): string => {
@@ -576,6 +587,10 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
   const [isReadingTranscriptFile, setIsReadingTranscriptFile] = useState(false);
   const [pastedTranscript, setPastedTranscript] = useState("");
   const transcriptFileResolverRef = useRef<((input: TranscriptInput | null) => void) | null>(null);
+  // In-browser transcription of an uploaded video/audio file (direct mode).
+  const [whisperModel, setWhisperModel] = useState(DEFAULT_BROWSER_WHISPER_MODEL);
+  const [mediaProgress, setMediaProgress] = useState<TranscriptionProgress | null>(null);
+  const mediaAbortRef = useRef<AbortController | null>(null);
   // Set once the AI-server run reaches curation; after that an error is not an outage.
   const aiCurationStartedRef = useRef(false);
 
@@ -593,6 +608,8 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
       sseRef.current?.close();
       sseRef.current = null;
       sseListenersRef.current.clear();
+      // Stop an in-browser transcription; its worker would otherwise keep running.
+      mediaAbortRef.current?.abort();
     };
   }, []);
 
@@ -1359,9 +1376,49 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
   };
 
   /**
+   * Transcribe the instructor's copy of the video (or its audio) in this browser.
+   * Resolves null when it fails or is cancelled, so the caller asks again.
+   */
+  const transcribeInBrowser = async (file: File, model: string): Promise<TranscriptChunk[] | null> => {
+    const controller = new AbortController();
+    mediaAbortRef.current = controller;
+    const modelLabel = BROWSER_WHISPER_MODELS.find((m) => m.id === model)?.label ?? model;
+    addLog(`Transcribing ${file.name} in this browser (${modelLabel})…`);
+    const startedAt = Date.now();
+    setMediaProgress({ stage: "decoding" });
+    try {
+      const chunks = await transcribeMediaFile(file, {
+        model,
+        signal: controller.signal,
+        onProgress: setMediaProgress,
+      });
+      const lastEnd = chunks[chunks.length - 1].timestamp[1];
+      const minutes = ((Date.now() - startedAt) / 60_000).toFixed(1);
+      addLog(
+        `Transcript made from ${file.name} ✓ — ${chunks.length} timed lines up to ${formatClock(lastEnd)} ` +
+          `(took ${minutes} min)`,
+      );
+      return chunks;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        addLog("Browser transcription cancelled.");
+      } else {
+        const message = error instanceof Error ? error.message : "Browser transcription failed.";
+        addLog(message);
+        toast.error(message);
+      }
+      return null;
+    } finally {
+      if (mediaAbortRef.current === controller) mediaAbortRef.current = null;
+      setMediaProgress(null);
+    }
+  };
+
+  /**
    * The instructor supplies the transcript: pasted from YouTube's "Show
-   * transcript" panel, or a file in any layout with timestamps. The server finds
-   * the timestamps; keep asking until it can read one, or the instructor cancels.
+   * transcript" panel, a file in any layout with timestamps (the server finds
+   * them), or the video/audio itself, transcribed in the browser. Keep asking
+   * until one works, or the instructor cancels.
    */
   const loadDirectTranscript = async (versionId: string): Promise<{ chunks: TranscriptChunk[] }> => {
     const message = "The AI server is unavailable, so Smart Bloom needs this video's transcript from you.";
@@ -1369,6 +1426,11 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     for (;;) {
       const input = await requestTranscriptFile(message);
       if (!input) throw new Error("Transcript not provided, so Smart Bloom stopped.");
+      if (input.kind === "media") {
+        const chunks = await transcribeInBrowser(input.file, input.model);
+        if (chunks) return { chunks };
+        continue;
+      }
       setIsReadingTranscriptFile(true);
       try {
         const label = input.kind === "file" ? input.file.name : "pasted text";
@@ -2356,6 +2418,81 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
                       />
                     </div>
                   </details>
+
+                  <details className="text-xs text-amber-800/90 dark:text-amber-300/80">
+                    <summary className="cursor-pointer select-none">
+                      Have the video or its audio on this computer? Make the transcript here
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                      <p>
+                        The file stays on this computer: it is transcribed in this browser, not uploaded. The speech
+                        model downloads once (about{" "}
+                        {BROWSER_WHISPER_MODELS.find((m) => m.id === whisperModel)?.downloadMB ?? 80} MB) and a long
+                        lecture can take a while, so keep this tab open. English speech only. Up to 1 GB; for bigger
+                        videos, upload just the audio (M4A or MP3).
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Label htmlFor="smart-bloom-whisper-model" className="text-xs">
+                          Speech model
+                        </Label>
+                        <select
+                          id="smart-bloom-whisper-model"
+                          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                          value={whisperModel}
+                          disabled={isReadingTranscriptFile}
+                          onChange={(e) => setWhisperModel(e.target.value)}
+                        >
+                          {BROWSER_WHISPER_MODELS.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <Input
+                        type="file"
+                        accept="video/*,audio/*"
+                        className="max-w-xs bg-background"
+                        disabled={isReadingTranscriptFile}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (file) resolveTranscriptFile({ kind: "media", file, model: whisperModel });
+                        }}
+                      />
+                    </div>
+                  </details>
+                </div>
+              )}
+
+              {/* In-browser transcription of the instructor's video/audio (direct mode) */}
+              {mediaProgress && (
+                <div className="rounded-md border px-3 py-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      {mediaProgress.stage === "decoding" && "Reading the audio from your file…"}
+                      {mediaProgress.stage === "loading-model" &&
+                        `Downloading the speech model (first time only)… ${mediaProgress.percent}%`}
+                      {mediaProgress.stage === "transcribing" &&
+                        `Transcribing… ${formatClock(mediaProgress.processedSeconds)} of ${formatClock(mediaProgress.totalSeconds)}`}
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={() => mediaAbortRef.current?.abort()}>
+                      Cancel
+                    </Button>
+                  </div>
+                  {mediaProgress.stage !== "decoding" && (
+                    <Progress
+                      value={
+                        mediaProgress.stage === "loading-model"
+                          ? mediaProgress.percent
+                          : mediaProgress.totalSeconds
+                            ? (mediaProgress.processedSeconds / mediaProgress.totalSeconds) * 100
+                            : 0
+                      }
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground">Keep this tab open until it finishes.</p>
                 </div>
               )}
               {isReadingTranscriptFile && (
