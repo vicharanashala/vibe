@@ -38,16 +38,30 @@ class PipelineFactory {
 self.addEventListener("message", async (event) => {
     const message = event.data;
 
-    // Do some work...
-    // TODO use message data
-    let transcript = await transcribe(
-        message.audio,
-        message.model,
-        message.multilingual,
-        message.quantized,
-        message.subtask,
-        message.language,
-    );
+    // useTranscriber sends a { type: "ping" } on mount; there is nothing to transcribe.
+    if (!message?.audio) return;
+
+    // A failure while loading the model (e.g. the download from Hugging Face)
+    // happens outside the transcription's own catch; without this it is an
+    // unhandled rejection inside the worker and the page waits forever.
+    let transcript;
+    try {
+        transcript = await transcribe(
+            message.audio,
+            message.model,
+            message.multilingual,
+            message.quantized,
+            message.subtask,
+            message.language,
+        );
+    } catch (error) {
+        self.postMessage({
+            status: "error",
+            task: "automatic-speech-recognition",
+            data: { message: error instanceof Error ? error.message : String(error) },
+        });
+        return;
+    }
     if (transcript === null) return;
 
     // Send the result back to the main thread
