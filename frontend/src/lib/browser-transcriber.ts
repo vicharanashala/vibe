@@ -22,8 +22,10 @@ export interface BrowserWhisperModel {
 
 // English-only models: the worker appends ".en" when multilingual is off.
 export const BROWSER_WHISPER_MODELS: BrowserWhisperModel[] = [
-  { id: "Xenova/whisper-base", label: "Faster (base)", downloadMB: 80 },
-  { id: "Xenova/whisper-small", label: "More accurate (small)", downloadMB: 250 },
+  // On an M4 laptop (CPU/WASM): base ran ~2.6x faster than real time; small was
+  // slower than real time for a small gain in accuracy.
+  { id: "Xenova/whisper-base", label: "Faster (base, recommended)", downloadMB: 80 },
+  { id: "Xenova/whisper-small", label: "Slightly more accurate (small, much slower)", downloadMB: 250 },
 ];
 
 export const DEFAULT_BROWSER_WHISPER_MODEL = BROWSER_WHISPER_MODELS[0].id;
