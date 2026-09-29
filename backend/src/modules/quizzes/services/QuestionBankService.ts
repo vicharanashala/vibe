@@ -341,10 +341,16 @@ class QuestionBankService extends BaseService {
         questionBankId.toString(),
         session,
       );
-      //Return random question ids
-      const shuffledQuestions = questionBank.questions.sort(
-        () => 0.5 - Math.random(),
+      // Never draw a question still awaiting review, whichever bank it sits
+      // in. Filter before slicing so the quiz still gets `count` questions.
+      const pendingIds = await this.questionRepository.getPendingReviewIds(
+        questionBank.questions,
+        session,
       );
+      //Return random question ids
+      const shuffledQuestions = questionBank.questions
+        .filter(q => !pendingIds.has(q.toString()))
+        .sort(() => 0.5 - Math.random());
       //convert to string if they are ObjectIds
       const shuffledQuestionsAsString = shuffledQuestions.map(q =>
         q.toString(),
