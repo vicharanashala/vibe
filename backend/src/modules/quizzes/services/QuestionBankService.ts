@@ -7,7 +7,13 @@ import {COURSES_TYPES} from '#courses/types.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
 import {QuestionBankRepository} from '../repositories/providers/mongodb/QuestionBankRepository.js';
 import {QuestionRepository} from '../repositories/providers/mongodb/QuestionRepository.js';
+import {QuizRepository} from '../repositories/providers/mongodb/QuizRepository.js';
 import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {
+  buildQuestionBankCsv,
+  buildQuestionExportRow,
+} from '../utils/functions/questionBankCsv.js';
 import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {IQuestionBank} from '#root/shared/interfaces/quiz.js';
 import {IQuestionBankRef} from '#root/shared/interfaces/models.js';
@@ -24,6 +30,12 @@ class QuestionBankService extends BaseService {
 
     @inject(GLOBAL_TYPES.CourseRepo)
     private readonly courseRepository: ICourseRepository,
+
+    @inject(QUIZZES_TYPES.QuizRepo)
+    private readonly quizRepository: QuizRepository,
+
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepository: IItemRepository,
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
@@ -329,10 +341,16 @@ class QuestionBankService extends BaseService {
         questionBankId.toString(),
         session,
       );
-      //Return random question ids
-      const shuffledQuestions = questionBank.questions.sort(
-        () => 0.5 - Math.random(),
+      // Never draw a question still awaiting review, whichever bank it sits
+      // in. Filter before slicing so the quiz still gets `count` questions.
+      const pendingIds = await this.questionRepository.getPendingReviewIds(
+        questionBank.questions,
+        session,
       );
+      //Return random question ids
+      const shuffledQuestions = questionBank.questions
+        .filter(q => !pendingIds.has(q.toString()))
+        .sort(() => 0.5 - Math.random());
       //convert to string if they are ObjectIds
       const shuffledQuestionsAsString = shuffledQuestions.map(q =>
         q.toString(),
@@ -445,6 +463,124 @@ class QuestionBankService extends BaseService {
       return updatedBank;
     });
   }
+  /**
+   * Builds the question-bank review CSV for every quiz in a course version,
+   * in course order. Read-only: deliberately avoids ItemRepository
+   * .readItemsGroup, which inserts an empty group when one is missing.
+   */
+  async exportCourseVersionQuestionsCsv(
+    courseId: string,
+    versionId: string,
+  ): Promise<{csv: string; fileName: string; questionCount: number}> {
+    const version = await this.courseRepository.readVersion(versionId);
+    if (!version || version.courseId?.toString() !== courseId) {
+      throw new NotFoundError('Course version not found for this course');
+    }
+    const course = await this.courseRepository.read(courseId);
+
+    const byOrder = <T extends {order: string}>(a: T, b: T) =>
+      a.order.localeCompare(b.order);
+    const liveModules = (version.modules ?? [])
+      .filter(m => !m.isDeleted)
+      .sort(byOrder)
+      .map(m => ({
+        module: m,
+        sections: (m.sections ?? [])
+          .filter(s => !s.isDeleted && s.itemsGroupId)
+          .sort(byOrder),
+      }));
+
+    const groupIds = liveModules.flatMap(m =>
+      m.sections.map(s => s.itemsGroupId.toString()),
+    );
+    const groups = groupIds.length
+      ? await this.itemRepository.getItemGroupsByIds(groupIds)
+      : [];
+    const groupById = new Map(
+      groups
+        .filter((g: any) => !g.isDeleted)
+        .map(g => [g._id.toString(), g]),
+    );
+
+    const quizRefsFor = (itemsGroupId: string) =>
+      [...(groupById.get(itemsGroupId)?.items ?? [])]
+        .filter(item => item.type === 'QUIZ')
+        .sort(byOrder);
+
+    const quizIds = groupIds.flatMap(id =>
+      quizRefsFor(id).map(item => item._id.toString()),
+    );
+    const quizzes = quizIds.length
+      ? (await this.quizRepository.getByIds(quizIds)) ?? []
+      : [];
+    const quizById = new Map(
+      quizzes
+        .filter(q => !q.isDeleted)
+        .map(q => [q._id.toString(), q]),
+    );
+
+    const bankIds = [...quizById.values()].flatMap(q =>
+      (q.details?.questionBankRefs ?? []).map(ref => ref.bankId.toString()),
+    );
+    const banks = await this.questionBankRepository.getByIds([
+      ...new Set(bankIds),
+    ]);
+    const bankById = new Map(banks.map(b => [b._id.toString(), b]));
+
+    const questionIds = banks.flatMap(b => b.questions.map(q => q.toString()));
+    const questions = questionIds.length
+      ? await this.questionRepository.getByIds([...new Set(questionIds)])
+      : [];
+    const questionById = new Map(
+      questions
+        .filter(q => !q.isDeleted)
+        .map(q => [q._id.toString(), q]),
+    );
+
+    const rows: ReturnType<typeof buildQuestionExportRow>[] = [];
+    for (const {module, sections} of liveModules) {
+      for (const section of sections) {
+        for (const quizRef of quizRefsFor(section.itemsGroupId.toString())) {
+          const quiz = quizById.get(quizRef._id.toString());
+          if (!quiz) continue;
+          let questionNumber = 0;
+          for (const ref of quiz.details?.questionBankRefs ?? []) {
+            const bank = bankById.get(ref.bankId.toString());
+            if (!bank) continue;
+            for (const questionId of bank.questions) {
+              const question = questionById.get(questionId.toString());
+              if (!question) continue;
+              rows.push(
+                buildQuestionExportRow(question, {
+                  moduleName: module.name,
+                  sectionName: section.name,
+                  quizName: quiz.name,
+                  bankTitle: bank.title,
+                  questionNumber: ++questionNumber,
+                }),
+              );
+            }
+          }
+        }
+      }
+    }
+
+    const slug = (value: string) =>
+      value
+        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 60);
+    const fileName = `${slug(course?.name ?? 'course') || 'course'}_${
+      slug(version.version ?? '') || versionId
+    }_question_bank.csv`;
+
+    return {
+      csv: buildQuestionBankCsv(rows),
+      fileName,
+      questionCount: rows.length,
+    };
+  }
+
   async getBanksUsingQuestion(questionId): Promise<IQuestionBank[]> {
     throw new Error('Method not implemented.');
   }

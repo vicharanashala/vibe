@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "r
 import * as Papa from 'papaparse';
 import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics } from '@/hooks/hooks';
 import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, LockOpen, Lock } from 'lucide-react';
-import { useHideItem } from '@/hooks/hooks';
+import { useHideItem, exportCourseQuestionBank } from '@/hooks/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 const MAX_DESCRIPTION_LENGTH = 1000;
@@ -161,6 +161,7 @@ function TeacherCourseContent() {
   const [videoTab, setVideoTab] = useState("video");
   const [caseStudyTab, setCaseStudyTab] = useState("settings");
   const [isReorderEnabled, setIsReorderEnabled] = useState(false);
+  const [isExportingQuestionBank, setIsExportingQuestionBank] = useState(false);
 
 
 
@@ -176,6 +177,19 @@ function TeacherCourseContent() {
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
+
+  const handleExportQuestionBank = async () => {
+    if (!courseId || !versionId) return;
+    setIsExportingQuestionBank(true);
+    try {
+      await exportCourseQuestionBank(courseId, versionId);
+      toast.success("Question bank exported");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to export question bank");
+    } finally {
+      setIsExportingQuestionBank(false);
+    }
+  };
 
 
 
@@ -1843,6 +1857,24 @@ function TeacherCourseContent() {
                   </div>
                 </div>
                 <TooltipProvider>
+                  <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-muted-foreground"
+                        onClick={handleExportQuestionBank}
+                        disabled={isExportingQuestionBank || !courseId || !versionId}
+                      >
+                        {isExportingQuestionBank ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                        <span className="sr-only">Export question bank as CSV</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      {isExportingQuestionBank ? "Exporting…" : "Export all quiz questions (CSV)"}
+                    </TooltipContent>
+                  </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -1859,6 +1891,7 @@ function TeacherCourseContent() {
                       {isReorderEnabled ? "Disable Reordering" : "Enable Reordering"}
                     </TooltipContent>
                   </Tooltip>
+                  </div>
                 </TooltipProvider>
               </div>
               <Separator className="opacity-50" />
