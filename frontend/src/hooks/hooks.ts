@@ -5030,6 +5030,44 @@ export const exportQuizSubmissions = async (quizId: string) => {
   URL.revokeObjectURL(url);
 }
 
+// Downloads every quiz question in a course version (options, explanations,
+// correct answer) as a CSV for instructor review.
+export const exportCourseQuestionBank = async (courseId: string, versionId: string) => {
+  const authToken = localStorage.getItem('firebase-auth-token');
+
+  const response = await fetch(
+    `${import.meta.env.VITE_BASE_URL}/quizzes/question-bank/export/courses/${courseId}/versions/${versionId}`,
+    {
+      method: 'GET',
+      headers: {
+        'Authorization': authToken ? `Bearer ${authToken}` : '',
+      },
+      credentials: 'include',
+    },
+  );
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || `Failed to export question bank: ${response.statusText}`);
+  }
+
+  // blob() rather than text(): text() would strip the UTF-8 BOM Excel needs.
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const fileName =
+    disposition.match(/filename="([^"]+)"/)?.[1] ?? `question_bank_${versionId}.csv`;
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}
+
 export function useModuleProgress(
   courseId: string,
   versionId: string,
