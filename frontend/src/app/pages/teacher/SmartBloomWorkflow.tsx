@@ -1931,6 +1931,16 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     }
   };
 
+  // The "Show transcript" instructions link to the video. Build that link from the
+  // 11-character video id alone, never from the typed text, so nothing the
+  // instructor typed ends up in an href.
+  const youtubeWatchUrl = useMemo(() => {
+    const match = youtubeUrl
+      .trim()
+      .match(/^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})(?:[?&#/]\S*)?$/);
+    return match ? `https://www.youtube.com/watch?v=${encodeURIComponent(match[1])}` : null;
+  }, [youtubeUrl]);
+
   const isValidYouTubeUrl = (url: string): boolean => {
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})(\S*)?$/;
     return youtubeRegex.test(url.trim());
@@ -2338,15 +2348,21 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
                     <p className="font-medium">Copy the transcript from YouTube:</p>
                     <ol className="list-decimal pl-5 space-y-0.5 text-amber-800/90 dark:text-amber-300/80">
                       <li>
-                        <a
-                          href={youtubeUrl.trim()}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline font-medium"
-                        >
-                          Open the video on YouTube
-                        </a>{" "}
-                        (opens in a new tab).
+                        {youtubeWatchUrl ? (
+                          <>
+                            <a
+                              href={youtubeWatchUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline font-medium"
+                            >
+                              Open the video on YouTube
+                            </a>{" "}
+                            (opens in a new tab).
+                          </>
+                        ) : (
+                          <>Open the video on YouTube.</>
+                        )}
                       </li>
                       <li>Below the video, click <span className="font-medium">…more</span> to expand the description.</li>
                       <li>

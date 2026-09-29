@@ -118,6 +118,27 @@ class QuestionBankRepository {
     };
   }
 
+  /**
+   * Fetches non-deleted banks as stored, keeping each bank's `questions` in
+   * its original order (unlike getById, which re-reads them via $in).
+   */
+  async getByIds(
+    questionBankIds: string[],
+    session?: ClientSession,
+  ): Promise<IQuestionBank[]> {
+    await this.init();
+    if (questionBankIds.length === 0) return [];
+    return this.questionBankCollection
+      .find(
+        {
+          _id: {$in: questionBankIds.map(id => new ObjectId(id))},
+          isDeleted: {$ne: true},
+        },
+        {session},
+      )
+      .toArray();
+  }
+
   async removeQuestionFromAllBanks(
     questionId: string,
     session?: ClientSession,

@@ -4,6 +4,7 @@ import {
   CreateQuestionBankBody,
   CreateQuestionBankResponse,
   GetQuestionBankByIdParams,
+  ExportCourseQuestionBankParams,
   QuestionBankResponse,
   QuestionBankAndQuestionParams,
   ReplaceQuestionResponse,
@@ -23,7 +24,10 @@ import {
   Authorized,
   UseInterceptor,
   Req,
+  Res,
+  OnUndefined,
 } from 'routing-controllers';
+import {Response} from 'express';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {QUIZZES_TYPES} from '#quizzes/types.js';
 import { QuestionBankActions, getQuestionBankAbility } from '../abilities/questionBankAbilities.js';
@@ -135,6 +139,43 @@ class QuestionBankController {
     }
     
     return questionBank;
+  }
+
+  @OpenAPI({
+    summary: 'Export a course version question bank as CSV',
+    description: `Exports every question used by the quizzes of a course version, in course order,
+    with options, per-option explanations, correct answer and metadata. Intended for instructor review.`,
+  })
+  @Authorized()
+  @Get('/export/courses/:courseId/versions/:versionId')
+  @OnUndefined(200)
+  async exportCourseVersion(
+    @Params() params: ExportCourseQuestionBankParams,
+    @Res() res: Response,
+    @Ability(getQuestionBankAbility) {ability},
+  ): Promise<void> {
+    const {courseId, versionId} = params;
+    const questionBankSubject = subject('QuestionBank', {courseId, versionId});
+    if (!ability.can(QuestionBankActions.View, questionBankSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to export this course question bank',
+      );
+    }
+
+    const {csv, fileName} =
+      await this.questionBankService.exportCourseVersionQuestionsCsv(
+        courseId,
+        versionId,
+      );
+
+    res.removeHeader('Content-Type');
+    res.status(200);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.write(csv);
+    res.end();
   }
 
   @OpenAPI({

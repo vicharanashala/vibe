@@ -43,7 +43,8 @@ export function parseAnyTranscript(content: string): ITranscriptChunk[] {
   // Proper SRT/VTT: trust the cue parser only if it found (nearly) every cue.
   // Word exports of Teams transcripts lose the blank lines between cues, which
   // turns the file into one block; the general reader below handles that.
-  const arrows = (text.match(/-->/g) ?? []).length;
+  // Counted with split, not a regex: this counts cue timing arrows, it is not HTML handling.
+  const arrows = text.split('-->').length - 1;
   if (arrows) {
     const cues = parseTimedTextFile(text);
     if (cues.length && cues.length >= arrows * 0.8) return cues;
