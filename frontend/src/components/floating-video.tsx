@@ -9,6 +9,8 @@ import FaceDetectors from './ai/FaceDetectors';
 import FaceRecognitionOverlay from './ai/FaceRecognitionOverlay';
 // import FaceRecognitionIntegrated from '../ai-components/FaceRecognitionIntegrated';
 import useCameraProcessor from './ai/useCameraProcessor';
+import useGazeDetector from './ai/useGazeDetector';
+import usePhoneDetector from './ai/usePhoneDetector';
 import { AnomalyType } from '@/types/reportanomaly.types';
 import { useAuthStore } from '@/store/auth-store';
 import { useCourseStore } from '@/store/course-store';
@@ -61,6 +63,7 @@ function FloatingVideo({
   // Grace period state for anomaly detection
   const [anomalyDetectionStartTime, setAnomalyDetectionStartTime] = useState<number | null>(null);
   const gracePeriod = 10000; // 10 seconds grace period
+  const [graceTick, setGraceTick] = useState(0);
 
   // Original aspect ratio (maintain the initial component ratio)
   const ORIGINAL_ASPECT_RATIO = 320 / 280; // width / height from initial size
@@ -127,6 +130,12 @@ function FloatingVideo({
   const isFaceRecognitionEnabled = isComponentEnabled('faceRecognition');
   const isRighClickDisabled = isComponentEnabled("rightClickDisabled");
   const isFocusEnabled = false; //isComponentEnabled('focus');
+  // Gaze tracking rides on the face-count detector setting (no separate backend flag).
+  const isGazeDetectionEnabled = isFaceCountDetectionEnabled;
+  const { gazeViolation } = useGazeDetector(videoRef, isGazeDetectionEnabled && isVideoActive);
+  // A phone in frame is a foreign object; also rides on the face-count setting.
+  const isPhoneDetectionEnabled = isFaceCountDetectionEnabled;
+  const { phoneViolation } = usePhoneDetector(videoRef, isPhoneDetectionEnabled && isVideoActive);
 
   // Log enabled components for debugging
   // useEffect(() => {
@@ -572,8 +581,10 @@ const lastCalledRef = useRef<number>(0);
     
     if (isInGracePeriod) {
       const remainingGrace = gracePeriod - (currentTime - anomalyDetectionStartTime);
-      console.log(`⏳ In grace period: ${Math.ceil(remainingGrace / 1000)}s remaining`);
-      return; // Skip anomaly detection during grace period
+      // Re-run this effect once the grace period ends; otherwise detection
+      // stays off until an unrelated dependency happens to change.
+      const graceTimer = setTimeout(() => setGraceTick((n) => n + 1), remainingGrace + 50);
+      return () => clearTimeout(graceTimer); // Skip anomaly detection during grace period
     }
 
     const interval = setInterval(() => {
@@ -642,6 +653,24 @@ const lastCalledRef = useRef<number>(0);
         newPenaltyPoints += 2;
       }
 
+      // Condition 6: Eyes/head pointed beyond the screen for a sustained period
+      let hasGazeViolation = false;
+      if (gazeViolation && isGazeDetectionEnabled && facesCount === 1) {
+        hasGazeViolation = true;
+        activeAnomalies.push("gazeAway");
+        newPenaltyType = "Looking Away";
+        newPenaltyPoints += 2;
+      }
+
+      // Condition 7: Foreign object (mobile phone) visible in the camera frame
+      let hasForeignObject = false;
+      if (phoneViolation && isPhoneDetectionEnabled) {
+        hasForeignObject = true;
+        activeAnomalies.push("foreignObject");
+        newPenaltyType = "Foreign Object";
+        newPenaltyPoints += 2;
+      }
+
       setAnomalies(activeAnomalies);
 
       // Determine if we need to pause or rewind immediately
@@ -652,8 +681,9 @@ const lastCalledRef = useRef<number>(0);
         immediatePause = true;
       }
 
-      if (hasMultipleFaces) {
+      if (hasMultipleFaces || hasGazeViolation || hasForeignObject) {
         immediatePause = true;
+        // Restarts the video; quiz.tsx also resets the quiz on rewind.
         immediateRewind = true;
       }
 
@@ -667,6 +697,8 @@ const lastCalledRef = useRef<number>(0);
           newPenaltyType === "Blur" ? "blurDetection" :
           newPenaltyType === "No Face Detected" || newPenaltyType === "Multiple Faces" ? "faceCountDetection" :
           newPenaltyType === "Speaking" ? "voiceDetection" :
+          newPenaltyType === "Looking Away" ? "gazeAway" :
+          newPenaltyType === "Foreign Object" ? "foreignObject" :
           newPenaltyType === "Pre-emptive Thumbs-Up" || newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :
           "faceRecognition"
         );
@@ -712,7 +744,7 @@ const lastCalledRef = useRef<number>(0);
           setContiguousAnomalyPoints(0);
         }
       }
-    }, 100); // Update every second
+    }, 100); // Evaluate anomalies every 100ms (penalty points accrue per tick)
 
     return () => clearInterval(interval);
   }, [readyToDetect,
@@ -728,6 +760,11 @@ const lastCalledRef = useRef<number>(0);
     isFocusEnabled,
     isFaceRecognitionEnabled,
     hasFaceRecognitionMismatch,
+    gazeViolation,
+    isGazeDetectionEnabled,
+    phoneViolation,
+    isPhoneDetectionEnabled,
+    graceTick,
     // data,
     // error,
     rewindVid,
@@ -825,6 +862,8 @@ const lastCalledRef = useRef<number>(0);
                               (isBlur === "Yes" && isBlurDetectionEnabled) || 
                               (!isFocused && isFocusEnabled) ||
                               (hasFaceRecognitionMismatch && isFaceRecognitionEnabled) ||
+                              (gazeViolation && isGazeDetectionEnabled) ||
+                              (phoneViolation && isPhoneDetectionEnabled) ||
                               (isThumbsUpChallenge && isHandGestureDetectionEnabled);
 
   useEffect(() => {

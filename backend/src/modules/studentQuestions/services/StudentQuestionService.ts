@@ -125,7 +125,7 @@ export class StudentQuestionService {
       await this.repository.setPromotedQuestionId(studentQuestionId, promotedId).catch(() => {});
       return promotedId;
     } catch (err) {
-      console.warn('crowd-q: staging to submitted bank failed (non-fatal)', err);
+      console.error('crowd-q: staging to submitted bank failed', err);
       return null;
     }
   }
@@ -459,13 +459,31 @@ export class StudentQuestionService {
 
     // Only a clean PASS enters the served/collecting pool.
     if (verdict.decision === 'pass') {
-      await this._stageToSubmittedBank(createdId, {
+      const promotedId = await this._stageToSubmittedBank(createdId, {
         segmentId: input.segmentId,
         questionText,
         options,
         correctOptionIndex: input.correctOptionIndex,
         createdBy: input.createdBy,
       });
+
+      // Staging can fail (no quiz after this video, quiz has no question bank,
+      // DB error). Previously the student was still told "Contributed!" while
+      // the question was stored but never reachable by any quiz. Park it as
+      // HELD so an instructor sees it, and be honest with the student.
+      if (!promotedId) {
+        console.error(
+          `crowd-q: PASS question ${createdId} could not be staged into a quiz bank (segment ${input.segmentId}); holding for instructor review`,
+        );
+        await this.repository.markHeld(createdId);
+        return {
+          decision: 'hold',
+          reasonCode: 'staging_unavailable',
+          message:
+            'Your question passed our checks and was saved, but it could not be added to a quiz automatically. An instructor will review it.',
+          questionId: createdId,
+        };
+      }
     }
 
     return {
@@ -872,7 +890,13 @@ export class StudentQuestionService {
         correctOptionIndex: question.correctOptionIndex,
         createdBy: question.createdBy.toString(),
       });
-      if (promotedId) question.promotedQuestionId = new ObjectId(promotedId);
+      if (promotedId) {
+        question.promotedQuestionId = new ObjectId(promotedId);
+      } else {
+        console.error(
+          `crowd-q: approved question ${question._id} could not be staged into a quiz bank; it will not appear in any quiz`,
+        );
+      }
     }
     await this._notifyStatusChange(question, status, reason);
     await this._syncPromotedQuestion(question, status);
