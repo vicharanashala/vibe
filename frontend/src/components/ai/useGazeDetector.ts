@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FaceLandmarker } from "@mediapipe/tasks-vision";
-import { analyzeGaze, GazeDebouncer } from "./gazeAnalysis";
+import { analyzeGazeCalibrated, GazeCalibrator, GazeDebouncer } from "./gazeAnalysis";
 
 const WASM_PATH =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm";
@@ -20,10 +20,12 @@ export default function useGazeDetector(
   const [gazeViolation, setGazeViolation] = useState(false);
   const [gazeReady, setGazeReady] = useState(false);
   const debouncerRef = useRef(new GazeDebouncer());
+  const calibratorRef = useRef(new GazeCalibrator());
 
   useEffect(() => {
     if (!enabled) {
       debouncerRef.current.reset();
+      calibratorRef.current.reset();
       setGazeViolation(false);
       return;
     }
@@ -68,7 +70,7 @@ export default function useGazeDetector(
           const scores: Record<string, number> = {};
           for (const c of shapes) scores[c.categoryName] = c.score;
           const matrix = res.facialTransformationMatrixes?.[0]?.data ?? null;
-          const reading = analyzeGaze(scores, matrix);
+          const reading = analyzeGazeCalibrated(scores, matrix, calibratorRef.current);
           setGazeViolation(debouncerRef.current.update(reading.lookingAway, Date.now()));
         }, CHECK_INTERVAL_MS);
       } catch (err) {
@@ -81,6 +83,7 @@ export default function useGazeDetector(
       if (timer !== null) clearInterval(timer);
       landmarker?.close();
       debouncerRef.current.reset();
+      calibratorRef.current.reset();
       setGazeReady(false);
       setGazeViolation(false);
     };

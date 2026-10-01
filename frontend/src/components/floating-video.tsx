@@ -11,6 +11,7 @@ import FaceRecognitionOverlay from './ai/FaceRecognitionOverlay';
 import useCameraProcessor from './ai/useCameraProcessor';
 import useGazeDetector from './ai/useGazeDetector';
 import usePhoneDetector from './ai/usePhoneDetector';
+import { GazeDebouncer } from './ai/gazeAnalysis';
 import { AnomalyType } from '@/types/reportanomaly.types';
 import { useAuthStore } from '@/store/auth-store';
 import { useCourseStore } from '@/store/course-store';
@@ -101,6 +102,8 @@ function FloatingVideo({
 
   // Use refs to track initialization without causing re-renders
   const faceDetectorsKeyRef = useRef(0);
+  // No face in frame: 5s to come back before the lesson restarts (then held until they return).
+  const noFaceDebouncerRef = useRef(new GazeDebouncer(5000, 500));
   const initializedRef = useRef(false);
 
    // Set grace period start time when ready
@@ -610,17 +613,26 @@ const lastCalledRef = useRef<number>(0);
 
       // Condition 2: Handle different face count scenarios separately (only if face count detection is enabled)
       let hasMultipleFaces = false;
+      let hasNoFaceViolation = false;
+      // Track "no face" continuously (also while the other detectors are quiet) so the
+      // 5s grace period is measured from when the face actually left the frame.
+      const noFaceNow =
+        isFaceCountDetectionEnabled && modelReady && isVideoActive && readyToDetect && facesCount === 0;
+      const noFaceViolation = noFaceDebouncerRef.current.update(noFaceNow, Date.now());
       if (isFaceCountDetectionEnabled && modelReady) {
         if (facesCount === 0) {
-          // No faces detected - this might be normal during initialization
-          // Only penalize if we're sure the camera is active and should see a face
-          if (isVideoActive && readyToDetect) {
-            // Tag with "noFace" so the alert can say "Please stay in frame"
-            activeAnomalies.push("faceCountDetection", "noFace");
-            newPenaltyType = "No Face Detected";
-            newPenaltyPoints += 1;
+          // No face: warn immediately (chip + camera preview), but only restart after
+          // 5s away, and then stay held until the face is back (no repeated restarts).
+          if (noFaceNow) {
+            activeAnomalies.push("noFace");
             // Surface the live camera frame so the learner can reposition
             setIsCollapsed(false);
+            if (noFaceViolation) {
+              hasNoFaceViolation = true;
+              activeAnomalies.push("faceCountDetection");
+              newPenaltyType = "No Face Detected";
+              newPenaltyPoints += 2;
+            }
           }
         } else if (facesCount > 1) {
           // Multiple faces detected - this is an anomaly
@@ -685,7 +697,7 @@ const lastCalledRef = useRef<number>(0);
         immediatePause = true;
       }
 
-      if (hasMultipleFaces || hasGazeViolation || hasForeignObject) {
+      if (hasMultipleFaces || hasGazeViolation || hasForeignObject || hasNoFaceViolation) {
         immediatePause = true;
         // Restarts the video; quiz.tsx also resets the quiz on rewind.
         immediateRewind = true;
@@ -737,7 +749,8 @@ const lastCalledRef = useRef<number>(0);
       }
       else {
         setAnomaly(false);
-        setAnomalies([]);
+        // Keep the "no face" warning visible during the 5s grace period.
+        setAnomalies(activeAnomalies.includes("noFace") ? ["noFace"] : []);
         // When anomalies are cleared, restore previous video state
         if (rewindVid || pauseVid) {
           setRewindVid(false);

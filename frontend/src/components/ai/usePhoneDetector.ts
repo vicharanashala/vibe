@@ -1,12 +1,12 @@
 import {useEffect, useRef, useState} from 'react';
 import type {ObjectDetector} from '@mediapipe/tasks-vision';
 import {GazeDebouncer} from './gazeAnalysis';
-import {containsPhone} from './phoneAnalysis';
+import {containsPhone, PhoneWindow} from './phoneAnalysis';
 
 const WASM_PATH =
   'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm';
 const MODEL_PATH =
-  'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite';
+  'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float16/1/efficientdet_lite2.tflite';
 const CHECK_INTERVAL_MS = 500;
 
 /**
@@ -20,10 +20,12 @@ export default function usePhoneDetector(
 ) {
   const [phoneViolation, setPhoneViolation] = useState(false);
   const debouncerRef = useRef(new GazeDebouncer(1500, 1000));
+  const windowRef = useRef(new PhoneWindow());
 
   useEffect(() => {
     if (!enabled) {
       debouncerRef.current.reset();
+      windowRef.current.reset();
       setPhoneViolation(false);
       return;
     }
@@ -42,7 +44,7 @@ export default function usePhoneDetector(
         const det = await ObjectDetector.createFromOptions(fileset, {
           baseOptions: {modelAssetPath: MODEL_PATH, delegate: 'GPU'},
           runningMode: 'VIDEO',
-          scoreThreshold: 0.4,
+          scoreThreshold: 0.25,
           maxResults: 5,
         });
         if (cancelled) {
@@ -57,9 +59,8 @@ export default function usePhoneDetector(
           lastVideoTime = video.currentTime;
 
           const res = det.detectForVideo(video, performance.now());
-          setPhoneViolation(
-            debouncerRef.current.update(containsPhone(res.detections), Date.now()),
-          );
+          const present = windowRef.current.push(containsPhone(res.detections));
+          setPhoneViolation(debouncerRef.current.update(present, Date.now()));
         }, CHECK_INTERVAL_MS);
       } catch (err) {
         console.error('[usePhoneDetector] init failed:', err);
@@ -71,6 +72,7 @@ export default function usePhoneDetector(
       if (timer !== null) clearInterval(timer);
       detector?.close();
       debouncerRef.current.reset();
+      windowRef.current.reset();
       setPhoneViolation(false);
     };
   }, [enabled, videoRef]);

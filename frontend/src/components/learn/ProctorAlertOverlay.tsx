@@ -37,7 +37,7 @@ function copyFor(anomalies: string[]): { title: string; message: string } {
     return {
       title: "Stay in frame",
       message:
-        "We can't see you. Please face the screen and stay in frame — your lesson resumes automatically.",
+        "We couldn't see you for more than 5 seconds, so the lesson restarted. Please face the screen and stay in frame — it resumes as soon as you're back.",
     };
   if (anomalies.includes("voiceDetection"))
     return {

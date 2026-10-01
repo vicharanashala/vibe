@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeGaze, GazeDebouncer } from "./gazeAnalysis";
+import { analyzeGaze, analyzeGazeCalibrated, GazeCalibrator, GazeDebouncer } from "./gazeAnalysis";
 
 // Identity rotation (frontal face), column-major 4x4.
 const frontal = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
@@ -46,5 +46,39 @@ describe("GazeDebouncer", () => {
     d.update(false, 1000);
     expect(d.update(true, 1500)).toBe(false);
     expect(d.update(true, 3000)).toBe(false);
+  });
+});
+
+describe("GazeCalibrator", () => {
+  // A student whose neutral look already scores eyes-sideways 0.56 (glasses/glare).
+  const neutral = { eyeLookOutLeft: 0.56, eyeLookInRight: 0.56 };
+
+  it("does not flag a student whose neutral look is noisy", () => {
+    const cal = new GazeCalibrator(5);
+    // Absolute thresholds would flag this at once.
+    expect(analyzeGaze(neutral, frontal).lookingAway).toBe(true);
+    for (let i = 0; i < 5; i++) analyzeGazeCalibrated(neutral, frontal, cal);
+    expect(cal.ready).toBe(true);
+    expect(analyzeGazeCalibrated(neutral, frontal, cal).lookingAway).toBe(false);
+  });
+
+  it("never reports away while still calibrating", () => {
+    const cal = new GazeCalibrator(5);
+    expect(analyzeGazeCalibrated({}, yawMatrix(80), cal).lookingAway).toBe(false);
+  });
+
+  it("flags a clear head turn after calibration", () => {
+    const cal = new GazeCalibrator(3);
+    for (let i = 0; i < 3; i++) analyzeGazeCalibrated({}, frontal, cal);
+    const r = analyzeGazeCalibrated({}, yawMatrix(50), cal);
+    expect(r.lookingAway).toBe(true);
+    expect(r.reason).toBe("yaw");
+  });
+
+  it("flags a real sideways glance relative to the baseline", () => {
+    const cal = new GazeCalibrator(3);
+    for (let i = 0; i < 3; i++) analyzeGazeCalibrated(neutral, frontal, cal);
+    const r = analyzeGazeCalibrated({ eyeLookOutLeft: 1, eyeLookInRight: 1 }, frontal, cal);
+    expect(r.lookingAway).toBe(true);
   });
 });

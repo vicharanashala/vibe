@@ -124,3 +124,105 @@ export class GazeDebouncer {
     this.violating = false;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Per-student calibration
+// ---------------------------------------------------------------------------
+// Raw eye blendshapes are noisy: glasses, glare and webcam resolution can give a
+// student who is looking straight at the screen an "eyes sideways" score of
+// 0.5+. So instead of absolute thresholds we learn each student's neutral look
+// from their first few readings and flag only a clear change from it.
+
+export interface GazeSample {
+  yawDeg: number;
+  pitchDeg: number;
+  eyeHorizontal: number;
+  eyeVertical: number;
+}
+
+/** Allowed deviation from the student's own neutral look. */
+export const DEFAULT_DEVIATION_THRESHOLDS: GazeThresholds = {
+  maxYawDeg: 30,
+  maxPitchDeg: 25,
+  maxEyeHorizontal: 0.4,
+  maxEyeVertical: 0.45,
+};
+
+const median = (xs: number[]) => {
+  const a = [...xs].sort((x, y) => x - y);
+  const mid = Math.floor(a.length / 2);
+  return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+};
+
+export class GazeCalibrator {
+  private samples: GazeSample[] = [];
+  private baseline: GazeSample | null = null;
+
+  /** `needed` readings (~3s at 5 readings/s) define the neutral look. */
+  constructor(private readonly needed = 15) {}
+
+  get ready(): boolean {
+    return this.baseline !== null;
+  }
+
+  add(sample: GazeSample): void {
+    if (this.baseline) return;
+    this.samples.push(sample);
+    if (this.samples.length >= this.needed) {
+      const pick = (k: keyof GazeSample) => median(this.samples.map(s => s[k]));
+      this.baseline = {
+        yawDeg: pick('yawDeg'),
+        pitchDeg: pick('pitchDeg'),
+        eyeHorizontal: pick('eyeHorizontal'),
+        eyeVertical: pick('eyeVertical'),
+      };
+    }
+  }
+
+  /** Reading relative to the neutral look (unchanged until calibrated). */
+  adjust(s: GazeSample): GazeSample {
+    const b = this.baseline;
+    if (!b) return s;
+    return {
+      yawDeg: s.yawDeg - b.yawDeg,
+      pitchDeg: s.pitchDeg - b.pitchDeg,
+      eyeHorizontal: s.eyeHorizontal - b.eyeHorizontal,
+      eyeVertical: s.eyeVertical - b.eyeVertical,
+    };
+  }
+
+  reset(): void {
+    this.samples = [];
+    this.baseline = null;
+  }
+}
+
+/**
+ * Calibrated gaze decision. While the calibrator is still collecting its first
+ * readings this never reports "away" (the student is assumed to be looking at
+ * the screen at the start).
+ */
+export function analyzeGazeCalibrated(
+  blendshapes: Blendshapes,
+  matrix: ArrayLike<number> | null,
+  calibrator: GazeCalibrator,
+  t: GazeThresholds = DEFAULT_DEVIATION_THRESHOLDS,
+): GazeReading {
+  const raw = analyzeGaze(blendshapes, matrix, {
+    maxYawDeg: Infinity,
+    maxPitchDeg: Infinity,
+    maxEyeHorizontal: Infinity,
+    maxEyeVertical: Infinity,
+  });
+  if (!calibrator.ready) {
+    calibrator.add(raw);
+    return {...raw, lookingAway: false, reason: null};
+  }
+  const d = calibrator.adjust(raw);
+  let reason: GazeReading['reason'] = null;
+  if (Math.abs(d.yawDeg) > t.maxYawDeg) reason = 'yaw';
+  else if (Math.abs(d.pitchDeg) > t.maxPitchDeg) reason = 'pitch';
+  else if (Math.abs(d.eyeHorizontal) > t.maxEyeHorizontal) reason = 'eyes-horizontal';
+  else if (Math.abs(d.eyeVertical) > t.maxEyeVertical) reason = 'eyes-vertical';
+  return {...d, lookingAway: reason !== null, reason};
+}
