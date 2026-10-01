@@ -46,6 +46,8 @@ export default function AnomaliesList() {
     { value: 'FACE_RECOGNITION', label: 'Face Recognition' },
     { value: 'HAND_GESTURE_DETECTION', label: 'Hand Gesture' },
     { value: 'BLUR_DETECTION', label: 'Blur Detection' },
+    { value: 'GAZE_AWAY', label: 'Looking Away' },
+    { value: 'FOREIGN_OBJECT', label: 'Foreign Object (Phone)' },
   ];
 
   // Debounce search input
@@ -90,6 +92,10 @@ export default function AnomaliesList() {
 
   const getTypeBadge = (type: string) => {
     switch (type) {
+      case 'GAZE_AWAY':
+        return <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">Looking Away</Badge>
+      case 'FOREIGN_OBJECT':
+        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Foreign Object (Phone)</Badge>
       case 'MULTIPLE_FACES':
       default:
         return <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-200">{type}</Badge>

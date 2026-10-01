@@ -289,6 +289,10 @@ const lastCalledRef = useRef<number>(0);
         let reportAnomalyType: AnomalyType;
         if (anomalyType === "blurDetection") {
           reportAnomalyType = AnomalyType.BLUR_DETECTION;
+        } else if (anomalyType === "gazeAway") {
+          reportAnomalyType = AnomalyType.GAZE_AWAY;
+        } else if (anomalyType === "foreignObject") {
+          reportAnomalyType = AnomalyType.FOREIGN_OBJECT;
         } else if (anomalyType === "faceCountDetection") {
           // Differentiate between no face and multiple faces
           if (facesCount === 0) {
