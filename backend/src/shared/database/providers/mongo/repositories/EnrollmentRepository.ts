@@ -3976,6 +3976,33 @@ export class EnrollmentRepository {
   }
 
   /**
+   * Same student set as getEnrollmentsByCourseVersion(..., allCohorts = true),
+   * but only the three fields the public leaderboard reads. Full enrollment
+   * documents for a large course were enough to run the Cloud Run instance
+   * out of memory.
+   */
+  async getLeaderboardEnrollments(
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<
+    Pick<IEnrollment, 'userId' | 'percentCompleted' | 'enrollmentDate'>[]
+  > {
+    await this.init();
+    return await this.enrollmentCollection
+      .find(
+        {
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+          role: 'STUDENT',
+          status: { $regex: /^active$/i },
+          isDeleted: { $ne: true },
+        },
+        { projection: { _id: 0, userId: 1, percentCompleted: 1, enrollmentDate: 1 } },
+      )
+      .toArray();
+  }
+
+  /**
    * Lightweight count of active student enrollments for a course version,
    * across all cohorts. Used to scale the crowd-question peer-validation gate
    * threshold to cohort size (see studentQuestions/services/crowdGate.ts) —

@@ -62,6 +62,18 @@ class ProgressRepository {
       // Index already exists
     }
 
+    // Course-wide reads (leaderboards, getAllProgressForCourseVersion) filter
+    // on courseId + courseVersionId without a userId, so the index above, which
+    // leads with userId, cannot serve them. Not awaited: the first build on a
+    // large collection must not hold up every progress request on a fresh
+    // instance while it runs.
+    this.progressCollection
+      .createIndex({ courseId: 1, courseVersionId: 1 }, { background: true })
+      .catch(() => {
+        // Index already exists, or the build failed — reads still work
+        // without it, only slower.
+      });
+
     try {
       await this.watchTimeCollection.createIndex(
         {
@@ -1082,6 +1094,39 @@ class ProgressRepository {
       currentModule: progress.currentModule?.toString(),
       currentSection: progress.currentSection?.toString(),
       currentItem: progress.currentItem?.toString(),
+    }));
+  }
+
+  /**
+   * Completion state only, for the given students in one course version,
+   * across all cohorts and skipping soft-deleted rows. Used by the public
+   * leaderboard, which needs neither the current-position fields nor
+   * adminSkips, and only asks about students it has not already settled.
+   * A student can have more than one row; callers dedupe.
+   */
+  async getCompletionForUsers(
+    courseId: string,
+    courseVersionId: string,
+    userIds: string[],
+  ): Promise<{ userId: string; completed: boolean; completedAt: Date | null }[]> {
+    await this.init();
+    if (!userIds.length) return [];
+    const rows = await this.progressCollection
+      .find(
+        {
+          userId: { $in: userIds.flatMap(id => [new ObjectId(id), id]) },
+          courseId: { $in: [new ObjectId(courseId), courseId] },
+          courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+          isDeleted: { $ne: true },
+        },
+        { projection: { _id: 0, userId: 1, completed: 1, completedAt: 1 } },
+      )
+      .toArray();
+
+    return rows.map(row => ({
+      userId: row.userId?.toString(),
+      completed: !!row.completed,
+      completedAt: row.completedAt ?? null,
     }));
   }
   /**

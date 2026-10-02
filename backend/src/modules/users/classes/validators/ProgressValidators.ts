@@ -14,6 +14,7 @@ import {
   Min,
   Max,
   IsArray,
+  IsInt,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {WatchTime} from '../transformers/WatchTime.js';
@@ -67,6 +68,34 @@ export class GetLeaderboardQuery {
   cohortId?: string;
 }
 
+// Optional paging for the public leaderboard. Both absent → the full list,
+// which is what existing consumers of the endpoint expect.
+export class GetNoAuthLeaderboardQuery {
+  @JSONSchema({
+    description: 'Page number (starts from 1). Ignored unless limit is set.',
+    minimum: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @JSONSchema({
+    description: 'Number of records per page. Omit to get every student.',
+    minimum: 1,
+    maximum: 1000,
+    type: 'number',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  limit?: number;
+}
+
 export class LeaderboardNoAuthResponse {
   @JSONSchema({
     description: 'User ID',
@@ -83,11 +112,11 @@ export class LeaderboardNoAuthResponse {
   userName!: string;
 
   @JSONSchema({
-    description: 'User email address',
+    description:
+      'Masked email address: first letter and domain only, e.g. m*****@gmail.com',
     type: 'string',
-    format: 'email',
   })
-  @IsEmail()
+  @IsString()
   email!: string;
 
   @JSONSchema({
@@ -107,6 +136,14 @@ export class LeaderboardNoAuthResponse {
   })
   @IsOptional()
   completedAt!: Date | string | null;
+
+  @JSONSchema({
+    description:
+      'Enrollment time in IST, e.g. "01/09/2026, 05:30:00 am", or "No enrollment date"',
+    type: 'string',
+  })
+  @IsString()
+  enrolledAt!: string;
 
   @JSONSchema({
     description: 'Rank in leaderboard',
@@ -142,6 +179,14 @@ export class GetLeaderboardResponse {
   @ValidateNested({each: true})
   @Type(() => LeaderboardNoAuthResponse)
   data!: LeaderboardNoAuthResponse[];
+
+  @JSONSchema({
+    description: 'Number of students on the whole leaderboard, before paging',
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  total?: number;
 }
 
 export class StartItemBody {

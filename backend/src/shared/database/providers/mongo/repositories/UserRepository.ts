@@ -1,4 +1,7 @@
-import {IUserRepository} from '#shared/database/interfaces/IUserRepository.js';
+import {
+  IUserRepository,
+  UserNameAndEmail,
+} from '#shared/database/interfaces/IUserRepository.js';
 import {IUser} from '#shared/interfaces/models.js';
 import {instanceToPlain, plainToInstance} from 'class-transformer';
 import {injectable, inject} from 'inversify';
@@ -253,6 +256,27 @@ export class UserRepository implements IUserRepository {
     return users.map(user => ({
       ...user,
       _id: user._id?.toString(),
+    }));
+  }
+
+  /**
+   * Name and email only, for lists that cover a whole course (the public
+   * leaderboard), where loading full user documents is too heavy.
+   */
+  async getNamesAndEmailsByIds(ids: string[]): Promise<UserNameAndEmail[]> {
+    await this.init();
+    if (!ids.length) return [];
+    const users = await this.usersCollection
+      .find(
+        {_id: {$in: ids.map(id => new ObjectId(id))}},
+        {projection: {firstName: 1, lastName: 1, email: 1}},
+      )
+      .toArray();
+    return users.map(user => ({
+      _id: user._id?.toString(),
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
     }));
   }
 

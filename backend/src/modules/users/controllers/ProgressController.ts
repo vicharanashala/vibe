@@ -22,6 +22,7 @@ import {
   UpsertWatchTimeResponse,
   ItemIdparams,
   GetLeaderboardQuery,
+  GetNoAuthLeaderboardQuery,
   LeaderboardNoAuthResponse,
   GetLeaderboardResponse,
 } from '#users/classes/validators/ProgressValidators.js';
@@ -1114,12 +1115,15 @@ It returns an empty body with a 200 status code.
   })
   async getNoAuthLeaderboard(
     @Params() params: GetUserProgressParams,
+    @QueryParams() query: GetNoAuthLeaderboardQuery,
   ): Promise<GetLeaderboardResponse> {
     const { courseId, versionId } = params;
 
     return await this.progressService.getLeaderboardNoAuth(
       courseId,
       versionId,
+      query?.page,
+      query?.limit,
     );
   }
 }
