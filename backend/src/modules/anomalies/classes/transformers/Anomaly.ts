@@ -14,6 +14,33 @@ export enum AnomalyType {
   // the existing seven; nothing above changes shape or meaning.
   TAB_SWITCH_DURING_REVIEW = 'TAB_SWITCH_DURING_REVIEW',
   PASTE_ATTEMPTED = 'PASTE_ATTEMPTED',
+  // Proctoring extensions: sustained look-away (gaze) and a visible mobile phone.
+  GAZE_AWAY = 'GAZE_AWAY',
+  FOREIGN_OBJECT = 'FOREIGN_OBJECT',
+}
+
+/**
+ * Older web clients sent camelCase / snake_case type strings
+ * (e.g. 'no_face', 'voiceDetection'). Map them to the canonical enum value so
+ * those reports pass validation instead of being rejected with a 400.
+ * Unknown values are returned unchanged so @IsEnum still rejects them.
+ */
+const LEGACY_ANOMALY_TYPES: Record<string, AnomalyType> = {
+  voiceDetection: AnomalyType.VOICE_DETECTION,
+  no_face: AnomalyType.NO_FACE,
+  multiple_faces: AnomalyType.MULTIPLE_FACES,
+  focus: AnomalyType.FOCUS,
+  handGestureDetection: AnomalyType.HAND_GESTURE_DETECTION,
+  faceRecognition: AnomalyType.FACE_RECOGNITION,
+  blurDetection: AnomalyType.BLUR_DETECTION,
+  gazeAway: AnomalyType.GAZE_AWAY,
+  foreignObject: AnomalyType.FOREIGN_OBJECT,
+};
+
+export function normalizeAnomalyType(value: unknown): unknown {
+  return typeof value === 'string' && value in LEGACY_ANOMALY_TYPES
+    ? LEGACY_ANOMALY_TYPES[value]
+    : value;
 }
 
 export enum FileType {
@@ -148,6 +175,20 @@ export class AnomalyStats {
   })
   PASTE_ATTEMPTED: number;
 
+  @IsNumber()
+  @JSONSchema({
+    title: 'Number of gaze-away anomalies',
+    description: 'Number of times the student looked away from the screen for too long',
+  })
+  GAZE_AWAY: number;
+
+  @IsNumber()
+  @JSONSchema({
+    title: 'Number of foreign-object anomalies',
+    description: 'Number of times a foreign object (e.g. a mobile phone) was seen on camera',
+  })
+  FOREIGN_OBJECT: number;
+
   constructor() {
     this.VOICE_DETECTION = 0;
     this.NO_FACE = 0;
@@ -158,6 +199,8 @@ export class AnomalyStats {
     this.FACE_RECOGNITION = 0;
     this.TAB_SWITCH_DURING_REVIEW = 0;
     this.PASTE_ATTEMPTED = 0;
+    this.GAZE_AWAY = 0;
+    this.FOREIGN_OBJECT = 0;
   }
 }
 

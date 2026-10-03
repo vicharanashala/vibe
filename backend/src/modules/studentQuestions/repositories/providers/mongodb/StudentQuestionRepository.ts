@@ -303,6 +303,15 @@ export class StudentQuestionRepository {
     );
   }
 
+  /** System hold: used when a passed question could not be staged into a quiz bank. */
+  async markHeld(studentQuestionId: string): Promise<void> {
+    await this.init();
+    await this.collection.updateOne(
+      {_id: new ObjectId(studentQuestionId)},
+      {$set: {status: 'HELD', updatedAt: new Date()}},
+    );
+  }
+
   async updateStatus(input: {
     courseId: string;
     courseVersionId: string;
