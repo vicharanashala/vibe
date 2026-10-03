@@ -84,6 +84,17 @@ interface IGradingResult {
   gradedBy?: string;
 }
 
+// Courses that show a raw "completed items / total items" count in the
+// enrollments table instead of the usual completion-percentage bar. The bulk
+// enrollments-list endpoint doesn't return a per-course total-item count, so
+// each course's total is pinned here -- confirmed via /progress-detail for
+// one enrolled student in each course. Add an entry here (and nowhere else)
+// to extend this display to another course.
+const ITEM_COUNT_PROGRESS_COURSES: Record<string, number> = {
+  '6981df886e100cfe04f9c4ad': 30, // Gurusetu Pilot (FDP for Faculty)
+  '6a9a7eb5de600629c9fb9405': 37, // GuruSetu Psychological Literacy Special Pilot
+};
+
 // Helper function to generate default names for items with empty names
 function generateDefaultItemNames(items: any[]) {
   const typeCounts: { [key: string]: number } = {}
@@ -660,6 +671,25 @@ function CourseEnrollments() {
 
   // const studentEnrollments = enrollmentsData?.enrollments || [];
   const studentEnrollments = enrollmentsData?.enrollments || []
+
+  // Dynamic total-item count for courses that show "Completed Items" (X/Y)
+  // instead of a percentage bar. Y comes from an enrolled student's live
+  // /progress-detail response (contentCounts.totalItems), which the backend
+  // computes from the course's actual current structure each time it's
+  // called -- so it updates automatically when an item is added to or
+  // removed from the course, instead of going stale like a hardcoded number.
+  // Falls back to ITEM_COUNT_PROGRESS_COURSES's pinned value only until this
+  // resolves, or if the course has no enrolled student yet to ask.
+  const itemCountDenominatorStudentId =
+    studentEnrollments[0]?.user?._id || studentEnrollments[0]?.user?.id;
+  const { data: itemCountProgressDetail } = useStudentProgressDetail(
+    itemCountDenominatorStudentId,
+    courseId,
+    versionId,
+    courseId in ITEM_COUNT_PROGRESS_COURSES && !!itemCountDenominatorStudentId,
+  );
+  const itemCountTotal =
+    itemCountProgressDetail?.contentCounts?.totalItems ?? ITEM_COUNT_PROGRESS_COURSES[courseId];
   const cohortFilteredEnrollments = cohort
   ? studentEnrollments.filter((enrollment: any) => {
       return String(enrollment.cohortId) === String(cohort);
@@ -3458,13 +3488,13 @@ function EnrollmentsTable({
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
-                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
+                        { key: "progress", label: `${courseId in ITEM_COUNT_PROGRESS_COURSES ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
-                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
+                        { key: "progress", label: `${courseId in ITEM_COUNT_PROGRESS_COURSES ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -3545,13 +3575,13 @@ function EnrollmentsTable({
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
-                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
+                        { key: "progress", label: `${courseId in ITEM_COUNT_PROGRESS_COURSES ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
-                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
+                        { key: "progress", label: `${courseId in ITEM_COUNT_PROGRESS_COURSES ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -3691,7 +3721,7 @@ function EnrollmentsTable({
 
                       {/* Progress */}
                       <TableCell className="py-6">
-                        {courseId === "6981df886e100cfe04f9c4ad" ? (`${enrollment.completedItemsCount}/30`) : <EnrollmentProgress progress={Math.min(enrollment.progress ?? 0, 100)} />}
+                        {courseId in ITEM_COUNT_PROGRESS_COURSES ? (`${enrollment.completedItemsCount}/${itemCountTotal}`) : <EnrollmentProgress progress={Math.min(enrollment.progress ?? 0, 100)} />}
                       </TableCell>
 
                       {/* Assigned Time Slot */}
