@@ -4,7 +4,9 @@ name: Deploy Frontend to Firebase
 #   cd frontend && NODE_OPTIONS="--max-old-space-size=8192" pnpm vite build --mode <target>
 #   cd .. && firebase deploy --only hosting:<target>
 #
-# Required per GitHub Environment (Settings → Environments → staging / production):
+# Secrets are read from the `production` GitHub Environment for every target
+# (Settings → Environments → production); the target only picks the Vite mode
+# and the Firebase hosting target:
 #   secrets: GCP_SA_KEY (same key the backend deploy uses; needs Firebase Hosting Admin on vibe-5b35a)
 #            VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID,
 #            VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID,
@@ -38,7 +40,7 @@ jobs:
     name: Build & deploy (${{ inputs.target }})
     runs-on: ubuntu-latest
     environment:
-      name: ${{ inputs.target }}
+      name: production
     steps:
       - uses: actions/checkout@v4
 
@@ -79,7 +81,7 @@ jobs:
             printf '%s=%s\n' "$v" "${!v}" >> ".env.${{ inputs.target }}"
           done
           if [ -n "$missing" ]; then
-            echo "::error::Missing secrets in the '${{ inputs.target }}' environment:$missing"
+            echo "::error::Missing secrets in the 'production' environment:$missing"
             exit 1
           fi
 
