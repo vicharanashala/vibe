@@ -1,12 +1,15 @@
 name: Deploy Frontend to Firebase
 
-# CI equivalent of the manual deploy:
+# CI equivalent of the manual deploy, run once per hosting target:
 #   cd frontend && NODE_OPTIONS="--max-old-space-size=8192" pnpm vite build --mode <target>
 #   cd .. && firebase deploy --only hosting:<target>
 #
-# Secrets are read from the `production` GitHub Environment for every target
-# (Settings → Environments → production); the target only picks the Vite mode
-# and the Firebase hosting target:
+# Staging (vibe-staging-63abb) always deploys; production (vibe-5b35a) deploys
+# afterwards only when "Also deploy to production?" is true.
+#
+# Both targets currently read their secrets from the `production` GitHub
+# Environment (Settings → Environments → production). Once staging has its own
+# secrets, switch the job's environment to `${{ matrix.target }}`.
 #   secrets: GCP_SA_KEY (same key the backend deploy uses; needs Firebase Hosting Admin on vibe-5b35a)
 #            VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID,
 #            VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID,
@@ -16,20 +19,20 @@ name: Deploy Frontend to Firebase
 on:
   workflow_dispatch:
     inputs:
-      target:
-        description: "Hosting target to build and deploy"
+      deploy_production:
+        description: "Also deploy to production?"
         required: true
-        default: staging
+        default: "false"
         type: choice
         options:
-          - staging
-          - production
+          - "false"
+          - "true"
 
 permissions:
   contents: read
 
 concurrency:
-  group: deploy-frontend-${{ inputs.target }}
+  group: deploy-frontend
   cancel-in-progress: false
 
 env:
@@ -37,9 +40,16 @@ env:
 
 jobs:
   deploy:
-    name: Build & deploy (${{ inputs.target }})
+    name: Build & deploy (${{ matrix.target }})
     runs-on: ubuntu-latest
+    strategy:
+      # Staging first, then production; a staging failure stops production.
+      max-parallel: 1
+      fail-fast: true
+      matrix:
+        target: ${{ fromJSON(inputs.deploy_production == 'true' && '["staging","production"]' || '["staging"]') }}
     environment:
+      # TODO: use ${{ matrix.target }} once the staging environment has its own secrets.
       name: production
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +67,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --filter frontend...
 
-      - name: Write .env.${{ inputs.target }}
+      - name: Write .env.${{ matrix.target }}
         working-directory: frontend
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
@@ -75,10 +85,10 @@ jobs:
                 VITE_FIREBASE_STORAGE_BUCKET VITE_FIREBASE_MESSAGING_SENDER_ID VITE_FIREBASE_APP_ID
                 VITE_FIREBASE_MEASUREMENT_ID VITE_BASE_URL VITE_RECAPTCHA_SITE_KEY VITE_IS_RECAPTCHA_ENABLED"
           missing=""
-          : > ".env.${{ inputs.target }}"
+          : > ".env.${{ matrix.target }}"
           for v in $vars; do
             [ -z "${!v}" ] && missing="$missing $v"
-            printf '%s=%s\n' "$v" "${!v}" >> ".env.${{ inputs.target }}"
+            printf '%s=%s\n' "$v" "${!v}" >> ".env.${{ matrix.target }}"
           done
           if [ -n "$missing" ]; then
             echo "::error::Missing secrets in the 'production' environment:$missing"
@@ -89,7 +99,7 @@ jobs:
         working-directory: frontend
         env:
           NODE_OPTIONS: --max-old-space-size=8192
-        run: pnpm vite build --mode ${{ inputs.target }}
+        run: pnpm vite build --mode ${{ matrix.target }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -99,6 +109,6 @@ jobs:
       - name: Deploy to Firebase Hosting
         run: |
           npx --yes firebase-tools@latest deploy \
-            --only "hosting:${{ inputs.target }}" \
+            --only "hosting:${{ matrix.target }}" \
             --non-interactive \
             --message "GitHub Actions: ${GITHUB_SHA::7} by ${GITHUB_ACTOR}"
