@@ -15,6 +15,8 @@ import { getAuth,
 import { useAuthStore } from "../store/auth-store";
 import { useLoginWithGoogle } from "@/hooks/hooks";
 
+const isDemoMode = false;
+
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -32,8 +34,8 @@ const firebaseConfig = {
 
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+const app = isDemoMode ? ({}) as any : initializeApp(firebaseConfig);
+export const auth = isDemoMode ? ({ currentUser: null, onAuthStateChanged: () => () => {}, signOut: async () => {}, getIdToken: async () => '' } as any) : getAuth(app);
 export const provider = new GoogleAuthProvider();
 
 // Firebase authentication functions
@@ -246,4 +248,4 @@ export const logout = () => {
   useAuthStore.getState().clearUser();
 };
 
-export const analytics = getAnalytics(app);
+export const analytics = isDemoMode ? ({} as any) : getAnalytics(app);

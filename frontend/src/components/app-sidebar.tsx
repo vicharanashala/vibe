@@ -5,6 +5,7 @@ import {
   Bell,
   BookOpen,
   Bot,
+  ClipboardList,
   Command,
   Frame,
   GalleryVerticalEnd,
@@ -64,6 +65,11 @@ export function AppSidebar() {
           // Was reachable only by typing the URL directly — no nav entry existed.
           { title: "Generate Section (AI)", url: "/teacher/jobs/create" },
         ],
+      },
+      {
+        title: "Examination",
+        url: "/teacher/exam-app",
+        icon: ClipboardList,
       },
       {
         title: "Announcements",
