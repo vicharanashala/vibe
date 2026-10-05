@@ -40,6 +40,9 @@ export const appConfig = {
   // it is safe to self-activate on deploy. Until it first runs, the panel
   // reports watch hours as not yet computed rather than as zero.
   ENABLE_ENROLLMENT_STATS_JOB: env('ENABLE_ENROLLMENT_STATS_JOB') !== 'false',
+  // Default OFF: alert instructors when a student answers the same quiz
+  // question wrongly three times in a row, and nudge the student (#1109).
+  ENABLE_STRUGGLE_ALERTS: env('ENABLE_STRUGGLE_ALERTS') === 'true',
   GOOGLE_APPLICATION_CREDENTIALS: env('GOOGLE_APPLICATION_CREDENTIALS'),
   GCP_BACKUP_BUCKET: env('GCP_BACKUP_BUCKET'),
   GCP_BACKUP_ACTIVITY_BUCKET: env('GCP_BACKUP_ACTIVITY_BUCKET'),

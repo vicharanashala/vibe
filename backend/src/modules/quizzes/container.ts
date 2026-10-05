@@ -21,6 +21,8 @@ import {
 import {QUIZZES_TYPES} from './types.js';
 import {QuestionService} from './services/QuestionService.js';
 import {FeedbackRepository} from './repositories/providers/mongodb/FeedbackRepository.js';
+import {StruggleStreakRepository} from './repositories/providers/mongodb/StruggleStreakRepository.js';
+import {StruggleDetectionService} from './services/StruggleDetectionService.js';
 
 export const quizzesContainerModule = new ContainerModule(options => {
   // Repositories
@@ -37,6 +39,10 @@ export const quizzesContainerModule = new ContainerModule(options => {
     .to(QuestionRepository)
     .inSingletonScope();
   options.bind(QUIZZES_TYPES.QuizRepo).to(QuizRepository).inSingletonScope();
+  options
+    .bind(QUIZZES_TYPES.StruggleStreakRepo)
+    .to(StruggleStreakRepository)
+    .inSingletonScope();
   options
     .bind(QUIZZES_TYPES.SubmissionRepo)
     .to(SubmissionRepository)
@@ -64,6 +70,10 @@ export const quizzesContainerModule = new ContainerModule(options => {
     .to(AttemptService)
     .inSingletonScope();
   options.bind(QUIZZES_TYPES.QuizService).to(QuizService).inSingletonScope();
+  options
+    .bind(QUIZZES_TYPES.StruggleDetectionService)
+    .to(StruggleDetectionService)
+    .inSingletonScope();
 
   // Controllers
   options.bind(QuestionController).toSelf().inSingletonScope();

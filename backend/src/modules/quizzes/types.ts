@@ -10,6 +10,7 @@ const TYPES = {
   QuestionBankService: Symbol.for('QuestionBankService'),
   QuizService: Symbol.for('QuizService'),
   ProgressService: Symbol.for('ProgressService'),
+  StruggleDetectionService: Symbol.for('StruggleDetectionService'),
 
   //Repositories
   QuestionRepo: Symbol.for('QuestionRepo'),
@@ -19,6 +20,7 @@ const TYPES = {
   SubmissionRepo: Symbol.for('SubmissionRepo'),
   UserQuizMetricsRepo: Symbol.for('UserQuizMetricsRepo'),
   FeedbackRepo: Symbol.for('FeedbackRepo'),
+  StruggleStreakRepo: Symbol.for('StruggleStreakRepo'),
 };
 
 export {TYPES as QUIZZES_TYPES};

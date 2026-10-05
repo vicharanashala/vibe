@@ -64,6 +64,7 @@ import {
   DropdownMenuItem
 } from "@/components/ui/dropdown-menu";
 import CourseInstructors from "./course-instructors"
+import { useFocusStudent } from "@/hooks/use-focus-student"
 
 // Types for quiz functionality
 
@@ -135,6 +136,37 @@ function generateDefaultItemNames(items: any[]) {
 
 // Component to display progress for each enrolled user
 // Accepts either a number (percent or fraction) or an object with a progress property
+// Builds what the progress dialog shows from an enrollment row.
+function toProgressDetails(enrollment: any) {
+  return {
+    id: enrollment.user?._id,
+    name:
+      `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
+      "Unknown User",
+    email: enrollment.user?.email,
+    enrolledDate: enrollment.enrollmentDate,
+    progress: enrollment.progress || 0,
+    completedItemsCount: enrollment.completedItemsCount || 0,
+
+    contentCounts: {
+      totalItems: enrollment.contentCounts?.total || 0,
+      videos: enrollment.contentCounts?.itemCounts?.VIDEO || 0,
+      quizzes: enrollment.contentCounts?.itemCounts?.QUIZ || 0,
+      articles: enrollment.contentCounts?.itemCounts?.BLOG || 0,
+      projects: enrollment.contentCounts?.itemCounts?.PROJECT || 0,
+      completedVideos: enrollment.contentCounts?.completedItemCounts?.VIDEO || 0,
+      completedQuizzes: enrollment.contentCounts?.completedItemCounts?.QUIZ || 0,
+      completedArticles: enrollment.contentCounts?.completedItemCounts?.BLOG || 0,
+      completedProjects: enrollment.contentCounts?.completedItemCounts?.PROJECT || 0,
+      totalQuizScore: enrollment.totalQuizScore || 0,
+      totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
+    },
+    isDeleted: enrollment.isDeleted,
+    cohortId: enrollment.cohortId,
+    cohortName: enrollment.cohortName
+  }
+}
+
 function EnrollmentProgress(props: { progress: number }) {
   // Support both direct number and object prop
   const progress = props.progress;
@@ -233,15 +265,36 @@ function CourseEnrollments() {
   const { user } = useAuthStore()
 
   // Get course info from store
-  const { currentCourse } = useCourseStore()
+  const { currentCourse, setCurrentCourse } = useCourseStore()
   const courseId = currentCourse?.courseId
   const versionId = currentCourse?.versionId
 
+  // Get URL search params
+  const search = useSearch({ strict: false }) as any
+  // Struggling-student alert emails (#1109) name the course in the link.
+  const linkCourseId: string | undefined = search?.courseId
+  const linkVersionId: string | undefined = search?.versionId
+
   useEffect(() => {
+    if (
+      linkCourseId &&
+      linkVersionId &&
+      (courseId !== linkCourseId || versionId !== linkVersionId)
+    ) {
+      setCurrentCourse({
+        courseId: linkCourseId,
+        versionId: linkVersionId,
+        moduleId: null,
+        sectionId: null,
+        itemId: null,
+        watchItemId: null,
+      });
+      return;
+    }
     if (!currentCourse || !courseId || !versionId) {
       navigate({ to: '/teacher' });
     }
-  }, [currentCourse, courseId, versionId, navigate]);
+  }, [currentCourse, courseId, versionId, navigate, linkCourseId, linkVersionId, setCurrentCourse]);
   // Fetch course and version data
   const { data: course, isLoading: courseLoading, error: courseError } = useCourseById(courseId || "")
   const { data: version, isLoading: versionLoading, error: versionError } = useCourseVersionById(versionId || "")
@@ -300,8 +353,6 @@ function CourseEnrollments() {
   const [selectedInactiveUsers, setSelectedInactiveUsers] = useState<Set<string>>(new Set())
   const [isTimeSlotsModalOpen, setIsTimeSlotsModalOpen] = useState(false);
 
-  // Get URL search params
-  const search = useSearch({ strict: false }) as any
   const selectMode = search?.selectMode === "true"
   const excludeAssigned = search?.excludeAssigned === "true"
 
@@ -1148,6 +1199,30 @@ function CourseEnrollments() {
     setSelectedUser(user)
     setIsResetDialogOpen(true)
   }
+
+  // Struggling-student alerts (#1109) link here with ?student=<userId>
+  // (and ?courseId=&versionId= from email). Look the student up, filter the
+  // list to them with the search box, then open their progress once.
+  const focusStudentId: string | undefined = search?.student
+  const [focusHandled, setFocusHandled] = useState(false)
+  const { data: focusStudent } = useFocusStudent(focusHandled ? undefined : focusStudentId)
+
+  useEffect(() => {
+    if (focusStudent?.email && !focusHandled) {
+      setSearchQuery(focusStudent.email)
+    }
+  }, [focusStudent?.email, focusHandled])
+
+  useEffect(() => {
+    if (!focusStudentId || focusHandled) return
+    const match = studentEnrollments.find(
+      (enrollment: any) => enrollment.user?._id === focusStudentId,
+    )
+    if (match) {
+      setFocusHandled(true)
+      handleViewProgress(toProgressDetails(match))
+    }
+  }, [focusStudentId, focusHandled, studentEnrollments])
 
   const handleViewProgress = (user: EnrollmentDetails) => {
     setSelectedUser(user)
@@ -3772,35 +3847,7 @@ function EnrollmentsTable({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() =>
-                              handleViewProgress({
-                                id: enrollment.user?._id,
-                                name:
-                                  `${enrollment?.user?.firstName || ""} ${enrollment?.user?.lastName || ""}`.trim() ||
-                                  "Unknown User",
-                                email: enrollment.user?.email,
-                                enrolledDate: enrollment.enrollmentDate,
-                                progress: enrollment.progress || 0,
-                                completedItemsCount: enrollment.completedItemsCount || 0,
-
-                                contentCounts: {
-                                  totalItems: enrollment.contentCounts?.total || 0,
-                                  videos: enrollment.contentCounts?.itemCounts?.VIDEO || 0,
-                                  quizzes: enrollment.contentCounts?.itemCounts?.QUIZ || 0,
-                                  articles: enrollment.contentCounts?.itemCounts?.BLOG || 0,
-                                  projects: enrollment.contentCounts?.itemCounts?.PROJECT || 0,
-                                  completedVideos: enrollment.contentCounts?.completedItemCounts?.VIDEO || 0,
-                                  completedQuizzes: enrollment.contentCounts?.completedItemCounts?.QUIZ || 0,
-                                  completedArticles: enrollment.contentCounts?.completedItemCounts?.BLOG || 0,
-                                  completedProjects: enrollment.contentCounts?.completedItemCounts?.PROJECT || 0,
-                                  totalQuizScore: enrollment.totalQuizScore || 0,
-                                  totalQuizMaxScore: enrollment.totalQuizMaxScore || 0,
-                                },
-                                isDeleted: enrollment.isDeleted,
-                                cohortId: enrollment.cohortId,
-                                cohortName: enrollment.cohortName
-                              })
-                            }
+                            onClick={() => handleViewProgress(toProgressDetails(enrollment))}
                             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-200 cursor-pointer"
                           >
                             <Eye className="h-4 w-4 mr-2" />

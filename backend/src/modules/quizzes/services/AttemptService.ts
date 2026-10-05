@@ -32,7 +32,7 @@ import {
   MongoDatabase,
   ILotItem,
 } from '#shared/index.js';
-import { injectable, inject } from 'inversify';
+import { injectable, inject, optional } from 'inversify';
 import { ClientSession, ObjectId } from 'mongodb';
 import { NotFoundError, BadRequestError, ForbiddenError } from 'routing-controllers';
 import { QuestionBankService } from './QuestionBankService.js';
@@ -69,6 +69,7 @@ import {
   IStudentSegmentQuestion,
 } from '#root/modules/studentQuestions/classes/transformers/StudentSegmentQuestion.js';
 import { STUDENT_QUESTION_TYPES } from '#root/modules/studentQuestions/types.js';
+import type { StruggleDetectionService, SupportNudge } from './StruggleDetectionService.js';
 
 const PEER_QUESTION_DEFAULT_POINTS = 0;
 const PEER_QUESTION_DEFAULT_TIME_LIMIT_SECONDS = 60;
@@ -120,6 +121,12 @@ class AttemptService extends BaseService {
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
+
+    // Optional: containers built without it (some tests) still get a working
+    // AttemptService; struggling-student alerts are then simply skipped.
+    @inject(QUIZZES_TYPES.StruggleDetectionService)
+    @optional()
+    private readonly struggleDetectionService?: StruggleDetectionService,
   ) {
     super(database);
   }
@@ -627,7 +634,7 @@ class AttemptService extends BaseService {
     cohortId?: string,
     moduleId?: string,
     sectionId?: string,
-  ): Promise<Partial<IGradingResult> | null> {
+  ): Promise<(Partial<IGradingResult> & { supportNudge?: SupportNudge }) | null> {
     /* -------------------- READS OUTSIDE TRANSACTION -------------------- */
 
     // Course version is active or not
@@ -785,6 +792,22 @@ class AttemptService extends BaseService {
     /* -------------------- UPDATE SUBMISSION (SMALL WRITE) -------------------- */
     await this.submissionRepository.update(submissionId, { gradingResult });
 
+    // Struggling-student alerts (#1109): update the student's failure streaks,
+    // alert instructors on the third wrong answer in a row, and get a nudge to
+    // show the student. Awaited so the nudge can be returned, but it never
+    // throws and is skipped when the feature is off.
+    let supportNudge: SupportNudge | undefined;
+    if (this.struggleDetectionService && courseId && courseVersionId) {
+      supportNudge = await this.struggleDetectionService.recordQuizResults({
+        userId: userId.toString(),
+        courseId,
+        courseVersionId,
+        cohortId,
+        quizId,
+        feedback: gradingResult.overallFeedback ?? [],
+      });
+    }
+
     const isPassed = gradingResult.gradingStatus === "PASSED"
     if (!isSkipped && (!isItemCompleted || isPassed)) {
       // Resolve the quiz's actual moduleId/sectionId rather than trusting
@@ -817,7 +840,8 @@ class AttemptService extends BaseService {
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */
 
-    return this._buildGradingResult(quiz, gradingResult);
+    const result = this._buildGradingResult(quiz, gradingResult);
+    return supportNudge ? { ...result, supportNudge } : result;
   }
 
   async submitFeedBackForm(

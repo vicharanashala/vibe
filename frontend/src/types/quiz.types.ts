@@ -172,6 +172,14 @@ export interface SubmitQuizResponse {
   gradingStatus: 'PENDING' | 'PASSED' | 'FAILED';
   gradedAt?: string;
   gradedBy?: string;
+  /**
+   * Present when the student has now answered a question wrongly three or
+   * more times in a row (#1109): a supportive message suggesting a review.
+   */
+  supportNudge?: {
+    questionCount: number;
+    message: string;
+  };
 }
 
 export interface FlaggedQuestionResponse {
