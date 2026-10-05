@@ -268,6 +268,33 @@ class QuestionBankRepository {
     return result.deletedCount > 0;
   }
 
+  /**
+   * Find all non-deleted question banks that belong to a given course.
+   * Used by SpacedRepetitionService.getCourseRetention() to walk the
+   * course → bank → question path when computing the per-course
+   * question summary catalogue. Returns plain `IQuestionBank` documents
+   * (no question-hydration); callers that need the questions should
+   * compose with `getById()` or read `bank.questions` directly.
+   */
+  async findBanksByCourseId(
+    courseId: string,
+    session?: ClientSession,
+  ): Promise<IQuestionBank[]> {
+    await this.init();
+    const results = await this.questionBankCollection
+      .find(
+        {courseId: new ObjectId(courseId), isDeleted: {$ne: true}},
+        {session},
+      )
+      .toArray();
+    return results.map(bank => ({
+      ...bank,
+      questions: bank.questions.map(q => q.toString()),
+      courseId: bank.courseId?.toString(),
+      courseVersionId: bank.courseVersionId?.toString(),
+    }));
+  }
+
   async updateQuestionsPoints(
     questionBankId: string,
     points: number,

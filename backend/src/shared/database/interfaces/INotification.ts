@@ -11,6 +11,7 @@ export type NotificationType =
   | 'appeal_rejected'
   | 'mcq_submission_approved'
   | 'mcq_submission_rejected'
+  | 'review_reminder'
   | 'case_response_weak_streak'
   | 'case_response_withdrawn';
 
@@ -32,6 +33,11 @@ export interface INotification {
     appealDeadline?: Date;
     enrollmentId?: ObjectId;
     appealPending?: boolean;
+    // SR review reminder (2026-08-09): itemCount = number of due
+    // review items across `courseIds`. Used by the in-app inbox card
+    // to render the count badge ("3 cards due").
+    itemCount?: number;
+    courseIds?: ObjectId[];
   };
   extra?: Record<string, any>;
 }
