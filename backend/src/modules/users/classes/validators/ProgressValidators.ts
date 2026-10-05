@@ -112,8 +112,7 @@ export class LeaderboardNoAuthResponse {
   userName!: string;
 
   @JSONSchema({
-    description:
-      'Masked email address: first letter and domain only, e.g. m*****@gmail.com',
+    description: 'User email address, or "No email" if the user has none on file',
     type: 'string',
   })
   @IsString()

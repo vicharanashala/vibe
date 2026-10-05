@@ -83,12 +83,12 @@ describe('ProgressService.getLeaderboardNoAuth', () => {
     expect(res.data.map(r => r.userId)).toEqual(['B', 'A', 'C', 'D']);
     expect(res.data.map(r => r.rank)).toEqual([1, 2, 3, 4]);
     expect(res.total).toBe(4);
-    // Same fields and display format as before the fix; only email is masked.
+    // Same fields and display format as before the fix; email is the real address.
     expect(res.data[0]).toEqual({
       rank: 1,
       userId: 'B',
       userName: 'Bala',
-      email: 'b*****@example.com',
+      email: 'bala@example.com',
       completionPercentage: 100,
       completedAt: '05/09/2026, 03:30:00 pm',
       enrolledAt: '01/09/2026, 05:30:00 am',
@@ -97,7 +97,7 @@ describe('ProgressService.getLeaderboardNoAuth', () => {
     expect(res.data[3].enrolledAt).toBe('No enrollment date');
   });
 
-  it('masks every email to its first letter and domain', async () => {
+  it('returns each user\'s real email address, unmasked', async () => {
     const { service } = makeService({
       enrollments: ['A', 'B', 'C', 'D'].map(id => ({
         userId: id,
@@ -116,13 +116,10 @@ describe('ProgressService.getLeaderboardNoAuth', () => {
     const res = await service.getLeaderboardNoAuth(COURSE_ID, VERSION_ID);
     const emailById = new Map(res.data.map(r => [r.userId, r.email]));
 
-    expect(emailById.get('A')).toBe('m*****@gmail.com');
-    expect(emailById.get('B')).toBe('x*****@iitrpr.ac.in');
-    expect(emailById.get('C')).toBe('n*****');
+    expect(emailById.get('A')).toBe('meenakshi.v@gmail.com');
+    expect(emailById.get('B')).toBe('x@iitrpr.ac.in');
+    expect(emailById.get('C')).toBe('not-an-email');
     expect(emailById.get('D')).toBe('No email');
-    for (const row of res.data) {
-      expect(row.email).not.toContain('meenakshi');
-    }
   });
 
   it('does not look up settled finishers again on the next rebuild', async () => {

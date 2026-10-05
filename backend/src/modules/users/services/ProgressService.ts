@@ -72,15 +72,6 @@ const IST_DATE_TIME = new Intl.DateTimeFormat('en-IN', {
   hour12: true,
 });
 
-// The public leaderboard needs no authentication, so it shows only enough of
-// an email for a student to recognise their own row: "meena@gmail.com" →
-// "m*****@gmail.com". A fixed run of asterisks hides the name's length.
-function maskEmail(email: string): string {
-  const at = email.lastIndexOf('@');
-  if (at <= 0) return `${email.charAt(0)}*****`;
-  return `${email.charAt(0)}*****${email.slice(at)}`;
-}
-
 // Kept distinct from isGuruSetuProgressCourse: this is specifically about the
 // Gurusetu FDP course's own linearProgressionEnabled=false setting (see the
 // startItem usage below), not about which courses use the feedback-only
@@ -5542,7 +5533,7 @@ class ProgressService extends BaseService {
       const row: NoAuthLeaderboardRow = {
         userId,
         userName: user?.name || 'Unknown User',
-        email: user?.email ? maskEmail(user.email) : 'No email',
+        email: user?.email || 'No email',
         completionPercentage: enrollment.completionPercentage,
         completedAtMs: completedAt ? new Date(completedAt).getTime() : null,
         completedAt: completedAt
