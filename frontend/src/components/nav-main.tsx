@@ -21,6 +21,7 @@ import { useNavigate, useLocation } from "@tanstack/react-router"
 
 export function NavMain({
   items,
+  resolveHref,
 }: {
   items: {
     title: string
@@ -32,9 +33,17 @@ export function NavMain({
       url: string
     }[]
   }[]
+  /**
+   * Optional URL resolver for items whose target depends on runtime context
+   * (e.g. the discussion entry needs the active courseId from the store).
+   * Falls back to the static `item.url` when omitted.
+   */
+  resolveHref?: (item: { title: string; url: string }) => string;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const resolve = (item: { title: string; url: string }) =>
+    resolveHref ? resolveHref(item) : item.url;
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
@@ -78,7 +87,7 @@ export function NavMain({
                 asChild
                 tooltip={item.title}
                 data-active={location.pathname.startsWith(item.url)}
-                onClick={() => navigate({ to: item.url })}
+                onClick={() => navigate({ to: resolve(item) })}
               >
                 <a>
                   {item.icon && <item.icon />}

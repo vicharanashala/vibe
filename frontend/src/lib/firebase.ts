@@ -3,6 +3,10 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth,
   GoogleAuthProvider,
+<<<<<<< HEAD
+  connectAuthEmulator,
+=======
+>>>>>>> 75d7f3b8f211e06eff0e05ad3f727d3d4cb8759e
   signInWithPopup,
   signInWithEmailAndPassword,
   signOut,
@@ -35,6 +39,29 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
+
+// Milestone E: connect the JS SDK to the local Firebase Auth emulator
+// when the demo env asks for it. Setting this via an env var keeps the
+// production path completely untouched (the SDK still talks to the
+// real Firebase project unless this flag is true).
+if (
+    typeof window !== "undefined" &&
+    import.meta.env.VITE_USE_FIREBASE_EMULATOR === "true"
+) {
+    const host =
+        import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_HOST ?? "127.0.0.1:9099";
+    const [hostname, port] = host.split(":");
+    // `connectAuthEmulator` is idempotent at the SDK level — calling it
+    // twice throws "already connected", so guard with a flag on the auth
+    // instance for safety.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const authRef = auth as unknown as { _emulatorConfig?: unknown };
+    if (!authRef._emulatorConfig) {
+        connectAuthEmulator(auth, `http://${hostname}:${port ?? 9099}`, {
+            disableWarnings: true,
+        });
+    }
+}
 
 // Firebase authentication functions
 export const loginWithGoogle = async () => {
