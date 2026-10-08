@@ -685,11 +685,11 @@ export function useStudentCurrentProgressPath(
 
 // GET /:userId/enrollments/courses/:courseId/versions/:versionId/progress-detail (API 2)
 export function useStudentProgressDetail(
-  userId?: string,
-  courseId?: string,
-  versionId?: string,
+  userId?: string | null,
+  courseId?: string | null,
+  versionId?: string | null,
   enabled?: boolean,
-  cohortId?: string
+  cohortId?: string | null
 ) {
   const result = api.useQuery(
     'get',
@@ -716,6 +716,12 @@ export function useStudentProgressDetail(
       enrollmentDate: string;
       percentCompleted: number;
       completedItemsCount: number;
+      // Paired with completedItemsCount: the total that count is "out of",
+      // using whichever formula produced completedItemsCount (plain item
+      // count normally; feedback-forms-submitted count for Guru-Setu-override
+      // courses, where contentCounts.totalItems below would include items --
+      // like videos -- that formula doesn't count).
+      completedItemsTotal?: number;
       assignedTimeSlots?: any[];
       contentCounts: {
         totalItems: number;
