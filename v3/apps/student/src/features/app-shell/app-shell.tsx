@@ -6,6 +6,7 @@ import {
   MoonIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
+  ShieldIcon,
   SunIcon,
   UserIcon,
   type LucideIcon,
@@ -22,6 +23,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/features/auth/auth-provider';
+import { useCurrentUserProfile } from '@/features/admin/queries';
+import { NotificationBell } from '@/features/notifications/notification-bell';
 import { Wordmark } from '@/features/landing/wordmark';
 import { cn } from '@/lib/utils';
 
@@ -90,7 +93,8 @@ export function AppShell() {
           <Link to="/home" aria-label="ViBe home" className="md:hidden">
             <Wordmark />
           </Link>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <NotificationBell />
             <AccountMenu />
           </div>
         </header>
@@ -170,6 +174,8 @@ function AccountMenu() {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const profile = useCurrentUserProfile();
+  const isAdmin = profile.data?.roles === 'admin';
 
   async function onSignOut() {
     await signOut();
@@ -198,6 +204,11 @@ function AccountMenu() {
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           {theme === 'dark' ? 'Light theme' : 'Dark theme'}
         </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem onClick={() => navigate({ to: '/admin' })}>
+            <ShieldIcon /> Admin
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onSignOut}>
           <LogOutIcon /> Log out

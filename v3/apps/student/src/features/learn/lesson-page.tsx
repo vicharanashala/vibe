@@ -16,7 +16,9 @@ import {
   courseKeys,
   useCourseVersion,
   useCurrentPath,
+  useEnrollments,
   useEthicsConsent,
+  useFaceReference,
   useProgressPercentage,
   type CurrentPath,
 } from '@/features/courses/queries';
@@ -25,15 +27,24 @@ import { cn } from '@/lib/utils';
 
 import { CameraBubble, CameraRequired, useCameraPresence } from './camera-presence';
 import { ConsentGate } from './consent-gate';
+import { useBlurDetector } from './detectors/use-blur-detector';
+import { FaceEnrollment } from './detectors/face-enrollment';
+import { useFaceCountDetector } from './detectors/use-face-count-detector';
+import { useFaceRecognition } from './detectors/use-face-recognition';
+import { useGestureDetector } from './detectors/use-gesture-detector';
+import { useThumbsUpChallenge } from './detectors/use-thumbs-up-challenge';
+import { useVoiceDetector } from './detectors/use-voice-detector';
 import {
   heartbeat,
-  isProctored,
+  isDetectorEnabled,
   startItem,
   toSeconds,
+  unsupportedDetectors,
   useCompleteItem,
   useCourseSettings,
   useLesson,
   youtubeId,
+  type DetectorSetting,
   type LessonItem,
   type LessonRef,
 } from './queries';
@@ -53,6 +64,12 @@ export function LessonPage({ track, ...ref }: LessonProps) {
   const lesson = useLesson(ref);
   const consent = useEthicsConsent(ref.courseId, ref.versionId);
   const percentage = useProgressPercentage(ref.courseId, ref.versionId);
+  // The green track saves certified progress, which only exists for STUDENT
+  // enrollments (the backend never creates a Progress record for any other
+  // role) — an instructor opening a green lesson hit a raw "Progress not
+  // found" 404 the moment it tried to start the item.
+  const enrollments = useEnrollments('active');
+  const enrollmentRole = enrollments.data?.enrollments.find((e) => e.courseVersionId === ref.versionId)?.role;
   const [, rememberTrack] = useCourseTrack(ref.versionId);
   useEffect(() => rememberTrack(track), [track, rememberTrack]);
 
@@ -63,7 +80,7 @@ export function LessonPage({ track, ...ref }: LessonProps) {
     </LessonFrame>
   );
 
-  if (lesson.isPending || consent.isPending) {
+  if (lesson.isPending || consent.isPending || enrollments.isPending) {
     return frame(
       <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-10">
         <Skeleton className="h-8 w-1/2" />
@@ -99,12 +116,25 @@ export function LessonPage({ track, ...ref }: LessonProps) {
 
   if (track === 'blue') return <BlueLesson key={ref.itemId} lessonRef={ref} item={item} progress={progress} />;
 
-  // Green: never run a proctored lesson without its proctoring (engine is ported next).
-  if (isProctored(item.proctoringDetectors)) {
+  // Green track tracks certified progress, which doesn't exist for a non-student
+  // enrollment (e.g. an instructor) — only the blue track (no progress saved) works for them.
+  if (enrollmentRole && enrollmentRole !== 'STUDENT') {
+    return frame(
+      <Notice title="Certified progress isn’t available here" lessonRef={ref}>
+        You’re enrolled on this course as {enrollmentRole.toLowerCase()}, not a student, so the green track’s progress tracking doesn’t apply to
+        you. Switch to the blue track to study this lesson.
+      </Notice>,
+    );
+  }
+
+  // Green: never run a proctored lesson without every one of its enabled detectors
+  // (more are ported over time; see SUPPORTED_DETECTORS in queries.ts).
+  const unsupported = unsupportedDetectors(item.proctoringDetectors);
+  if (unsupported.length > 0) {
     return frame(
       <Notice title="This lesson is proctored" icon={<ShieldAlertIcon className="size-6" aria-hidden />} lessonRef={ref}>
-        Proctored lessons need the camera-based integrity checks, which aren’t available in this version of the app yet.
-        You can still study it on the blue track.
+        This lesson requires {unsupported.length === 1 ? 'a check' : 'checks'} ({unsupported.map((d) => d.detectorName).join(', ')}) that{' '}
+        {unsupported.length === 1 ? "isn't" : "aren't"} available in this version of the app yet. You can still study it on the blue track.
       </Notice>,
     );
   }
@@ -117,17 +147,205 @@ export function LessonPage({ track, ...ref }: LessonProps) {
  */
 function GreenGate({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
   const path = useCurrentPath(ref.courseId, ref.versionId);
-  if (path.isPending) return <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}><Skeleton className="mx-auto mt-10 h-64 w-full max-w-3xl" /></LessonFrame>;
   const isCurrent = path.data?.item?.id === ref.itemId;
-  if (!item.isAlreadyWatched && path.data?.item && !isCurrent) {
+  const isLocked = !path.isPending && !item.isAlreadyWatched && !!path.data?.item && !isCurrent;
+  // Hooks must run unconditionally — don't gate this call behind the early
+  // returns below. Instead it takes its own `enabled` flag, so a lesson that's
+  // still loading or locked never opens the camera for content it isn't showing.
+  const { blocked, overlay } = useProctoring(item.proctoringDetectors, ref.courseId, ref.versionId, !path.isPending && !isLocked);
+
+  if (path.isPending) return <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}><Skeleton className="mx-auto mt-10 h-64 w-full max-w-3xl" /></LessonFrame>;
+  if (isLocked) {
     return (
       <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}>
         <LockedLesson lessonRef={ref} track="green" />
       </LessonFrame>
     );
   }
-  if (item.type === 'QUIZ') return <GreenQuiz lessonRef={ref} item={item} progress={progress} />;
-  return <GreenLesson lessonRef={ref} item={item} progress={progress} />;
+
+  return (
+    <>
+      {/* blocked only dims/disables interaction here — it does NOT stop playback on
+          its own. Video pausing is wired explicitly (GreenLesson's `paused={blocked}`)
+          precisely so a blocked lesson can't just keep playing to completion behind
+          the overlay. */}
+      <div className={cn(blocked && 'pointer-events-none select-none blur-sm')} aria-hidden={blocked}>
+        {item.type === 'QUIZ' ? (
+          <GreenQuiz lessonRef={ref} item={item} progress={progress} />
+        ) : (
+          <GreenLesson lessonRef={ref} item={item} progress={progress} blocked={blocked} />
+        )}
+      </div>
+      {overlay}
+    </>
+  );
+}
+
+/**
+ * Runs every proctoring detector this build supports for the duration of a
+ * green-track lesson. Detectors not in SUPPORTED_DETECTORS (queries.ts) never
+ * reach here — the caller already blocked the lesson for those. Returns
+ * `blocked` (so the caller can both dim the UI and actually pause playback)
+ * and `overlay` (the camera bubble / block notices / enrollment dialog to
+ * render alongside, not inside, the dimmed content).
+ */
+function useProctoring(
+  detectors: DetectorSetting[] | undefined,
+  courseId: string,
+  versionId: string,
+  /** False while the lesson itself isn't being shown yet (still loading / locked) — no camera prompt for content the student can't see. */
+  enabled: boolean,
+): { blocked: boolean; overlay: ReactNode } {
+  const needsCamera = enabled && isDetectorEnabled(detectors, 'cameraMic');
+  const needsRightClickBlock = enabled && isDetectorEnabled(detectors, 'rightClickDisabled');
+  const needsBlur = enabled && isDetectorEnabled(detectors, 'blurDetection');
+  const needsGesture = enabled && isDetectorEnabled(detectors, 'handGestureDetection');
+  const needsVoice = enabled && isDetectorEnabled(detectors, 'voiceDetection');
+  const needsFaceCount = enabled && isDetectorEnabled(detectors, 'faceCountDetection');
+  const needsFaceRecognition = enabled && isDetectorEnabled(detectors, 'faceRecognition');
+  // Every detector below needs a live camera feed to analyse, even on courses
+  // that didn't separately turn the cameraMic detector on.
+  const needsCameraStream = needsCamera || needsBlur || needsGesture || needsVoice || needsFaceCount || needsFaceRecognition;
+  const camera = useCameraPresence({ audio: true, enabled: needsCameraStream });
+  const cameraReady = camera.state === 'on';
+
+  // A hidden video element feeds the frame-capture loops below — separate
+  // from CameraBubble's own self-view video, which isn't exposed as a ref.
+  const captureRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (captureRef.current) captureRef.current.srcObject = camera.stream;
+  }, [camera.stream]);
+
+  const isBlurry = useBlurDetector(captureRef, needsBlur && cameraReady);
+  const gesture = useGestureDetector(captureRef, needsGesture && cameraReady);
+  useThumbsUpChallenge(gesture, needsGesture && cameraReady);
+  const isSpeaking = useVoiceDetector(camera.stream, needsVoice && cameraReady);
+  const faceCount = useFaceCountDetector(captureRef, needsFaceCount && cameraReady);
+
+  const faceReference = useFaceReference(courseId, versionId);
+  const referenceEmbedding = needsFaceRecognition ? faceReference.data?.faceEmbedding : undefined;
+  const recognitionStatus = useFaceRecognition(captureRef, referenceEmbedding, needsFaceRecognition && cameraReady);
+  const [retakingReference, setRetakingReference] = useState(false);
+
+  useEffect(() => {
+    if (!needsRightClickBlock) return;
+    const onContextMenu = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener('contextmenu', onContextMenu);
+    return () => document.removeEventListener('contextmenu', onContextMenu);
+  }, [needsRightClickBlock]);
+
+  useEffect(() => {
+    if (!needsBlur) return;
+    if (isBlurry) {
+      toast.warning('Your camera view looks blurry', {
+        id: 'blur-warning',
+        description: 'Make sure your camera lens is clean and you’re in focus.',
+        duration: Infinity,
+      });
+    } else {
+      toast.dismiss('blur-warning');
+    }
+  }, [isBlurry, needsBlur]);
+
+  useEffect(() => {
+    if (!needsVoice) return;
+    if (isSpeaking) {
+      toast.message('Voice detected', { id: 'voice-warning', description: 'Keep your surroundings quiet during this lesson.' });
+    } else {
+      toast.dismiss('voice-warning');
+    }
+  }, [isSpeaking, needsVoice]);
+
+  // Face recognition needs a saved reference before it can run at all.
+  const needsEnrollment = needsFaceRecognition && faceReference.isSuccess && !faceReference.data.faceEmbedding;
+  const showEnrollment = needsEnrollment || retakingReference;
+
+  let blockNotice: { title: string; message: string; showRetake?: boolean } | null = null;
+  if (needsFaceCount && faceCount !== null && faceCount !== 1) {
+    blockNotice =
+      faceCount === 0
+        ? { title: 'No face detected', message: 'Make sure your face is clearly visible to the camera.' }
+        : { title: 'Multiple faces detected', message: 'Only one person should be visible to the camera during this lesson.' };
+  } else if (needsFaceRecognition && !showEnrollment && faceReference.data?.faceEmbedding && recognitionStatus !== 'matched') {
+    blockNotice =
+      recognitionStatus === 'mismatched'
+        ? {
+            title: 'Face doesn’t match',
+            message: 'We couldn’t confirm this is you. Make sure you’re well-lit and facing the camera, or add a new reference photo.',
+            showRetake: true,
+          }
+        : { title: 'Checking it’s you…', message: 'Face the camera directly in good light.' };
+  }
+
+  const blocked = (needsCameraStream && !cameraReady) || showEnrollment || blockNotice !== null;
+
+  const overlay = (
+    <>
+      {needsCameraStream && (
+        <>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- hidden frame source for detectors, not a media player */}
+          <video ref={captureRef} autoPlay playsInline muted className="hidden" aria-hidden="true" />
+          <CameraBubble stream={camera.stream} />
+          <CameraRequired
+            state={camera.state}
+            onRetry={camera.retry}
+            idleHint="This lesson is proctored and needs your camera and microphone on. Nothing is recorded or sent anywhere."
+          />
+        </>
+      )}
+      {cameraReady && showEnrollment && (
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 overflow-y-auto bg-background">
+          <FaceEnrollment
+            videoRef={captureRef}
+            stream={camera.stream}
+            courseId={courseId}
+            versionId={versionId}
+            onDone={() => {
+              setRetakingReference(false);
+              void faceReference.refetch();
+            }}
+          />
+        </div>
+      )}
+      {cameraReady && !showEnrollment && blockNotice && (
+        <BlockingNotice
+          title={blockNotice.title}
+          message={blockNotice.message}
+          action={blockNotice.showRetake ? { label: 'Add a new reference photo', onClick: () => setRetakingReference(true) } : undefined}
+        />
+      )}
+    </>
+  );
+
+  return { blocked, overlay };
+}
+
+/** Full-screen notice for a proctoring block that isn't "camera is off" (that's CameraRequired). */
+function BlockingNotice({
+  title,
+  message,
+  action,
+}: {
+  title: string;
+  message: string;
+  action?: { label: string; onClick: () => void };
+}) {
+  return (
+    <div role="dialog" aria-modal="true" aria-labelledby="proctoring-block-title" className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-xl">
+        <ShieldAlertIcon className="mx-auto size-8 text-amber-600" aria-hidden />
+        <h2 id="proctoring-block-title" className="mt-4 font-aleo text-xl">
+          {title}
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+        {action && (
+          <Button variant="outline" size="sm" className="mt-4" onClick={action.onClick}>
+            {action.label}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /** Opens the next lesson the backend's progress points to (or the course page when done). */
@@ -197,7 +415,18 @@ function GreenQuiz({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
   );
 }
 
-function GreenLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
+function GreenLesson({
+  lessonRef: ref,
+  item,
+  progress,
+  blocked,
+}: {
+  lessonRef: LessonRef;
+  item: LessonItem;
+  progress: number;
+  /** A proctoring violation is in effect — actually pause the video (not just dim it) and stop counting watch time. */
+  blocked: boolean;
+}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const settings = useCourseSettings(ref.courseId, ref.versionId);
@@ -224,8 +453,9 @@ function GreenLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref.itemId, alreadyDone]);
 
-  // Keep it alive: readings while the tab is visible, videos while playing.
-  const active = item.type === 'VIDEO' ? playing : true;
+  // Keep it alive: readings while the tab is visible, videos while playing — in
+  // either case, never while a proctoring violation is blocking the lesson.
+  const active = !blocked && (item.type === 'VIDEO' ? playing : true);
   useEffect(() => {
     if (!active || alreadyDone) return;
     const id = window.setInterval(() => {
@@ -307,6 +537,7 @@ function GreenLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef;
       <LessonContent
         item={item}
         allowSeekForward={(settings.data?.settings.seekForwardEnabled ?? false) || alreadyDone}
+        paused={blocked}
         onPlayingChange={setPlaying}
         onEnded={() => setVideoEnded(true)}
       />
@@ -366,7 +597,11 @@ function BlueLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; 
         <LessonContent item={item} allowSeekForward paused={blocked} />
       </div>
       <CameraBubble stream={camera.stream} />
-      <CameraRequired state={camera.state} onRetry={camera.retry} />
+      <CameraRequired
+        state={camera.state}
+        onRetry={camera.retry}
+        idleHint="The blue track only needs your camera on. Nothing is recorded or analysed."
+      />
     </LessonFrame>
   );
 }

@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button';
 export type CameraState = 'starting' | 'on' | 'off' | 'denied';
 
 /**
- * Blue track only asks that the camera is on. This hook holds a camera stream
- * open and reports whether it is live — no frames are analysed, captured or sent.
+ * Holds a camera (and, when `audio` is requested, microphone) stream open and
+ * reports whether it is live — no frames are analysed, captured or sent. Blue
+ * track asks for video only; the `cameraMic` proctoring detector asks for both.
  */
-export function useCameraPresence() {
-  const [state, setState] = useState<CameraState>('starting');
+export function useCameraPresence(options?: { audio?: boolean; enabled?: boolean }) {
+  const { audio = false, enabled = true } = options ?? {};
+  const [state, setState] = useState<CameraState>(enabled ? 'starting' : 'off');
   const streamRef = useRef<MediaStream | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
 
@@ -22,26 +24,38 @@ export function useCameraPresence() {
 
   const start = useCallback(async () => {
     release();
+    if (!enabled) {
+      setState('off');
+      return;
+    }
     setState('starting');
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      const track = s.getVideoTracks()[0];
-      const sync = () => setState(track.readyState === 'live' && !track.muted ? 'on' : 'off');
-      track.addEventListener('ended', sync);
-      track.addEventListener('mute', sync);
-      track.addEventListener('unmute', sync);
+      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio });
+      const videoTrack = s.getVideoTracks()[0];
+      const audioTrack = audio ? s.getAudioTracks?.()[0] : undefined;
+      const sync = () => {
+        const videoLive = videoTrack.readyState === 'live' && !videoTrack.muted;
+        const audioLive = !audio || (audioTrack?.readyState === 'live' && !audioTrack.muted);
+        setState(videoLive && audioLive ? 'on' : 'off');
+      };
+      [videoTrack, audioTrack].filter(Boolean).forEach((t) => {
+        t!.addEventListener('ended', sync);
+        t!.addEventListener('mute', sync);
+        t!.addEventListener('unmute', sync);
+      });
       streamRef.current = s;
       setStream(s);
       sync();
     } catch (error) {
       setState((error as DOMException)?.name === 'NotAllowedError' ? 'denied' : 'off');
     }
-  }, [release]);
+  }, [release, audio, enabled]);
 
   useEffect(() => {
     void start();
     return release;
-  }, [start, release]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, audio]);
 
   return { state, stream, retry: start };
 }
@@ -61,7 +75,19 @@ export function CameraBubble({ stream }: { stream: MediaStream | null }) {
 }
 
 /** Covers the lesson while the camera is off; content is paused underneath. */
-export function CameraRequired({ state, onRetry }: { state: CameraState; onRetry: () => void }) {
+export function CameraRequired({
+  state,
+  onRetry,
+  deniedHint,
+  idleHint = 'Nothing is recorded or analysed.',
+}: {
+  state: CameraState;
+  onRetry: () => void;
+  /** Shown when permission was denied; defaults to a generic prompt. */
+  deniedHint?: string;
+  /** Shown once permission is otherwise just missing/off. */
+  idleHint?: string;
+}) {
   if (state === 'on') return null;
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="camera-required-title" className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-4 backdrop-blur-sm">
@@ -76,8 +102,8 @@ export function CameraRequired({ state, onRetry }: { state: CameraState; onRetry
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           {state === 'denied'
-            ? 'Camera access is blocked. Allow it in your browser’s site settings, then try again.'
-            : 'The blue track only needs your camera on. Nothing is recorded or analysed.'}
+            ? (deniedHint ?? 'Camera access is blocked. Allow it in your browser’s site settings, then try again.')
+            : idleHint}
         </p>
         {state !== 'starting' && (
           <Button className="mt-5" onClick={onRetry}>

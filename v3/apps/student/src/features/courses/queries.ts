@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { unwrap } from '@vibe/api';
 
 import { api } from '@/lib/api';
@@ -104,19 +104,40 @@ export const courseKeys = {
   currentPath: (courseId: string, versionId: string) => ['progress', 'current-path', courseId, versionId] as const,
   moduleProgress: (courseId: string, versionId: string) => ['progress', 'modules', courseId, versionId] as const,
   ethicsConsent: (courseId: string, versionId: string) => ['ethics-consent', courseId, versionId] as const,
-  faceReference: ['face-reference'] as const,
+  faceReference: (courseId: string, versionId: string) => ['face-reference', courseId, versionId] as const,
 };
 
 export function useEnrollments(tab: 'active' | 'archived' = 'active', search = '') {
   return useQuery({
     queryKey: courseKeys.enrollments(tab, search),
-    queryFn: async () =>
-      unwrap(
-        await api.GET('/api/users/enrollments', {
-          // `role` is required by the backend's EnrollmentFilterQuery.
-          params: { query: { page: 1, limit: 50, role: 'STUDENT', tab, search } },
-        }),
-      ) as unknown as EnrollmentPage,
+    queryFn: async () => {
+      // `role` is required by the backend's EnrollmentFilterQuery - there's no "all
+      // roles" option, so a user enrolled as INSTRUCTOR (e.g. via an admin invite)
+      // was invisible here when only STUDENT was queried. This app only ever creates
+      // STUDENT or INSTRUCTOR enrollments, so fetch both and merge.
+      const [student, instructor] = await Promise.all(
+        (['STUDENT', 'INSTRUCTOR'] as const).map(
+          async (role) =>
+            unwrap(
+              await api.GET('/api/users/enrollments', {
+                params: { query: { page: 1, limit: 50, role, tab, search } },
+              }),
+            ) as unknown as EnrollmentPage,
+        ),
+      );
+      // One entry per course version: someone enrolled in both roles keeps the
+      // STUDENT one, which is the role that has progress here.
+      const seen = new Set(student.enrollments.map((e) => e.courseVersionId));
+      const extra = instructor.enrollments.filter((e) => !seen.has(e.courseVersionId));
+      return {
+        enrollments: [...student.enrollments, ...extra],
+        totalDocuments: student.totalDocuments + instructor.totalDocuments,
+        totalPages: Math.max(student.totalPages, instructor.totalPages),
+        currentPage: 1,
+        activeCount: student.activeCount + instructor.activeCount,
+        archivedCount: student.archivedCount + instructor.archivedCount,
+      } satisfies EnrollmentPage;
+    },
   });
 }
 
@@ -189,15 +210,29 @@ export function useEthicsConsent(courseId: string, versionId: string) {
   });
 }
 
-export function useFaceReference() {
+export interface FaceReference {
+  label: string;
+  profileImage: string | null;
+  faceEmbedding: number[] | null;
+}
+
+/** The embedding only comes back if `courseId`/`versionId` has faceRecognition enabled. */
+export function useFaceReference(courseId: string, versionId: string) {
   return useQuery({
-    queryKey: courseKeys.faceReference,
+    queryKey: courseKeys.faceReference(courseId, versionId),
     queryFn: async () =>
-      unwrap(await api.GET('/api/users/me/face-reference', {})) as unknown as {
-        label: string;
-        profileImage: string | null;
-        faceEmbedding: number[] | null;
-      },
+      unwrap(
+        await api.GET('/api/users/me/face-reference', { params: { query: { courseId, versionId } } }),
+      ) as unknown as FaceReference,
+  });
+}
+
+export function useUpdateFaceReference(courseId: string, versionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { profileImage: string; faceEmbedding: number[] }) =>
+      unwrap(await api.PATCH('/api/users/me/face-reference', { body: input })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: courseKeys.faceReference(courseId, versionId) }),
   });
 }
 

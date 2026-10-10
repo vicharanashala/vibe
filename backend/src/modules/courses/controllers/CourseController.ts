@@ -117,6 +117,20 @@ export class CourseController {
   }
 
   @OpenAPI({
+    summary: 'List all courses (admin only)',
+    description: 'Fetches every course in the system, regardless of enrollment or registration settings. Admin only.',
+  })
+  @Authorized()
+  @Get('/', {transformResponse: true})
+  @HttpCode(200)
+  async listAllCourses(@CurrentUser() user: IUser) {
+    if (user.roles !== 'admin') {
+      throw new ForbiddenError('Only admins can list all courses');
+    }
+    return {courses: await this.courseService.listAllCourses()};
+  }
+
+  @OpenAPI({
     summary: 'Get public courses',
     description: 'Fetches the list of public courses available for enrollment.',
   })

@@ -57,6 +57,26 @@ export function isProctored(detectors?: DetectorSetting[]) {
   return (detectors ?? []).some((d) => d.settings?.enabled);
 }
 
+/** Detectors this build can actually enforce. Extend as more are ported. */
+const SUPPORTED_DETECTORS = new Set([
+  'cameraMic',
+  'rightClickDisabled',
+  'blurDetection',
+  'handGestureDetection',
+  'voiceDetection',
+  'faceCountDetection',
+  'faceRecognition',
+]);
+
+/** Enabled detectors this build can't enforce yet — a non-empty result means the lesson must stay blocked. */
+export function unsupportedDetectors(detectors?: DetectorSetting[]) {
+  return (detectors ?? []).filter((d) => d.settings?.enabled && !SUPPORTED_DETECTORS.has(d.detectorName));
+}
+
+export function isDetectorEnabled(detectors: DetectorSetting[] | undefined, name: string) {
+  return (detectors ?? []).some((d) => d.detectorName === name && d.settings?.enabled);
+}
+
 export function useLesson(r: LessonRef) {
   return useQuery({
     queryKey: learnKeys.item(r),

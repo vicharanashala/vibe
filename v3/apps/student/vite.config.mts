@@ -24,7 +24,14 @@ export default defineConfig(() => ({
   },
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: { '@': new URL('./src', import.meta.url).pathname },
+    alias: {
+      '@': new URL('./src', import.meta.url).pathname,
+      // The package's default "main" is a Node build that needs @tensorflow/tfjs-node
+      // (native bindings, never installed here) — force the browser/ESM build instead.
+      '@vladmandic/face-api': '@vladmandic/face-api/dist/face-api.esm.js',
+      // See src/lib/mediapipe-face-detection-stub.ts for why this is stubbed.
+      '@mediapipe/face_detection': new URL('./src/lib/mediapipe-face-detection-stub.ts', import.meta.url).pathname,
+    },
   },
   // Uncomment this if you are using workers.
   // worker: {

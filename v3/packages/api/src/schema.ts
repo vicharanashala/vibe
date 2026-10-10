@@ -1559,26 +1559,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/users/{userId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get user information by user ID
-         * @description Retrieves user information based on the provided user ID.
-         */
-        get: operations["UserController.getUserById"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/users/me": {
         parameters: {
             query?: never;
@@ -1591,6 +1571,46 @@ export interface paths {
          * @description Retrieves user information for the currently authenticated user.
          */
         get: operations["UserController.getCurrentUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all users (admin only)
+         * @description Fetches every user in the system. Admin only.
+         */
+        get: operations["UserController.listAllUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get user information by user ID
+         * @description Retrieves user information based on the provided user ID.
+         */
+        get: operations["UserController.getUserById"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2111,6 +2131,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/courses/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all courses (admin only)
+         * @description Fetches every course in the system, regardless of enrollment or registration settings. Admin only.
+         */
+        get: operations["CourseController.listAllCourses"];
+        put?: never;
+        /**
+         * Create a new course
+         * @description Creates a new course in the system.<br/>.
+         */
+        post: operations["CourseController.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses/public": {
         parameters: {
             query?: never;
@@ -2125,26 +2169,6 @@ export interface paths {
         get: operations["CourseController.getPublicCourses"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/courses/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create a new course
-         * @description Creates a new course in the system.<br/>.
-         */
-        post: operations["CourseController.create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -17003,6 +17027,46 @@ export interface operations {
             };
         };
     };
+    "UserController.getCurrentUser": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current user information retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    "UserController.listAllUsers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     "UserController.getUserById": {
         parameters: {
             query?: never;
@@ -17030,26 +17094,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserNotFoundErrorResponse"];
-                };
-            };
-        };
-    };
-    "UserController.getCurrentUser": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Current user information retrieved successfully */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["User"];
                 };
             };
         };
@@ -17887,13 +17931,9 @@ export interface operations {
             };
         };
     };
-    "CourseController.getPublicCourses": {
+    "CourseController.listAllCourses": {
         parameters: {
-            query?: {
-                page?: number;
-                limit?: number;
-                search?: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -17907,15 +17947,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Bad Request Error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponse"];
                 };
             };
         };
@@ -17941,6 +17972,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CourseDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "CourseController.getPublicCourses": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Bad Request Error */

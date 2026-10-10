@@ -16,6 +16,9 @@ import currentPath from './fixtures/current-path.json';
 import enrollments from './fixtures/enrollments.json';
 import ethics from './fixtures/ethics.json';
 import face from './fixtures/face.json';
+import invitesEmpty from './fixtures/invites-empty.json';
+import notificationsEmpty from './fixtures/notifications-empty.json';
+import userMe from './fixtures/user-me.json';
 import itemBlog from './fixtures/item-blog.json';
 import itemVideo from './fixtures/item-video.json';
 import itemQuiz from './fixtures/item-quiz.json';
@@ -38,10 +41,12 @@ export const fixtures = {
   enrollments,
   ethics,
   face,
+  invitesEmpty,
   itemBlog,
   itemQuiz,
   itemVideo,
   modulesProgress,
+  notificationsEmpty,
   percentage,
   quizAttempt,
   quizSubmit,
@@ -52,6 +57,7 @@ export const fixtures = {
   registrationRejectedEmpty,
   registrationSubmit,
   sectionItems,
+  userMe,
 };
 
 type FakeUser = { uid: string; email: string; displayName: string | null; providerData: { providerId: string }[]; getIdToken: () => Promise<string>; reload: () => Promise<void> };
@@ -134,6 +140,12 @@ function respond(path: string) {
       return ok(fixtures.itemBlog);
     case '/api/setting/course-setting/{courseId}/{versionId}':
       return ok(fixtures.courseSettings);
+    case '/api/users/me':
+      return ok(fixtures.userMe);
+    case '/api/notifications/user/':
+      return ok(fixtures.notificationsEmpty);
+    case '/api/notifications/invite/':
+      return ok(fixtures.invitesEmpty);
     case '/api/course/registration/version/{versionId}':
       return ok(fixtures.registrationDetails);
     case '/api/course/registration/form/version/{versionId}':

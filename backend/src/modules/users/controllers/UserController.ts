@@ -15,6 +15,7 @@ import {
   Authorized,
   CurrentUser,
   QueryParam,
+  ForbiddenError,
 } from 'routing-controllers';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import {
@@ -72,6 +73,39 @@ export class UserController {
   }
 
   @OpenAPI({
+    summary: 'Get current user profile',
+    description: 'Retrieves user information for the currently authenticated user.',
+  })
+  @Authorized()
+  @Get('/me')
+  @HttpCode(200)
+  @ResponseSchema(User, {
+    description: 'Current user information retrieved successfully',
+  })
+  async getCurrentUser(@Req() req: any): Promise<User> {
+    const token = req.headers.authorization?.split(' ')[1];
+    const user = await this.authService.getCurrentUserFromToken(token);
+    return {
+      ...user,
+      _id: user._id!.toString(),
+    } as User;
+  }
+
+  @OpenAPI({
+    summary: 'List all users (admin only)',
+    description: 'Fetches every user in the system. Admin only.',
+  })
+  @Authorized()
+  @Get('/')
+  @HttpCode(200)
+  async listAllUsers(@CurrentUser({ required: true }) user: IUser) {
+    if (user.roles !== 'admin') {
+      throw new ForbiddenError('Only admins can list all users');
+    }
+    return { users: await this.userService.listAllUsers() };
+  }
+
+  @OpenAPI({
     summary: 'Get user information by user ID',
     description: 'Retrieves user information based on the provided user ID.',
   })
@@ -90,25 +124,6 @@ export class UserController {
   ): Promise<GetUserResponse> {
     const { userId } = params;
     return await this.userService.getUserById(userId);
-  }
-
-  @OpenAPI({
-    summary: 'Get current user profile',
-    description: 'Retrieves user information for the currently authenticated user.',
-  })
-  @Authorized()
-  @Get('/me')
-  @HttpCode(200)
-  @ResponseSchema(User, {
-    description: 'Current user information retrieved successfully',
-  })
-  async getCurrentUser(@Req() req: any): Promise<User> {
-    const token = req.headers.authorization?.split(' ')[1];
-    const user = await this.authService.getCurrentUserFromToken(token);
-    return {
-      ...user,
-      _id: user._id!.toString(),
-    } as User;
   }
 
   @OpenAPI({

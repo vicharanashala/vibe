@@ -100,5 +100,10 @@ export interface IUserRepository {
    */
   getNamesAndEmailsByIds(ids: string[]): Promise<UserNameAndEmail[]>;
   searchUsers(searchTerm: string, session?: ClientSession,): Promise<UserSearchResult[]>;
+
+  /**
+   * Lists every user in the system (admin use only - no pagination yet).
+   */
+  getAllUsers(session?: ClientSession): Promise<(UserSearchResult & {roles: 'admin' | 'user'})[]>;
   deleteDuplicateUsers(): any
 }

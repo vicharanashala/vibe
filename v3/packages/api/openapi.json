@@ -22012,6 +22012,46 @@
     "description": "Provides aggregated statistics across all courses for the current user."
    }
   },
+  "/api/users/me": {
+   "get": {
+    "operationId": "UserController.getCurrentUser",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/User"
+        }
+       }
+      },
+      "description": "Current user information retrieved successfully"
+     }
+    },
+    "summary": "Get current user profile",
+    "tags": [
+     "Users"
+    ],
+    "description": "Retrieves user information for the currently authenticated user."
+   }
+  },
+  "/api/users/": {
+   "get": {
+    "operationId": "UserController.listAllUsers",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "List all users (admin only)",
+    "tags": [
+     "Users"
+    ],
+    "description": "Fetches every user in the system. Admin only."
+   }
+  },
   "/api/users/{userId}": {
    "get": {
     "operationId": "UserController.getUserById",
@@ -22055,28 +22095,6 @@
      "Users"
     ],
     "description": "Retrieves user information based on the provided user ID."
-   }
-  },
-  "/api/users/me": {
-   "get": {
-    "operationId": "UserController.getCurrentUser",
-    "responses": {
-     "200": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/User"
-        }
-       }
-      },
-      "description": "Current user information retrieved successfully"
-     }
-    },
-    "summary": "Get current user profile",
-    "tags": [
-     "Users"
-    ],
-    "description": "Retrieves user information for the currently authenticated user."
    }
   },
   "/api/users/me/face-reference": {
@@ -23581,6 +23599,65 @@
     "description": "Fetches the list of active users enrolled in a specific course by course ID."
    }
   },
+  "/api/courses/": {
+   "get": {
+    "operationId": "CourseController.listAllCourses",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "List all courses (admin only)",
+    "tags": [
+     "Courses"
+    ],
+    "description": "Fetches every course in the system, regardless of enrollment or registration settings. Admin only."
+   },
+   "post": {
+    "operationId": "CourseController.create",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CourseBody"
+       }
+      }
+     },
+     "description": "CourseBody",
+     "required": false
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CourseDataResponse"
+        }
+       }
+      },
+      "description": "Course created successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     }
+    },
+    "summary": "Create a new course",
+    "tags": [
+     "Courses"
+    ],
+    "description": "Creates a new course in the system.<br/>."
+   }
+  },
   "/api/courses/public": {
    "get": {
     "operationId": "CourseController.getPublicCourses",
@@ -23636,49 +23713,6 @@
      "Courses"
     ],
     "description": "Fetches the list of public courses available for enrollment."
-   }
-  },
-  "/api/courses/": {
-   "post": {
-    "operationId": "CourseController.create",
-    "requestBody": {
-     "content": {
-      "application/json": {
-       "schema": {
-        "$ref": "#/components/schemas/CourseBody"
-       }
-      }
-     },
-     "description": "CourseBody",
-     "required": false
-    },
-    "responses": {
-     "201": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/CourseDataResponse"
-        }
-       }
-      },
-      "description": "Course created successfully"
-     },
-     "400": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/BadRequestErrorResponse"
-        }
-       }
-      },
-      "description": "Bad Request Error"
-     }
-    },
-    "summary": "Create a new course",
-    "tags": [
-     "Courses"
-    ],
-    "description": "Creates a new course in the system.<br/>."
    }
   },
   "/api/courses/{courseId}": {
@@ -36532,22 +36566,8 @@
  ],
  "servers": [
   {
-   "url": "http://{host}:{port}",
-   "description": "Local Development Server",
-   "variables": {
-    "host": {
-     "default": "localhost",
-     "description": "Localhost for API server"
-    },
-    "port": {
-     "default": "4001",
-     "description": "Port for the API server"
-    }
-   }
-  },
-  {
    "url": "https://localhost",
-   "description": "Dev Server (Remote)"
+   "description": "Staging Server"
   }
  ],
  "security": [

@@ -101,7 +101,7 @@ describe('lesson player', () => {
 
   it('never opens a proctored lesson without proctoring', async () => {
     const proctored = structuredClone(fixtures.itemBlog);
-    proctored.item.proctoringDetectors[2].settings.enabled = true; // faceCountDetection
+    proctored.item.proctoringDetectors[5].settings.enabled = true; // virtualBackgroundDetection — no implementation exists to port yet
     withGet({ [CONSENT]: { signed: true }, [ITEM]: proctored });
     renderApp(lessonUrl);
     expect(await screen.findByRole('heading', { name: 'This lesson is proctored' })).toBeInTheDocument();
