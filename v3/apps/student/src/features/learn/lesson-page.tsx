@@ -108,7 +108,7 @@ export function LessonPage({ track, ...ref }: LessonProps) {
     return frame(
       <Notice title={`${itemTypeMeta(item.type).label} lessons aren’t available here yet`} lessonRef={ref}>
         {track === 'blue'
-          ? 'The blue track is for watching and reading. Assessments count only on the green track.'
+          ? 'Study mode is for watching and reading. Assessments count only in certified mode.'
           : 'This version of the app can open videos and readings so far.'}
       </Notice>,
     );
@@ -121,8 +121,8 @@ export function LessonPage({ track, ...ref }: LessonProps) {
   if (enrollmentRole && enrollmentRole !== 'STUDENT') {
     return frame(
       <Notice title="Certified progress isn’t available here" lessonRef={ref}>
-        You’re enrolled on this course as {enrollmentRole.toLowerCase()}, not a student, so the green track’s progress tracking doesn’t apply to
-        you. Switch to the blue track to study this lesson.
+        You’re enrolled on this course as {enrollmentRole.toLowerCase()}, not a student, so certified mode’s progress tracking doesn’t apply to
+        you. Switch to study mode to study this lesson.
       </Notice>,
     );
   }
@@ -134,7 +134,7 @@ export function LessonPage({ track, ...ref }: LessonProps) {
     return frame(
       <Notice title="This lesson is proctored" icon={<ShieldAlertIcon className="size-6" aria-hidden />} lessonRef={ref}>
         This lesson requires {unsupported.length === 1 ? 'a check' : 'checks'} ({unsupported.map((d) => d.detectorName).join(', ')}) that{' '}
-        {unsupported.length === 1 ? "isn't" : "aren't"} available in this version of the app yet. You can still study it on the blue track.
+        {unsupported.length === 1 ? "isn't" : "aren't"} available in this version of the app yet. You can still study it in study mode.
       </Notice>,
     );
   }
@@ -600,7 +600,7 @@ function BlueLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; 
       <CameraRequired
         state={camera.state}
         onRetry={camera.retry}
-        idleHint="The blue track only needs your camera on. Nothing is recorded or analysed."
+        idleHint="Study mode only needs your camera on. Nothing is recorded or analysed."
       />
     </LessonFrame>
   );
@@ -721,7 +721,7 @@ function LessonFrame({
               <XIcon className="size-5" />
             </Link>
           )}
-          <ProgressBar value={progress} className="h-2 flex-1" label="Certified progress (green track)" />
+          <ProgressBar value={progress} className="h-2 flex-1" label="Certified progress" />
           <span className="hidden max-w-52 truncate text-sm text-muted-foreground md:inline">{title}</span>
           <TrackBadge track={track} />
           <Link
@@ -730,7 +730,7 @@ function LessonFrame({
             search={{ track: other }}
             className="hidden text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline"
           >
-            Switch to {TRACKS[other].short.toLowerCase()}
+            Switch to {TRACKS[other].label.toLowerCase()}
           </Link>
         </div>
       </header>
@@ -787,8 +787,8 @@ function LockedLesson({ lessonRef: ref, track }: { lessonRef: LessonRef; track: 
       <h1 className="font-aleo text-2xl tracking-tight">{track === 'blue' ? 'Not unlocked yet' : 'Finish the earlier lessons first'}</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         {track === 'blue'
-          ? 'This course unlocks lessons as you complete them on the green track. Lessons you’ve already reached are open for study.'
-          : 'The green track goes one lesson at a time, in order.'}
+          ? 'This course unlocks lessons as you complete them in certified mode. Lessons you’ve already reached are open for study.'
+          : 'Certified mode goes one lesson at a time, in order.'}
       </p>
       {next?.item && next.module && next.section ? (
         <Link

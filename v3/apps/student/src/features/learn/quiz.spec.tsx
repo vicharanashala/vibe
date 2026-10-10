@@ -123,9 +123,9 @@ describe('green-track quiz', () => {
     expect(screen.getByRole('button', { name: /retry quiz/i })).toBeInTheDocument();
   });
 
-  it('is not available on the blue track', async () => {
+  it('is not available in study mode', async () => {
     renderApp(url.replace('track=green', 'track=blue'));
-    expect(await screen.findByText(/Assessments count only on the green track/)).toBeInTheDocument();
+    expect(await screen.findByText(/Assessments count only in certified mode/)).toBeInTheDocument();
     expect(api.POST.mock.calls.some(([p]) => p === '/api/quizzes/{quizId}/attempt')).toBe(false);
   });
 });

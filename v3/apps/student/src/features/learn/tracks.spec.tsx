@@ -50,12 +50,12 @@ beforeEach(() => {
   HTMLMediaElement.prototype.play = vi.fn(async () => undefined);
 });
 
-describe('blue track (study mode)', () => {
+describe('study mode (blue)', () => {
   it('opens a lesson with the camera on and never saves progress', async () => {
     fakeCamera();
     renderApp(`${base}/${path.item.id}?track=blue`);
     expect(await screen.findByRole('heading', { name: fixtures.itemBlog.item.name })).toBeInTheDocument();
-    expect(screen.getByText('Blue track')).toBeInTheDocument();
+    expect(screen.getByText('Study mode')).toBeInTheDocument();
     expect(await screen.findByLabelText('Your camera')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /turn your camera on/i })).not.toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 50));
@@ -95,7 +95,7 @@ describe('blue track (study mode)', () => {
   });
 });
 
-describe('green track (certified)', () => {
+describe('certified mode (green)', () => {
   it('keeps lessons in order even when the backend would serve them', async () => {
     withGet({
       [CONSENT]: { signed: true },
@@ -108,7 +108,7 @@ describe('green track (certified)', () => {
 
   it('defaults to green and saves progress', async () => {
     renderApp(`${base}/${path.item.id}`);
-    expect(await screen.findByText('Green track')).toBeInTheDocument();
+    expect(await screen.findByText('Certified mode')).toBeInTheDocument();
     await waitFor(() => expect(api.POST.mock.calls.some(([p]) => /\/start$/.test(p))).toBe(true));
   });
 });
@@ -117,13 +117,13 @@ describe('course page', () => {
   it('lets the student pick a track and locks unreached lessons on blue in linear courses', async () => {
     const user = userEvent.setup();
     renderApp(`/courses/${enrollment.courseId}/${enrollment.courseVersionId}`);
-    const switcher = await screen.findByRole('radiogroup', { name: 'Track' });
-    expect(within(switcher).getByRole('radio', { name: 'Green track' })).toHaveAttribute('aria-checked', 'true');
+    const switcher = await screen.findByRole('radiogroup', { name: 'Mode' });
+    expect(within(switcher).getByRole('radio', { name: 'Certified mode' })).toHaveAttribute('aria-checked', 'true');
 
-    await user.click(within(switcher).getByRole('radio', { name: 'Blue track' }));
-    expect(screen.getByText(/Doesn’t count towards your certificate/)).toBeInTheDocument();
+    await user.click(within(switcher).getByRole('radio', { name: 'Study mode' }));
+    expect(screen.getByText(/Nothing is saved to your progress/)).toBeInTheDocument();
     const current = await screen.findByRole('link', { name: new RegExp(path.item.name) });
     expect(current.getAttribute('href')).toContain('track=blue');
-    expect(screen.getAllByText('Unlocks on the green track').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Unlocks in certified mode').length).toBeGreaterThan(0);
   });
 });

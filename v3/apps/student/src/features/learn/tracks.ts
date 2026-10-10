@@ -6,7 +6,9 @@ import { courseKeys, visibleInOrder, type CourseVersion, type SectionItem } from
 import { api } from '@/lib/api';
 
 /**
- * Two ways through every course (frontend-only; the backend has no notion of tracks):
+ * Two ways through every course (frontend-only; the backend has no notion of tracks).
+ * Students see them as "Study mode" (blue) and "Certified mode" (green); the
+ * ids stay blue/green so saved choices and `?track=` links keep working:
  *
  * - **blue**  — study mode. Open any lesson the backend will serve, rewatch and
  *   seek freely, take notes. Camera must be on, but nothing is detected or
@@ -18,14 +20,14 @@ export type Track = 'blue' | 'green';
 
 export const TRACKS: Record<Track, { label: string; short: string; description: string }> = {
   blue: {
-    label: 'Blue track',
+    label: 'Study mode',
     short: 'Study',
-    description: 'Watch and read freely, rewatch and take notes. Camera on, not proctored. Doesn’t count towards your certificate.',
+    description: 'Browse and rewatch freely. Nothing is saved to your progress.',
   },
   green: {
-    label: 'Green track',
+    label: 'Certified mode',
     short: 'Certified',
-    description: 'Lessons in order with all course rules and proctoring. Required for your certificate.',
+    description: 'Lessons in order, with proctoring. Counts towards your certificate.',
   },
 };
 

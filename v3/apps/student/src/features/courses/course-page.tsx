@@ -308,7 +308,7 @@ function SectionBlock({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">{locked ? 'Unlocks on the green track' : meta.label}</p>
+                  <p className="text-xs text-muted-foreground">{locked ? 'Unlocks in certified mode' : meta.label}</p>
                 </div>
                 {item.isCompleted ? (
                   <span className="grid size-6 place-items-center rounded-full bg-emerald-600 text-white" title="Completed">
@@ -362,7 +362,7 @@ function TrackSwitcher({ track, onChange, linear }: { track: Track; onChange: (t
         <h2 id="track-title" className="font-semibold">
           How do you want to go through this course?
         </h2>
-        <div role="radiogroup" aria-label="Track" className="grid w-full grid-cols-2 rounded-lg bg-muted p-1 sm:inline-flex sm:w-fit">
+        <div role="radiogroup" aria-label="Mode" className="grid w-full grid-cols-2 rounded-lg bg-muted p-1 sm:inline-flex sm:w-fit">
           {(['green', 'blue'] as const).map((t) => (
             <button
               key={t}
@@ -386,7 +386,7 @@ function TrackSwitcher({ track, onChange, linear }: { track: Track; onChange: (t
         <p className="text-sm text-muted-foreground">
           {TRACKS[track].description}
           {track === 'blue' && linear && (
-            <> This course opens lessons in order, so study mode covers the lessons you’ve reached on the green track.</>
+            <> This course opens lessons in order, so study mode covers the lessons you’ve reached in certified mode.</>
           )}
         </p>
       </div>
