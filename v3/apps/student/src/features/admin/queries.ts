@@ -63,7 +63,9 @@ export function useCreateCourse() {
     mutationFn: async (input: CreateCourseInput) =>
       unwrap(
         await api.POST('/api/courses/', {
-          body: input,
+          // The spec marks these required; they are optional in the backend and
+          // these are its documented defaults (no HP system, base HP 0).
+          body: { ...input, hpSystem: false, baseHp: 0 },
         }),
       ) as unknown as { _id: string; versions: string[] },
     onSuccess: () => {

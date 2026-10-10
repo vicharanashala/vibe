@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/features/auth/auth-provider';
 import { Wordmark } from '@/features/landing/wordmark';
-import { cn } from '@/lib/utils';
 
 const NAV = [
   { label: 'Courses', to: '/admin' as const, icon: BookOpenIcon },

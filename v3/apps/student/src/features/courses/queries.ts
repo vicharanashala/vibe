@@ -125,8 +125,12 @@ export function useEnrollments(tab: 'active' | 'archived' = 'active', search = '
             ) as unknown as EnrollmentPage,
         ),
       );
+      // One entry per course version: someone enrolled in both roles keeps the
+      // STUDENT one, which is the role that has progress here.
+      const seen = new Set(student.enrollments.map((e) => e.courseVersionId));
+      const extra = instructor.enrollments.filter((e) => !seen.has(e.courseVersionId));
       return {
-        enrollments: [...student.enrollments, ...instructor.enrollments],
+        enrollments: [...student.enrollments, ...extra],
         totalDocuments: student.totalDocuments + instructor.totalDocuments,
         totalPages: Math.max(student.totalPages, instructor.totalPages),
         currentPage: 1,

@@ -49,6 +49,16 @@ describe('home', () => {
 });
 
 describe('my courses', () => {
+  it('lists a course once when the user is enrolled in it as both student and instructor', async () => {
+    // The test double returns the same enrolment for both role queries.
+    renderApp('/courses');
+    await screen.findByRole('heading', { name: course.course.name });
+    expect(api.GET).toHaveBeenCalledWith('/api/users/enrollments', {
+      params: { query: expect.objectContaining({ role: 'INSTRUCTOR' }) },
+    });
+    expect(screen.getAllByRole('heading', { name: course.course.name })).toHaveLength(1);
+  });
+
   it('lists enrolments with their lesson counts and searches through the API', async () => {
     const user = userEvent.setup();
     renderApp('/courses');
