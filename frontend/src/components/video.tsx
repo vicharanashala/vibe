@@ -448,12 +448,16 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
       // Prevent playing if current time is at or beyond endTime
       if (endTimeSeconds > 0 && currentTime >= endTimeSeconds) {
         return;
-      }else{
-        player.playVideo();
       }
+      // Block resuming if any proctoring anomalies or gesture prompts are active
+      if (pauseVid || rewindVid || doGesture) {
+        console.log("🔒 Play blocked: Anomaly or gesture prompt active");
+        return;
+      }
+      player.playVideo();
       setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
     }
-  }, [playing, endTimeSeconds, currentTime, isSkipping, isStopFailed, isStopping, playbackRate]);
+  }, [playing, endTimeSeconds, currentTime, isSkipping, isStopFailed, isStopping, playbackRate, pauseVid, rewindVid, doGesture]);
 
   const handleBackward = () => {
     const player = playerRef.current;
@@ -1349,6 +1353,10 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
         if (rawEvent.code === 'Space') {
           rawEvent.preventDefault();
           rawEvent.stopImmediatePropagation();
+          if (rawEvent.repeat) {
+            // Ignore held down spacebar to prevent rapid play/pause bypass
+            return;
+          }
           handlePlayPause();
           return;
         }
@@ -1819,6 +1827,10 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
                 <div
 
                   className='shadow-2xl'
+
+                  onClick={(e) => e.stopPropagation()}
+
+                  onMouseDown={(e) => e.stopPropagation()}
 
                   style={{
 
@@ -2598,6 +2610,8 @@ export function NavigatingOverlay({
   return (
     <div
       className={`absolute z-50 animate-in slide-in-from-right-3 duration-300 ${positionClasses[position]}`}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <Card className={`shadow-lg backdrop-blur-md ${styles.card}`}>
         <CardContent className="flex items-center gap-3 px-4 py-3">
@@ -2655,6 +2669,8 @@ export function ConfirmOverlay({
   return (
     <div
       className={`absolute z-50 animate-in slide-in-from-right-3 duration-300 ${positionClasses[position]}`}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <Card className={`border-red-400/40 ${message === "Invalid watch time" ? "bg-yellow-600/95": "bg-red-600/95"} text-red-50 shadow-lg backdrop-blur-md w-80`}>
         <CardContent className="flex flex-col gap-3 p-4">
