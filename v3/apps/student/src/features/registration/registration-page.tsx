@@ -2,23 +2,37 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import {
   ArrowRightIcon,
   CheckIcon,
+  InfoIcon,
   ClockIcon,
   LayersIcon,
-  Loader2Icon,
   LockIcon,
   PartyPopperIcon,
   UsersIcon,
   type LucideIcon,
 } from 'lucide-react';
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
 import { GeneratedAvatar, GeneratedCover } from '@/components/generated-art';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemSeparator,
+  ItemTitle,
+} from '@/components/ui/item';
+import { Field, FieldError, FieldLabel, FieldLegend, FieldSet, FieldTitle } from '@/components/ui/field';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { FormError } from '@/features/auth/auth-layout';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useEnrollments } from '@/features/courses/queries';
@@ -104,20 +118,25 @@ function CourseRegistration({ details, versionId, cohortId }: { details: Registr
         {details.modules.length > 0 && (
           <section aria-labelledby="inside-title">
             <SectionTitle id="inside-title">What’s inside</SectionTitle>
-            <ol className="divide-y divide-border rounded-2xl border border-border bg-card">
+            <ItemGroup className="rounded-3xl bg-card ring-1 ring-foreground/10">
               {details.modules.map((m, i) => (
-                <li key={m.id} className="flex items-start gap-3 p-4">
-                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">{i + 1}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{m.name}</p>
-                    {m.description && <p className="mt-0.5 text-sm text-muted-foreground">{m.description}</p>}
-                  </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {m.itemsCount} {m.itemsCount === 1 ? 'lesson' : 'lessons'}
-                  </span>
-                </li>
+                <Fragment key={m.id}>
+                  {i > 0 && <ItemSeparator />}
+                  <Item className="items-start">
+                    <ItemMedia variant="icon" className="text-xs font-semibold text-muted-foreground">
+                      {i + 1}
+                    </ItemMedia>
+                    <ItemContent>
+                      <ItemTitle>{m.name}</ItemTitle>
+                      {m.description && <ItemDescription>{m.description}</ItemDescription>}
+                    </ItemContent>
+                    <ItemActions className="text-xs text-muted-foreground">
+                      {m.itemsCount} {m.itemsCount === 1 ? 'lesson' : 'lessons'}
+                    </ItemActions>
+                  </Item>
+                </Fragment>
               ))}
-            </ol>
+            </ItemGroup>
           </section>
         )}
 
@@ -284,13 +303,14 @@ function RegistrationFormCard({
     await navigate({ to: '/login', search: { redirect: here }, replace: true });
   }
 
+  // overflow-clip (not hidden) so the phone Register bar can stay sticky inside the card.
   return (
-    <section aria-labelledby="register-title" className="overflow-clip rounded-2xl border border-border bg-card shadow-xs">
-      <div className="border-b border-border bg-muted/50 px-4 py-2.5 sm:px-5">
-        <h2 id="register-title" className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+    <Card role="region" aria-labelledby="register-title" className="gap-0 overflow-clip py-0">
+      <CardHeader className="border-b bg-muted/50 py-2.5 [.border-b]:pb-2.5">
+        <CardTitle id="register-title" className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
           Registration
-        </h2>
-      </div>
+        </CardTitle>
+      </CardHeader>
       <form onSubmit={submit} noValidate className="flex flex-col gap-5 p-4 sm:p-5">
         <div>
           <p className="text-sm">Welcome! To join the course, fill in a few details below.</p>
@@ -300,23 +320,24 @@ function RegistrationFormCard({
               {user?.displayName && <span className="font-medium">{user.displayName} </span>}
               <span className="text-muted-foreground">{user?.email}</span>
             </span>
-            <button type="button" onClick={switchAccount} className="ml-auto shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
+            <Button variant="link" size="xs" className="ml-auto h-auto shrink-0 p-0 text-muted-foreground" onClick={switchAccount}>
               Not you?
-            </button>
+            </Button>
           </div>
         </div>
 
         {wasRejected && (
-          <p className="rounded-xl bg-muted px-3.5 py-3 text-sm text-muted-foreground">
-            Your earlier request for this course wasn’t approved. You’re welcome to register again.
-          </p>
+          <Alert className="bg-muted/50">
+            <InfoIcon />
+            <AlertDescription>Your earlier request for this course wasn’t approved. You’re welcome to register again.</AlertDescription>
+          </Alert>
         )}
 
         {cohorts.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <span id="reg-cohort-label" className="text-sm leading-none font-medium">
+          <FieldSet data-invalid={cohortError ? true : undefined} className="gap-2">
+            <FieldLegend variant="label" id="reg-cohort-label">
               Cohort
-            </span>
+            </FieldLegend>
             <RadioGroup
               id="reg-cohort"
               aria-labelledby="reg-cohort-label"
@@ -325,22 +346,17 @@ function RegistrationFormCard({
               className="grid gap-2 sm:grid-cols-2"
             >
               {cohorts.map((c) => (
-                <Label
-                  key={c.cohortId}
-                  htmlFor={`cohort-${c.cohortId}`}
-                  className={cn(
-                    'flex cursor-pointer items-center gap-3 rounded-xl border border-border px-3.5 py-3 text-sm font-normal hover:bg-muted/60',
-                    cohort === c.cohortId && 'border-primary bg-primary/5',
-                  )}
-                >
-                  <RadioGroupItem id={`cohort-${c.cohortId}`} value={c.cohortId} />
-                  <UsersIcon className="size-4 text-muted-foreground" aria-hidden />
-                  {c.cohortName}
-                </Label>
+                <FieldLabel key={c.cohortId} htmlFor={`cohort-${c.cohortId}`}>
+                  <Field orientation="horizontal">
+                    <RadioGroupItem id={`cohort-${c.cohortId}`} value={c.cohortId} />
+                    <UsersIcon className="size-4 text-muted-foreground" aria-hidden />
+                    <FieldTitle className="font-normal">{c.cohortName}</FieldTitle>
+                  </Field>
+                </FieldLabel>
               ))}
             </RadioGroup>
-            {cohortError && <p className="text-xs text-destructive">{cohortError}</p>}
-          </div>
+            {cohortError && <FieldError>{cohortError}</FieldError>}
+          </FieldSet>
         )}
 
         <SchemaFields
@@ -360,12 +376,12 @@ function RegistrationFormCard({
         {/* On phones the button stays pinned while scrolling through a long form. */}
         <div className="sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-border bg-card/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:static sm:mx-0 sm:mb-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
         <Button type="submit" size="lg" className="w-full" disabled={pending}>
-          {pending && <Loader2Icon className="animate-spin" />}
+          {pending && <Spinner />}
           Register
         </Button>
         </div>
       </form>
-    </section>
+    </Card>
   );
 }
 
@@ -393,21 +409,23 @@ function StatusCard({
   action?: ReactNode;
 }) {
   return (
-    <section role="status" aria-label={title} className="rounded-2xl border border-border bg-card p-5 shadow-xs">
-      <span
-        className={cn(
-          'grid size-10 place-items-center rounded-full',
-          tone === 'success' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
-          tone === 'waiting' && 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
-          tone === 'closed' && 'bg-muted text-muted-foreground',
-        )}
-      >
-        <Icon className="size-5" aria-hidden />
-      </span>
-      <h2 className="mt-4 text-xl font-semibold">{title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{body}</p>
-      {action && <div className="mt-5">{action}</div>}
-    </section>
+    <Card role="status" aria-label={title}>
+      <CardHeader>
+        <span
+          className={cn(
+            'mb-3 grid size-10 place-items-center rounded-full',
+            tone === 'success' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
+            tone === 'waiting' && 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+            tone === 'closed' && 'bg-muted text-muted-foreground',
+          )}
+        >
+          <Icon className="size-5" aria-hidden />
+        </span>
+        <CardTitle className="text-xl font-semibold">{title}</CardTitle>
+        <CardDescription>{body}</CardDescription>
+      </CardHeader>
+      {action && <CardFooter>{action}</CardFooter>}
+    </Card>
   );
 }
 
@@ -416,33 +434,33 @@ function Instructors({ instructors, className }: { instructors: RegistrationDeta
   return (
     <section aria-labelledby={`taught-by-${className ?? ''}`} className={cn('flex-col', className)}>
       <SectionTitle id={`taught-by-${className ?? ''}`}>Taught by</SectionTitle>
-      <ul className="flex flex-col gap-2.5">
+      <ItemGroup>
         {instructors.map((i) => (
-          <li key={i.name} className="flex items-center gap-2.5 text-sm">
-            {i.profileImage ? (
-              <img src={i.profileImage} alt="" className="size-7 rounded-full object-cover" />
-            ) : (
-              <GeneratedAvatar seed={i.name} size={28} />
-            )}
-            <span className="font-medium">{i.name}</span>
-          </li>
+          <Item key={i.name} size="xs" className="px-0">
+            <ItemMedia>
+              <GeneratedAvatar seed={i.name} src={i.profileImage} size={28} />
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle>{i.name}</ItemTitle>
+            </ItemContent>
+          </Item>
         ))}
-      </ul>
+      </ItemGroup>
     </section>
   );
 }
 
 function Fact({ icon: Icon, title, sub }: { icon: LucideIcon; title: string; sub: string }) {
   return (
-    <li className="flex items-center gap-3">
-      <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border bg-card">
-        <Icon className="size-4 text-muted-foreground" aria-hidden />
-      </span>
-      <span>
-        <span className="block font-medium">{title}</span>
-        <span className="block text-muted-foreground">{sub}</span>
-      </span>
-    </li>
+    <Item size="xs" className="px-0" render={<li />}>
+      <ItemMedia variant="icon" className="size-10 rounded-lg bg-card ring-1 ring-border">
+        <Icon className="text-muted-foreground" aria-hidden />
+      </ItemMedia>
+      <ItemContent>
+        <ItemTitle>{title}</ItemTitle>
+        <ItemDescription>{sub}</ItemDescription>
+      </ItemContent>
+    </Item>
   );
 }
 
@@ -456,16 +474,22 @@ function SectionTitle({ id, children }: { id: string; children: ReactNode }) {
 
 function Unavailable({ message }: { message: string }) {
   return (
-    <div className="mx-auto max-w-md py-16 text-center">
-      <span className="mx-auto grid size-12 place-items-center rounded-full bg-muted text-muted-foreground">
-        <LockIcon className="size-5" aria-hidden />
-      </span>
-      <h1 className="mt-4 font-aleo text-2xl">We couldn’t open this registration link</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Check the link with your course team. ({message})</p>
-      <Link to="/home" className={cn(buttonVariants({ variant: 'outline' }), 'mt-6')}>
-        Go to home
-      </Link>
-    </div>
+    <Empty className="py-16">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <LockIcon />
+        </EmptyMedia>
+        <EmptyTitle>
+          <h1 className="font-aleo text-2xl font-normal">We couldn’t open this registration link</h1>
+        </EmptyTitle>
+        <EmptyDescription>Check the link with your course team. ({message})</EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Link to="/home" className={buttonVariants({ variant: 'outline' })}>
+          Go to home
+        </Link>
+      </EmptyContent>
+    </Empty>
   );
 }
 

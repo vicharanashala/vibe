@@ -4,8 +4,6 @@ import {
   HomeIcon,
   LogOutIcon,
   MoonIcon,
-  PanelLeftCloseIcon,
-  PanelLeftOpenIcon,
   ShieldIcon,
   SunIcon,
   UserIcon,
@@ -15,6 +13,21 @@ import { useState } from 'react';
 
 import { GeneratedAvatar } from '@/components/generated-art';
 import { useTheme } from '@/components/theme-provider';
+import { Button } from '@/components/ui/button';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,60 +49,50 @@ const NAV: { label: string; to: '/home' | '/courses' | '/profile'; icon: LucideI
 
 const COLLAPSE_KEY = 'sidebar-collapsed';
 
-/** Uxcel-style shell: collapsible left sidebar, slim top bar, account menu. */
+/** Uxcel-style shell on shadcn Sidebar: collapses to icons (⌘/Ctrl+B), slim top bar, account menu. */
 export function AppShell() {
-  const [collapsed, setCollapsed] = useState(() => {
+  const [open, setOpen] = useState(() => {
     try {
-      return localStorage.getItem(COLLAPSE_KEY) === '1';
+      return localStorage.getItem(COLLAPSE_KEY) !== '1';
     } catch {
-      return false;
+      return true;
     }
   });
-  function toggleCollapsed() {
-    setCollapsed((c) => {
-      try {
-        localStorage.setItem(COLLAPSE_KEY, c ? '0' : '1');
-      } catch {
-        // ignore
-      }
-      return !c;
-    });
+  function onOpenChange(next: boolean) {
+    setOpen(next);
+    try {
+      localStorage.setItem(COLLAPSE_KEY, next ? '0' : '1');
+    } catch {
+      // ignore
+    }
   }
 
   return (
-    <div className="flex min-h-dvh bg-background">
-      <aside
-        aria-label="Sidebar"
-        className={cn(
-          'sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border bg-muted/40 transition-[width] duration-200 md:flex',
-          collapsed ? 'w-16' : 'w-60',
-        )}
-      >
-        <div className={cn('flex h-14 items-center', collapsed ? 'justify-center' : 'px-4')}>
-          <Link to="/home" aria-label="ViBe home">
-            {collapsed ? (
-              <span className="grid size-8 place-items-center rounded-lg bg-primary font-aleo font-semibold text-primary-foreground">V</span>
-            ) : (
+    <SidebarProvider open={open} onOpenChange={onOpenChange}>
+      {/* Phones use the bottom tab bar instead. */}
+      <Sidebar collapsible="icon" aria-label="Sidebar" className="max-md:hidden">
+        <SidebarHeader className="h-14 justify-center">
+          <Link to="/home" aria-label="ViBe home" className="flex items-center px-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+            <span className="group-data-[collapsible=icon]:hidden">
               <Wordmark />
-            )}
+            </span>
+            <span className="hidden size-8 place-items-center rounded-lg bg-primary font-aleo font-semibold text-primary-foreground group-data-[collapsible=icon]:grid">
+              V
+            </span>
           </Link>
-        </div>
-        <SidebarNav collapsed={collapsed} />
-        <div className={cn('mt-auto p-2', collapsed && 'flex justify-center')}>
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="inline-flex h-9 items-center gap-2 rounded-md px-2.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            {collapsed ? <PanelLeftOpenIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
-            {!collapsed && 'Collapse'}
-          </button>
-        </div>
-      </aside>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Learn</SidebarGroupLabel>
+            <SidebarNav />
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarRail />
+      </Sidebar>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <SidebarInset className="min-w-0">
         <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md [box-sizing:content-box] sm:px-6">
+          <SidebarTrigger className="max-md:hidden" />
           <Link to="/home" aria-label="ViBe home" className="md:hidden">
             <Wordmark />
           </Link>
@@ -99,16 +102,37 @@ export function AppShell() {
           </div>
         </header>
         {/* Bottom padding keeps content clear of the phone tab bar. */}
-        <main id="main" className="relative flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+        {/* SidebarInset is the <main> landmark; this is its scrollable content. */}
+        <div id="main" className="relative flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           {/* Soft Luma-style tint behind the top of every app page */}
           <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-primary/8 to-transparent" />
           <div className="relative">
             <Outlet />
           </div>
-        </main>
-      </div>
+        </div>
+      </SidebarInset>
       <TabBar />
-    </div>
+    </SidebarProvider>
+  );
+}
+
+function SidebarNav() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  return (
+    <SidebarMenu aria-label="App">
+      {NAV.map(({ label, to, icon: Icon }) => (
+        <SidebarMenuItem key={to}>
+          <SidebarMenuButton
+            tooltip={label}
+            isActive={pathname === to || (to === '/courses' && pathname.startsWith('/courses/'))}
+            render={<Link to={to} />}
+          >
+            <Icon aria-hidden />
+            <span>{label}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
   );
 }
 
@@ -147,29 +171,6 @@ function TabBar() {
   );
 }
 
-function SidebarNav({ collapsed }: { collapsed: boolean }) {
-  return (
-    <nav aria-label="App" className="flex flex-col gap-0.5 p-2">
-      {!collapsed && <p className="px-2.5 pt-2 pb-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Learn</p>}
-      {NAV.map(({ label, to, icon: Icon }) => (
-        <Link
-          key={to}
-          to={to}
-          title={collapsed ? label : undefined}
-          className={cn(
-            'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm text-foreground/80 transition-colors hover:bg-muted hover:text-foreground',
-            collapsed && 'justify-center px-0',
-          )}
-          activeProps={{ className: 'bg-background font-medium text-foreground shadow-xs ring-1 ring-border' }}
-        >
-          <Icon className="size-4 shrink-0" aria-hidden />
-          <span className={cn(collapsed && 'sr-only')}>{label}</span>
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
 function AccountMenu() {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -184,10 +185,7 @@ function AccountMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label="Account menu"
-        className="grid size-9 place-items-center rounded-full outline-none ring-offset-2 ring-offset-background focus-visible:ring-[3px] focus-visible:ring-ring/50"
-      >
+      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="rounded-full p-0" aria-label="Account menu" />}>
         <GeneratedAvatar seed={user?.uid ?? user?.email ?? 'student'} size={36} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">

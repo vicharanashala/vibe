@@ -1,12 +1,14 @@
 import { Link } from '@tanstack/react-router';
 import { ApiError } from '@vibe/api';
-import { ChevronRightIcon, CheckCircle2Icon, Loader2Icon, PlusIcon, ShieldAlertIcon } from 'lucide-react';
+import { ChevronRightIcon, CheckCircle2Icon, PlusIcon, ShieldAlertIcon } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 
 import { useAllCourses, useCreateCourse, useCurrentUserProfile } from './queries';
@@ -35,7 +37,7 @@ export function AdminPage() {
   if (profile.isPending) {
     return (
       <div className="grid min-h-[50vh] place-items-center">
-        <Loader2Icon className="size-6 animate-spin text-muted-foreground" aria-hidden />
+        <Spinner className="size-6 text-muted-foreground" />
       </div>
     );
   }
@@ -114,7 +116,7 @@ function CreateCourseForm() {
       </div>
       <div className="mt-1 flex items-center gap-3">
         <Button type="submit" disabled={createCourse.isPending}>
-          {createCourse.isPending ? <Loader2Icon className="size-4 animate-spin" aria-hidden /> : <PlusIcon className="size-4" aria-hidden />}
+          {createCourse.isPending ? <Spinner className="size-4" /> : <PlusIcon className="size-4" aria-hidden />}
           Create course
         </Button>
         {createCourse.isSuccess && <Status kind="ok">Created.</Status>}
@@ -132,23 +134,23 @@ function CourseList() {
   if (courses.data.length === 0) return <p className="text-sm text-muted-foreground">No courses yet.</p>;
 
   return (
-    <ul className="grid gap-3">
+    <ItemGroup className="gap-3">
       {courses.data.map((course) => (
-        <li key={course._id}>
-          <Link
-            to="/admin/courses/$courseId/$versionId"
-            params={{ courseId: course._id, versionId: course.versions[0] ?? '' }}
-            className="flex items-center gap-3 rounded-2xl border border-border p-4 transition-colors hover:bg-muted/50"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">{course.name}</p>
-              <p className="mt-1 truncate text-sm text-muted-foreground">{course.description}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{course.instructors.length} instructor(s)</p>
-            </div>
-            <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          </Link>
-        </li>
+        <Item
+          key={course._id}
+          variant="outline"
+          render={<Link to="/admin/courses/$courseId/$versionId" params={{ courseId: course._id, versionId: course.versions[0] ?? '' }} />}
+        >
+          <ItemContent className="min-w-0">
+            <ItemTitle>{course.name}</ItemTitle>
+            <ItemDescription className="truncate">{course.description}</ItemDescription>
+            <ItemDescription className="text-xs">{course.instructors.length} instructor(s)</ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+          </ItemActions>
+        </Item>
       ))}
-    </ul>
+    </ItemGroup>
   );
 }

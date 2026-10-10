@@ -1,9 +1,13 @@
-import { Loader2Icon, ShieldCheckIcon } from 'lucide-react';
+import { CircleAlertIcon, ShieldCheckIcon } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/features/auth/auth-provider';
 
 import { ETHICS_CONSENT_ADDITIONAL, ETHICS_CONSENT_DECLARATION, ETHICS_CONSENT_TITLE, EthicsConsentBody } from './ethics-consent-text';
@@ -38,35 +42,42 @@ export function ConsentGate({ courseId, versionId }: { courseId: string; version
         </div>
       </div>
 
-      <div tabIndex={0} aria-label="Consent form" className="max-h-[45vh] overflow-y-auto rounded-2xl border border-border bg-card p-5">
+      <Card tabIndex={0} aria-label="Consent form" className="max-h-[45vh] overflow-y-auto px-5">
         <EthicsConsentBody />
-      </div>
+      </Card>
 
-      <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
-        <label className="flex items-start gap-3 text-sm">
-          <input type="checkbox" className="mt-0.5 size-4 accent-primary" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-          <span>{ETHICS_CONSENT_DECLARATION}</span>
-        </label>
-        <label className="flex items-start gap-3 text-sm text-muted-foreground">
-          <input type="checkbox" className="mt-0.5 size-4 accent-primary" checked={additional} onChange={(e) => setAdditional(e.target.checked)} />
-          <span>
-            {ETHICS_CONSENT_ADDITIONAL} <span className="italic">(optional)</span>
-          </span>
-        </label>
-        <div className="flex flex-col gap-2 sm:max-w-sm">
-          <Label htmlFor="consent-signature">Type your full name to sign</Label>
-          <Input id="consent-signature" value={signature} onChange={(e) => setSignature(e.target.value)} autoComplete="name" className="h-11 sm:h-10" />
-          <p className="text-xs text-muted-foreground">Date: {new Date().toLocaleDateString()}</p>
-        </div>
-        {sign.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {sign.error.message}
-          </p>
-        )}
-        <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={!agreed || !signature.trim() || sign.isPending}>
-          {sign.isPending && <Loader2Icon className="animate-spin" />}
-          Sign and continue
-        </Button>
+      <form onSubmit={onSubmit} className="mt-6">
+        <FieldGroup className="gap-4">
+          <Field orientation="horizontal">
+            <Checkbox id="consent-declaration" checked={agreed} onCheckedChange={(c) => setAgreed(c === true)} />
+            <FieldLabel htmlFor="consent-declaration" className="font-normal leading-snug">
+              {ETHICS_CONSENT_DECLARATION}
+            </FieldLabel>
+          </Field>
+          <Field orientation="horizontal">
+            <Checkbox id="consent-additional" checked={additional} onCheckedChange={(c) => setAdditional(c === true)} />
+            <FieldLabel htmlFor="consent-additional" className="font-normal leading-snug text-muted-foreground">
+              <span>
+                {ETHICS_CONSENT_ADDITIONAL} <span className="italic">(optional)</span>
+              </span>
+            </FieldLabel>
+          </Field>
+          <Field className="sm:max-w-sm">
+            <FieldLabel htmlFor="consent-signature">Type your full name to sign</FieldLabel>
+            <Input id="consent-signature" value={signature} onChange={(e) => setSignature(e.target.value)} autoComplete="name" className="h-11 sm:h-10" />
+            <FieldDescription>Date: {new Date().toLocaleDateString()}</FieldDescription>
+          </Field>
+          {sign.isError && (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertDescription>{sign.error.message}</AlertDescription>
+            </Alert>
+          )}
+          <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={!agreed || !signature.trim() || sign.isPending}>
+            {sign.isPending && <Spinner />}
+            Sign and continue
+          </Button>
+        </FieldGroup>
       </form>
     </div>
   );

@@ -2,12 +2,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { unwrap } from '@vibe/api';
 import { updateProfile } from 'firebase/auth';
-import { ArrowLeftIcon, Loader2Icon, PartyPopperIcon } from 'lucide-react';
+import { ArrowLeftIcon, PartyPopperIcon } from 'lucide-react';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
+import { Kbd } from '@/components/ui/kbd';
+import { ProgressBar } from '@/features/courses/course-ui';
+import { Spinner } from '@/components/ui/spinner';
 import { NAME_PATTERN } from '@/features/auth/signup-page';
 import { useAuth } from '@/features/auth/auth-provider';
 import { api } from '@/lib/api';
@@ -84,25 +87,17 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="mx-auto flex w-full max-w-3xl items-center gap-4 px-4 pt-5">
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon"
           aria-label="Back"
           onClick={() => setStep(STEPS[Math.max(0, index - 1)])}
           disabled={index === 0}
-          className="grid size-9 place-items-center rounded-md hover:bg-muted disabled:invisible"
+          className="disabled:invisible"
         >
-          <ArrowLeftIcon className="size-4" />
-        </button>
-        <div
-          className="h-2 flex-1 overflow-hidden rounded-full bg-muted"
-          role="progressbar"
-          aria-label="Onboarding progress"
-          aria-valuenow={Math.round(progress)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-        >
-          <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${progress}%` }} />
-        </div>
+          <ArrowLeftIcon />
+        </Button>
+        <ProgressBar value={progress} label="Onboarding progress" className="flex-1 [&_[data-slot=progress-track]]:h-2" />
         <span className="grid size-8 place-items-center rounded-lg bg-primary font-aleo text-sm font-semibold text-primary-foreground" aria-hidden>
           V
         </span>
@@ -115,20 +110,18 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
               <h1 className="font-aleo text-3xl tracking-tight">What should we call you?</h1>
               <p className="mt-2 text-sm text-muted-foreground">This is the name your course team and certificates will show.</p>
               <form onSubmit={saveName} className="mt-8 grid w-full gap-4 text-left sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="first-name">First name</Label>
+                <Field>
+                  <FieldLabel htmlFor="first-name">First name</FieldLabel>
                   <Input id="first-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" autoCapitalize="words" className="h-11 sm:h-10" autoFocus />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="last-name">Last name</Label>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="last-name">Last name</FieldLabel>
                   <Input id="last-name" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" autoCapitalize="words" className="h-11 sm:h-10" />
-                </div>
-                <button type="submit" hidden />
+                </Field>
+                <Button type="submit" hidden />
               </form>
               {error && (
-                <p role="alert" className="mt-4 text-sm text-destructive">
-                  {error}
-                </p>
+                <FieldError className="mt-4">{error}</FieldError>
               )}
             </>
           )}
@@ -168,14 +161,16 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
             <span />
           )}
           <div className="flex items-center gap-3">
-            <span className="hidden text-xs text-muted-foreground sm:inline">or press Enter</span>
+            <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex">
+              or press <Kbd>Enter</Kbd>
+            </span>
             <Button
               type="button"
               size="lg"
               onClick={next}
               disabled={saving || (step === 'name' && !firstName.trim())}
             >
-              {saving && <Loader2Icon className="animate-spin" />}
+              {saving && <Spinner />}
               {step === 'done' && !redirect ? 'Go to home' : 'Continue'}
             </Button>
           </div>

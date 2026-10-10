@@ -1,10 +1,12 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { CheckCircle2Icon, CircleIcon, EyeIcon, EyeOffIcon, Loader2Icon } from 'lucide-react';
+import { CheckCircle2Icon, CircleIcon } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 
+import { PasswordInput } from '@/components/password-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 
 import { AuthLayout, FormError, GoogleIcon, OrDivider } from './auth-layout';
@@ -29,7 +31,6 @@ export function SignupPage({ redirect }: { redirect?: string } = {}) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState<'email' | 'google' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,59 +92,49 @@ export function SignupPage({ redirect }: { redirect?: string } = {}) {
         subtitle={
           <>
             For <span className="font-medium text-foreground">{email.trim()}</span>.{' '}
-            <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => setStep('details')}>
+            <Button variant="link" size="xs" className="h-auto p-0 text-muted-foreground" onClick={() => setStep('details')}>
               Not you?
-            </button>
+            </Button>
           </>
         }
         footer={loginFooter}
       >
-        <form onSubmit={onCreate} className="flex flex-col gap-4" noValidate>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Input
+        <form onSubmit={onCreate} noValidate>
+          <FieldGroup className="gap-4">
+            <Field>
+              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <PasswordInput
                 id="password"
-                type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
                 autoFocus
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 aria-describedby="password-rules"
-                className="h-11 pr-10 sm:h-10"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted-foreground hover:text-foreground"
-              >
-                {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
-              </button>
-            </div>
-            <ul id="password-rules" className="mt-1 flex flex-col gap-1.5">
-              {PASSWORD_RULES.map((rule) => {
-                const ok = rule.test(password);
-                return (
-                  <li key={rule.label} className={cn('flex items-center gap-2 text-xs', ok ? 'text-foreground' : 'text-muted-foreground')}>
-                    {ok ? <CheckCircle2Icon className="size-4 text-emerald-600" aria-hidden /> : <CircleIcon className="size-4" aria-hidden />}
-                    {rule.label}
-                    <span className="sr-only">{ok ? '(met)' : '(not met)'}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+              <ul id="password-rules" className="mt-1 flex flex-col gap-1.5">
+                {PASSWORD_RULES.map((rule) => {
+                  const ok = rule.test(password);
+                  return (
+                    <li key={rule.label} className={cn('flex items-center gap-2 text-xs', ok ? 'text-foreground' : 'text-muted-foreground')}>
+                      {ok ? <CheckCircle2Icon className="size-4 text-emerald-600" aria-hidden /> : <CircleIcon className="size-4" aria-hidden />}
+                      {rule.label}
+                      <span className="sr-only">{ok ? '(met)' : '(not met)'}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Field>
 
-          <FormError message={error} />
+            <FormError message={error} />
 
-          <Button type="submit" size="lg" className="w-full" disabled={!passwordValid || pending !== null}>
-            {pending === 'email' && <Loader2Icon className="animate-spin" />}
-            Create account
-          </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            You&apos;ll be asked for consent before any proctored course uses your camera or microphone.
-          </p>
+            <Button type="submit" size="lg" className="w-full" disabled={!passwordValid || pending !== null}>
+              {pending === 'email' && <Spinner />}
+              Create account
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              You&apos;ll be asked for consent before any proctored course uses your camera or microphone.
+            </p>
+          </FieldGroup>
         </form>
       </AuthLayout>
     );
@@ -152,27 +143,29 @@ export function SignupPage({ redirect }: { redirect?: string } = {}) {
   return (
     <AuthLayout title="Create your ViBe account" subtitle="Learn in short segments and prove what you know as you go." footer={loginFooter}>
       <Button type="button" variant="outline" size="lg" className="w-full" onClick={onGoogle} disabled={pending !== null}>
-        {pending === 'google' ? <Loader2Icon className="animate-spin" /> : <GoogleIcon className="size-4" />}
+        {pending === 'google' ? <Spinner /> : <GoogleIcon className="size-4" />}
         Continue with Google
       </Button>
 
       <OrDivider />
 
-      <form onSubmit={onDetails} className="flex flex-col gap-4" noValidate>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="name">Full name</Label>
-          <Input id="name" autoComplete="name" autoCapitalize="words" enterKeyHint="next" placeholder="Your name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-11 sm:h-10" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="email">Email address</Label>
-          <Input id="email" type="email" autoCapitalize="none" spellCheck={false} autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 sm:h-10" />
-        </div>
+      <form onSubmit={onDetails} noValidate>
+        <FieldGroup className="gap-4">
+          <Field>
+            <FieldLabel htmlFor="name">Full name</FieldLabel>
+            <Input id="name" autoComplete="name" autoCapitalize="words" enterKeyHint="next" placeholder="Your name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-11 sm:h-10" />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="email">Email address</FieldLabel>
+            <Input id="email" type="email" autoCapitalize="none" spellCheck={false} autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 sm:h-10" />
+          </Field>
 
-        <FormError message={error} />
+          <FormError message={error} />
 
-        <Button type="submit" size="lg" className="w-full" disabled={!fullName.trim() || !email.trim()}>
-          Continue
-        </Button>
+          <Button type="submit" size="lg" className="w-full" disabled={!fullName.trim() || !email.trim()}>
+            Continue
+          </Button>
+        </FieldGroup>
       </form>
     </AuthLayout>
   );

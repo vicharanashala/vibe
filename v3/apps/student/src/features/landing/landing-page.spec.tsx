@@ -56,8 +56,10 @@ describe('Landing page', () => {
 
     await user.click(toggle);
 
-    expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-expanded', 'true');
-    expect(document.getElementById('mobile-menu')).toBeInTheDocument();
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const menu = await screen.findByRole('dialog');
+    expect(menu).toHaveAttribute('id', 'mobile-menu');
+    expect(within(menu).getByRole('link', { name: 'Get started' })).toBeInTheDocument();
   });
 
   it('shows the three partner logos', async () => {

@@ -1,16 +1,30 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { ApiError, unwrap } from '@vibe/api';
-import { ArrowLeftIcon, ArrowRightIcon, BadgeCheckIcon, CheckCircle2Icon, HandIcon, Loader2Icon, LockIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, BadgeCheckIcon, CheckCircle2Icon, HandIcon, InfoIcon, LockIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { itemTypeMeta, ProgressBar } from '@/features/courses/course-ui';
 import {
   courseKeys,
@@ -132,7 +146,7 @@ export function LessonPage({ track, ...ref }: LessonProps) {
   const unsupported = unsupportedDetectors(item.proctoringDetectors);
   if (unsupported.length > 0) {
     return frame(
-      <Notice title="This lesson is proctored" icon={<ShieldAlertIcon className="size-6" aria-hidden />} lessonRef={ref}>
+      <Notice title="This lesson is proctored" icon={<ShieldAlertIcon aria-hidden />} lessonRef={ref}>
         This lesson requires {unsupported.length === 1 ? 'a check' : 'checks'} ({unsupported.map((d) => d.detectorName).join(', ')}) that{' '}
         {unsupported.length === 1 ? "isn't" : "aren't"} available in this version of the app yet. You can still study it in study mode.
       </Notice>,
@@ -294,7 +308,8 @@ function useProctoring(
         </>
       )}
       {cameraReady && showEnrollment && (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 overflow-y-auto bg-background">
+        <Dialog open>
+          <DialogContent showCloseButton={false} className="h-dvh max-w-none overflow-y-auto rounded-none p-0 sm:max-w-none" aria-label="Add a reference photo">
           <FaceEnrollment
             videoRef={captureRef}
             stream={camera.stream}
@@ -305,7 +320,8 @@ function useProctoring(
               void faceReference.refetch();
             }}
           />
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
       {cameraReady && !showEnrollment && blockNotice && (
         <BlockingNotice
@@ -320,7 +336,7 @@ function useProctoring(
   return { blocked, overlay };
 }
 
-/** Full-screen notice for a proctoring block that isn't "camera is off" (that's CameraRequired). */
+/** Blocking notice for a proctoring block that isn't "camera is off" (that's CameraRequired). */
 function BlockingNotice({
   title,
   message,
@@ -331,20 +347,24 @@ function BlockingNotice({
   action?: { label: string; onClick: () => void };
 }) {
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="proctoring-block-title" className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-xl">
-        <ShieldAlertIcon className="mx-auto size-8 text-amber-600" aria-hidden />
-        <h2 id="proctoring-block-title" className="mt-4 font-aleo text-xl">
-          {title}
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+    <AlertDialog open>
+      <AlertDialogContent size="sm">
+        <AlertDialogHeader>
+          <AlertDialogMedia className="text-amber-600">
+            <ShieldAlertIcon />
+          </AlertDialogMedia>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{message}</AlertDialogDescription>
+        </AlertDialogHeader>
         {action && (
-          <Button variant="outline" size="sm" className="mt-4" onClick={action.onClick}>
-            {action.label}
-          </Button>
+          <AlertDialogFooter>
+            <AlertDialogAction variant="outline" onClick={action.onClick}>
+              {action.label}
+            </AlertDialogAction>
+          </AlertDialogFooter>
         )}
-      </div>
-    </div>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -528,7 +548,7 @@ function GreenLesson({
             ) : null}
           </p>
           <Button size="lg" className="h-11 w-full sm:h-10 sm:w-auto" onClick={goNext} disabled={!ready || finishing || Boolean(startError && !alreadyDone)}>
-            {finishing && <Loader2Icon className="animate-spin" />}
+            {finishing && <Spinner />}
             Continue
           </Button>
         </>
@@ -638,9 +658,10 @@ function LessonContent({
               onEnded={onEnded}
             />
           ) : (
-            <p className="rounded-2xl border border-border p-6 text-sm text-muted-foreground">
-              This video is hosted on ViBe’s own storage, which this version of the app can’t play yet.
-            </p>
+            <Alert>
+              <InfoIcon />
+              <AlertDescription>This video is hosted on ViBe’s own storage, which this version of the app can’t play yet.</AlertDescription>
+            </Alert>
           ))}
         {item.type === 'BLOG' && (
           <div className="prose-vibe">
@@ -701,7 +722,6 @@ function LessonFrame({
   const navigate = useNavigate();
   const [confirmExit, setConfirmExit] = useState(false);
   const course = { to: '/courses/$courseId/$versionId' as const, params: { courseId: ref.courseId, versionId: ref.versionId } };
-  const closeClass = 'grid size-10 shrink-0 place-items-center rounded-md hover:bg-muted';
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -713,15 +733,15 @@ function LessonFrame({
       >
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
           {exitWarning ? (
-            <button type="button" aria-label="Close lesson" onClick={() => setConfirmExit(true)} className={closeClass}>
-              <XIcon className="size-5" />
-            </button>
+            <Button variant="ghost" size="icon-lg" aria-label="Close lesson" onClick={() => setConfirmExit(true)}>
+              <XIcon />
+            </Button>
           ) : (
-            <Link {...course} aria-label="Close lesson" className={closeClass}>
-              <XIcon className="size-5" />
+            <Link {...course} aria-label="Close lesson" className={buttonVariants({ variant: 'ghost', size: 'icon-lg' })}>
+              <XIcon />
             </Link>
           )}
-          <ProgressBar value={progress} className="h-2 flex-1" label="Certified progress" />
+          <ProgressBar value={progress} className="flex-1 [&_[data-slot=progress-track]]:h-2" label="Certified progress" />
           <span className="hidden max-w-52 truncate text-sm text-muted-foreground md:inline">{title}</span>
           <TrackBadge track={track} />
           <Link
@@ -776,51 +796,65 @@ function LessonFrame({
   );
 }
 
+/** A lesson-sized empty state: icon, heading, message and one action. */
+function LessonEmpty({ icon, title, children, action }: { icon?: ReactNode; title: string; children: ReactNode; action: ReactNode }) {
+  return (
+    <Empty className="mx-auto w-full max-w-md flex-1 py-16">
+      <EmptyHeader>
+        {icon && <EmptyMedia variant="icon">{icon}</EmptyMedia>}
+        <EmptyTitle>
+          <h1 className="font-aleo text-2xl font-normal tracking-tight">{title}</h1>
+        </EmptyTitle>
+        <EmptyDescription>{children}</EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>{action}</EmptyContent>
+    </Empty>
+  );
+}
+
 function LockedLesson({ lessonRef: ref, track }: { lessonRef: LessonRef; track: Track }) {
   const path = useCurrentPath(ref.courseId, ref.versionId);
   const next = path.data;
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-4 py-16 text-center">
-      <span className="mb-4 grid size-12 place-items-center rounded-2xl bg-primary/15 text-primary">
-        <LockIcon className="size-6" aria-hidden />
-      </span>
-      <h1 className="font-aleo text-2xl tracking-tight">{track === 'blue' ? 'Not unlocked yet' : 'Finish the earlier lessons first'}</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {track === 'blue'
-          ? 'This course unlocks lessons as you complete them in certified mode. Lessons you’ve already reached are open for study.'
-          : 'Certified mode goes one lesson at a time, in order.'}
-      </p>
-      {next?.item && next.module && next.section ? (
-        <Link
-          to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
-          params={{ courseId: ref.courseId, versionId: ref.versionId, moduleId: next.module.id, sectionId: next.section.id, itemId: next.item.id }}
-          search={{ track: 'green' }}
-          className={cn(buttonVariants(), 'mt-6')}
-        >
-          Go to your next lesson: {next.item.name}
-        </Link>
-      ) : (
-        <Link to="/courses/$courseId/$versionId" params={{ courseId: ref.courseId, versionId: ref.versionId }} className={cn(buttonVariants({ variant: 'outline' }), 'mt-6')}>
-          Back to the course
-        </Link>
-      )}
-    </div>
+    <LessonEmpty
+      icon={<LockIcon />}
+      title={track === 'blue' ? 'Not unlocked yet' : 'Finish the earlier lessons first'}
+      action={
+        next?.item && next.module && next.section ? (
+          <Link
+            to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
+            params={{ courseId: ref.courseId, versionId: ref.versionId, moduleId: next.module.id, sectionId: next.section.id, itemId: next.item.id }}
+            search={{ track: 'green' }}
+            className={cn(buttonVariants(), 'h-auto min-h-9 whitespace-normal')}
+          >
+            Go to your next lesson: {next.item.name}
+          </Link>
+        ) : (
+          <Link to="/courses/$courseId/$versionId" params={{ courseId: ref.courseId, versionId: ref.versionId }} className={buttonVariants({ variant: 'outline' })}>
+            Back to the course
+          </Link>
+        )
+      }
+    >
+      {track === 'blue'
+        ? 'This course unlocks lessons as you complete them in certified mode. Lessons you’ve already reached are open for study.'
+        : 'Certified mode goes one lesson at a time, in order.'}
+    </LessonEmpty>
   );
 }
 
 function Notice({ title, icon, children, lessonRef: ref }: { title: string; icon?: ReactNode; children: ReactNode; lessonRef: LessonRef }) {
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-4 py-16 text-center">
-      {icon && <span className="mb-4 grid size-12 place-items-center rounded-2xl bg-primary/15 text-primary">{icon}</span>}
-      <h1 className="font-aleo text-2xl tracking-tight">{title}</h1>
-      <p className="mt-2 text-sm text-muted-foreground">{children}</p>
-      <Link
-        to="/courses/$courseId/$versionId"
-        params={{ courseId: ref.courseId, versionId: ref.versionId }}
-        className={cn(buttonVariants({ variant: 'outline' }), 'mt-6')}
-      >
-        Back to the course
-      </Link>
-    </div>
+    <LessonEmpty
+      icon={icon}
+      title={title}
+      action={
+        <Link to="/courses/$courseId/$versionId" params={{ courseId: ref.courseId, versionId: ref.versionId }} className={buttonVariants({ variant: 'outline' })}>
+          Back to the course
+        </Link>
+      }
+    >
+      {children}
+    </LessonEmpty>
   );
 }

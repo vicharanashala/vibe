@@ -1,13 +1,16 @@
 import { useNavigate } from '@tanstack/react-router';
 import { unwrap } from '@vibe/api';
 import { updateProfile } from 'firebase/auth';
-import { CheckCircle2Icon, Loader2Icon, LogOutIcon, MoonIcon, SunIcon } from 'lucide-react';
+import { CheckCircle2Icon, LogOutIcon, MoonIcon, SunIcon } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 
+import { PasswordInput } from '@/components/password-input';
 import { useTheme } from '@/components/theme-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Spinner } from '@/components/ui/spinner';
 import { GeneratedAvatar } from '@/components/generated-art';
 import { useAuth } from '@/features/auth/auth-provider';
 import { NAME_PATTERN, PASSWORD_RULES } from '@/features/auth/signup-page';
@@ -62,24 +65,20 @@ export function ProfilePage() {
           </Panel>
         )}
         <Panel title="Appearance" description="ViBe uses the light theme unless you choose otherwise.">
-          <div role="radiogroup" aria-label="Theme" className="grid grid-cols-2 rounded-lg bg-muted p-1 sm:inline-flex">
-            {(['light', 'dark'] as const).map((t) => (
-              <button
-                key={t}
-                role="radio"
-                type="button"
-                aria-checked={theme === t}
-                onClick={() => setTheme(t)}
-                className={cn(
-                  'inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium sm:py-1.5',
-                  theme === t ? 'bg-background shadow-xs' : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {t === 'light' ? <SunIcon className="size-4" aria-hidden /> : <MoonIcon className="size-4" aria-hidden />}
-                {t === 'light' ? 'Light' : 'Dark'}
-              </button>
-            ))}
-          </div>
+          <ToggleGroup
+            aria-label="Theme"
+            variant="outline"
+            value={[theme]}
+            onValueChange={(v: string[]) => v[0] && setTheme(v[0] as 'light' | 'dark')}
+            className="w-full sm:w-fit"
+          >
+            <ToggleGroupItem value="light" className="flex-1 sm:flex-none">
+              <SunIcon aria-hidden /> Light
+            </ToggleGroupItem>
+            <ToggleGroupItem value="dark" className="flex-1 sm:flex-none">
+              <MoonIcon aria-hidden /> Dark
+            </ToggleGroupItem>
+          </ToggleGroup>
         </Panel>
         <Panel title="Session">
           <Button
@@ -127,18 +126,18 @@ function NameForm() {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="profile-first">First name</Label>
+        <Field>
+          <FieldLabel htmlFor="profile-first">First name</FieldLabel>
           <Input id="profile-first" autoComplete="given-name" autoCapitalize="words" value={first} onChange={(e) => setFirst(e.target.value)} className="h-11 sm:h-10" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="profile-last">Last name</Label>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="profile-last">Last name</FieldLabel>
           <Input id="profile-last" autoComplete="family-name" autoCapitalize="words" value={last} onChange={(e) => setLast(e.target.value)} className="h-11 sm:h-10" />
-        </div>
+        </Field>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <Button type="submit" size="lg" className="w-full sm:w-auto" disabled={state.pending || !first.trim()}>
-          {state.pending && <Loader2Icon className="animate-spin" />}
+          {state.pending && <Spinner />}
           Save name
         </Button>
         {state.ok && <Status kind="ok">Saved</Status>}
@@ -170,15 +169,15 @@ function PasswordForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="new-password">New password</Label>
-        <Input id="new-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-11 sm:h-10" />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="confirm-password">Confirm new password</Label>
-        <Input id="confirm-password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="h-11 sm:h-10" />
-        {confirm && password !== confirm && <p className="text-xs text-destructive">Passwords don’t match.</p>}
-      </div>
+      <Field>
+        <FieldLabel htmlFor="new-password">New password</FieldLabel>
+        <PasswordInput id="new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      </Field>
+      <Field data-invalid={confirm && password !== confirm ? true : undefined}>
+        <FieldLabel htmlFor="confirm-password">Confirm new password</FieldLabel>
+        <PasswordInput id="confirm-password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} aria-invalid={confirm && password !== confirm ? true : undefined} />
+        {confirm && password !== confirm && <FieldError>Passwords don’t match.</FieldError>}
+      </Field>
       <ul className="grid gap-1 sm:grid-cols-2">
         {PASSWORD_RULES.map((r) => (
           <li key={r.label} className={cn('text-xs', r.test(password) ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground')}>
@@ -188,7 +187,7 @@ function PasswordForm() {
       </ul>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <Button type="submit" size="lg" className="w-full sm:w-auto" disabled={!valid || state.pending}>
-          {state.pending && <Loader2Icon className="animate-spin" />}
+          {state.pending && <Spinner />}
           Update password
         </Button>
         {state.ok && <Status kind="ok">Password updated</Status>}

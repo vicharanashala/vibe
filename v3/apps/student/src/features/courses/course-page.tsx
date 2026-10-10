@@ -1,9 +1,15 @@
 import { Link } from '@tanstack/react-router';
-import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, CircleIcon, LockIcon, ShieldCheckIcon } from 'lucide-react';
+import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, CircleAlertIcon, CircleIcon, LockIcon, ShieldCheckIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Skeleton } from '@/components/ui/skeleton';
-import { buttonVariants } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { TrackBadge } from '@/features/learn/lesson-page';
 import { useCourseSettings } from '@/features/learn/queries';
 import { TRACKS, useCourseTrack, type Track } from '@/features/learn/tracks';
@@ -49,9 +55,11 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
   if (version.isError) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm">
-          We couldn’t load this course. {version.error.message}
-        </p>
+        <Alert variant="destructive">
+          <CircleAlertIcon />
+          <AlertTitle>We couldn’t load this course.</AlertTitle>
+          <AlertDescription>{version.error.message}</AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -123,7 +131,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
           <>
             <Link
               {...continueLink}
-              className="mt-6 hidden h-10 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background hover:bg-foreground/85 md:inline-flex"
+              className={cn(buttonVariants({ size: 'lg' }), 'mt-6 max-md:hidden')}
             >
               {continueLabel}
             </Link>
@@ -166,28 +174,32 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
       </div>
 
       <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start" aria-label="Your progress">
-        <div className="hidden rounded-2xl border border-border bg-card p-4 lg:block">
-          <CourseCover name={name} seed={courseId} className="h-32 w-full" />
-          <p className="mt-4 font-semibold">Your progress</p>
-          <ProgressBar value={pct} className="mt-3" label="Course progress" />
-          <p className="mt-2 text-sm text-muted-foreground">
-            {Math.round(pct)}% complete
-            {percentage.data && ` · ${percentage.data.completedItems} of ${percentage.data.totalItems} lessons`}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="flex items-center gap-2 font-semibold">
-            <ShieldCheckIcon className="size-4 text-primary" aria-hidden />
-            Proctoring consent
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {consent.isPending
-              ? 'Checking…'
-              : consent.data?.signed
-                ? `Signed${consent.data.signedAt ? ` on ${new Date(consent.data.signedAt).toLocaleDateString()}` : ''}.`
-                : 'Not signed yet. You’ll be asked to read and sign the consent form before your first lesson.'}
-          </p>
-        </div>
+        <Card size="sm" className="max-lg:hidden">
+          <CardContent>
+            <CourseCover name={name} seed={courseId} className="h-32 w-full" />
+            <p className="mt-4 font-semibold">Your progress</p>
+            <ProgressBar value={pct} className="mt-3" label="Course progress" />
+            <p className="mt-2 text-sm text-muted-foreground">
+              {Math.round(pct)}% complete
+              {percentage.data && ` · ${percentage.data.completedItems} of ${percentage.data.totalItems} lessons`}
+            </p>
+          </CardContent>
+        </Card>
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheckIcon className="size-4 text-primary" aria-hidden />
+              Proctoring consent
+            </CardTitle>
+            <CardDescription>
+              {consent.isPending
+                ? 'Checking…'
+                : consent.data?.signed
+                  ? `Signed${consent.data.signedAt ? ` on ${new Date(consent.data.signedAt).toLocaleDateString()}` : ''}.`
+                  : 'Not signed yet. You’ll be asked to read and sign the consent form before your first lesson.'}
+            </CardDescription>
+          </CardHeader>
+        </Card>
       </aside>
     </div>
   );
@@ -276,17 +288,14 @@ function SectionBlock({
   const list = visibleInOrder(items.data ?? []);
 
   return (
-    <div className="rounded-xl border border-border">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium hover:bg-muted/50"
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border border-border">
+      <CollapsibleTrigger
+        render={<Button variant="ghost" className="h-auto w-full justify-between gap-3 rounded-xl px-4 py-3 text-left whitespace-normal" />}
       >
         {name}
-        <ChevronDownIcon className={cn('size-4 text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
-      </button>
-      {open && (
+        <ChevronDownIcon className={cn('text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
         <ul className="flex flex-col gap-2 border-t border-border p-3">
           {items.isPending &&
             Array.from({ length: 2 }, (_, i) => (
@@ -303,13 +312,14 @@ function SectionBlock({
             const locked = track === 'blue' && linear && !item.isCompleted && !isCurrent;
             const row = (
               <>
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground/80">
-                  <Icon className="size-4" aria-hidden />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">{locked ? 'Unlocks in certified mode' : meta.label}</p>
-                </div>
+                <ItemMedia variant="icon">
+                  <Icon aria-hidden />
+                </ItemMedia>
+                <ItemContent className="min-w-0">
+                  <ItemTitle className="w-full truncate">{item.name}</ItemTitle>
+                  <ItemDescription>{locked ? 'Unlocks in certified mode' : meta.label}</ItemDescription>
+                </ItemContent>
+                <ItemActions>
                 {item.isCompleted ? (
                   <span className="grid size-6 place-items-center rounded-full bg-emerald-600 text-white" title="Completed">
                     <CheckIcon className="size-3.5" aria-hidden />
@@ -320,68 +330,67 @@ function SectionBlock({
                 ) : !isCurrent ? (
                   <CircleIcon className="size-5 text-muted-foreground/50" aria-label="Not started" />
                 ) : null}
+                </ItemActions>
               </>
             );
             const rowClass = cn(
-              'flex items-center gap-3 rounded-lg border bg-card px-3 py-3',
-              isCurrent ? (track === 'blue' ? 'border-sky-500 ring-2 ring-sky-500/30' : 'border-primary ring-2 ring-primary/30') : 'border-border',
+              'bg-card',
+              isCurrent && (track === 'blue' ? 'border-sky-500 ring-2 ring-sky-500/30' : 'border-primary ring-2 ring-primary/30'),
             );
             return (
               <li key={item._id} id={isCurrent ? 'up-next' : undefined} className="relative scroll-mt-28">
-                {isCurrent && (
-                  <span className="absolute -top-3 left-1/2 z-10 -translate-x-1/2 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground shadow-sm after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-4 after:border-transparent after:border-t-primary">
-                    Up next
-                  </span>
-                )}
+                {isCurrent && <Badge className="absolute -top-2.5 left-1/2 z-10 -translate-x-1/2 shadow-sm">Up next</Badge>}
                 {locked ? (
-                  <div className={cn(rowClass, 'opacity-60')}>{row}</div>
+                  <Item variant="outline" size="sm" className={cn(rowClass, 'opacity-60')}>
+                    {row}
+                  </Item>
                 ) : (
-                  <Link
-                    to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
-                    params={{ courseId, versionId, moduleId, sectionId, itemId: item._id }}
-                    search={{ track }}
-                    className={cn(rowClass, 'transition-colors hover:border-foreground/25')}
+                  <Item
+                    variant="outline"
+                    size="sm"
+                    className={rowClass}
+                    render={
+                      <Link
+                        to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
+                        params={{ courseId, versionId, moduleId, sectionId, itemId: item._id }}
+                        search={{ track }}
+                      />
+                    }
                   >
                     {row}
-                  </Link>
+                  </Item>
                 )}
               </li>
             );
           })}
         </ul>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
-/** Luma-style segmented switch between the two ways through a course. */
+/** Segmented switch between the two ways through a course (Certified / Study mode). */
 function TrackSwitcher({ track, onChange, linear }: { track: Track; onChange: (t: Track) => void; linear: boolean }) {
   return (
-    <section aria-labelledby="track-title" className="mt-8 rounded-2xl border border-border bg-card p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 id="track-title" className="font-semibold">
-          How do you want to go through this course?
-        </h2>
-        <div role="radiogroup" aria-label="Mode" className="grid w-full grid-cols-2 rounded-lg bg-muted p-1 sm:inline-flex sm:w-fit">
+    <Card size="sm" role="region" aria-labelledby="track-title" className="mt-8">
+      <CardHeader className="gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+        <CardTitle id="track-title">How do you want to go through this course?</CardTitle>
+        <ToggleGroup
+          aria-label="Mode"
+          variant="outline"
+          value={[track]}
+          onValueChange={(v: string[]) => v[0] && onChange(v[0] as Track)}
+          className="w-full sm:w-fit"
+        >
           {(['green', 'blue'] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="radio"
-              aria-checked={track === t}
-              onClick={() => onChange(t)}
-              className={cn(
-                'inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors sm:py-1.5',
-                track === t ? 'bg-background shadow-xs' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
+            <ToggleGroupItem key={t} value={t} className="flex-1 sm:flex-none">
               <span className={cn('size-2 rounded-full', t === 'blue' ? 'bg-sky-500' : 'bg-emerald-500')} aria-hidden />
               {TRACKS[t].label}
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
-      </div>
-      <div className="mt-3 flex items-start gap-3">
+        </ToggleGroup>
+      </CardHeader>
+      <CardContent className="flex items-start gap-3">
         <TrackBadge track={track} className="shrink-0" />
         <p className="text-sm text-muted-foreground">
           {TRACKS[track].description}
@@ -389,7 +398,7 @@ function TrackSwitcher({ track, onChange, linear }: { track: Track; onChange: (t
             <> This course opens lessons in order, so study mode covers the lessons you’ve reached in certified mode.</>
           )}
         </p>
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }

@@ -1,8 +1,9 @@
-import { CameraIcon, Loader2Icon, RotateCcwIcon, ScanFaceIcon } from 'lucide-react';
+import { CameraIcon, RotateCcwIcon, ScanFaceIcon } from 'lucide-react';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { useUpdateFaceReference } from '@/features/courses/queries';
 
 import { FACE_DETECTOR_OPTIONS, FACE_EMBEDDING_LENGTH, loadFaceModels } from './use-face-recognition';
@@ -101,7 +102,7 @@ export function FaceEnrollment({
               <RotateCcwIcon className="size-4" aria-hidden /> Retake
             </Button>
             <Button onClick={save} disabled={updateFaceReference.isPending}>
-              {updateFaceReference.isPending && <Loader2Icon className="size-4 animate-spin" aria-hidden />}
+              {updateFaceReference.isPending && <Spinner className="size-4" />}
               Use this photo
             </Button>
           </div>
@@ -114,7 +115,7 @@ export function FaceEnrollment({
           </div>
           {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
           <Button className="mt-6" size="lg" onClick={capture} disabled={!modelsReady || capturing}>
-            {capturing || !modelsReady ? <Loader2Icon className="size-4 animate-spin" aria-hidden /> : <CameraIcon className="size-4" aria-hidden />}
+            {capturing || !modelsReady ? <Spinner className="size-4" /> : <CameraIcon className="size-4" aria-hidden />}
             {modelsReady ? 'Capture photo' : 'Loading…'}
           </Button>
         </>

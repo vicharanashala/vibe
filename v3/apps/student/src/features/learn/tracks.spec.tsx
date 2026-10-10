@@ -117,10 +117,10 @@ describe('course page', () => {
   it('lets the student pick a track and locks unreached lessons on blue in linear courses', async () => {
     const user = userEvent.setup();
     renderApp(`/courses/${enrollment.courseId}/${enrollment.courseVersionId}`);
-    const switcher = await screen.findByRole('radiogroup', { name: 'Mode' });
-    expect(within(switcher).getByRole('radio', { name: 'Certified mode' })).toHaveAttribute('aria-checked', 'true');
+    const switcher = await screen.findByRole('group', { name: 'Mode' });
+    expect(within(switcher).getByRole('button', { name: 'Certified mode' })).toHaveAttribute('aria-pressed', 'true');
 
-    await user.click(within(switcher).getByRole('radio', { name: 'Study mode' }));
+    await user.click(within(switcher).getByRole('button', { name: 'Study mode' }));
     expect(screen.getByText(/Nothing is saved to your progress/)).toBeInTheDocument();
     const current = await screen.findByRole('link', { name: new RegExp(path.item.name) });
     expect(current.getAttribute('href')).toContain('track=blue');

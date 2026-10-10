@@ -1,7 +1,12 @@
 import { Link } from '@tanstack/react-router';
-import { ArrowRightIcon, CheckIcon, CircleDashedIcon, ClockIcon, PlusIcon } from 'lucide-react';
+import { ArrowRightIcon, BookOpenIcon, CheckIcon, CircleAlertIcon, CircleDashedIcon, ClockIcon } from 'lucide-react';
 
-import { buttonVariants } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
+import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/features/auth/auth-provider';
 import { CourseCover, ProgressBar, percentOf } from '@/features/courses/course-ui';
@@ -56,12 +61,16 @@ export function HomePage() {
                   <Link
                     to="/courses/$courseId/$versionId"
                     params={{ courseId: e.courseId, versionId: e.courseVersionId }}
-                    className="block rounded-2xl border border-border bg-card p-4 transition-colors hover:border-foreground/20"
+                    className="group block rounded-3xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                   >
-                    <CourseCover name={e.course.name} seed={e.courseId} className="h-28 w-full" />
-                    <p className="mt-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Course</p>
-                    <p className="mt-1 line-clamp-2 font-medium">{e.course.name}</p>
-                    <ProgressBar value={percentOf(e)} className="mt-3" label={`${e.course.name} progress`} />
+                    <Card size="sm" className="transition-shadow group-hover:shadow-md">
+                      <CardContent>
+                        <CourseCover name={e.course.name} seed={e.courseId} className="h-28 w-full" />
+                        <p className="mt-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Course</p>
+                        <p className="mt-1 line-clamp-2 font-medium">{e.course.name}</p>
+                        <ProgressBar value={percentOf(e)} className="mt-3" label={`${e.course.name} progress`} />
+                      </CardContent>
+                    </Card>
                   </Link>
                 </li>
               ))}
@@ -87,8 +96,8 @@ function ResumeCard({ enrollment: e }: { enrollment: EnrollmentSummary }) {
   return (
     <div className="relative">
       {/* Uxcel's stacked-card hint that there's more behind this one */}
-      <div aria-hidden className="absolute inset-x-4 -bottom-2 h-full rounded-2xl border border-border bg-muted/60" />
-      <div className="relative grid gap-5 rounded-2xl border border-border bg-card p-4 shadow-xs sm:grid-cols-[220px_1fr] sm:p-5">
+      <div aria-hidden className="absolute inset-x-4 -bottom-2 h-full rounded-3xl bg-muted/60 ring-1 ring-foreground/10" />
+      <Card className="relative grid gap-5 p-4 sm:grid-cols-[220px_1fr] sm:p-5">
         <CourseCover name={e.course.name} seed={e.courseId} className="aspect-[2/1] w-full sm:aspect-auto sm:h-full" />
         <div className="flex min-w-0 flex-col">
           <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Course</p>
@@ -129,26 +138,22 @@ function ResumeCard({ enrollment: e }: { enrollment: EnrollmentSummary }) {
             </Link>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
 
 function EmptyCourses() {
   return (
-    <div className="grid gap-5 rounded-2xl border border-border bg-card p-5 sm:grid-cols-[220px_1fr]">
-      <div className="grid aspect-[4/3] place-items-center rounded-xl bg-muted sm:aspect-auto sm:h-40">
-        <span className="grid size-16 place-items-center rounded-full border-2 border-dashed border-muted-foreground/40 text-muted-foreground/60">
-          <PlusIcon className="size-7" aria-hidden />
-        </span>
-      </div>
-      <div className="flex flex-col justify-center">
-        <h3 className="font-semibold">You don’t have any active courses</h3>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Courses appear here once you join one through an invite or a registration link from your course team.
-        </p>
-      </div>
-    </div>
+    <Empty className="border">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <BookOpenIcon />
+        </EmptyMedia>
+        <EmptyTitle>You don’t have any active courses</EmptyTitle>
+        <EmptyDescription>Courses appear here once you join one through an invite or a registration link from your course team.</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }
 
@@ -158,40 +163,48 @@ function PendingRegistrations() {
   const list = pending.data ?? [];
   if (!list.length) return null;
   return (
-    <section aria-labelledby="pending-title" className="rounded-2xl border border-border bg-card p-5">
-      <h2 id="pending-title" className="font-semibold">
-        Waiting for approval
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">Your course team will review these registrations.</p>
-      <ul className="mt-4 flex flex-col gap-2">
-        {list.map((r) => (
-          <li key={r._id}>
-            <Link
-              to="/register/$versionId/{-$cohortId}"
-              params={{ versionId: r.versionId, cohortId: r.cohortId ?? undefined }}
-              className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm hover:bg-muted"
+    <Card size="sm" role="region" aria-labelledby="pending-title">
+      <CardHeader>
+        <CardTitle id="pending-title">Waiting for approval</CardTitle>
+        <CardDescription>Your course team will review these registrations.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ItemGroup className="gap-2">
+          {list.map((r) => (
+            <Item
+              key={r._id}
+              variant="outline"
+              size="sm"
+              render={<Link to="/register/$versionId/{-$cohortId}" params={{ versionId: r.versionId, cohortId: r.cohortId ?? undefined }} />}
             >
-              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
-                <ClockIcon className="size-3.5" aria-hidden />
-              </span>
-              <span className="line-clamp-2 min-w-0 flex-1">{r.courseName}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">Pending</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
+              <ItemMedia variant="icon" className="text-amber-600 dark:text-amber-400">
+                <ClockIcon />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle className="line-clamp-2">{r.courseName}</ItemTitle>
+              </ItemContent>
+              <ItemActions>
+                <Badge variant="outline">Pending</Badge>
+              </ItemActions>
+            </Item>
+          ))}
+        </ItemGroup>
+      </CardContent>
+    </Card>
   );
 }
 
 function LoadError({ onRetry }: { onRetry: () => void }) {
   return (
-    <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm">
-      We couldn’t load your courses.{' '}
-      <button type="button" onClick={onRetry} className="font-medium underline underline-offset-2">
-        Try again
-      </button>
-    </div>
+    <Alert variant="destructive">
+      <CircleAlertIcon />
+      <AlertTitle>We couldn’t load your courses.</AlertTitle>
+      <AlertDescription>
+        <Button variant="link" size="sm" className="h-auto p-0 text-destructive" onClick={onRetry}>
+          Try again
+        </Button>
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -206,44 +219,48 @@ function GettingStarted({ uid, hasCourse, hasStarted }: { uid: string; hasCourse
   const doneCount = steps.filter((s) => s.done).length;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-baseline justify-between">
-        <h2 className="font-semibold">Getting started</h2>
-        <span className="text-xs text-muted-foreground">
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle>Getting started</CardTitle>
+        <CardDescription>A few quick steps before your first proctored lesson.</CardDescription>
+        <CardAction className="text-xs text-muted-foreground">
           {doneCount}/{steps.length}
-        </span>
-      </div>
-      <p className="mt-1 text-sm text-muted-foreground">A few quick steps before your first proctored lesson.</p>
-      <ProgressBar value={(doneCount / steps.length) * 100} className="mt-4" label="Getting started progress" />
-      <ul className="mt-4 flex flex-col gap-2">
-        {steps.map((s) => {
-          const content = (
-            <>
-              <span className="flex-1">{s.label}</span>
-              {s.done ? (
-                <span className="grid size-5 place-items-center rounded-full bg-emerald-600 text-white">
-                  <CheckIcon className="size-3" aria-hidden />
-                </span>
-              ) : (
-                <CircleDashedIcon className="size-5 text-muted-foreground" aria-hidden />
-              )}
-              <span className="sr-only">{s.done ? '(done)' : '(to do)'}</span>
-            </>
-          );
-          const cls = 'flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm';
-          return (
-            <li key={s.label}>
-              {!s.done && s.to ? (
-                <Link to={s.to} className={cn(cls, 'hover:bg-muted')}>
-                  {content}
-                </Link>
-              ) : (
-                <div className={cn(cls, s.done && 'text-muted-foreground')}>{content}</div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <ProgressBar value={(doneCount / steps.length) * 100} label="Getting started progress" />
+        <ItemGroup className="gap-2">
+          {steps.map((s) => {
+            const status = s.done ? (
+              <span className="grid size-5 place-items-center rounded-full bg-emerald-600 text-white">
+                <CheckIcon className="size-3" aria-hidden />
+              </span>
+            ) : (
+              <CircleDashedIcon className="size-5 text-muted-foreground" aria-hidden />
+            );
+            const body = (
+              <>
+                <ItemContent>
+                  <ItemTitle className={cn('font-normal', s.done && 'text-muted-foreground')}>{s.label}</ItemTitle>
+                </ItemContent>
+                <ItemActions>
+                  {status}
+                  <span className="sr-only">{s.done ? '(done)' : '(to do)'}</span>
+                </ItemActions>
+              </>
+            );
+            return !s.done && s.to ? (
+              <Item key={s.label} variant="outline" size="sm" render={<Link to={s.to} />}>
+                {body}
+              </Item>
+            ) : (
+              <Item key={s.label} variant="outline" size="sm">
+                {body}
+              </Item>
+            );
+          })}
+        </ItemGroup>
+      </CardContent>
+    </Card>
   );
 }

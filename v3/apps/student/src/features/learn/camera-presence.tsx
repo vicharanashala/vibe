@@ -1,7 +1,17 @@
-import { CameraOffIcon, Loader2Icon } from 'lucide-react';
+import { CameraOffIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Spinner } from '@/components/ui/spinner';
 
 export type CameraState = 'starting' | 'on' | 'off' | 'denied';
 
@@ -90,27 +100,23 @@ export function CameraRequired({
 }) {
   if (state === 'on') return null;
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="camera-required-title" className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-xl">
-        {state === 'starting' ? (
-          <Loader2Icon className="mx-auto size-8 animate-spin text-sky-600" aria-hidden />
-        ) : (
-          <CameraOffIcon className="mx-auto size-8 text-sky-600" aria-hidden />
-        )}
-        <h2 id="camera-required-title" className="mt-4 font-aleo text-xl">
-          {state === 'starting' ? 'Turning your camera on…' : 'Turn your camera on to continue'}
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {state === 'denied'
-            ? (deniedHint ?? 'Camera access is blocked. Allow it in your browser’s site settings, then try again.')
-            : idleHint}
-        </p>
+    <AlertDialog open>
+      <AlertDialogContent size="sm">
+        <AlertDialogHeader>
+          <AlertDialogMedia className="text-sky-600">{state === 'starting' ? <Spinner /> : <CameraOffIcon />}</AlertDialogMedia>
+          <AlertDialogTitle>{state === 'starting' ? 'Turning your camera on…' : 'Turn your camera on to continue'}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {state === 'denied'
+              ? (deniedHint ?? 'Camera access is blocked. Allow it in your browser’s site settings, then try again.')
+              : idleHint}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
         {state !== 'starting' && (
-          <Button className="mt-5" onClick={onRetry}>
-            Try again
-          </Button>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={onRetry}>Try again</AlertDialogAction>
+          </AlertDialogFooter>
         )}
-      </div>
-    </div>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

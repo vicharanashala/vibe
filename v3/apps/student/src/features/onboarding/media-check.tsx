@@ -1,8 +1,12 @@
 import { runMediaChecks } from '@vibe/proctoring';
-import { CameraIcon, CheckCircle2Icon, Loader2Icon, MicIcon, TriangleAlertIcon } from 'lucide-react';
+import { CameraIcon, CheckCircle2Icon, MicIcon, TriangleAlertIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item';
+import { ProgressBar } from '@/features/courses/course-ui';
+import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 
 export type MediaCheckStatus = 'idle' | 'requesting' | 'passed' | 'blocked' | 'failed';
@@ -96,30 +100,39 @@ export function MediaCheck({ onStatusChange }: { onStatusChange?: (status: Media
       </div>
 
       {status === 'passed' ? (
-        <ul className="grid w-full gap-2 sm:grid-cols-2" aria-live="polite">
-          <li className="flex items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm">
-            <CheckCircle2Icon className="size-4 text-emerald-600" aria-hidden /> Camera is working
-          </li>
-          <li className="flex items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm">
-            <MicIcon className="size-4 shrink-0 text-emerald-600" aria-hidden />
-            <span>Microphone</span>
-            <span className="ml-auto h-1.5 w-20 overflow-hidden rounded-full bg-muted" aria-label="Microphone level">
-              <span className="block h-full rounded-full bg-primary transition-[width] duration-75" style={{ width: `${Math.round(level * 100)}%` }} />
-            </span>
-          </li>
-        </ul>
+        <ItemGroup className="grid w-full gap-2 sm:grid-cols-2" aria-live="polite">
+          <Item variant="outline" size="sm">
+            <ItemMedia>
+              <CheckCircle2Icon className="size-4 text-emerald-600" aria-hidden />
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle className="font-normal">Camera is working</ItemTitle>
+            </ItemContent>
+          </Item>
+          <Item variant="outline" size="sm">
+            <ItemMedia>
+              <MicIcon className="size-4 text-emerald-600" aria-hidden />
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle className="font-normal">Microphone</ItemTitle>
+            </ItemContent>
+            <ItemActions className="w-20">
+              <ProgressBar value={level * 100} label="Microphone level" className="[&_[data-slot=progress-indicator]]:transition-none" />
+            </ItemActions>
+          </Item>
+        </ItemGroup>
       ) : (
         <Button type="button" size="lg" onClick={start} disabled={status === 'requesting'}>
-          {status === 'requesting' ? <Loader2Icon className="animate-spin" /> : <CameraIcon />}
+          {status === 'requesting' ? <Spinner /> : <CameraIcon />}
           {status === 'idle' || status === 'requesting' ? 'Allow camera & microphone' : 'Try again'}
         </Button>
       )}
 
       {problem && (
-        <p role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
-          <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-          {problem}
-        </p>
+        <Alert variant="destructive" className="text-left">
+          <TriangleAlertIcon />
+          <AlertDescription>{problem}</AlertDescription>
+        </Alert>
       )}
     </div>
   );

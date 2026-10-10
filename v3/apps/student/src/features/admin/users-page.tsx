@@ -1,8 +1,10 @@
 import { ApiError } from '@vibe/api';
-import { Loader2Icon, ShieldCheckIcon } from 'lucide-react';
+import { ShieldCheckIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 
 import { useAllUsers, useMakeAdmin } from './queries';
@@ -30,27 +32,27 @@ export function UsersPage() {
       <p className="mt-1 text-sm text-muted-foreground">Every account in the system. Promote someone to admin here - there's no way to demote one yet.</p>
 
       <div className="mt-6">
-        {users.isPending && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {users.isPending && <Spinner className="text-muted-foreground" />}
         {users.isError && <Status kind="error">{errorMessage(users.error)}</Status>}
         {users.data && (
-          <div className="overflow-x-auto rounded-2xl border border-border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs text-muted-foreground uppercase">
-                  <th className="px-4 py-2 font-medium">Name</th>
-                  <th className="px-4 py-2 font-medium">Email</th>
-                  <th className="px-4 py-2 font-medium">Role</th>
-                  <th className="px-4 py-2 font-medium" />
-                </tr>
-              </thead>
-              <tbody>
+          <div className="rounded-2xl border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {users.data.map((u) => (
-                  <tr key={u._id} className="border-b border-border last:border-b-0">
-                    <td className="px-4 py-2">
+                  <TableRow key={u._id}>
+                    <TableCell>
                       {u.firstName} {u.lastName ?? ''}
-                    </td>
-                    <td className="px-4 py-2 text-muted-foreground">{u.email}</td>
-                    <td className="px-4 py-2">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                    <TableCell>
                       {u.roles === 'admin' ? (
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
                           <ShieldCheckIcon className="size-3.5" aria-hidden /> Admin
@@ -58,8 +60,8 @@ export function UsersPage() {
                       ) : (
                         'User'
                       )}
-                    </td>
-                    <td className="px-4 py-2 text-right">
+                    </TableCell>
+                    <TableCell className="text-right">
                       {u.roles !== 'admin' && (
                         <Button
                           size="sm"
@@ -67,15 +69,15 @@ export function UsersPage() {
                           disabled={makeAdmin.isPending}
                           onClick={() => makeAdmin.mutate(u._id)}
                         >
-                          {makeAdmin.isPending && makeAdmin.variables === u._id ? <Loader2Icon className="size-3.5 animate-spin" aria-hidden /> : null}
+                          {makeAdmin.isPending && makeAdmin.variables === u._id ? <Spinner className="size-3.5" /> : null}
                           Make admin
                         </Button>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
         {makeAdmin.isError && <Status kind="error">{errorMessage(makeAdmin.error)}</Status>}

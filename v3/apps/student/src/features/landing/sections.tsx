@@ -20,6 +20,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { buttonVariants } from '@/components/ui/button';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 import {
@@ -104,11 +105,16 @@ export function HowItWorks() {
               key={step.title}
               {...reveal}
               transition={{ ...reveal.transition, delay: i * 0.1 }}
-              className="relative rounded-2xl border border-border bg-card p-6"
             >
-              <span className="font-aleo text-4xl text-primary">{String(i + 1).padStart(2, '0')}</span>
-              <h3 className="mt-4 text-lg font-semibold">{step.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
+              <Card className="h-full">
+                <CardHeader>
+                  <span className="font-aleo text-4xl text-primary">{String(i + 1).padStart(2, '0')}</span>
+                  <CardTitle className="mt-3">
+                    <h3 className="text-lg font-semibold">{step.title}</h3>
+                  </CardTitle>
+                  <CardDescription className="leading-relaxed">{step.body}</CardDescription>
+                </CardHeader>
+              </Card>
             </motion.li>
           ))}
         </ol>
@@ -145,13 +151,18 @@ export function Features() {
                 key={feature.title}
                 {...reveal}
                 transition={{ ...reveal.transition, delay: (i % 3) * 0.08 }}
-                className="rounded-2xl border border-border bg-background p-6"
               >
-                <span className="grid size-10 place-items-center rounded-xl bg-primary/15 text-primary">
-                  <Icon className="size-5" aria-hidden />
-                </span>
-                <h3 className="mt-4 text-base font-semibold">{feature.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{feature.body}</p>
+                <Card className="h-full">
+                  <CardHeader>
+                    <span className="mb-2 grid size-10 place-items-center rounded-xl bg-primary/15 text-primary">
+                      <Icon className="size-5" aria-hidden />
+                    </span>
+                    <CardTitle>
+                      <h3 className="text-base font-semibold">{feature.title}</h3>
+                    </CardTitle>
+                    <CardDescription className="leading-relaxed">{feature.body}</CardDescription>
+                  </CardHeader>
+                </Card>
               </motion.li>
             );
           })}
@@ -185,10 +196,15 @@ export function Integrity() {
               key={point.title}
               {...reveal}
               transition={{ ...reveal.transition, delay: i * 0.08 }}
-              className="rounded-2xl border border-border bg-card p-5"
             >
-              <h3 className="text-sm font-semibold">{point.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{point.body}</p>
+              <Card size="sm" className="h-full">
+                <CardHeader>
+                  <CardTitle>
+                    <h3 className="text-sm font-semibold">{point.title}</h3>
+                  </CardTitle>
+                  <CardDescription className="leading-relaxed">{point.body}</CardDescription>
+                </CardHeader>
+              </Card>
             </motion.li>
           ))}
         </ul>

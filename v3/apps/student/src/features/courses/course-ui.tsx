@@ -1,6 +1,7 @@
 import { BookOpenTextIcon, ClipboardCheckIcon, FileTextIcon, FolderKanbanIcon, MessageSquareTextIcon, PlayCircleIcon, ScaleIcon, type LucideIcon } from 'lucide-react';
 
 import { GeneratedCover } from '@/components/generated-art';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 /** Course cover: deterministic generative art (boring-avatars), seeded by the course id. */
@@ -8,20 +9,10 @@ export function CourseCover({ name, seed, className }: { name: string; seed?: st
   return <GeneratedCover seed={seed ?? name} title={name} className={className} />;
 }
 
+/** shadcn Progress with the app's defaults (clamped, rounded, labelled). */
 export function ProgressBar({ value, className, label }: { value: number; className?: string; label?: string }) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
-  return (
-    <div
-      role="progressbar"
-      aria-label={label ?? 'Progress'}
-      aria-valuenow={pct}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      className={cn('h-1.5 overflow-hidden rounded-full bg-muted', className)}
-    >
-      <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${pct}%` }} />
-    </div>
-  );
+  return <Progress value={pct} aria-label={label ?? 'Progress'} className={cn('w-full gap-0', className)} />;
 }
 
 const ITEM_TYPES: Record<string, { label: string; icon: LucideIcon }> = {

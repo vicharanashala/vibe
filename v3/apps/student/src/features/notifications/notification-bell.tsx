@@ -6,12 +6,15 @@ import {
   CheckCircle2Icon,
   ClockIcon,
   InfoIcon,
-  Loader2Icon,
   MailPlusIcon,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
 
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from '@/components/ui/empty';
+import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
+import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 
 import {
@@ -43,87 +46,76 @@ function timeAgo(iso: string): string {
 }
 
 export function NotificationBell() {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const notifications = useNotifications();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
   const pendingInvites = usePendingInvites();
   const acceptInvite = useAcceptInvite();
 
-  useEffect(() => {
-    if (!open) return;
-    function onClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('mousedown', onClickOutside);
-    document.addEventListener('keydown', onEscape);
-    return () => {
-      document.removeEventListener('mousedown', onClickOutside);
-      document.removeEventListener('keydown', onEscape);
-    };
-  }, [open]);
-
   const inviteCount = pendingInvites.data?.length ?? 0;
   const unreadCount = (notifications.data?.unreadCount ?? 0) + inviteCount;
 
   return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
-        onClick={() => setOpen((o) => !o)}
-        className="relative grid size-9 place-items-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative rounded-full text-muted-foreground"
+            aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
+          />
+        }
       >
         <BellIcon className="size-[18px]" aria-hidden />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 grid size-4 place-items-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
+          <Badge variant="destructive" className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 text-[10px] tabular-nums">
             {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
+          </Badge>
         )}
-      </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] gap-0 p-0">
+        <PopoverHeader className="flex-row items-center justify-between border-b border-border px-3 py-2">
+          <PopoverTitle>Notifications</PopoverTitle>
+          {unreadCount > 0 && (
+            <Button variant="ghost" size="xs" onClick={() => markAllRead.mutate()} disabled={markAllRead.isPending}>
+              {markAllRead.isPending ? <Spinner className="size-3" /> : <CheckCheckIcon data-icon="inline-start" aria-hidden />}
+              Mark all read
+            </Button>
+          )}
+        </PopoverHeader>
 
-      {open && (
-        <div className="ring-foreground/10 bg-popover text-popover-foreground absolute top-full right-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-md shadow-lg ring-1">
-          <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-            <p className="text-sm font-medium">Notifications</p>
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                onClick={() => markAllRead.mutate()}
-                disabled={markAllRead.isPending}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
-              >
-                {markAllRead.isPending ? <Loader2Icon className="size-3 animate-spin" aria-hidden /> : <CheckCheckIcon className="size-3" aria-hidden />}
-                Mark all read
-              </button>
-            )}
-          </div>
-
-          <div className="max-h-96 overflow-y-auto">
-            {pendingInvites.data?.map((invite) => (
-              <InviteRow
-                key={invite.inviteId}
-                invite={invite}
-                onAccept={() => acceptInvite.mutate(invite.inviteId)}
-                accepting={acceptInvite.isPending && acceptInvite.variables === invite.inviteId}
-              />
-            ))}
-            {notifications.isPending && <p className="p-4 text-center text-sm text-muted-foreground">Loading…</p>}
-            {notifications.isError && <p className="p-4 text-center text-sm text-destructive">Couldn't load notifications.</p>}
-            {inviteCount === 0 && notifications.data?.notifications.length === 0 && (
-              <p className="p-4 text-center text-sm text-muted-foreground">No notifications yet.</p>
-            )}
-            {notifications.data?.notifications.map((n) => (
-              <NotificationRow key={n._id} notification={n} onMarkRead={() => markRead.mutate(n._id)} />
-            ))}
-          </div>
+        <div className="max-h-96 overflow-y-auto">
+          {pendingInvites.data?.map((invite) => (
+            <InviteRow
+              key={invite.inviteId}
+              invite={invite}
+              onAccept={() => acceptInvite.mutate(invite.inviteId)}
+              accepting={acceptInvite.isPending && acceptInvite.variables === invite.inviteId}
+            />
+          ))}
+          {notifications.isPending && (
+            <div className="flex justify-center p-4">
+              <Spinner />
+            </div>
+          )}
+          {notifications.isError && <p className="p-4 text-center text-sm text-destructive">Couldn’t load notifications.</p>}
+          {notifications.data && inviteCount === 0 && (notifications.data.notifications?.length ?? 0) === 0 && (
+            <Empty className="gap-2 p-6">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <BellIcon />
+                </EmptyMedia>
+                <EmptyDescription>No notifications yet.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
+          {notifications.data?.notifications?.map((n) => (
+            <NotificationRow key={n._id} notification={n} onMarkRead={() => markRead.mutate(n._id)} />
+          ))}
         </div>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -142,18 +134,13 @@ function InviteRow({
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">Course invite</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          You've been invited as {invite.role.toLowerCase()} to{' '}
+          You’ve been invited as {invite.role.toLowerCase()} to{' '}
           <span className="font-medium text-foreground">{invite.course?.name ?? 'a course'}</span>
         </p>
-        <button
-          type="button"
-          onClick={onAccept}
-          disabled={accepting}
-          className="mt-2 inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          {accepting && <Loader2Icon className="size-3 animate-spin" aria-hidden />}
+        <Button size="xs" className="mt-2" onClick={onAccept} disabled={accepting}>
+          {accepting && <Spinner className="size-3" />}
           Accept
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -162,35 +149,38 @@ function InviteRow({
 function NotificationRow({ notification, onMarkRead }: { notification: Notification; onMarkRead: () => void }) {
   const { icon: Icon, className } = TYPE_ICON[notification.type] ?? { icon: InfoIcon, className: 'text-muted-foreground' };
   const body = (
-    <div
-      className={cn(
-        'flex gap-2.5 border-b border-border px-3 py-2.5 text-left last:border-b-0',
-        !notification.read && 'bg-primary/5',
-      )}
-    >
+    <>
       <Icon className={cn('mt-0.5 size-4 shrink-0', className)} aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">{notification.title}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{notification.message}</p>
-        <p className="mt-1 text-[11px] text-muted-foreground">{timeAgo(notification.createdAt)}</p>
-      </div>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{notification.title}</span>
+        <span className="mt-0.5 block text-xs text-muted-foreground">{notification.message}</span>
+        <span className="mt-1 block text-[11px] text-muted-foreground">{timeAgo(notification.createdAt)}</span>
+      </span>
       {!notification.read && <span aria-hidden className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />}
-    </div>
+    </>
+  );
+  const row = cn(
+    'flex h-auto w-full items-start justify-start gap-2.5 rounded-none border-b border-border px-3 py-2.5 text-left font-normal whitespace-normal last:border-b-0',
+    !notification.read && 'bg-primary/5',
   );
 
   if (notification.read) {
     return notification.courseId && notification.courseVersionId ? (
-      <Link to="/courses/$courseId/$versionId" params={{ courseId: notification.courseId, versionId: notification.courseVersionId }}>
+      <Link
+        to="/courses/$courseId/$versionId"
+        params={{ courseId: notification.courseId, versionId: notification.courseVersionId }}
+        className={cn(buttonVariants({ variant: 'ghost' }), row)}
+      >
         {body}
       </Link>
     ) : (
-      body
+      <div className={row}>{body}</div>
     );
   }
 
   return (
-    <button type="button" onClick={onMarkRead} className="block w-full">
+    <Button variant="ghost" className={row} onClick={onMarkRead}>
       {body}
-    </button>
+    </Button>
   );
 }

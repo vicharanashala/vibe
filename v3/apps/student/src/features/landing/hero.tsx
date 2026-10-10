@@ -3,6 +3,9 @@ import { ArrowRightIcon, CheckIcon, PlayIcon, ShieldCheckIcon } from 'lucide-rea
 import { motion } from 'motion/react';
 
 import { buttonVariants } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from '@/components/ui/item';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 import { SIGNUP_HREF } from './content';
@@ -85,7 +88,7 @@ function LessonPreview() {
 
   return (
     <div aria-hidden className="relative mx-auto w-full max-w-md sm:pb-20 lg:max-w-none">
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+      <Card className="gap-0 py-0 shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5 text-xs">
           <span className="font-medium">Module 2 · Data structures</span>
           <span className="inline-flex items-center gap-1 text-muted-foreground">
@@ -97,39 +100,37 @@ function LessonPreview() {
           <span className="grid size-14 place-items-center rounded-full bg-background/90 shadow-md">
             <PlayIcon className="ml-0.5 size-6 fill-foreground" />
           </span>
-          <div className="absolute inset-x-4 bottom-4 h-1.5 overflow-hidden rounded-full bg-background/60">
-            <div className="h-full w-2/3 rounded-full bg-primary" />
-          </div>
+          <Progress value={67} aria-label="Lesson progress" className="absolute inset-x-4 bottom-4 [&_[data-slot=progress-track]]:bg-background/60" />
         </div>
         <div className="space-y-1 px-4 py-3">
           <p className="text-sm font-medium">Segment 3 · Lookups by key</p>
           <p className="text-xs text-muted-foreground">Checkpoint after this segment</p>
         </div>
-      </div>
+      </Card>
 
-      <div className="relative z-10 -mt-3 ml-6 rounded-2xl border border-border bg-background p-4 shadow-2xl sm:absolute sm:right-0 sm:bottom-0 sm:mt-0 sm:ml-0 sm:w-80">
+      <Card size="sm" className="relative z-10 -mt-3 ml-6 px-4 shadow-2xl sm:absolute sm:right-0 sm:bottom-0 sm:mt-0 sm:ml-0 sm:w-80">
         <p className="text-xs font-medium tracking-wide text-primary uppercase">Checkpoint</p>
         <p className="mt-1 text-sm font-medium">
           Which structure gives constant-time lookups by key on average?
         </p>
-        <ul className="mt-3 space-y-2">
+        <ItemGroup className="gap-2">
           {options.map((option, i) => {
             const chosen = i === 1;
             return (
-              <li
-                key={option}
-                className={cn(
-                  'flex items-center justify-between rounded-lg border px-3 py-2 text-sm',
-                  chosen ? 'border-primary bg-primary/10' : 'border-border',
+              <Item key={option} variant="outline" size="xs" className={cn('px-3', chosen && 'border-primary bg-primary/10')}>
+                <ItemContent>
+                  <ItemTitle className="font-normal">{option}</ItemTitle>
+                </ItemContent>
+                {chosen && (
+                  <ItemActions>
+                    <CheckIcon className="size-4 text-primary" />
+                  </ItemActions>
                 )}
-              >
-                {option}
-                {chosen && <CheckIcon className="size-4 text-primary" />}
-              </li>
+              </Item>
             );
           })}
-        </ul>
-      </div>
+        </ItemGroup>
+      </Card>
     </div>
   );
 }

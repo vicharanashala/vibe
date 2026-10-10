@@ -1,7 +1,13 @@
-import { ArrowDownIcon, ArrowUpIcon, CheckCircle2Icon, CircleAlertIcon, ClockIcon, KeyboardIcon, LightbulbIcon, ListChecksIcon, Loader2Icon, RotateCcwIcon, TargetIcon, XCircleIcon } from 'lucide-react';
+import { ArrowDownIcon, ArrowUpIcon, CheckCircle2Icon, CircleAlertIcon, ClockIcon, KeyboardIcon, LightbulbIcon, ListChecksIcon, RotateCcwIcon, TargetIcon, XCircleIcon } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { Item, ItemContent, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Button } from '@/components/ui/button';
+import { Kbd } from '@/components/ui/kbd';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Questionnaire,
   QuestionnaireChoice,
@@ -158,9 +164,10 @@ export function QuizRunner({
         </QuestionnaireItem>
       ))}
       {error && (
-        <p role="alert" className="mt-4 text-sm text-destructive">
-          {error}
-        </p>
+        <Alert variant="destructive" className="mt-4">
+          <CircleAlertIcon />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-muted/70 backdrop-blur-md">
         <div className="mx-auto grid max-w-2xl grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-3">
@@ -174,7 +181,7 @@ export function QuizRunner({
             Next
           </QuestionnaireNext>
           <QuestionnaireSubmit size="lg" className="col-start-2 row-start-1" disabled={stage.kind === 'submitting'}>
-            {stage.kind === 'submitting' && <Loader2Icon className="animate-spin" />}
+            {stage.kind === 'submitting' && <Spinner />}
             Submit answers
           </QuestionnaireSubmit>
         </div>
@@ -246,14 +253,14 @@ function QuizProgress({ questions }: { questions: QuizQuestion[] }) {
 function Hint({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   return open ? (
-    <p className="flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
-      <LightbulbIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-      {text}
-    </p>
+    <Alert className="border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200">
+      <LightbulbIcon aria-hidden />
+      <AlertDescription className="text-inherit">{text}</AlertDescription>
+    </Alert>
   ) : (
-    <button type="button" onClick={() => setOpen(true)} className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">
-      <LightbulbIcon className="size-4" aria-hidden /> Show hint
-    </button>
+    <Button variant="ghost" size="sm" className="w-fit px-0 text-muted-foreground hover:bg-transparent" onClick={() => setOpen(true)}>
+      <LightbulbIcon data-icon="inline-start" aria-hidden /> Show hint
+    </Button>
   );
 }
 
@@ -315,16 +322,20 @@ function OrderList({ options }: { options: QuizQuestion['options'] }) {
     <QuestionnaireInput type="text" readOnly value={order.map((o) => o.id).join(',')} aria-label="Current order" tabIndex={-1} className="sr-only" />
     <ol ref={listRef} className="flex flex-col gap-2" aria-label="Order the items">
       {order.map((o, i) => (
-        <li key={o.id} data-item-id={o.id} className="flex items-center gap-3 rounded-xl border border-input bg-card px-3 py-2.5 text-base shadow-xs">
-          <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted font-mono text-xs font-medium">{i + 1}</span>
-          <span className="flex-1">{o.text}</span>
-          <button type="button" data-dir="up" aria-label={`Move “${o.text}” up`} disabled={i === 0} onClick={() => move(i, -1)} onKeyDown={enterGoesForward} className="grid size-8 place-items-center rounded-md hover:bg-muted disabled:opacity-30">
-            <ArrowUpIcon className="size-4" />
-          </button>
-          <button type="button" data-dir="down" aria-label={`Move “${o.text}” down`} disabled={i === order.length - 1} onClick={() => move(i, 1)} onKeyDown={enterGoesForward} className="grid size-8 place-items-center rounded-md hover:bg-muted disabled:opacity-30">
-            <ArrowDownIcon className="size-4" />
-          </button>
-        </li>
+        <Item key={o.id} data-item-id={o.id} variant="outline" size="sm" className="bg-card text-base shadow-xs" render={<li />}>
+          <ItemMedia variant="icon" className="font-mono text-xs font-medium">
+            {i + 1}
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle className="text-base font-normal">{o.text}</ItemTitle>
+          </ItemContent>
+          <Button type="button" variant="ghost" size="icon-sm" data-dir="up" aria-label={`Move “${o.text}” up`} disabled={i === 0} onClick={() => move(i, -1)} onKeyDown={enterGoesForward}>
+            <ArrowUpIcon />
+          </Button>
+          <Button type="button" variant="ghost" size="icon-sm" data-dir="down" aria-label={`Move “${o.text}” down`} disabled={i === order.length - 1} onClick={() => move(i, 1)} onKeyDown={enterGoesForward}>
+            <ArrowDownIcon />
+          </Button>
+        </Item>
       ))}
     </ol>
     </>
@@ -342,7 +353,7 @@ function QuizIntro({ item, details, starting, error, onStart }: { item: LessonIt
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10">
-      <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
+      <Card className="px-6 sm:px-8 sm:py-8">
         <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Quiz</p>
         <h1 className="mt-1 font-aleo text-3xl tracking-tight">{item.name}</h1>
         {item.description && item.description !== item.name && <p className="mt-2 text-muted-foreground">{item.description}</p>}
@@ -353,21 +364,25 @@ function QuizIntro({ item, details, starting, error, onStart }: { item: LessonIt
             </li>
           ))}
         </ul>
-        <p className="mt-6 flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-          <KeyboardIcon className="size-4 shrink-0" aria-hidden />
-          Press <kbd className="rounded border border-border bg-background px-1.5 font-mono text-xs">1</kbd>–<kbd className="rounded border border-border bg-background px-1.5 font-mono text-xs">9</kbd> to pick an answer and{' '}
-          <kbd className="rounded border border-border bg-background px-1.5 font-mono text-xs">Enter</kbd> to continue.
-        </p>
+        <Alert className="mt-6 bg-muted/50">
+          <KeyboardIcon aria-hidden />
+          <AlertDescription>
+            <span>
+              Press <Kbd>1</Kbd>–<Kbd>9</Kbd> to pick an answer and <Kbd>Enter</Kbd> to continue.
+            </span>
+          </AlertDescription>
+        </Alert>
         {error && (
-          <p role="alert" className="mt-4 text-sm text-destructive">
-            {error}
-          </p>
+          <Alert variant="destructive" className="mt-4">
+            <CircleAlertIcon />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
         <Button size="lg" className="mt-6 w-full sm:w-auto" onClick={onStart} disabled={starting}>
-          {starting && <Loader2Icon className="animate-spin" />}
+          {starting && <Spinner />}
           Start quiz
         </Button>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -417,23 +432,26 @@ function QuizReview({
             const ok = f?.status === 'CORRECT';
             const partial = f?.status === 'PARTIAL';
             return (
-              <li key={q.id} className="rounded-xl border border-border bg-card p-4">
+              <li key={q.id}>
+                <Card size="sm" className="px-4">
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm font-medium">
                     <span className="text-muted-foreground">{i + 1}.</span> {q.text}
                   </p>
                   {f && (
-                    <span
+                    <Badge
+                      variant="outline"
                       className={cn(
-                        'shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold',
+                        'shrink-0 border-transparent',
                         ok ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300' : partial ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300' : 'bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300',
                       )}
                     >
                       {ok ? 'Correct' : partial ? 'Partly correct' : 'Incorrect'}
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 {showDetails && f?.answerFeedback && <p className="mt-2 text-sm text-muted-foreground">{f.answerFeedback}</p>}
+                </Card>
               </li>
             );
           })}

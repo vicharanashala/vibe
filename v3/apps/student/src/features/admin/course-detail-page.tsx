@@ -3,7 +3,6 @@ import { ApiError } from '@vibe/api';
 import {
   ArrowLeftIcon,
   FileTextIcon,
-  Loader2Icon,
   PencilIcon,
   PlusIcon,
   SendIcon,
@@ -14,10 +13,14 @@ import {
 import { useState, type FormEvent, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Card } from '@/components/ui/card';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Spinner } from '@/components/ui/spinner';
 import { useCourseVersion, useSectionItems, type CourseModule, type CourseSection } from '@/features/courses/queries';
 import { useCourseSettings } from '@/features/learn/queries';
 import { cn } from '@/lib/utils';
@@ -99,7 +102,7 @@ export function CourseDetailPage({ courseId, versionId }: { courseId: string; ve
         </div>
 
         <div className="mt-4 grid gap-4">
-          {version.isPending && <p className="text-sm text-muted-foreground">Loading…</p>}
+          {version.isPending && <Spinner className="text-muted-foreground" />}
           {version.isError && <Status kind="error">{errorMessage(version.error)}</Status>}
           {version.data?.modules.map((module, mi) => (
             <ModuleCard key={module.moduleId} versionId={versionId} courseId={courseId} module={module} index={mi} />
@@ -157,20 +160,22 @@ function NewModuleForm({ versionId, onDone }: { versionId: string; onDone: () =>
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid max-w-md gap-2 rounded-2xl border border-border p-4">
-      <Input placeholder="Module name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
-      <Textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} required rows={2} />
-      <div className="flex items-center gap-2">
-        <Button type="submit" size="sm" disabled={createModule.isPending}>
-          {createModule.isPending ? <Loader2Icon className="size-4 animate-spin" aria-hidden /> : null}
-          Add
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onDone}>
-          Cancel
-        </Button>
-      </div>
-      {createModule.isError && <Status kind="error">{errorMessage(createModule.error)}</Status>}
-    </form>
+    <Card size="sm" className="max-w-md gap-0 p-4">
+      <form onSubmit={onSubmit} className="grid gap-2">
+        <Input placeholder="Module name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+        <Textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} required rows={2} />
+        <div className="flex items-center gap-2">
+          <Button type="submit" size="sm" disabled={createModule.isPending}>
+            {createModule.isPending ? <Spinner className="size-4" /> : null}
+            Add
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={onDone}>
+            Cancel
+          </Button>
+        </div>
+        {createModule.isError && <Status kind="error">{errorMessage(createModule.error)}</Status>}
+      </form>
+    </Card>
   );
 }
 
@@ -188,14 +193,14 @@ function ModuleCard({ versionId, courseId, module, index }: { versionId: string;
   }
 
   return (
-    <div className="rounded-2xl border border-border p-4">
+    <Card size="sm" className="gap-0 p-4">
       {editing ? (
         <form onSubmit={onSave} className="grid gap-2">
           <Input value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} required rows={2} />
           <div className="flex items-center gap-2">
             <Button type="submit" size="sm" disabled={updateModule.isPending}>
-              {updateModule.isPending ? <Loader2Icon className="size-4 animate-spin" aria-hidden /> : null}
+              {updateModule.isPending ? <Spinner className="size-4" /> : null}
               Save
             </Button>
             <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
@@ -223,7 +228,7 @@ function ModuleCard({ versionId, courseId, module, index }: { versionId: string;
               disabled={deleteModule.isPending}
               onClick={() => deleteModule.mutate({ versionId, moduleId: module.moduleId })}
             >
-              {deleteModule.isPending ? <Loader2Icon className="size-3.5 animate-spin" aria-hidden /> : <TrashIcon className="size-3.5" aria-hidden />}
+              {deleteModule.isPending ? <Spinner className="size-3.5" /> : <TrashIcon className="size-3.5" aria-hidden />}
             </Button>
           </div>
         </div>
@@ -249,7 +254,7 @@ function ModuleCard({ versionId, courseId, module, index }: { versionId: string;
           </Button>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -268,20 +273,22 @@ function NewSectionForm({ versionId, moduleId, onDone }: { versionId: string; mo
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-2 rounded-xl border border-border p-3">
-      <Input placeholder="Section name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
-      <Textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} required rows={2} />
-      <div className="flex items-center gap-2">
-        <Button type="submit" size="sm" disabled={createSection.isPending}>
-          {createSection.isPending ? <Loader2Icon className="size-4 animate-spin" aria-hidden /> : null}
-          Add
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onDone}>
-          Cancel
-        </Button>
-      </div>
-      {createSection.isError && <Status kind="error">{errorMessage(createSection.error)}</Status>}
-    </form>
+    <Card size="sm" className="gap-0 p-3">
+      <form onSubmit={onSubmit} className="grid gap-2">
+        <Input placeholder="Section name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+        <Textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} required rows={2} />
+        <div className="flex items-center gap-2">
+          <Button type="submit" size="sm" disabled={createSection.isPending}>
+            {createSection.isPending ? <Spinner className="size-4" /> : null}
+            Add
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={onDone}>
+            Cancel
+          </Button>
+        </div>
+        {createSection.isError && <Status kind="error">{errorMessage(createSection.error)}</Status>}
+      </form>
+    </Card>
   );
 }
 
@@ -312,14 +319,14 @@ function SectionCard({
   }
 
   return (
-    <div className="rounded-xl border border-border p-3">
+    <Card size="sm" className="gap-0 p-3">
       {editing ? (
         <form onSubmit={onSave} className="grid gap-2">
           <Input value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} required rows={2} />
           <div className="flex items-center gap-2">
             <Button type="submit" size="sm" disabled={updateSection.isPending}>
-              {updateSection.isPending ? <Loader2Icon className="size-4 animate-spin" aria-hidden /> : null}
+              {updateSection.isPending ? <Spinner className="size-4" /> : null}
               Save
             </Button>
             <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
@@ -344,7 +351,7 @@ function SectionCard({
               disabled={deleteSection.isPending}
               onClick={() => deleteSection.mutate({ versionId, moduleId, sectionId: section.sectionId })}
             >
-              {deleteSection.isPending ? <Loader2Icon className="size-3.5 animate-spin" aria-hidden /> : <TrashIcon className="size-3.5" aria-hidden />}
+              {deleteSection.isPending ? <Spinner className="size-3.5" /> : <TrashIcon className="size-3.5" aria-hidden />}
             </Button>
           </div>
         </div>
@@ -361,7 +368,7 @@ function SectionCard({
           </Button>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -455,7 +462,7 @@ function ItemRow({
           disabled={deleteItem.isPending || !itemsGroupId}
           onClick={() => deleteItem.mutate({ courseId, itemsGroupId, itemId, versionId })}
         >
-          {deleteItem.isPending ? <Loader2Icon className="size-3 animate-spin" aria-hidden /> : <TrashIcon className="size-3" aria-hidden />}
+          {deleteItem.isPending ? <Spinner className="size-3" /> : <TrashIcon className="size-3" aria-hidden />}
         </Button>
       </div>
     </div>
@@ -497,43 +504,40 @@ function NewItemForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-1.5 rounded-lg border border-border p-2.5">
-      <div className="flex gap-1">
-        {(['VIDEO', 'QUIZ'] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setType(t)}
-            className={cn('rounded-md px-2 py-1 text-xs', type === t ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-      <Input placeholder="Item name" value={name} onChange={(e) => setName(e.target.value)} required />
-      <Textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} required rows={2} />
-      {type === 'VIDEO' && (
-        <>
-          <Input placeholder="YouTube URL" value={url} onChange={(e) => setUrl(e.target.value)} required />
-          <div className="grid grid-cols-3 gap-1.5">
-            <Input placeholder="Start (m:ss)" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
-            <Input placeholder="End (m:ss)" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
-            <Input type="number" placeholder="Points" value={points} onChange={(e) => setPoints(Number(e.target.value))} required />
-          </div>
-        </>
-      )}
-      {type === 'QUIZ' && <p className="text-xs text-muted-foreground">Creates an empty quiz shell - attach a question bank separately.</p>}
-      <div className="flex items-center gap-2">
-        <Button type="submit" size="sm" disabled={createItem.isPending}>
-          {createItem.isPending ? <Loader2Icon className="size-4 animate-spin" aria-hidden /> : null}
-          Add
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onDone}>
-          Cancel
-        </Button>
-      </div>
-      {createItem.isError && <Status kind="error">{errorMessage(createItem.error)}</Status>}
-    </form>
+    <Card size="sm" className="gap-0 p-2.5">
+      <form onSubmit={onSubmit} className="grid gap-1.5">
+        <ToggleGroup aria-label="Item type" variant="outline" size="sm" value={[type]} onValueChange={(v: string[]) => v[0] && setType(v[0] as 'VIDEO' | 'QUIZ')}>
+          {(['VIDEO', 'QUIZ'] as const).map((t) => (
+            <ToggleGroupItem key={t} value={t} className="text-xs">
+              {t}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <Input placeholder="Item name" value={name} onChange={(e) => setName(e.target.value)} required />
+        <Textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} required rows={2} />
+        {type === 'VIDEO' && (
+          <>
+            <Input placeholder="YouTube URL" value={url} onChange={(e) => setUrl(e.target.value)} required />
+            <div className="grid grid-cols-3 gap-1.5">
+              <Input placeholder="Start (m:ss)" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
+              <Input placeholder="End (m:ss)" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
+              <Input type="number" placeholder="Points" value={points} onChange={(e) => setPoints(Number(e.target.value))} required />
+            </div>
+          </>
+        )}
+        {type === 'QUIZ' && <p className="text-xs text-muted-foreground">Creates an empty quiz shell - attach a question bank separately.</p>}
+        <div className="flex items-center gap-2">
+          <Button type="submit" size="sm" disabled={createItem.isPending}>
+            {createItem.isPending ? <Spinner className="size-4" /> : null}
+            Add
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={onDone}>
+            Cancel
+          </Button>
+        </div>
+        {createItem.isError && <Status kind="error">{errorMessage(createItem.error)}</Status>}
+      </form>
+    </Card>
   );
 }
 
@@ -581,36 +585,38 @@ function EditItemForm({
     updateItem.mutate({ courseId, versionId, itemId, name, description, type: detail.data.type, details }, { onSuccess: onDone });
   }
 
-  if (detail.isPending) return <p className="text-xs text-muted-foreground">Loading…</p>;
+  if (detail.isPending) return <Spinner className="text-muted-foreground" />;
   if (detail.isError) return <Status kind="error">{errorMessage(detail.error)}</Status>;
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-1.5 rounded-lg border border-border p-2.5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">{detail.data?.type}</span>
-        <Button type="button" size="sm" variant="ghost" aria-label="Cancel" onClick={onDone}>
-          <XIcon className="size-3.5" aria-hidden />
+    <Card size="sm" className="gap-0 p-2.5">
+      <form onSubmit={onSubmit} className="grid gap-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">{detail.data?.type}</span>
+          <Button type="button" size="sm" variant="ghost" aria-label="Cancel" onClick={onDone}>
+            <XIcon className="size-3.5" aria-hidden />
+          </Button>
+        </div>
+        <Input value={name} onChange={(e) => setName(e.target.value)} required />
+        <Textarea value={description} onChange={(e) => setDescription(e.target.value)} required rows={2} />
+        {detail.data?.type === 'VIDEO' && (
+          <>
+            <Input value={url} onChange={(e) => setUrl(e.target.value)} required />
+            <div className="grid grid-cols-3 gap-1.5">
+              <Input value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
+              <Input value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
+              <Input type="number" value={points} onChange={(e) => setPoints(Number(e.target.value))} required />
+            </div>
+          </>
+        )}
+        {detail.data?.type !== 'VIDEO' && <p className="text-xs text-muted-foreground">Only name/description are editable for this item type here.</p>}
+        <Button type="submit" size="sm" disabled={updateItem.isPending}>
+          {updateItem.isPending ? <Spinner className="size-4" /> : null}
+          Save
         </Button>
-      </div>
-      <Input value={name} onChange={(e) => setName(e.target.value)} required />
-      <Textarea value={description} onChange={(e) => setDescription(e.target.value)} required rows={2} />
-      {detail.data?.type === 'VIDEO' && (
-        <>
-          <Input value={url} onChange={(e) => setUrl(e.target.value)} required />
-          <div className="grid grid-cols-3 gap-1.5">
-            <Input value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
-            <Input value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
-            <Input type="number" value={points} onChange={(e) => setPoints(Number(e.target.value))} required />
-          </div>
-        </>
-      )}
-      {detail.data?.type !== 'VIDEO' && <p className="text-xs text-muted-foreground">Only name/description are editable for this item type here.</p>}
-      <Button type="submit" size="sm" disabled={updateItem.isPending}>
-        {updateItem.isPending ? <Loader2Icon className="size-4 animate-spin" aria-hidden /> : null}
-        Save
-      </Button>
-      {updateItem.isError && <Status kind="error">{errorMessage(updateItem.error)}</Status>}
-    </form>
+        {updateItem.isError && <Status kind="error">{errorMessage(updateItem.error)}</Status>}
+      </form>
+    </Card>
   );
 }
 
@@ -641,28 +647,28 @@ function ProctoringSection({ courseId, versionId }: { courseId: string; versionI
     });
   }
 
-  if (settings.isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (settings.isPending) return <Spinner className="text-muted-foreground" />;
   if (settings.isError) return <Status kind="error">{errorMessage(settings.error)}</Status>;
 
   return (
     <div className="grid gap-3">
       {DETECTORS.map((d) => (
-        <div key={d.key} className="flex items-center gap-2">
-          <Checkbox
+        <Field key={d.key} orientation="horizontal" data-disabled={!d.implemented || undefined}>
+          <Switch
             id={`detector-${d.key}`}
             checked={toggles[d.key] ?? false}
             disabled={!d.implemented}
             onCheckedChange={(c) => setToggles((prev) => ({ ...prev, [d.key]: c === true }))}
           />
-          <Label htmlFor={`detector-${d.key}`} className="text-sm font-normal">
+          <FieldLabel htmlFor={`detector-${d.key}`} className="font-normal">
             {d.label}
-            {!d.implemented && <span className="ml-1.5 text-xs text-muted-foreground">(not implemented yet)</span>}
-          </Label>
-        </div>
+            {!d.implemented && <span className="text-xs text-muted-foreground">(not implemented yet)</span>}
+          </FieldLabel>
+        </Field>
       ))}
       <div className="mt-2 flex items-center gap-2">
         <Button size="sm" onClick={save} disabled={updateSettings.isPending}>
-          {updateSettings.isPending && <Loader2Icon className="size-4 animate-spin" aria-hidden />}
+          {updateSettings.isPending && <Spinner className="size-4" />}
           Save
         </Button>
         {updateSettings.isSuccess && <Status kind="ok">Saved.</Status>}
@@ -679,35 +685,35 @@ function ProctoringSection({ courseId, versionId }: { courseId: string; versionI
 function EnrollmentsTable({ courseId, versionId }: { courseId: string; versionId: string }) {
   const enrollments = useCourseEnrollments(courseId, versionId);
 
-  if (enrollments.isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (enrollments.isPending) return <Spinner className="text-muted-foreground" />;
   if (enrollments.isError) return <Status kind="error">{errorMessage(enrollments.error)}</Status>;
   if (enrollments.data.length === 0) return <p className="text-sm text-muted-foreground">No one is enrolled yet.</p>;
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border text-left text-xs text-muted-foreground uppercase">
-            <th className="px-4 py-2 font-medium">Name</th>
-            <th className="px-4 py-2 font-medium">Email</th>
-            <th className="px-4 py-2 font-medium">Role</th>
-            <th className="px-4 py-2 font-medium">Status</th>
-          </tr>
-        </thead>
-        <tbody>
+    <Card size="sm" className="gap-0 py-0">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {enrollments.data.map((e) => (
-            <tr key={e.user._id} className="border-b border-border last:border-b-0">
-              <td className="px-4 py-2">
+            <TableRow key={e.user._id}>
+              <TableCell>
                 {e.user.firstName} {e.user.lastName ?? ''}
-              </td>
-              <td className="px-4 py-2 text-muted-foreground">{e.user.email}</td>
-              <td className="px-4 py-2">{e.role}</td>
-              <td className="px-4 py-2 text-muted-foreground">{e.status}</td>
-            </tr>
+              </TableCell>
+              <TableCell className="text-muted-foreground">{e.user.email}</TableCell>
+              <TableCell>{e.role}</TableCell>
+              <TableCell className="text-muted-foreground">{e.status}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </Card>
   );
 }
 
@@ -723,27 +729,22 @@ function InviteUserForm({ courseId, versionId }: { courseId: string; versionId: 
 
   return (
     <form onSubmit={onSubmit} className="grid gap-2">
-      <div className="flex gap-1">
+      <ToggleGroup aria-label="Invite as" variant="outline" size="sm" value={[role]} onValueChange={(v: string[]) => v[0] && setRole(v[0] as 'STUDENT' | 'INSTRUCTOR')}>
         {(['STUDENT', 'INSTRUCTOR'] as const).map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => setRole(r)}
-            className={cn('rounded-md px-2 py-1 text-xs', role === r ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}
-          >
+          <ToggleGroupItem key={r} value={r} className="text-xs">
             {r}
-          </button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
       <div className="flex items-end gap-2">
-        <div className="grid flex-1 gap-1.5">
-          <Label htmlFor="invite-email" className="text-xs">
+        <Field className="flex-1 gap-1.5">
+          <FieldLabel htmlFor="invite-email" className="text-xs">
             Email
-          </Label>
+          </FieldLabel>
           <Input id="invite-email" type="email" placeholder="student@vibe.local" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </div>
+        </Field>
         <Button type="submit" variant="outline" disabled={invite.isPending}>
-          {invite.isPending ? <Loader2Icon className="size-4 animate-spin" aria-hidden /> : <SendIcon className="size-4" aria-hidden />}
+          {invite.isPending ? <Spinner className="size-4" /> : <SendIcon className="size-4" aria-hidden />}
           Invite
         </Button>
       </div>

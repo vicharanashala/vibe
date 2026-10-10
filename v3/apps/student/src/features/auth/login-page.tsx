@@ -1,10 +1,11 @@
 import { Link, useNavigate } from '@tanstack/react-router';
-import { EyeIcon, EyeOffIcon, Loader2Icon } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 
+import { PasswordInput } from '@/components/password-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Spinner } from '@/components/ui/spinner';
 
 import { AuthLayout, FormError, GoogleIcon, OrDivider } from './auth-layout';
 import { useAuth } from './auth-provider';
@@ -14,7 +15,6 @@ export function LoginPage({ redirect }: { redirect?: string }) {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState<'email' | 'google' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,60 +61,44 @@ export function LoginPage({ redirect }: { redirect?: string }) {
       }
     >
       <Button type="button" variant="outline" size="lg" className="w-full" onClick={onGoogle} disabled={pending !== null}>
-        {pending === 'google' ? <Loader2Icon className="animate-spin" /> : <GoogleIcon className="size-4" />}
+        {pending === 'google' ? <Spinner /> : <GoogleIcon className="size-4" />}
         Continue with Google
       </Button>
 
       <OrDivider />
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="email">Email address</Label>
-          <Input
-            id="email"
-            type="email"
-            autoCapitalize="none"
-            spellCheck={false}
-            autoComplete="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="h-11 sm:h-10"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="password">Password</Label>
-          <div className="relative">
+      <form onSubmit={onSubmit} noValidate>
+        <FieldGroup className="gap-4">
+          <Field>
+            <FieldLabel htmlFor="email">Email address</FieldLabel>
             <Input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              id="email"
+              type="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
-              className="h-11 pr-10 sm:h-10"
+              className="h-11 sm:h-10"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              className="absolute inset-y-0 right-0 grid w-10 place-items-center text-muted-foreground hover:text-foreground"
-            >
-              {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
-            </button>
-          </div>
-          <Link to="/forgot-password" className="w-fit text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
-            Forgot my password
-          </Link>
-        </div>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <PasswordInput id="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Link to="/forgot-password" className="w-fit text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
+              Forgot my password
+            </Link>
+          </Field>
 
-        <FormError message={error} />
+          <FormError message={error} />
 
-        <Button type="submit" size="lg" className="w-full" disabled={pending !== null || !email || !password}>
-          {pending === 'email' && <Loader2Icon className="animate-spin" />}
-          Continue
-        </Button>
+          <Button type="submit" size="lg" className="w-full" disabled={pending !== null || !email || !password}>
+            {pending === 'email' && <Spinner />}
+            Continue
+          </Button>
+        </FieldGroup>
       </form>
     </AuthLayout>
   );

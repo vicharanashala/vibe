@@ -1,10 +1,10 @@
 import { Link } from '@tanstack/react-router';
-import { MenuIcon, XIcon } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { MenuIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import { ThemeToggle } from '@/components/theme-toggle';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
 import { LOGIN_HREF, NAV_LINKS, SIGNUP_HREF } from './content';
@@ -49,55 +49,40 @@ export function Navbar() {
 
           <div className="flex items-center gap-2 md:hidden">
             <ThemeToggle />
-            <button
-              type="button"
-              onClick={() => setOpen((v) => !v)}
-              aria-expanded={open}
-              aria-controls="mobile-menu"
-              aria-label={open ? 'Close menu' : 'Open menu'}
-              className="inline-flex size-9 items-center justify-center rounded-md hover:bg-muted"
-            >
-              {open ? <XIcon className="size-5" /> : <MenuIcon className="size-5" />}
-            </button>
-          </div>
-        </div>
-
-        <AnimatePresence initial={false}>
-          {open && (
-            <motion.div
-              id="mobile-menu"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25, ease: 'easeInOut' }}
-              className="overflow-hidden md:hidden"
-            >
-              <ul className="flex flex-col gap-1 pt-3 pb-2">
-                {NAV_LINKS.map((link) => (
-                  <li key={link.href}>
+            <Sheet open={open} onOpenChange={setOpen}>
+              <SheetTrigger render={<Button variant="ghost" size="icon" aria-label="Open menu" />}>
+                <MenuIcon />
+              </SheetTrigger>
+              <SheetContent id="mobile-menu" side="right" className="w-72">
+                <SheetHeader>
+                  <SheetTitle>
+                    <Wordmark />
+                  </SheetTitle>
+                </SheetHeader>
+                <nav aria-label="Sections" className="flex flex-col gap-1 px-2">
+                  {NAV_LINKS.map((link) => (
                     <a
+                      key={link.href}
                       href={link.href}
                       onClick={() => setOpen(false)}
-                      className="block rounded-md px-2 py-2.5 text-sm font-medium hover:bg-muted"
+                      className={cn(buttonVariants({ variant: 'ghost' }), 'justify-start')}
                     >
                       {link.label}
                     </a>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex flex-col gap-2 border-t border-border pt-3 pb-2">
-                <Link to={LOGIN_HREF}
-                  className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}
-                >
-                  Log in
-                </Link>
-                <Link to={SIGNUP_HREF} className={cn(buttonVariants(), 'w-full')}>
-                  Get started
-                </Link>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  ))}
+                </nav>
+                <SheetFooter>
+                  <Link to={LOGIN_HREF} className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}>
+                    Log in
+                  </Link>
+                  <Link to={SIGNUP_HREF} className={cn(buttonVariants(), 'w-full')}>
+                    Get started
+                  </Link>
+                </SheetFooter>
+              </SheetContent>
+            </Sheet>
+          </div>
+        </div>
       </nav>
     </header>
   );

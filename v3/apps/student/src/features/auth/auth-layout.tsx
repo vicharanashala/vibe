@@ -1,8 +1,11 @@
 import { Link } from '@tanstack/react-router';
+import { CircleAlertIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { ThemeToggle } from '@/components/theme-toggle';
 import { PartnerLogos } from '@/components/partner-logos';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FieldSeparator } from '@/components/ui/field';
 import { Wordmark } from '@/features/landing/wordmark';
 
 /** Uxcel-style auth frame: logo, centred narrow column, partner strip below. */
@@ -51,13 +54,7 @@ export function AuthLayout({
 
 /** "or" divider between social and email sign-in. */
 export function OrDivider() {
-  return (
-    <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground" role="separator">
-      <span className="h-px flex-1 bg-border" />
-      or
-      <span className="h-px flex-1 bg-border" />
-    </div>
-  );
+  return <FieldSeparator className="my-5">or</FieldSeparator>;
 }
 
 export function GoogleIcon({ className }: { className?: string }) {
@@ -71,8 +68,9 @@ export function GoogleIcon({ className }: { className?: string }) {
 export function FormError({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-      {message}
-    </p>
+    <Alert variant="destructive">
+      <CircleAlertIcon />
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
   );
 }

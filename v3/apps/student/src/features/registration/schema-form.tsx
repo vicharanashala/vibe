@@ -2,7 +2,17 @@ import type { ReactNode } from 'react';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+  FieldTitle,
+} from '@/components/ui/field';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
@@ -142,7 +152,7 @@ export function SchemaFields({
 }) {
   const required = new Set(schema.required ?? []);
   return (
-    <div className="flex flex-col gap-5">
+    <FieldGroup className="gap-5">
       {fieldOrder(schema, uiSchema).map((name) => {
         const field = schema.properties?.[name] ?? {};
         const ui = uiSchema?.[name];
@@ -153,25 +163,68 @@ export function SchemaFields({
         const helpId = `${id}-help`;
         const describedBy = [help && helpId, error && errorId].filter(Boolean).join(' ') || undefined;
         const label = field.title ?? name;
+        const labelText = (
+          <span>
+            {label}
+            {!required.has(name) && <OptionalTag />}
+          </span>
+        );
         const widget = widgetFor(field, ui);
         const value = values[name];
-        const common = { id, disabled, 'aria-invalid': error ? true : undefined, 'aria-describedby': describedBy };
+        const invalid = error ? true : undefined;
+        const common = { id, disabled, 'aria-invalid': invalid, 'aria-describedby': describedBy };
+        const notes = (
+          <>
+            {help && <FieldDescription id={helpId}>{help}</FieldDescription>}
+            {error && <FieldError id={errorId}>{error}</FieldError>}
+          </>
+        );
 
         if (widget === 'checkbox') {
+          // shadcn "choice card": the whole bordered row is the label.
           return (
-            <div key={name} className="flex flex-col gap-1.5">
-              <div className={cn('flex items-start gap-3 rounded-xl border border-border p-3.5', error && 'border-destructive/60')}>
-                <Checkbox {...common} checked={value === true} onCheckedChange={(c) => onChange(name, c === true)} className="mt-0.5" />
-                <Label htmlFor={id} className="text-sm leading-snug font-normal">
-                  <span>
-                    {label}
-                    {!required.has(name) && <OptionalTag />}
-                  </span>
-                </Label>
-              </div>
-              <FieldNote id={helpId} text={help} />
-              <FieldError id={errorId} text={error} />
-            </div>
+            <Field key={name} data-invalid={invalid}>
+              <FieldLabel htmlFor={id}>
+                <Field orientation="horizontal">
+                  <Checkbox {...common} checked={value === true} onCheckedChange={(c) => onChange(name, c === true)} />
+                  <FieldContent>
+                    <FieldTitle className="leading-snug font-normal">{labelText}</FieldTitle>
+                  </FieldContent>
+                </Field>
+              </FieldLabel>
+              {notes}
+            </Field>
+          );
+        }
+
+        if (widget === 'radio') {
+          return (
+            <FieldSet key={name} data-invalid={invalid} className="gap-2">
+              <FieldLegend variant="label" id={`${id}-label`}>
+                {labelText}
+              </FieldLegend>
+              <RadioGroup
+                aria-labelledby={`${id}-label`}
+                aria-describedby={describedBy}
+                disabled={disabled}
+                value={String(value ?? '')}
+                onValueChange={(v) => onChange(name, String(v))}
+                className="grid gap-2 sm:grid-cols-2"
+              >
+                {field.enum?.map((opt) => {
+                  const optId = `${id}-${String(opt).replace(/\W+/g, '-')}`;
+                  return (
+                    <FieldLabel key={String(opt)} htmlFor={optId}>
+                      <Field orientation="horizontal">
+                        <RadioGroupItem id={optId} value={String(opt)} />
+                        <FieldTitle className="font-normal">{String(opt)}</FieldTitle>
+                      </Field>
+                    </FieldLabel>
+                  );
+                })}
+              </RadioGroup>
+              {notes}
+            </FieldSet>
           );
         }
 
@@ -192,36 +245,6 @@ export function SchemaFields({
                   </NativeSelectOption>
                 ))}
               </NativeSelect>
-            );
-            break;
-          case 'radio':
-            control = (
-              <RadioGroup
-                aria-labelledby={`${id}-label`}
-                aria-describedby={describedBy}
-                disabled={disabled}
-                value={String(value ?? '')}
-                onValueChange={(v) => onChange(name, String(v))}
-                className="grid gap-2 sm:grid-cols-2"
-              >
-                {field.enum?.map((opt) => {
-                  const optId = `${id}-${String(opt).replace(/\W+/g, '-')}`;
-                  const checked = String(value) === String(opt);
-                  return (
-                    <Label
-                      key={String(opt)}
-                      htmlFor={optId}
-                      className={cn(
-                        'flex cursor-pointer items-center gap-3 rounded-xl border border-border px-3.5 py-3 text-sm font-normal transition-colors hover:bg-muted/60',
-                        checked && 'border-primary bg-primary/5',
-                      )}
-                    >
-                      <RadioGroupItem id={optId} value={String(opt)} />
-                      {String(opt)}
-                    </Label>
-                  );
-                })}
-              </RadioGroup>
             );
             break;
           case 'number':
@@ -261,46 +284,17 @@ export function SchemaFields({
         }
 
         return (
-          <div key={name} className="flex flex-col gap-2">
-            {widget === 'radio' ? (
-              <span id={`${id}-label`} className="text-sm leading-none font-medium">
-                {label}
-                {!required.has(name) && <OptionalTag />}
-              </span>
-            ) : (
-              <Label htmlFor={id}>
-                <span>
-                  {label}
-                  {!required.has(name) && <OptionalTag />}
-                </span>
-              </Label>
-            )}
+          <Field key={name} data-invalid={invalid}>
+            <FieldLabel htmlFor={id}>{labelText}</FieldLabel>
             {control}
-            <FieldNote id={helpId} text={help} />
-            <FieldError id={errorId} text={error} />
-          </div>
+            {notes}
+          </Field>
         );
       })}
-    </div>
+    </FieldGroup>
   );
 }
 
 function OptionalTag() {
   return <span className="ml-1 font-normal text-muted-foreground">(optional)</span>;
-}
-
-function FieldNote({ id, text }: { id: string; text?: string }) {
-  return text ? (
-    <p id={id} className="text-xs text-muted-foreground">
-      {text}
-    </p>
-  ) : null;
-}
-
-function FieldError({ id, text }: { id: string; text?: string }) {
-  return text ? (
-    <p id={id} className="text-xs text-destructive">
-      {text}
-    </p>
-  ) : null;
 }

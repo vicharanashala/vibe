@@ -1,5 +1,6 @@
 import Avatar from 'boring-avatars';
 
+import { Avatar as UiAvatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 /**
@@ -51,11 +52,36 @@ export function GeneratedCover({ seed, title, className, compact }: { seed: stri
   );
 }
 
-/** Generative avatar for a person: friendly "beam" face seeded by their account id. */
-export function GeneratedAvatar({ seed, label, size = 36, className }: { seed: string; label?: string; size?: number; className?: string }) {
+/**
+ * Person avatar on shadcn Avatar: their photo when `src` is set, otherwise a
+ * friendly generated "beam" face seeded by their account id (also the fallback
+ * if the photo fails to load).
+ */
+export function GeneratedAvatar({
+  seed,
+  label,
+  size = 36,
+  src,
+  className,
+}: {
+  seed: string;
+  label?: string;
+  size?: number;
+  src?: string | null;
+  className?: string;
+}) {
   return (
-    <span className={cn('inline-block shrink-0 overflow-hidden rounded-full', className)} style={{ width: size, height: size }}>
-      <Avatar name={seed} variant="beam" colors={SUNNY_PALETTE} size={size} title={false} aria-label={label} role={label ? 'img' : undefined} aria-hidden={label ? undefined : true} />
-    </span>
+    <UiAvatar
+      className={cn('shrink-0', className)}
+      style={{ width: size, height: size }}
+      aria-label={label}
+      role={label ? 'img' : undefined}
+      aria-hidden={label ? undefined : true}
+    >
+      {src && <AvatarImage src={src} alt="" />}
+      <AvatarFallback className="bg-transparent">
+        <Avatar name={seed} variant="beam" colors={SUNNY_PALETTE} size={size} title={false} aria-hidden className="size-full" />
+      </AvatarFallback>
+    </UiAvatar>
   );
 }
