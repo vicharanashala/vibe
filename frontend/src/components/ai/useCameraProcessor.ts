@@ -61,8 +61,10 @@ const useCameraProcessor = (frameRate = 3) => {
       setFaces([]);
     }
 
-    // Worker initialization
-    workerRef.current = new Worker(new URL("./FaceDetectorWorker.ts", import.meta.url), { type: "module" });
+    // Worker initialization. Classic (non-module) worker served as a static
+    // asset, not Vite-bundled - see public/workers/faceDetectorWorker.js for
+    // why (module workers can't run @mediapipe/tasks-vision's WASM loader).
+    workerRef.current = new Worker("/workers/faceDetectorWorker.js");
 
     workerRef.current.onmessage = (event) => {
       if (event.data.type === "MODEL_READY") {
@@ -83,7 +85,13 @@ const useCameraProcessor = (frameRate = 3) => {
       console.error("[useCameraProcessor] Worker error:", error);
     };
 
-    workerRef.current.postMessage({ type: "INIT" });
+    // isTesting is resolved here (build-time env, available in Vite-processed
+    // code) and passed in the message, since the static worker script isn't
+    // processed by Vite and has no import.meta.env of its own.
+    workerRef.current.postMessage({
+      type: "INIT",
+      isTesting: import.meta.env.VITE_E2E_TESTING === "true",
+    });
 
     // ML Processor function
     const processWithML: MLProcessor = (image) => {

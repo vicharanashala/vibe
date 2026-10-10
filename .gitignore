@@ -62,6 +62,7 @@ frontend/openapi.json
 
 mcp
 frontend/public/models
+frontend/public/mediapipe
 dist/
 
 config.json

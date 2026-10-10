@@ -1,0 +1,162 @@
+[
+  {
+    "frame_id": "mask_0001.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_1",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0002.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_2",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0003.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_9",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0004.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_10",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0005.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_13",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0006.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_16",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0007.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_17",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0008.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_19",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0009.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_25",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0010.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_32",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0011.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_33",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0012.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_34",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0013.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_38",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0014.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_40",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0015.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_43",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0016.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_44",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0017.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_45",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0018.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_46",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0019.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_47",
+    "license": "see-source-dataset"
+  },
+  {
+    "frame_id": "mask_0020.jpg",
+    "ground_truth_face_count": 1,
+    "condition_tags": "mask",
+    "source_dataset": "DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset)",
+    "source_image": "row_48",
+    "license": "see-source-dataset"
+  }
+]

@@ -322,12 +322,24 @@ const lastCalledRef = useRef<number>(0);
 
 
         try {
+          // Per-face detection confidence (#1222). public/workers/faceDetectorWorker.js
+          // now runs @mediapipe/tasks-vision's FaceDetector, which does expose a
+          // real per-face score (unlike the previous @tensorflow-models/
+          // face-detection library) - this now populates for real.
+          const scores = faces
+            .map((face) => (face as { score?: number }).score)
+            .filter((score): score is number => typeof score === "number");
+          const confidence = scores.length
+            ? scores.reduce((sum, score) => sum + score, 0) / scores.length
+            : undefined;
+
           const response = await reportImage.mutateAsync({
             body: {
               type: reportAnomalyType as AnomalyType,
               courseId: courseStore.currentCourse?.courseId || "",
               versionId: courseStore.currentCourse?.versionId || "",
               itemId: courseStore.currentCourse?.itemId || "",
+              ...(confidence !== undefined ? { confidence } : {}),
             },
             file: imageFile,
           });
