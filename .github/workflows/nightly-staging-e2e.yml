@@ -30,21 +30,43 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
+      # Install only Chromium to keep CI fast; Firefox/WebKit not needed for staging smoke tests.
       - name: Install Playwright Browsers
-        run: pnpm --dir e2e exec playwright install --with-deps
+        run: pnpm --dir e2e exec playwright install --with-deps chromium
+
+      # Gracefully skip the test run when staging secrets are not configured.
+      # This prevents permanent CI failures on forks or in repos where secrets
+      # have not yet been provisioned.
+      - name: Check if secrets are available
+        id: check-secrets
+        run: |
+          if [[ -n "${{ secrets.STAGING_FRONTEND_URL }}" && -n "${{ secrets.STUDENT_EMAIL }}" && -n "${{ secrets.STUDENT_PASSWORD }}" ]]; then
+            echo "secrets_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "secrets_available=false" >> $GITHUB_OUTPUT
+            echo "::warning::Skipping E2E run — STAGING_FRONTEND_URL, STUDENT_EMAIL, or STUDENT_PASSWORD secrets are not configured. Add them in Settings → Secrets → Actions."
+          fi
 
       - name: Run E2E Tests Against Staging
+        if: steps.check-secrets.outputs.secrets_available == 'true'
         run: pnpm --dir e2e test-e2e
         env:
+          # playwright.config.ts reads BASE_URL for the baseURL option.
           BASE_URL: ${{ secrets.STAGING_FRONTEND_URL }}
-          INSTRUCTOR_EMAIL: ${{ secrets.INSTRUCTOR_EMAIL }}
-          INSTRUCTOR_PASSWORD: ${{ secrets.INSTRUCTOR_PASSWORD }}
-          STUDENT_EMAIL: ${{ secrets.STUDENT_EMAIL }}
-          STUDENT_PASSWORD: ${{ secrets.STUDENT_PASSWORD }}
+          # common-utils.ts reads TEST_STUDENT_EMAIL / TEST_STUDENT_PASSWORD.
+          TEST_STUDENT_EMAIL: ${{ secrets.STUDENT_EMAIL }}
+          TEST_STUDENT_PASSWORD: ${{ secrets.STUDENT_PASSWORD }}
+          TEST_INSTRUCTOR_EMAIL: ${{ secrets.INSTRUCTOR_EMAIL }}
+          TEST_INSTRUCTOR_PASSWORD: ${{ secrets.INSTRUCTOR_PASSWORD }}
 
+      # Always upload the HTML report so failures can be inspected in the
+      # GitHub Actions UI even when tests fail (controlled by `if: always()`).
       - name: Upload Playwright Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: e2e/playwright-report/
+          retention-days: 7
+          # Warn (not fail) when secrets were absent and no tests ran.
+          if-no-files-found: warn
