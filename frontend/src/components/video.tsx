@@ -266,7 +266,26 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
   const watchTimeTrackRef = useRef<WatchTimeTrackData>(watchTimeTrack);
 
   const wasPlayingBeforeTabSwitch = useRef(false);
+  
+  useEffect(() => {
+  const video = videoRef.current;
+  if (!video) return;
 
+  video.playbackRate = 1;
+
+  const enforceSpeed = () => {
+    if (video.playbackRate > 2) {
+      video.playbackRate = 1;
+      console.log("Speed change blocked");
+    }
+  };
+
+  video.addEventListener("ratechange", enforceSpeed);
+
+  return () => {
+    video.removeEventListener("ratechange", enforceSpeed);
+  };
+}, []);
 
   useEffect(() => {
     watchTimeTrackRef.current = watchTimeTrack;
