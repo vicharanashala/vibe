@@ -2112,7 +2112,8 @@ export class EnrollmentService extends BaseService {
       : await this.courseRepo.getAllCourses();
 
     if (!courses.length || courses.some(c => !c)) {
-      throw new Error('Course not found');
+      console.warn('Course not found, skipping...');      
+      return { totalCount: 0, updatedCount: 0 };
     }
 
     const courseVersionIds = courses.flatMap(c =>
