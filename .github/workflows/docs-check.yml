@@ -48,7 +48,6 @@ jobs:
             ${{ runner.os }}-pnpm-store-
           
       - name: Install dependencies
-        working-directory: ./docs
         run: pnpm install
         
       - name: Build Docusaurus site
