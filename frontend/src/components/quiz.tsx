@@ -1,3 +1,4 @@
+import { LearningCopilotPage } from '@/features/learning-copilot/LearningCopilotPage';
 import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   const processedQuizId = bufferToHex(quizId);
 
   // ===== HOOKS =====
+  const [showCopilot, setShowCopilot] = useState(false);
   const { currentCourse, setWatchItemId } = useCourseStore();
   const { mutateAsync: attemptQuiz, isPending, error: attemptError, data: attemptData } = useAttemptQuiz();
   const [attempts, setAttempts] = useState<number>(0);
@@ -873,9 +875,11 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         }
       }
 
-      setQuizCompleted(true);
-      setFinshingQuiz(false);
-    } catch (err: any) {
+       setQuizCompleted(true);
+       setFinshingQuiz(false);
+       setShowCopilot(true); 
+    } 
+    catch (err: any) {
       console.error('Failed to submit quiz:', err);
       const errorMessage = extractErrorMessage(err);
       const normalizedErrorMessage = errorMessage.toLowerCase();
@@ -1470,6 +1474,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
   }
   // Quiz completed
   if (quizCompleted) {
+        // Show Learning Copilot if triggered
+    if (showCopilot) {
+      return <LearningCopilotPage quizId={processedQuizId} />;
+    }
     // Special handling for empty quiz
     if (isEmptyQuiz) {
       return (
