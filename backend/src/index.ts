@@ -2,6 +2,9 @@ import 'reflect-metadata';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 console.log(`Loading Sentry for ${NODE_ENV} environment`);
 await import('./instrument.js');
+import dns from 'dns';
+//change DNS
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 import * as Sentry from '@sentry/node';
 import express from 'express';
