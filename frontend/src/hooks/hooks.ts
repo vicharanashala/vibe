@@ -2053,6 +2053,31 @@ export function useUpsertWatchTime() {
   };
 }
 
+// POST /users/progress/courses/{courseId}/versions/{courseVersionId}/rewatch/start
+export function useStartRewatch(): {
+  mutateAsync: (variables: {
+    params: { path: { courseId: string, courseVersionId: string } },
+    body: { itemId: string, cohortId?: string, quizId?: string, attemptId?: string },
+  }) => Promise<{ rewatchId: string }>,
+} {
+  const result = api.useMutation(
+    "post",
+    "/users/progress/courses/{courseId}/versions/{courseVersionId}/rewatch/start" as any,
+  );
+  return { mutateAsync: result.mutateAsync as any };
+}
+
+// POST /users/rewatch/heartbeat
+export function useRewatchHeartbeat(): {
+  mutate: (variables: { body: { rewatchId: string, ended?: boolean } }) => void,
+} {
+  const result = api.useMutation(
+    "post",
+    "/users/rewatch/heartbeat" as any,
+  );
+  return { mutate: result.mutate as any };
+}
+
 export function useSkipOptionalItem(): {
   mutate: (variables: { params: { path: { itemId: String }, query: { cohortId?: string } } }) => void,
   mutateAsync: (variables: { params: { path: { itemId: String }, query: { cohortId?: string } } }) => Promise<unknown>,

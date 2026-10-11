@@ -29,7 +29,7 @@ import {
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
 import { logout } from "@/utils/auth";
-import { StudentProctoringSettings } from "@/types/video.types";
+import { RewatchQuizContext, StudentProctoringSettings } from "@/types/video.types";
 import { FlagModal } from "@/components/FlagModal";
 import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
@@ -77,6 +77,13 @@ export default function CoursePage() {
     };
   }, []);
   const [attemptId, setAttemptId] = useState<string | null>(null);
+  // Read through a ref inside handlePrevVideo so that callback's identity does
+  // not change with every new attempt.
+  const attemptIdRef = useRef<string | null>(attemptId);
+  attemptIdRef.current = attemptId;
+  // Which quiz attempt sent the learner back to a video; picked up by the
+  // video player when the rewatch starts.
+  const rewatchQuizContextRef = useRef<RewatchQuizContext | null>(null);
   // Dialog state for proctoring declaration
   const [showProctorDialog, setShowProctorDialog] = useState(true);
   const { user } = useAuthStore();
@@ -1647,6 +1654,12 @@ export default function CoursePage() {
         return;
       }
 
+      // Remember which quiz attempt this return to the video follows.
+      rewatchQuizContextRef.current =
+        selectedItemId && attemptIdRef.current
+          ? { itemId, quizId: selectedItemId, attemptId: attemptIdRef.current }
+          : null;
+
       // Store current valid item before switching
       if (selectedItemId && selectedSectionId && selectedModuleId) {
         setPreviousValidItem({
@@ -2034,6 +2047,7 @@ return false;
                   doGesture={doGesture}
                   onNext={handleNext}
                   onPrevVideo={handlePrevVideo}
+                  rewatchQuizContextRef={rewatchQuizContextRef}
                   isProgressUpdating={isNavigatingToNext || itemLoading}
                   isNavigatingToPrev={isNavigatingToPrev}
                   attemptId={attemptId || undefined}

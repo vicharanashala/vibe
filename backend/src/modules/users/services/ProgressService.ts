@@ -4474,6 +4474,82 @@ class ProgressService extends BaseService {
     }
   }
 
+  /**
+   * Records the start of a rewatch: playback of an item this learner has
+   * already completed. startItem returns early for completed items, so without
+   * this a rewatch leaves no trace at all.
+   *
+   * Only ever writes a rewatchTime record. It does not read or change
+   * progress, completion or watchTime.
+   *
+   * Returns '' when the item is not completed: a first viewing belongs to
+   * startItem, and the two must never both record the same playback.
+   */
+  async startRewatch(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    cohortId?: string,
+    quizId?: string,
+    attemptId?: string,
+  ): Promise<string> {
+    const isItemCompleted = await this.progressRepository.isItemCompleted(
+      userId,
+      courseId,
+      courseVersionId,
+      itemId,
+      cohortId,
+    );
+
+    if (!isItemCompleted) {
+      return '';
+    }
+
+    // Keep the attempt link only when that attempt really is this learner's
+    // attempt at this quiz. The page can still be holding the id of an attempt
+    // at an earlier quiz, and a wrong link is worse than none.
+    const linkedAttemptId =
+      quizId &&
+      attemptId &&
+      (await this.progressRepository.isAttemptOfUserForQuiz(
+        attemptId,
+        userId,
+        quizId,
+      ))
+        ? attemptId
+        : undefined;
+
+    const rewatchId = await this.progressRepository.startRewatchTracking(
+      userId,
+      courseId,
+      courseVersionId,
+      itemId,
+      cohortId,
+      quizId,
+      linkedAttemptId,
+    );
+
+    return rewatchId ?? '';
+  }
+
+  async recordRewatchHeartbeat(
+    userId: string,
+    rewatchId: string,
+    ended?: boolean,
+  ): Promise<string> {
+    const updated = await this.progressRepository.updateRewatchLastSeen(
+      rewatchId,
+      userId,
+      ended,
+    );
+
+    if (!updated) {
+      throw new NotFoundError('Rewatch record not found');
+    }
+    return rewatchId;
+  }
+
   // In ProgressService.ts
   async skipItem(
     userId: string,

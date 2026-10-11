@@ -29,6 +29,12 @@ export interface VideoProps {
   nextItemId: string;
   cohortId?:string;
   /**
+   * Set by the course page when a quiz sends the learner back to a video, so
+   * the rewatch that follows can be linked to that quiz attempt. Read once and
+   * cleared when the rewatch starts.
+   */
+  rewatchQuizContextRef?: React.RefObject<RewatchQuizContext | null>;
+  /**
    * Increment this counter to pause the video imperatively WITHOUT showing the
    * proctoring/anomaly overlay (used when the learner clicks a floating control
    * in the focused learn UI). Each change in value triggers a single pause.
@@ -40,6 +46,14 @@ export interface VideoProps {
    * video auto-resumes (unless blocked by a proctoring anomaly/gesture).
    */
   awayPaused?: boolean;
+}
+
+/** The quiz attempt a learner came from when they were sent back to a video. */
+export interface RewatchQuizContext {
+  /** The video the learner was sent back to. */
+  itemId: string;
+  quizId: string;
+  attemptId: string;
 }
 
 /**
