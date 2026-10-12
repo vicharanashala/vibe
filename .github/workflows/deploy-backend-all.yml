@@ -81,7 +81,7 @@ jobs:
             AI_SERVER_IP=${{ secrets.AI_SERVER_IP }}
             AI_SERVER_PORT=${{ secrets.AI_SERVER_PORT }}
             NODE_ENV=staging
-            ENABLE_WATCHTIME_RECOVERY_JOB=${{ secrets.ENABLE_WATCHTIME_RECOVERY_JOB }}
+            ENABLE_WATCHTIME_RECOVERY_JOB=${{ secrets.ENABLE_WATCHTIME_RECOVERY_JOB || 'false' }}
             APP_PORT=${{ secrets.APP_PORT }}
             APP_URL=${{ secrets.APP_URL }}
             APP_ORIGINS=${{ secrets.APP_ORIGINS }}
@@ -127,7 +127,7 @@ jobs:
             AI_SERVER_IP=${{ secrets.AI_SERVER_IP }}
             AI_SERVER_PORT=${{ secrets.AI_SERVER_PORT }}
             NODE_ENV=production
-            ENABLE_WATCHTIME_RECOVERY_JOB=${{ secrets.ENABLE_WATCHTIME_RECOVERY_JOB }}
+            ENABLE_WATCHTIME_RECOVERY_JOB=${{ secrets.ENABLE_WATCHTIME_RECOVERY_JOB || 'false' }}
             APP_PORT=${{ secrets.APP_PORT }}
             APP_URL=${{ secrets.APP_URL }}
             APP_ORIGINS=${{ secrets.APP_ORIGINS }}
