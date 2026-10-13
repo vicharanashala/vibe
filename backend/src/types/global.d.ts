@@ -1,0 +1,9 @@
+declare module '@/*';
+declare module '#root/*';
+declare module '#shared/*';
+declare module '#auth/*';
+declare module '#courses/*';
+declare module '#users/*';
+declare module '#quizzes/*';
+declare module '#settings/*';
+declare module '#ejectionPolicy/*';
