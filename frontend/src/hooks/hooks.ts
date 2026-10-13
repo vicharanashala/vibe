@@ -81,6 +81,7 @@ import type {
 } from '@/types/reportanomaly.types';
 
 import type { ProctoringSettings } from '@/types/video.types';
+import type { DetectorSetting } from '@/components/proctoring-detectors';
 import { InviteBody, InviteResponse, MessageResponse } from '@/types/invite.types';
 import { EntityType, IReport, ReportStatus } from '@/types/flag.types';
 import { PendingRegistrationNotification, ApprovedRegistrationNotification, PendingStudentRegistrationNotification, RejectedStudentRegistrationNotification } from '@/types/notification.types';
@@ -2086,6 +2087,79 @@ export function useUpdateItemOptional(): {
   return {
     ...result,
     error: result.error ? (result.error.message || 'Failed to skip item') : null
+  }
+}
+
+// PUT /courses/versions/{versionId}/items/{itemId}/proctoring
+// Overrides this item's proctoring status, taking precedence over its
+// module's and the course's universal proctoring setting.
+export function useUpdateItemProctoring(): {
+  mutate: (variables: { params: { path: { versionId: ObjectId, itemId: ObjectId } } }) => void,
+  mutateAsync: (variables: {
+    params: { path: { versionId: ObjectId, itemId: ObjectId } },
+    body: { detectors: DetectorSetting[] | null }
+  }) => Promise<unknown>,
+  data: unknown | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+} {
+  const queryClient = useQueryClient();
+  const result = api.useMutation("put", "/courses/versions/{versionId}/items/{itemId}/proctoring", {
+    onSuccess: () => {
+      // Without this, useItemById keeps serving its pre-update cached
+      // resolved detector list -- the override saved correctly, the UI
+      // just never knew to ask again.
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "get" &&
+          query.queryKey[1] ===
+          "/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}",
+      });
+    },
+  });
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to update item proctoring') : null
+  }
+}
+
+// PUT /courses/versions/{versionId}/modules/{moduleId}/proctoring
+// Overrides this module's proctoring status, taking precedence over the
+// course's universal setting for every item in the module without its own
+// item-level override.
+export function useUpdateModuleProctoring(): {
+  mutate: (variables: { params: { path: { versionId: ObjectId, moduleId: ObjectId } } }) => void,
+  mutateAsync: (variables: {
+    params: { path: { versionId: ObjectId, moduleId: ObjectId } },
+    body: { detectors: DetectorSetting[] | null }
+  }) => Promise<unknown>,
+  data: unknown | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+} {
+  const queryClient = useQueryClient();
+  const result = api.useMutation("put", "/courses/versions/{versionId}/modules/{moduleId}/proctoring", {
+    onSuccess: () => {
+      // A module override changes the resolved detectors for every item in
+      // it that doesn't have its own item-level override -- invalidate every
+      // cached item, not just one, so none of them keep serving stale data.
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "get" &&
+          query.queryKey[1] ===
+          "/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}",
+      });
+    },
+  });
+  return {
+    ...result,
+    error: result.error ? (result.error.message || 'Failed to update module proctoring') : null
   }
 }
 

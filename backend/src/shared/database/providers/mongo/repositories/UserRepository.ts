@@ -61,6 +61,31 @@ export class UserRepository implements IUserRepository {
       // (Node's default unhandledRejection behavior). Catching logs it
       // instead so the app keeps serving existing users while the
       // duplicates get cleaned up server-side.
+      // googleSignup()'s check-then-create gates on email FIRST, before it
+      // ever checks firebaseUID -- so the same "one student, multiple
+      // accounts" race this file's firebaseUID index closes is still fully
+      // open on the email dimension: two concurrent requests with the SAME
+      // email but DIFFERENT firebaseUIDs (e.g. an existing email/password
+      // account's first-ever "Sign in with Google" click from two tabs)
+      // both pass findByEmail/findByFirebaseUID before either has been
+      // created, and create()'s upsert is keyed on firebaseUID, so it can't
+      // self-heal a conflict on email the way it does for firebaseUID.
+      // Confirmed live: 10 such concurrent requests created 10 separate
+      // documents sharing one email before this index existed.
+      // Unlike the firebaseUID conflict (which the upsert filter matches
+      // and self-heals via a transparent retry), a losing request here
+      // can't be resolved by MongoDB alone -- FirebaseAuthService.googleSignup
+      // catches this index's duplicate-key error explicitly and falls back
+      // to the now-existing user, so the request still succeeds instead of
+      // surfacing a raw duplicate-key error.
+      this.usersCollection
+        .createIndex({email: 1}, {unique: true})
+        .catch(err =>
+          console.error(
+            'Failed to create unique email index (likely pre-existing duplicate email documents -- new duplicates are NOT yet prevented until these are cleaned up and this index builds successfully):',
+            err,
+          ),
+        );
       this.usersCollection
         .createIndex({firebaseUID: 1}, {unique: true})
         .catch(err =>

@@ -26,9 +26,13 @@ async function createCourse(app: typeof Express): Promise<Course> {
   const body: CourseBody = {
     name: faker.commerce.productName(),
     description: faker.commerce.productDescription(),
+    // Untyped as optional but validated with @IsString() (no @IsOptional()),
+    // so class-validator rejects the request if these are left out entirely.
+    versionName: 'Version 1',
+    versionDescription: 'Initial version',
   };
 
-  const response = await request(app).post('/courses').send(body).expect(201);
+  const response = await request(app).post('/courses').set('Authorization', 'Bearer test-token').send(body).expect(201);
   return response.body as Course;
 }
 
@@ -47,6 +51,7 @@ async function createVersion(
 
   const response = await request(app)
     .post(`/courses/${params.courseId}/versions`)
+    .set('Authorization', 'Bearer test-token')
     .send(body)
     .expect(201);
   return response.body as CourseVersion;
@@ -67,6 +72,7 @@ async function createModule(
 
   const response = await request(app)
     .post(`/courses/versions/${params.versionId}/modules`)
+    .set('Authorization', 'Bearer test-token')
     .send(body)
     .expect(201);
   return response.body as ModuleDataResponse;
@@ -91,6 +97,7 @@ async function createSection(
     .post(
       `/courses/versions/${params.versionId}/modules/${params.moduleId}/sections`,
     )
+    .set('Authorization', 'Bearer test-token')
     .send(body)
     .expect(201);
   return response.body as SectionDataResponse;
@@ -132,6 +139,7 @@ async function createQuizItem(
     .post(
       `/courses/versions/${params.versionId}/modules/${params.moduleId}/sections/${params.sectionId}/items`,
     )
+    .set('Authorization', 'Bearer test-token')
     .send(itemPayload);
 
   expect(itemResponse.body.itemsGroup.items.length).toBe(1);
@@ -166,6 +174,7 @@ async function createVideoItem(
     .post(
       `/courses/versions/${params.versionId}/modules/${params.moduleId}/sections/${params.sectionId}/items`,
     )
+    .set('Authorization', 'Bearer test-token')
     .send(itemPayload);
 
   expect(itemResponse.body.itemsGroup.items.length).toBe(1);
@@ -201,6 +210,7 @@ async function createBlogItem(
     .post(
       `/courses/versions/${params.versionId}/modules/${params.moduleId}/sections/${params.sectionId}/items`,
     )
+    .set('Authorization', 'Bearer test-token')
     .send(body);
   expect(itemResponse.body.itemsGroup.items.length).toBe(1);
   return itemResponse.body as ItemDataResponse;

@@ -141,8 +141,19 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
           firstName: firebaseUser.displayName?.split(' ')[0] || '',
           lastName: firebaseUser.displayName?.split(' ')[1] || '',
         };
-        await this.googleSignup(userData, token);
-        user = await this.userRepository.findByFirebaseUID(firebaseUID);
+        const signupResult = await this.googleSignup(userData, token);
+        // Re-fetching by THIS caller's own firebaseUID here is only correct
+        // when googleSignup actually created (or found) a document under
+        // that exact firebaseUID. It no longer always does: a request that
+        // loses the concurrent email-uniqueness race resolves to a
+        // DIFFERENT, already-existing user (same email, different
+        // firebaseUID) instead of creating a new one -- re-querying by our
+        // own firebaseUID would then always come up empty and incorrectly
+        // report failure even though googleSignup already found the right
+        // user. Use the id it actually returned instead of re-deriving it.
+        user = signupResult?.userId
+          ? await this.userRepository.findById(signupResult.userId)
+          : await this.userRepository.findByFirebaseUID(firebaseUID);
         if (!user) {
           throw new InternalServerError('Failed to create the user');
         }
@@ -345,13 +356,62 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
 
     let createdUserId: string;
 
-    await this._withTransaction(async session => {
-      const newUser = new User(user);
-      createdUserId = await this.userRepository.create(newUser, session);
-      if (!createdUserId) {
-        throw new InternalServerError('Failed to create the user');
+    try {
+      await this._withTransaction(async session => {
+        const newUser = new User(user);
+        createdUserId = await this.userRepository.create(newUser, session);
+        if (!createdUserId) {
+          throw new InternalServerError('Failed to create the user');
+        }
+      });
+    } catch (error: any) {
+      // A concurrent request can lose this exact race on the unique EMAIL
+      // index instead of the firebaseUID one -- e.g. an existing
+      // email/password account's first-ever Google SSO signup from two
+      // tabs, where each tab carries a different firebaseUID. create()'s
+      // upsert is keyed on firebaseUID, so unlike the firebaseUID race, it
+      // can't self-heal this by matching an existing document -- it just
+      // hits the email unique index on insert.
+      //
+      // Rather than trying to pattern-match every shape this can surface as
+      // (a direct E11000 on the losing side, or -- confirmed live under
+      // heavy concurrent contention, against both mongodb-memory-server AND
+      // a real MongoDB replica set -- a transaction retry exhausting
+      // MAX_RETRIES on the eventual winning side too, once several
+      // concurrent transactions have repeatedly aborted and retried against
+      // each other), always check for a now-existing user by email before
+      // giving up.
+      //
+      // A single immediate check isn't enough: under contention, THIS
+      // request's own retries can exhaust and reach this catch block before
+      // the actual winning transaction (which may itself still be mid-retry)
+      // has committed. Confirmed live: a single findByEmail() call here still
+      // lost the race and returned null for every concurrent request, even
+      // though exactly one document existed by the time the whole batch had
+      // settled. Poll briefly instead of checking once.
+      let nowExistingUser = await this.userRepository.findByEmail(body.email);
+      const POLL_ATTEMPTS = 5;
+      const POLL_DELAY_MS = 100;
+      for (
+        let attempt = 0;
+        !nowExistingUser && attempt < POLL_ATTEMPTS;
+        attempt++
+      ) {
+        await new Promise(resolve => setTimeout(resolve, POLL_DELAY_MS));
+        nowExistingUser = await this.userRepository.findByEmail(body.email);
       }
-    });
+      if (!nowExistingUser) {
+        // Genuinely no user was created by anyone -- not a race, rethrow.
+        throw error;
+      }
+      // The race resolved elsewhere while this request was failing -- return
+      // that user like the check-then-create logic above already does for
+      // the ordinary sequential case, instead of surfacing an internal error
+      // to a legitimate concurrent signup.
+      return {
+        userId: nowExistingUser._id.toString(),
+      };
+    }
 
     let enrolledInvites: InviteResult[] = [];
 

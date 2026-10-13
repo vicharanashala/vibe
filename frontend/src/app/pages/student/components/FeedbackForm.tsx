@@ -162,6 +162,7 @@ const FeedbackForm = ({
 
     } catch (err) {
       console.error("Feedback submit or stopItem failed:", err);
+      toast.error("We could not save your progress. Please try again.");
     }
   };
 
@@ -191,11 +192,15 @@ const FeedbackForm = ({
             cohortId: currentCourse!.cohortId || undefined,
           }
         });
-        completedItemIdsRef.current.add(currentCourse!.itemId!);
       }
+      // Mirrors handleSubmit: mark completed once we're past the stop
+      // (or didn't need one) regardless of which branch ran, not just
+      // when the network call actually fired.
+      completedItemIdsRef.current.add(currentCourse!.itemId!);
       onNext();
     } catch (err) {
       console.error("Feedback skip or stopItem failed:", err);
+      toast.error("We could not save your progress. Please try again.");
     }
   };
  

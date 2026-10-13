@@ -117,11 +117,18 @@ const feedbackRepo = new FeedbackRepository(database);
 
             const newBankId = await questionBankRepo.create(newBank);
 
+            // Questions still awaiting review stay behind (see cloneModules).
+            const originalQuestions = originalBank.questions || [];
+            const pendingIds =
+                await questionRepo.getPendingReviewIds(originalQuestions);
+
             const newQuestionIds = await Promise.all(
-                (originalBank.questions || []).map(async qId => {
-                    const q = await questionRepo.duplicate(qId.toString());
-                    return q?._id?.toString();
-                }),
+                originalQuestions
+                    .filter(qId => !pendingIds.has(qId.toString()))
+                    .map(async qId => {
+                        const q = await questionRepo.duplicate(qId.toString());
+                        return q?._id?.toString();
+                    }),
             );
 
             await questionBankRepo.update(

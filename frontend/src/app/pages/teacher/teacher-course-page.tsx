@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics } from '@/hooks/hooks';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useUpdateItemProctoring, useUpdateModuleProctoring, useVideoUserAnalytics } from '@/hooks/hooks';
 import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, LockOpen, Lock } from 'lucide-react';
 import { useHideItem } from '@/hooks/hooks';
+import { DetectorChecklist, allDetectorsOff, type DetectorSetting } from '@/components/proctoring-detectors';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 const MAX_DESCRIPTION_LENGTH = 1000;
@@ -318,6 +319,38 @@ function TeacherCourseContent() {
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
 
   const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
+  const [togglingItemProctoringId, setTogglingItemProctoringId] = useState<string | null>(null);
+  const [togglingModuleProctoringId, setTogglingModuleProctoringId] = useState<string | null>(null);
+  // Optimistic value shown the instant a proctoring toggle/checklist is
+  // clicked, before the save round-trip lands -- cleared on settle (success
+  // or failure), which snaps the UI back to real server data either way.
+  const [optimisticItemDetectors, setOptimisticItemDetectors] = useState<{
+    itemId: string;
+    detectors: DetectorSetting[] | null;
+  } | null>(null);
+  const [optimisticModuleDetectors, setOptimisticModuleDetectors] = useState<{
+    moduleId: string;
+    detectors: DetectorSetting[] | null;
+  } | null>(null);
+  // Re-entrancy guards for the two save functions below: the `isBusy` flags
+  // that disable the checklist UI only take effect once React commits the
+  // re-render from setTogglingItem/ModuleProctoringId, one tick after the
+  // click that set them. A second checkbox click landing inside that window
+  // still reads the pre-toggle `value` prop (neither save has resolved yet),
+  // computes its own array without the first click's change, and whichever
+  // save's PUT lands second on the server wins -- silently discarding the
+  // first click. A plain ref is synchronous, so checking it before any
+  // `await` closes that window regardless of render timing.
+  const itemProctoringSaveInFlight = useRef(false);
+  const moduleProctoringSaveInFlight = useRef(false);
+  // Latest detector array queued by a click that landed while a save was
+  // already in flight. `undefined` means "nothing queued" -- distinct from
+  // `null`, which is itself a valid detectors value (clearing an override).
+  // The in-flight save's own loop drains this once it finishes, so a burst
+  // of rapid clicks all eventually land instead of being silently dropped
+  // once the in-flight guard above blocks their own save attempt.
+  const itemProctoringPending = useRef<DetectorSetting[] | null | undefined>(undefined);
+  const moduleProctoringPending = useRef<DetectorSetting[] | null | undefined>(undefined);
 
   // Check if a project already exists in any section
   const hasExistingProject = useMemo(() => {
@@ -485,6 +518,8 @@ function TeacherCourseContent() {
 
 
   const updateItemOptional = useUpdateItemOptional();
+  const updateItemProctoring = useUpdateItemProctoring();
+  const updateModuleProctoring = useUpdateModuleProctoring();
 
   // Refetch after any success
   useEffect(() => {
@@ -2860,6 +2895,218 @@ function TeacherCourseContent() {
                               </div>
                             </div>
                           )}
+                          {selectedEntity.type === "item" && (() => {
+                            const itemId = selectedItemData?.item?._id;
+                            const itemOverride: DetectorSetting[] | null | undefined =
+                              optimisticItemDetectors && optimisticItemDetectors.itemId === itemId
+                                ? optimisticItemDetectors.detectors
+                                : selectedItemData?.item?.proctoringDetectors;
+                            const isOverriding = itemOverride != null;
+                            const isBusy =
+                              updateItemProctoring.isPending && togglingItemProctoringId === itemId;
+                            const saveItemDetectors = async (detectors: DetectorSetting[] | null) => {
+                              if (!versionId || !itemId) return;
+                              // Always show the click immediately, even if a
+                              // save is already in flight -- DetectorChecklist
+                              // recomputes `value` from this on every render,
+                              // so the NEXT click (guarded below) still starts
+                              // from what the user just checked, not a stale
+                              // pre-click snapshot.
+                              setOptimisticItemDetectors({ itemId, detectors });
+                              if (itemProctoringSaveInFlight.current) {
+                                // A save is already running. Earlier this just
+                                // returned here, silently dropping the click --
+                                // confirmed live: 4 rapid checkbox clicks left
+                                // only the first one persisted. Record this as
+                                // the latest desired state instead; the running
+                                // save's own drain loop below picks it up.
+                                itemProctoringPending.current = detectors;
+                                return;
+                              }
+                              itemProctoringSaveInFlight.current = true;
+                              setTogglingItemProctoringId(itemId);
+                              let toSend: DetectorSetting[] | null | undefined = detectors;
+                              while (toSend !== undefined) {
+                                try {
+                                  await updateItemProctoring.mutateAsync({
+                                    params: { path: { versionId, itemId } },
+                                    body: { detectors: toSend },
+                                  });
+                                  // Awaited so isBusy (and the Switch's disabled
+                                  // state) doesn't clear until the new value has
+                                  // actually landed -- otherwise the switch
+                                  // re-enables while still showing the stale
+                                  // checked state, and a click in that gap fires
+                                  // a second save that races the first.
+                                  await refetchItem();
+                                } catch (error) {
+                                  toast.error('Failed to update item proctoring status');
+                                }
+                                // Drain whatever the newest click queued while
+                                // this save was in flight; loop again if one
+                                // landed, otherwise stop.
+                                toSend = itemProctoringPending.current;
+                                itemProctoringPending.current = undefined;
+                              }
+                              // Clears the optimistic value either way: on
+                              // success the last refetch already has the real
+                              // value, on failure this snaps back to whatever
+                              // selectedItemData still says.
+                              setOptimisticItemDetectors(null);
+                              setTogglingItemProctoringId(null);
+                              itemProctoringSaveInFlight.current = false;
+                            };
+                            return (
+                              <div className="flex flex-col gap-2 px-3 py-2 rounded-md border bg-card">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex flex-col gap-0.5">
+                                    <Label className="text-sm font-medium leading-none">
+                                      Proctoring
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      {isOverriding
+                                        ? "Custom detectors for this item"
+                                        : "Inherits the module/course setting"}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={isOverriding}
+                                      onCheckedChange={checked =>
+                                        saveItemDetectors(checked ? allDetectorsOff() : null)
+                                      }
+                                    />
+                                    {isBusy && <Loader2 className="h-3 w-3 animate-spin" />}
+                                  </div>
+                                </div>
+                                {isOverriding && (
+                                  <>
+                                    {/* Not disabled while isBusy: TanStack's
+                                    isPending flickers false between each
+                                    drain-loop iteration (during the await
+                                    refetchItem() gap), which would let a
+                                    disabled Radix control silently swallow
+                                    clicks at the browser level before they
+                                    ever reach the ref-guard/pending queue
+                                    below that's built to handle exactly this
+                                    concurrency. Confirmed live: this caused
+                                    every other rapid click to be lost. */}
+                                    <DetectorChecklist
+                                      value={itemOverride ?? allDetectorsOff()}
+                                      onChange={next => saveItemDetectors(next)}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      Leave all unchecked to disable proctoring entirely for this item.
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })()}
+                          {selectedEntity.type === "module" && (() => {
+                            const moduleId = selectedEntity.data?.moduleId;
+                            const moduleOverride: DetectorSetting[] | null | undefined =
+                              optimisticModuleDetectors && optimisticModuleDetectors.moduleId === moduleId
+                                ? optimisticModuleDetectors.detectors
+                                : selectedEntity.data?.proctoringDetectors;
+                            const isOverriding = moduleOverride != null;
+                            const isBusy =
+                              updateModuleProctoring.isPending && togglingModuleProctoringId === moduleId;
+                            const saveModuleDetectors = async (detectors: DetectorSetting[] | null) => {
+                              if (!versionId || !moduleId) return;
+                              // Always show the click immediately, even if a
+                              // save is already in flight -- DetectorChecklist
+                              // recomputes `value` from this on every render,
+                              // so the NEXT click (guarded below) still starts
+                              // from what the user just checked, not a stale
+                              // pre-click snapshot.
+                              setOptimisticModuleDetectors({ moduleId, detectors });
+                              if (moduleProctoringSaveInFlight.current) {
+                                // A save is already running. Earlier this just
+                                // returned here, silently dropping the click --
+                                // confirmed live: 4 rapid checkbox clicks left
+                                // only the first one persisted. Record this as
+                                // the latest desired state instead; the running
+                                // save's own drain loop below picks it up.
+                                moduleProctoringPending.current = detectors;
+                                return;
+                              }
+                              moduleProctoringSaveInFlight.current = true;
+                              setTogglingModuleProctoringId(moduleId);
+                              let toSend: DetectorSetting[] | null | undefined = detectors;
+                              while (toSend !== undefined) {
+                                const sending = toSend;
+                                try {
+                                  await updateModuleProctoring.mutateAsync({
+                                    params: { path: { versionId, moduleId } },
+                                    body: { detectors: sending },
+                                  });
+                                  // selectedEntity.data is a plain snapshot taken at selection
+                                  // time, not a live query result like selectedItemData --
+                                  // refetchVersion() alone updates initialModules (the tree)
+                                  // but not this detail panel, so it would keep showing the
+                                  // stale value until the module was re-selected. Update it
+                                  // directly.
+                                  setSelectedEntity((prev: any) =>
+                                    prev?.type === "module" && prev.data?.moduleId === moduleId
+                                      ? { type: "module", data: { ...prev.data, proctoringDetectors: sending ?? undefined } }
+                                      : prev
+                                  );
+                                  await refetchVersion();
+                                } catch (error) {
+                                  toast.error('Failed to update module proctoring status');
+                                }
+                                // Drain whatever the newest click queued while
+                                // this save was in flight; loop again if one
+                                // landed, otherwise stop.
+                                toSend = moduleProctoringPending.current;
+                                moduleProctoringPending.current = undefined;
+                              }
+                              // On failure this drops back to selectedEntity.data's
+                              // original value since it was never overwritten above.
+                              setOptimisticModuleDetectors(null);
+                              setTogglingModuleProctoringId(null);
+                              moduleProctoringSaveInFlight.current = false;
+                            };
+                            return (
+                              <div className="flex flex-col gap-2 px-3 py-2 rounded-md border bg-card">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex flex-col gap-0.5">
+                                    <Label className="text-sm font-medium leading-none">
+                                      Proctoring
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      {isOverriding
+                                        ? "Custom detectors for items in this module"
+                                        : "Inherits the course's universal setting"}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={isOverriding}
+                                      onCheckedChange={checked =>
+                                        saveModuleDetectors(checked ? allDetectorsOff() : null)
+                                      }
+                                    />
+                                    {isBusy && <Loader2 className="h-3 w-3 animate-spin" />}
+                                  </div>
+                                </div>
+                                {isOverriding && (
+                                  <>
+                                    {/* Not disabled while isBusy -- see the
+                                    matching comment on the item panel above. */}
+                                    <DetectorChecklist
+                                      value={moduleOverride ?? allDetectorsOff()}
+                                      onChange={next => saveModuleDetectors(next)}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      Leave all unchecked to disable proctoring entirely for items in this module.
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {/* <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
                           {selectedEntity.type.charAt(0).toUpperCase() + selectedEntity.type.slice(1)}
                         </Badge> */}

@@ -13,7 +13,7 @@ import {
   ForbiddenError,
 } from 'routing-controllers';
 import { calculateNewOrder } from '../utils/calculateNewOrder.js';
-import { ICourseVersion } from '#root/shared/interfaces/models.js';
+import { ICourseVersion, IDetectorSettings } from '#root/shared/interfaces/models.js';
 import { BaseService } from '#root/shared/classes/BaseService.js';
 import { GLOBAL_TYPES } from '../../../types.js';
 import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
@@ -139,6 +139,54 @@ export class ModuleService extends BaseService {
 
       if (body.name) module.name = body.name;
       if (body.description) module.description = body.description;
+      module.updatedAt = new Date();
+      version.updatedAt = new Date();
+
+      const updatedVersion = await this.courseRepo.updateVersion(
+        versionId,
+        version,
+        session,
+      );
+
+      return updatedVersion;
+    });
+  }
+
+  /**
+   * Sets or clears this module's proctoring detector override. `null` clears
+   * it back to "inherit the course's universal setting" -- deleting the key
+   * (not setting it to undefined) so updateVersion's whole-array $set
+   * correctly omits it from the stored subdocument, rather than silently
+   * leaving whatever was there before untouched.
+   *
+   * Deliberately does not cascade the value onto the module's items (unlike
+   * toggleModuleVisibility's isHidden cascade) — an item can still
+   * independently override this module's setting, and readItem's
+   * resolveProctoringDetectors call resolves the effective value at read
+   * time, so nothing needs to be physically propagated onto each item.
+   */
+  public async updateModuleProctoringStatus(
+    versionId: string,
+    moduleId: string,
+    detectors: IDetectorSettings[] | null,
+  ) {
+    return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+
+      if(versionStatus==="archived"){
+          throw new ForbiddenError("This course version is archived and cannot be updated.");
+        }
+      const version = await this.courseRepo.readVersion(versionId, session);
+      const module = version.modules.find(
+        m => m.moduleId?.toString() === moduleId,
+      );
+      if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
+
+      if (detectors === null) {
+        delete module.proctoringDetectors;
+      } else {
+        module.proctoringDetectors = detectors;
+      }
       module.updatedAt = new Date();
       version.updatedAt = new Date();
 

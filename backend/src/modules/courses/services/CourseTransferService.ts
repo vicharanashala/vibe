@@ -26,6 +26,7 @@ import {
 } from '#root/modules/quizzes/repositories/index.js';
 import {QuestionBank} from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
 import {BaseQuestion} from '#root/modules/quizzes/classes/transformers/Question.js';
+import {isPendingReview} from '#root/modules/quizzes/utils/index.js';
 import {Module, Section} from '../classes/index.js';
 import {
   BUNDLE_FORMAT_VERSION,
@@ -142,7 +143,11 @@ export class CourseTransferService extends BaseService {
           const question = await this.questionRepo.getById(
             questionId.toString(),
           );
-          return question ? this.stripQuestionIds(question) : null;
+          // Questions still awaiting review never leave the server: on the
+          // other side they would land in a graded bank with no review path.
+          return question && !isPendingReview(question)
+            ? this.stripQuestionIds(question)
+            : null;
         }),
       );
 
@@ -432,6 +437,9 @@ export class CourseTransferService extends BaseService {
 
       const questionIds: string[] = [];
       for (const question of bank.questions || []) {
+        // Bundles exported before pending questions were filtered out can
+        // still carry them; drop them here too.
+        if (isPendingReview(question)) continue;
         const created = await this.questionRepo.create(
           this.reviveQuestion(question, userId) as BaseQuestion,
           session,

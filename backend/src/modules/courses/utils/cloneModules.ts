@@ -43,8 +43,18 @@ export const cloneModules = async (
 
     const newBankId = await questionBankRepo.create(newBank, session);
 
+    // Questions still awaiting review stay behind: copying them would put
+    // unapproved crowd questions into the new course's graded banks.
+    const originalQuestions = originalBank.questions || [];
+    const pendingIds = await questionRepo.getPendingReviewIds(
+      originalQuestions,
+      session,
+    );
+
     const newQuestionIds = await Promise.all(
-      (originalBank.questions || []).map(async qId => {
+      originalQuestions
+        .filter(qId => !pendingIds.has(qId.toString()))
+        .map(async qId => {
         const q = await questionRepo.duplicate(qId.toString(), session);
         return q?._id?.toString();
       }),

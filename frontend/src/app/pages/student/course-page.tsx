@@ -9,6 +9,7 @@ import { useShareLinkStore } from "@/store/share-link-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
 import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
+import { classifyItemForbiddenError } from "@/utils/itemForbiddenError";
 const LazyStudentTimeslotModal = lazy(() => import("@/components/course/StudentTimeslotModal"));
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import type { PendingStudentQuestionContext } from "@/types/student-question.types";
@@ -168,8 +169,14 @@ export default function CoursePage() {
         streamRef.current = null;
       }
     };
+    // allProctorsDisabled is a real dependency, not just an extra guard: when
+    // it flips back to false (an item re-enabling detectors after an earlier
+    // item in the session disabled them all), this effect must re-run to
+    // actually re-acquire the camera/mic stream -- without it in the deps
+    // array, allProctorsDisabled flipping false was invisible to this effect
+    // and the stream was never requested again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showProctorDialog, consentSatisfied]);
+  }, [showProctorDialog, consentSatisfied, allProctorsDisabled]);
 
   // Get the setCurrentCourse function from the store
   const { setCurrentCourse } = useCourseStore();
@@ -441,18 +448,31 @@ export default function CoursePage() {
 
     if (itemError && selectedItemId && itemErrorName === "ForbiddenError") {
 
-      // Three different 403s reach here: out-of-order progression, an
-      // archived course version, and the time-slot/study-window gate. Only
-      // the first is actually a locked lesson -- the other two were both
-      // rendering as "ViBe lessons unlock in order" regardless, which told
-      // a student outside their booked window (or looking at an archived
-      // version) the wrong thing entirely. The amber time-slot banner below
-      // already existed for this; it just never had this branch routing
-      // into it, so it was unreachable dead code.
-      if (/time slot|study window|book a slot|choose a slot/i.test(itemError)) {
+      // Several different 403s reach here from ItemService.readItem. Only
+      // the out-of-order-progression case is actually a locked lesson; the
+      // archived-course and time-slot cases were both rendering as "ViBe
+      // lessons unlock in order" regardless, which told a student outside
+      // their booked window (or looking at an archived version) the wrong
+      // thing entirely. The amber time-slot banner below already existed
+      // for this; it just never had this branch routing into it, so it was
+      // unreachable dead code. See classifyItemForbiddenError's own doc
+      // comment for the exact backend message strings this matches against,
+      // including the "not enrolled" gap that's a known, deliberately
+      // unfixed case (see there for why).
+      const forbiddenKind = classifyItemForbiddenError(itemError);
+      if (forbiddenKind === 'time-slot') {
         setTimeSlotBlock(itemError);
         setIsNavigatingToNext(false);
         return;
+      }
+      if (forbiddenKind === 'unrecognized') {
+        console.warn(
+          'Unrecognized ForbiddenError message reached the item-error handler -- ' +
+            'falling back to the generic "locked lesson" message. If this is actually ' +
+            'a time-slot or archived-course error with new wording, ' +
+            'classifyItemForbiddenError needs updating:',
+          itemError,
+        );
       }
 
       // toast.error(itemError);
@@ -504,10 +524,25 @@ export default function CoursePage() {
     async function fetch() {
       const data = await getSettings(COURSE_ID, VERSION_ID);
       setProctoringData(data);
-      const allProctorsDisabled =
-        data.settings.proctors.detectors.every(
-          (detector: any) => detector.settings.enabled === false
-        );
+
+      // Selective proctoring: readItem resolves item > module > universal and
+      // returns the resolved detector list as itemData.item.proctoringDetectors
+      // -- ItemController wraps the service's response as { item: ... }, so
+      // this must go through .item, not itemData.proctoringDetectors directly
+      // (that's always undefined, silently falling back to the course-wide
+      // list below -- which is why item/module overrides never took effect).
+      // When present it's authoritative for this item, so it's what decides
+      // whether *anything* is active here -- not just the course-wide list.
+      // (The resolved list is also what actually gets passed to FloatingVideo
+      // below, so which specific detectors arm follows the item fully
+      // symmetrically already; this check only decides the outer gate.)
+      const resolvedDetectors =
+        (itemData as {item?: {proctoringDetectors?: {settings: {enabled: boolean}}[]}})
+          ?.item?.proctoringDetectors ?? data.settings.proctors.detectors;
+      const noDetectorsActive = resolvedDetectors.every(
+        (detector: any) => detector.settings.enabled === false,
+      );
+
       // A guest who opened a PLAIN share link is watching a video someone sent
       // them, not working through a proctored course — they take the same path
       // as a course with every detector switched off. Enrolled learners never
@@ -515,14 +550,57 @@ export default function CoursePage() {
       const isPlainShareViewer = useShareLinkStore
         .getState()
         .isPlainViewerFor(COURSE_ID, VERSION_ID);
-      if (allProctorsDisabled || isPlainShareViewer) {
+
+      // Bidirectional: an item with every detector off must disable the
+      // outer gate, and a later item with any detector back on must re-arm
+      // it -- otherwise the first all-off item a student visits permanently
+      // kills proctoring for the rest of the session regardless of what
+      // later items require. setShowProctorDialog is deliberately left
+      // alone here: that's the one-time-per-session notice dialog, not the
+      // detection status, and re-showing it on every item would be noise.
+      // Re-acquiring the camera/mic stream itself happens in the
+      // checkMediaPermissions effect above, which has allProctorsDisabled
+      // in its dependency array for exactly this transition.
+      if (noDetectorsActive || isPlainShareViewer) {
         setShowProctorDialog(false);
         setAllProctorsDisabled(true);
         setReadyToDetect(true);
+      } else {
+        setAllProctorsDisabled(false);
+        // Stale true from a previous all-off item would let FloatingVideo's
+        // detection checks fire immediately on the freshly re-acquired
+        // stream, before its own models/warm-up actually catch up -- let it
+        // re-set this itself once ready, same as on first mount.
+        setReadyToDetect(false);
       }
     }
     fetch();
-  }, []);
+  }, [itemData]);
+
+  // The detector list FloatingVideo actually arms. Swaps in this item's
+  // resolved (item > module > universal) detector list when readItem
+  // returned one, falling back to the course-wide list otherwise -- fully
+  // symmetric, so an item can enable or disable *specific* detectors
+  // relative to the course default, not just a one-way "exempt" flag.
+  const effectiveProctoringSettings = useMemo(() => {
+    const base = proctoringData || {
+      _id: "",
+      studentId: "",
+      versionId: "",
+      courseId: "",
+      settings: {
+        proctors: { detectors: [] },
+        linearProgressionEnabled: true,
+      },
+    };
+    const resolvedDetectors = (itemData as {item?: {proctoringDetectors?: any[]}})
+      ?.item?.proctoringDetectors;
+    if (!resolvedDetectors) return base;
+    return {
+      ...base,
+      settings: { ...base.settings, proctors: { detectors: resolvedDetectors } },
+    };
+  }, [proctoringData, itemData]);
 
   // Update section items when data is loaded
   useEffect(() => {
@@ -1908,18 +1986,7 @@ return false;
             onClose={() => { }}
             onAnomalyDetected={() => { }}
             setDoGesture={setDoGesture}
-            settings={proctoringData || {
-              _id: "",
-              studentId: "",
-              versionId: "",
-              courseId: "",
-              settings: {
-                proctors: {
-                  detectors: []
-                },
-                linearProgressionEnabled: true
-              }
-            }}
+            settings={effectiveProctoringSettings}
             anomalies={anomalies}
             readyToDetect={readyToDetect}
             setReadyToDetect={setReadyToDetect}

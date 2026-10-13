@@ -54,6 +54,16 @@ export class NewAnomalyData {
   itemId: string | ObjectId;
 
   @JSONSchema({
+    description:
+      "Module ID this item belongs to (optional). Used to resolve the item's effective proctoring status (item override > module override > course universal setting) for the FACE_RECOGNITION gate below. Omit only for older clients; the gate falls back to item-level + universal resolution without it.",
+    type: 'string',
+  })
+  @IsOptional()
+  @IsMongoId()
+  @IsString()
+  moduleId?: string | ObjectId;
+
+  @JSONSchema({
     description: 'Cohort ID associated with the anomaly (optional)',
     type: 'string',
   })

@@ -39,11 +39,13 @@ import {
   EnrollmentRepository,
   IBaseItem,
   ICourseVersion,
+  IDetectorSettings,
   IQuizDetails,
   ItemType,
   Priority,
   ProgressRepository,
   QuestionType,
+  resolveProctoringDetectors,
 } from '#root/shared/index.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 import { ProgressService } from '#root/modules/users/services/ProgressService.js';
@@ -640,14 +642,26 @@ export class ItemService extends BaseService {
       isItemAlreadyAttempted,
       currentUserProgress,
       linearProgressionEnabled,
-      courseVersion
+      courseVersion,
+      courseSettings,
     ] = await Promise.all([
       this.progressRepo.isItemCompleted(userId, courseId, versionId, itemId, cohortId),
       this.progressRepo.isItemAttempted(userId, courseId, versionId, itemId, cohortId),
       this.progressRepo.findProgress(userId, courseId, versionId, cohortId),
       this.courseSettingService.isLinearProgressionEnabled(courseId, versionId),
       this.courseRepo.readVersion(versionId),
+      this.courseSettingService.readCourseSettings(courseId, versionId),
     ]);
+
+    // Item > module > universal (course-derived) — see resolveProctoringDetectors.
+    const itemModule = courseVersion?.modules?.find(
+      m => m.moduleId?.toString() === moduleId,
+    );
+    const resolvedProctoringDetectors = resolveProctoringDetectors(
+      item as {proctoringDetectors?: IDetectorSettings[] | null},
+      itemModule,
+      courseSettings,
+    );
 
     // // Enforce linear progression only when required
     // if (
@@ -669,6 +683,7 @@ export class ItemService extends BaseService {
       ...item,
       _id: item._id.toString(),
       isAlreadyWatched,
+      proctoringDetectors: resolvedProctoringDetectors,
     });
 
     // If linear progression is disabled, allow immediately
@@ -1282,6 +1297,42 @@ export class ItemService extends BaseService {
       const result = await this.itemRepo.updateItem(
         itemId,
         updateData as any, // Still need any because of the details type mismatch
+        session,
+      );
+
+      return result;
+    });
+  }
+
+  /**
+   * `detectors: null` clears this item's override back to "inherit the
+   * module/course setting" -- see IItemRepository.updateItemProctoringOverride
+   * for why this needs its own dedicated repository method rather than
+   * reusing updateItem's generic field whitelist.
+   */
+  public async updateItemProctoringStatus(
+    versionId: string,
+    itemId: string,
+    detectors: IDetectorSettings[] | null,
+  ) {
+    return this._withTransaction(async session => {
+      const versionStatus=await this.courseRepo.getCourseVersionStatus(versionId,session);
+
+      if(versionStatus==="archived"){
+        throw new ForbiddenError("This course version is archived and cannot be updated.");
+      }
+      // Get the item (need its type to pick the right collection)
+      const item = await this.itemRepo.readItem(versionId, itemId, session);
+      if (!item) {
+        throw new NotFoundError(
+          `Item ${itemId} not found in version ${versionId}.`,
+        );
+      }
+
+      const result = await this.itemRepo.updateItemProctoringOverride(
+        itemId,
+        item.type,
+        detectors,
         session,
       );
 

@@ -637,6 +637,17 @@ export class CourseRepository implements ICourseRepository {
                 isDeleted: '$$mod.isDeleted',
                 deletedAt: '$$mod.deletedAt',
                 isHidden: '$$mod.isHidden',
+                // This $map rebuilds each module from an explicit allowlist, so
+                // any field omitted here is silently dropped. Leaving
+                // proctoringDetectors out made every module look like it had no
+                // proctoring override: the teacher panel reads this field to
+                // decide between "Inherits" and a custom detector list, so a
+                // module that really did override proctoring rendered as
+                // "Inherits" and could not be cleared from the UI -- while
+                // ItemService.readItem (which reads via readVersion, not this
+                // pipeline) kept honouring the stored override and disabled
+                // proctoring for every item in that module.
+                proctoringDetectors: '$$mod.proctoringDetectors',
                 sections: {
                   $filter: {
                     input: '$$mod.sections',
@@ -707,6 +718,9 @@ export class CourseRepository implements ICourseRepository {
                 isDeleted: '$$mod.isDeleted',
                 deletedAt: '$$mod.deletedAt',
                 isHidden: '$$mod.isHidden',
+                // Same allowlist caveat as getActiveVersion above: omitting a
+                // field here silently drops it from every module.
+                proctoringDetectors: '$$mod.proctoringDetectors',
                 sections: {
                   $filter: {
                     input: '$$mod.sections',

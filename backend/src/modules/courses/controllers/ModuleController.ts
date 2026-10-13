@@ -9,6 +9,7 @@ import {
   ModuleDeletedResponse,
   HideModuleParams,
   HideModuleBody,
+  ModuleProctoringBody,
 } from '#courses/classes/validators/ModuleValidators.js';
 import { ModuleService } from '#courses/services/ModuleService.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
@@ -202,6 +203,87 @@ Accessible to:
         after: {
           name: body.name,
           description: body.description,
+        },
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
+
+    return { version: instanceToPlain(updated) };
+  }
+
+  @OpenAPI({
+    summary: 'Override this module\'s proctoring status',
+    description: `Sets or clears this module's proctoring override, taking precedence over the course-wide (universal) proctoring setting for every item in the module that does not have its own item-level override.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
+  @Authorized()
+  @HttpCode(200)
+  @Put('/versions/:versionId/modules/:moduleId/proctoring')
+  @UseInterceptor(AuditTrailsHandler)
+  @ResponseSchema(ModuleDataResponse, {
+    description: 'Module proctoring status updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ModuleNotFoundErrorResponse, {
+    description: 'Module not found',
+    statusCode: 404,
+  })
+  async updateProctoringStatus(
+    @Params() params: VersionModuleParams,
+    @Body() body: ModuleProctoringBody,
+    @Ability(getCourseVersionAbility) { ability, user },
+    @Req() req: Request,
+  ) {
+    const { versionId, moduleId } = params;
+    const { detectors } = body;
+
+    const courseVersionSubject = subject('CourseVersion', { versionId });
+    if (!ability.can(CourseVersionActions.Modify, courseVersionSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to update modules in this course version',
+      );
+    }
+
+    const getCourse = await this.courseVersionService.readCourseVersion(
+      versionId,
+      user._id,
+    );
+    const existingModule = getCourse.modules.find(
+      module => module.moduleId === moduleId,
+    );
+
+    const updated = await this.service.updateModuleProctoringStatus(
+      versionId,
+      moduleId,
+      detectors,
+    );
+
+    setAuditTrail(req, {
+      category: AuditCategory.MODULE,
+      action: AuditAction.MODULE_UPDATE_PROCTORING,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseId: ObjectId.createFromHexString(getCourse.courseId.toString()),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        moduleId: ObjectId.createFromHexString(moduleId),
+      },
+      changes: {
+        before: {
+          detectors: existingModule?.proctoringDetectors,
+        },
+        after: {
+          detectors,
         },
       },
       outcome: {

@@ -87,6 +87,9 @@ export interface IModule {
   description: string;
   order: string;
   isHidden: boolean;
+  // Absent/null means "inherit the course's universal proctoring detector
+  // list" — see resolveProctoringDetectors below.
+  proctoringDetectors?: IDetectorSettings[] | null;
   sections: ISection[];
   isDeleted?: boolean;
   deletedAt?: Date;
@@ -358,6 +361,61 @@ export function resolveVideoSource(details?: {
   source?: VideoSource;
 }): VideoSource {
   return details?.source ?? 'YOUTUBE';
+}
+
+/**
+ * Resolve the effective detector list for a specific item, given the item's
+ * own override, its module's override, and the course's universal detector
+ * list.
+ *
+ * Most specific wins: item > module > universal. `null`/absent on the item
+ * or module means "no explicit override here, check the next tier" — every
+ * item/module written before this feature existed has no override at all,
+ * so the fallback-to-universal case is exactly today's behavior. Read
+ * proctoring status through this helper (and `isProctoringActive` /
+ * `isDetectorEnabled` below) rather than testing the fields directly, so the
+ * precedence lives in one place.
+ *
+ * Checks `!= null` (both `undefined` and `null`): a field that was genuinely
+ * never set reads back from MongoDB as `null`, not `undefined` (the driver
+ * serializes an absent-in-code optional field that way on insert), so
+ * treating only `undefined` as "unset" would read every untouched
+ * item/module as explicitly overridden to an empty list -- i.e. nothing
+ * enabled -- rather than falling through to inherit.
+ */
+export function resolveProctoringDetectors(
+  item: {proctoringDetectors?: IDetectorSettings[] | null} | undefined,
+  courseModule: {proctoringDetectors?: IDetectorSettings[] | null} | undefined,
+  courseSettings: {settings?: {proctors?: IProctoringSettings}} | undefined,
+): IDetectorSettings[] {
+  if (item?.proctoringDetectors != null) {
+    return item.proctoringDetectors;
+  }
+  if (courseModule?.proctoringDetectors != null) {
+    return courseModule.proctoringDetectors;
+  }
+  return courseSettings?.settings?.proctors?.detectors ?? [];
+}
+
+/**
+ * Whether any detector in a resolved list is armed. Every course defaults
+ * every detector to `enabled: false` on creation, so an empty/missing list
+ * correctly resolves to "off" here — the same as today's behavior.
+ */
+export function isProctoringActive(detectors: IDetectorSettings[]): boolean {
+  return detectors.some(d => d.settings?.enabled);
+}
+
+/**
+ * Whether one specific detector is armed within a resolved list — for gates
+ * that care about a single mechanism (e.g. FACE_RECOGNITION) rather than
+ * "is anything proctored at all".
+ */
+export function isDetectorEnabled(
+  detectors: IDetectorSettings[],
+  name: ProctoringComponent,
+): boolean {
+  return detectors.find(d => d.detectorName === name)?.settings?.enabled ?? false;
 }
 
 export interface IVideoDetails {

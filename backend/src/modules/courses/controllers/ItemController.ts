@@ -32,6 +32,8 @@ import {
   GetItemParams,
   VersionModuleSectionItemParams,
   VersionItemParams,
+  ItemProctoringParams,
+  ItemProctoringBody,
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
   CSVItemBody,
@@ -51,7 +53,7 @@ import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
 import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
-import {ItemType, IUser} from '#shared/interfaces/models.js';
+import {ItemType, IUser, IDetectorSettings} from '#shared/interfaces/models.js';
 import {HideModuleBody} from '../classes/index.js';
 import {createObjectCsvStringifier} from 'csv-writer';
 import {Response} from 'express';
@@ -880,6 +882,87 @@ Accessible to:
       versionId,
       itemId,
       body.isOptional,
+    );
+  }
+
+  @OpenAPI({
+    summary: 'Override this item\'s proctoring status',
+    description: `Sets or clears this item's proctoring override, taking precedence over the module and course-wide (universal) proctoring settings.
+Accessible to:
+- Instructors, managers, and teaching assistants of the course.`,
+  })
+  @Authorized()
+  @HttpCode(200)
+  @Put('/versions/:versionId/items/:itemId/proctoring')
+  @UseInterceptor(AuditTrailsHandler)
+  @ResponseSchema(ItemDataResponse, {
+    description: 'Item proctoring status updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Item not found',
+    statusCode: 404,
+  })
+  async updateProctoringStatus(
+    @Params() params: ItemProctoringParams,
+    @Body() body: ItemProctoringBody,
+    @Ability(getItemAbility) {ability, user, authenticatedUser},
+    @Req() req: Request,
+  ) {
+    const {versionId, itemId} = params;
+    // Check permission
+    const itemResource = subject('Item', {versionId: versionId});
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    // readItem requires a courseId to find the caller's enrollment for this
+    // version -- already resolved once by @Ability above, so reuse it rather
+    // than calling it with courseId absent (which makes the enrollment
+    // lookup search for a bogus random id and fail with "not enrolled").
+    const courseId = authenticatedUser.enrollments.find(
+      e => e.versionId === versionId,
+    )?.courseId;
+    const getItemBeforeUpdate = await this.itemService.readItem(user._id.toString(), versionId, itemId, courseId);
+    setAuditTrail(req, {
+      category: AuditCategory.ITEM,
+      action: AuditAction.ITEM_UPDATE_PROCTORING,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        itemId: ObjectId.createFromHexString(itemId),
+        itemType: getItemBeforeUpdate.type,
+      },
+      changes: {
+        before: {
+          // This item's own raw stored override before the change (instructor
+          // callers get the raw item from readItem, not the resolved value --
+          // resolution only happens on the student-facing path).
+          detectors: (getItemBeforeUpdate as {proctoringDetectors?: IDetectorSettings[] | null}).proctoringDetectors,
+        },
+        after: {
+          detectors: body.detectors,
+        },
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
+
+    return await this.itemService.updateItemProctoringStatus(
+      versionId,
+      itemId,
+      body.detectors,
     );
   }
 

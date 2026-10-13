@@ -16,6 +16,13 @@ import { UserRepository } from '#shared/database/providers/mongo/repositories/Us
 describe('UserRepository unique-index creation against pre-existing duplicates', () => {
   let db: MongoDatabase;
   const sharedFirebaseUID = 'pre-existing-dup-uid-' + Date.now();
+  // Unique per run, not just per document: now that UserRepository also
+  // builds a unique index on email, a literal hardcoded email here would
+  // collide with leftover data from a prior run against a database that
+  // isn't torn down between invocations (e.g. `vitest --watch` reusing the
+  // same mongodb-memory-server instance across reruns of this file).
+  const dupEmailA = `dup-a-${Date.now()}@example.com`;
+  const dupEmailB = `dup-b-${Date.now()}@example.com`;
   const dupUserAId = new ObjectId();
   const dupUserBId = new ObjectId();
 
@@ -31,7 +38,7 @@ describe('UserRepository unique-index creation against pre-existing duplicates',
       {
         _id: dupUserAId,
         firebaseUID: sharedFirebaseUID,
-        email: 'dup-a@example.com',
+        email: dupEmailA,
         firstName: 'Dup',
         lastName: 'A',
         roles: 'user',
@@ -39,7 +46,7 @@ describe('UserRepository unique-index creation against pre-existing duplicates',
       {
         _id: dupUserBId,
         firebaseUID: sharedFirebaseUID,
-        email: 'dup-b@example.com',
+        email: dupEmailB,
         firstName: 'Dup',
         lastName: 'B',
         roles: 'user',
@@ -75,9 +82,7 @@ describe('UserRepository unique-index creation against pre-existing duplicates',
 
       // A normal read for an EXISTING (even duplicated) user must still work.
       expect(found).not.toBeNull();
-      expect(['dup-a@example.com', 'dup-b@example.com']).toContain(
-        (found as any)?.email,
-      );
+      expect([dupEmailA, dupEmailB]).toContain((found as any)?.email);
     } finally {
       process.off('unhandledRejection', onUnhandledRejection);
     }

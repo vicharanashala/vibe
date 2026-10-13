@@ -15,6 +15,7 @@ import {
   IBlogDetails,
   IFeedBackFormDetails,
   IReflectionDetails,
+  IDetectorSettings,
 } from '#root/shared/interfaces/models.js';
 
 export type Item = QuizItem | VideoItem | BlogItem | ProjectItem;
@@ -30,6 +31,14 @@ class QuizItem {
 
   @Expose()
   isOptional?: boolean = false;
+
+  // Absent/null means "inherit the effective module/course proctoring
+  // detector list" — see resolveProctoringDetectors in
+  // shared/interfaces/models.ts. Deliberately no default value here, unlike
+  // isOptional: defaulting this to an empty array would make every existing
+  // item explicitly opt out of proctoring instead of inheriting.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
 
   @Expose()
   description: string;
@@ -77,6 +86,10 @@ class VideoItem {
   @Expose()
   isOptional?: boolean = false;
 
+  // See QuizItem.proctoringDetectors for why this has no default value.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
+
   @Expose()
   description: string;
 
@@ -122,6 +135,10 @@ class BlogItem {
 
   @Expose()
   isOptional?: boolean = false;
+
+  // See QuizItem.proctoringDetectors for why this has no default value.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
 
   @Expose()
   description: string;
@@ -177,6 +194,10 @@ class ReflectionItem {
   @Expose()
   isOptional: boolean;
 
+  // See QuizItem.proctoringDetectors for why this has no default value.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
+
   @Expose()
   type: ItemType = ItemType.REFLECTION;
 
@@ -213,6 +234,10 @@ class FeedBackFormItem {
 
   @Expose()
   isOptional: boolean;
+
+  // See QuizItem.proctoringDetectors for why this has no default value.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
 
   @Expose()
   type: ItemType = ItemType.FEEDBACK;
@@ -317,6 +342,10 @@ class ProjectItem {
 
   @Expose()
   isOptional?: boolean = false;
+
+  // See QuizItem.proctoringDetectors for why this has no default value.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
 
   @Expose()
   description: string;

@@ -23,16 +23,7 @@ import {
   SelectValue,
 } from "./ui/select"
 
-enum ProctoringComponent {
-  CAMERAMICRO = 'cameraMic',
-  BLURDETECTION = 'blurDetection',
-  FACECOUNTDETECTION = 'faceCountDetection',
-  HANDGESTUREDETECTION = 'handGestureDetection',
-  VOICEDETECTION = 'voiceDetection',
-  VIRTUALBACKGROUNDDETECTION = 'virtualBackgroundDetection',
-  RIGHTCLICKDISABLED = 'rightClickDisabled',
-  FACERECOGNITION = 'faceRecognition',
-}
+import { ProctoringComponent, proctoringLabelMap } from "./proctoring-detectors";
 
 // Throw-safe id conversion: ObjectIds may serialize as a hex string or a
 // buffer-like object depending on the endpoint. Never throw (a throw here would
@@ -54,17 +45,6 @@ const normalizeId = (value: any): string => {
 function VersionLabel({ versionId }: { versionId: string }) {
   const { data } = useCourseVersionById(versionId, true);
   return <>{data?.version ?? `Version ${versionId.slice(-6)}`}</>;
-}
-
-const labelMap: Record<string, string> = {
-  cameraMic: "Camera + Microphone",
-  blurDetection: "Blur Detection",
-  faceCountDetection: "Face Count Detection",
-  handGestureDetection: "Hand Gesture Detection",
-  voiceDetection: "Voice Detection",
-  virtualBackgroundDetection: "Virtual Background Detection",
-  rightClickDisabled: "Right Click Disabled",
-  faceRecognition: "Face Recognition",
 }
 
 export function ProctoringModal({
@@ -300,7 +280,7 @@ export function ProctoringModal({
           htmlFor={detector.name}
           className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
         >
-          {labelMap[detector.name] || detector.name}
+          {proctoringLabelMap[detector.name] || detector.name}
         </label>
       </div>
     ) : (
@@ -314,7 +294,7 @@ export function ProctoringModal({
           htmlFor={detector.name}
           className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
         >
-          {labelMap[detector.name] || detector.name}
+          {proctoringLabelMap[detector.name] || detector.name}
         </label>
       </div>
     )

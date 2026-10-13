@@ -1,7 +1,7 @@
 import { GLOBAL_TYPES } from '#root/types.js';
 import { ICourseRepository } from '#shared/database/interfaces/ICourseRepository.js';
 import { IItemRepository } from '#shared/database/interfaces/IItemRepository.js';
-import { IQuizItem, ItemType } from '#shared/interfaces/models.js';
+import { IQuizItem, ItemType, IDetectorSettings } from '#shared/interfaces/models.js';
 import { instanceToPlain } from 'class-transformer';
 import { injectable, inject } from 'inversify';
 import { Collection, ClientSession, ObjectId } from 'mongodb';
@@ -1032,6 +1032,57 @@ export class ItemRepository implements IItemRepository {
     const result = await collection.findOneAndUpdate(
       { _id: new ObjectId(itemId) },
       { $set: item },
+      { session, returnDocument: 'after' },
+    );
+
+    if (!result) {
+      throw new NotFoundError(`Item ${itemId} not found.`);
+    }
+
+    return result as Item;
+  }
+
+  async updateItemProctoringOverride(
+    itemId: string,
+    itemType: string,
+    detectors: IDetectorSettings[] | null,
+    session?: ClientSession,
+  ): Promise<Item> {
+    await this.init();
+    let collection: Collection<any>;
+    switch (itemType) {
+      case ItemType.VIDEO:
+        collection = this.videoCollection;
+        break;
+      case ItemType.QUIZ:
+        collection = this.quizCollection;
+        break;
+      case ItemType.BLOG:
+        collection = this.blogCollection;
+        break;
+      case ItemType.PROJECT:
+        collection = this.projectCollection;
+        break;
+      case ItemType.FEEDBACK:
+        collection = this.feedbackFormCollection;
+        break;
+      case ItemType.REFLECTION:
+        collection = this.reflectionCollection;
+        break;
+      default:
+        throw new InternalServerError(
+          `Unsupported item type: ${itemType}`,
+        );
+    }
+
+    const update =
+      detectors === null
+        ? { $unset: { proctoringDetectors: '' } }
+        : { $set: { proctoringDetectors: detectors } };
+
+    const result = await collection.findOneAndUpdate(
+      { _id: new ObjectId(itemId) },
+      update,
       { session, returnDocument: 'after' },
     );
 

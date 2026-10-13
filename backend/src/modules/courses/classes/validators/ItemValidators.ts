@@ -39,8 +39,13 @@ import {
   IProjectDetails,
   IFeedBackFormDetails,
   VideoSource,
+  IDetectorSettings,
 } from '#root/shared/interfaces/models.js';
 import { OnlyOneId } from './customValidators.js';
+import {
+  DetectorSettingsDto,
+  containsAllDetectors,
+} from '#root/modules/setting/classes/validators/CourseSettingValidators.js';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -719,6 +724,47 @@ class VersionItemParams {
   courseId: string;
 }
 
+/**
+ * `VersionItemParams` requires `courseId`, but this endpoint's route
+ * (`/versions/:versionId/items/:itemId/proctoring`) has no `:courseId`
+ * segment -- reusing it would make every request fail param validation with
+ * a missing-field 400 before the handler ever runs.
+ */
+class ItemProctoringParams {
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+
+  @JSONSchema({
+    title: 'Item ID',
+    description: 'ID of the item',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  itemId: string;
+}
+
+class ItemProctoringBody {
+  @JSONSchema({
+    title: 'Item Proctoring Detector Override',
+    description:
+      "Overrides the module/course proctoring detector list for this item. Pass null to clear the override and inherit again. When not null, must list every detector (same shape as the course-level proctoring settings).",
+    type: 'array',
+    nullable: true,
+  })
+  @ValidateIf(o => o.detectors !== null)
+  @ValidateNested({each: true})
+  @containsAllDetectors()
+  @Type(() => DetectorSettingsDto)
+  detectors: IDetectorSettings[] | null;
+}
+
 class DeleteItemParams {
   @JSONSchema({
     title: 'Items Group ID',
@@ -1174,6 +1220,8 @@ export {
   CSVItemBody,
   CSVQuizQuestion,
   VersionItemParams,
+  ItemProctoringParams,
+  ItemProctoringBody,
   DeleteItemParams,
   ItemNotFoundErrorResponse,
   ItemDataResponse,
@@ -1197,6 +1245,8 @@ export const ITEM_VALIDATORS = [
   CSVItemBody,
   CSVQuizQuestion,
   VersionItemParams,
+  ItemProctoringParams,
+  ItemProctoringBody,
   DeleteItemParams,
   ItemNotFoundErrorResponse,
   ItemDataResponse,

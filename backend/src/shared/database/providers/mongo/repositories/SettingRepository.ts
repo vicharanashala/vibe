@@ -1075,7 +1075,7 @@ export class SettingRepository implements ISettingRepository {
   async getisHpSystemEnabled(courseVersionId: ObjectId): Promise<boolean> {
     await this.init();
     const result=await this.courseSettingsCollection.findOne({courseVersionId:courseVersionId});
-    return result.settings?.hpSystem ?? false;
+    return result?.settings?.hpSystem ?? false;
   }
 
   async isLinearProgressionEnabledByVersionId(
@@ -1085,7 +1085,7 @@ export class SettingRepository implements ISettingRepository {
     await this.init();
     const versionId = toObjectId(courseVersionId,"versionId")
     const result = await this.courseSettingsCollection.findOne({courseVersionId:versionId},{session});
-    return result.settings.linearProgressionEnabled;
+    return result?.settings?.linearProgressionEnabled ?? false;
    }
 
    async shouldRandomize(versionId:string): Promise<boolean>{
