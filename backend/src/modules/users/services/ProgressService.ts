@@ -2511,20 +2511,37 @@ class ProgressService extends BaseService {
       // ----------------------------------------------------
       if (item.type !== 'QUIZ') {
         if (!isSkipped) {
-          /**
-           * IMPORTANT:
-           * stopItemTracking should ideally be idempotent.
-           * If already stopped, do not hard-fail unless your business logic requires it.
-           */
-          stoppedWatchTime = await this.progressRepository.stopItemTracking(
-            watchItemId,
-            session,
-          );
+          // Closes this student's open session for this item, falling back
+          // from a stale client watchItemId to the latest open one.
+          stoppedWatchTime =
+            await this.progressRepository.stopItemTrackingForItem(
+              watchItemId,
+              userId,
+              courseId,
+              courseVersionId,
+              itemId,
+              cohortId,
+              session,
+            );
 
           if (!stoppedWatchTime) {
-            // Record was already closed by a concurrent request (endTime already
-            // set). Treat as idempotent success — progress has already advanced.
-            return;
+            // A concurrent stop may have completed the item already, which is
+            // a genuine success. Otherwise nothing was completed, and saying
+            // so lets the client keep the student on this item instead of
+            // moving them on to a lesson the server will refuse to open.
+            const completedMeanwhile =
+              await this.progressRepository.isItemCompleted(
+                userId,
+                courseId,
+                courseVersionId,
+                itemId,
+                cohortId,
+                session,
+              );
+            if (completedMeanwhile) return;
+            throw new BadRequestError(
+              'Your progress on this lesson was not saved. Please reload the page and play it again.',
+            );
           }
 
           await this.validateItemStopEligibility(

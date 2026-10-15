@@ -740,6 +740,59 @@ class ProgressRepository {
   }
 
   /**
+   * Close the student's open watch session for one item, for the live stop
+   * path.
+   *
+   * stopItemTracking trusts the client's watchTimeId outright. After a refresh
+   * the client can send a stale id (the course store keeps it in
+   * localStorage): a session from before the refresh, or another item's
+   * session that is already closed. That used to match nothing, stopItem took
+   * it for a concurrent duplicate and returned success, and the item never
+   * completed — the next lesson then refused to open until progress was reset.
+   *
+   * The given id is used only if it is this student's open session for this
+   * item. Otherwise the most recent open session for the item is closed, which
+   * is the one the student just watched. Returns null when the student has no
+   * open session for the item at all.
+   */
+  async stopItemTrackingForItem(
+    watchTimeId: string,
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IWatchTime | null> {
+    await this.init();
+    const openSession = {
+      userId: new ObjectId(userId),
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      itemId: new ObjectId(itemId),
+      ...(cohortId ? this.cohortIdMatch(cohortId) : {}),
+      isDeleted: {$ne: true},
+      endTime: {$exists: false},
+    };
+    const close = {$set: {endTime: new Date()}};
+
+    if (ObjectId.isValid(watchTimeId)) {
+      const exact = await this.watchTimeCollection.findOneAndUpdate(
+        {...openSession, _id: new ObjectId(watchTimeId)},
+        close,
+        {returnDocument: 'after', session},
+      );
+      if (exact) return exact;
+    }
+
+    return this.watchTimeCollection.findOneAndUpdate(openSession, close, {
+      sort: {startTime: -1},
+      returnDocument: 'after',
+      session,
+    });
+  }
+
+  /**
    * Watch sessions that were started but never stopped.
    *
    * Completion is modelled as "a watchTime row with a non-null endTime", so a

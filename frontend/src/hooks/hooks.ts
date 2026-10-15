@@ -1943,44 +1943,6 @@ export function useStartItem(): {
 }
 
 // POST /users/progress/courses/{courseId}/versions/{courseVersionId}/stop
-// export function useStopItem(): {
-//   mutate: (variables: {
-//     params: { path: { courseId: string, courseVersionId: string } }, body: {
-//       watchItemId: string;
-//       itemId: string;
-//       sectionId: string;
-//       moduleId: string;
-//       attemptId?: string | null | undefined;
-//       isSkipped?: boolean
-//     }
-//   }) => void,
-//   mutateAsync: (variables: {
-//     params: { path: { courseId: string, courseVersionId: string } }, body: {
-//       watchItemId: string;
-//       itemId: string;
-//       sectionId: string;
-//       moduleId: string;
-//       attemptId?: string | null | undefined;
-//       isSkipped?: boolean
-//     }
-//   }) => Promise<unknown>,
-//   data: unknown | undefined,
-//   error: string | null,
-//   isPending: boolean,
-//   isSuccess: boolean,
-//   isError: boolean,
-//   isIdle: boolean,
-//   reset: () => void,
-//   status: 'idle' | 'pending' | 'success' | 'error'
-// } {
-//   const result = api.useMutation("post", "/users/progress/courses/{courseId}/versions/{courseVersionId}/stop");
-//   return {
-//     ...result,
-//     error: result.error ? (result.error.message || 'Failed to stop item') : null
-//   };
-// }
-
-
 export function useStopItem() {
   const queryClient = useQueryClient();
 
@@ -1991,43 +1953,30 @@ export function useStopItem() {
       retry: 5,
       retryDelay: (attempt) => 1000 * attempt,
 
-      onSuccess: (_data, variables) => {
-        const {
-          params: {
-            path: { courseId, courseVersionId },
-          },
-          body: { itemId, cohortId },
-        } = variables;
-
-        //  queryClient.invalidateQueries({
-        //   queryKey: [
-        //     "get",
-        //     "/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items",
-        //     {
-        //       params: {
-        //         path: {
-        //           versionId: courseVersionId,
-        //           moduleId,
-        //           sectionId,
-        //         },
-        //       },
-        //     },
-        //   ],
-        // });
+      onSuccess: () => {
+        // Items list for the completed section — matches useItemsBySectionId's
+        // real cache key (openapi-fetch stores the literal path-template
+        // string as the query key, not an interpolated one).
         queryClient.invalidateQueries({
           predicate: (query) =>
             query.queryKey[0] === "get" &&
             query.queryKey[1] ===
             `/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items`,
         });
+        // The progress bookmark useUserProgress populates -- this is what
+        // isItemLocked() in course-page.tsx reads. useUserProgress passes
+        // this path as a literal (unlike useModuleProgress, which
+        // interpolates real ids into its path and so needs a different
+        // match), so without this the lock check kept seeing the
+        // pre-completion bookmark for up to the 5-minute staleTime, showing
+        // the next item as locked even though the server had already
+        // unlocked it.
         queryClient.invalidateQueries({
           predicate: (query) =>
             query.queryKey[0] === "get" &&
             query.queryKey[1] ===
-            "/users/progress/courses/{courseId}/versions/{versionId}/modules",
+            "/users/progress/courses/{courseId}/versions/{courseVersionId}",
         });
-
-
       },
     }
   );
