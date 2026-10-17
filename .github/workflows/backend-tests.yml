@@ -1,0 +1,94 @@
+name: Backend Tests (Vitest)
+
+# Runs the backend Vitest suite. Needs no secrets: MongoDB comes from
+# mongodb-memory-server (backend/test/globalSetup.ts) and Firebase Auth from
+# the local emulator, so it behaves the same for same-repo and fork PRs.
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/backend-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/backend-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FIREBASE_TOOLS_VERSION: 15.34.0
+
+jobs:
+  vitest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # No version pin: action-setup reads the root package.json `packageManager`.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install backend dependencies
+        run: pnpm install --frozen-lockfile --filter ./backend...
+
+      # mongodb-memory-server downloads an ~80MB mongod binary on first use.
+      - name: Cache MongoDB binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: mongodb-binaries-${{ runner.os }}-
+
+      # The Auth emulator is pure Node, so no Java setup is needed.
+      - name: Start Firebase Auth emulator
+        working-directory: backend
+        run: |
+          npx --yes firebase-tools@${FIREBASE_TOOLS_VERSION} emulators:start \
+            --only auth --project demo-test > "$RUNNER_TEMP/firebase-emulator.log" 2>&1 &
+          # First run downloads firebase-tools, which took ~55s locally.
+          for i in $(seq 1 120); do
+            curl -sf http://127.0.0.1:9099/ > /dev/null && exit 0
+            sleep 1
+          done
+          echo "Auth emulator did not start" >&2
+          cat "$RUNNER_TEMP/firebase-emulator.log" >&2
+          exit 1
+
+      - name: Run Vitest
+        working-directory: backend
+        env:
+          FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:9099
+          GCLOUD_PROJECT: demo-test
+        run: >
+          pnpm exec vitest run
+          --reporter=default
+          --reporter=github-actions
+          --reporter=junit
+          --outputFile.junit=test-results/junit.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: backend/test-results/
+          if-no-files-found: ignore
