@@ -23,6 +23,12 @@ export default defineConfig({
     },
   },
   server: {
+    // Allows a Cloudflare quick-tunnel's Host header through — Vite rejects
+    // unrecognized hosts by default. Opt-in only (VITE_ALLOW_ALL_HOSTS=true)
+    // for that throwaway-tunnel workflow; `true` unconditionally here would
+    // leave every `pnpm dev` open to DNS-rebinding regardless of whether
+    // anyone's actually tunneling it.
+    allowedHosts: process.env.VITE_ALLOW_ALL_HOSTS === 'true' ? true : undefined,
     proxy: {
       // Proxy API requests to staging backend to avoid CORS issues
       '/api': {
