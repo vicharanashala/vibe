@@ -1,0 +1,189 @@
+name: Backend Tests PR Comment
+
+# Posts the Backend Tests (Vitest) result on the PR it ran for. It runs from
+# the default branch with write access, which fork PRs never get, so it must
+# never check out or execute PR code: it only reads the uploaded results.
+#
+# Failures are compared with the latest main run. Only failures that main
+# doesn't already have are attributed to the PR, and only then is the author
+# asked to fix them.
+
+on:
+  workflow_run:
+    workflows: ['Backend Tests (Vitest)']
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+jobs:
+  comment:
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion != 'cancelled' &&
+      github.event.workflow_run.conclusion != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      - name: Download PR results
+        run: gh run download "$RUN_ID" -R "$REPO" -n backend-test-results -D pr || true
+
+      - name: Resolve PR
+        id: pr
+        run: |
+          PR=$(cat pr/pr-number 2>/dev/null || true)
+          if ! [[ "$PR" =~ ^[0-9]+$ ]]; then
+            echo "No PR number in the results; nothing to comment on."
+            exit 0
+          fi
+          # The artifact is written by PR code, so confirm it names the PR
+          # this run was really for.
+          read -r PR_SHA AUTHOR < <(gh api "repos/$REPO/pulls/$PR" --jq '"\(.head.sha) \(.user.login)"')
+          if [ "$PR_SHA" != "$HEAD_SHA" ]; then
+            echo "PR #$PR head is $PR_SHA, run was for $HEAD_SHA; skipping."
+            exit 0
+          fi
+          echo "number=$PR" >> "$GITHUB_OUTPUT"
+          echo "author=$AUTHOR" >> "$GITHUB_OUTPUT"
+
+      - name: Download main baseline
+        if: steps.pr.outputs.number
+        run: |
+          BASE_RUN=$(gh run list -R "$REPO" --workflow backend-tests.yml --branch main \
+            --event push --status completed -L 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -n "$BASE_RUN" ]; then
+            gh run download "$BASE_RUN" -R "$REPO" -n backend-test-results -D base || true
+          fi
+
+      - name: Build comment
+        if: steps.pr.outputs.number
+        env:
+          AUTHOR: ${{ steps.pr.outputs.author }}
+        run: |
+          node - <<'EOF'
+          const fs = require('fs');
+          const MARKER = '<!-- backend-tests-report -->';
+          const MAX_LISTED = 30;
+
+          const decode = (s) => s
+            .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+            .replace(/&apos;/g, "'").replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+            .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d)).replace(/&amp;/g, '&');
+          // Test output is untrusted: keep it on one line, inert, and short.
+          const clean = (s, max) => {
+            const line = decode(s).replace(/\x1b\[[0-9;]*m/g, '').split('\n').find((l) => l.trim()) ?? '';
+            const t = line.trim().replace(/`/g, "'").replace(/@/g, '@​').replace(/</g, '‹').replace(/>/g, '›');
+            return t.length > max ? t.slice(0, max - 1) + '…' : t;
+          };
+
+          function parse(path) {
+            if (!fs.existsSync(path)) return null;
+            const xml = fs.readFileSync(path, 'utf8');
+            const res = { total: 0, skipped: 0, failures: new Map() };
+            for (const m of xml.matchAll(/<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g)) {
+              const attrs = Object.fromEntries([...m[1].matchAll(/(\w+)="([^"]*)"/g)].map((a) => [a[1], a[2]]));
+              const body = m[2] ?? '';
+              res.total++;
+              if (/<skipped\b/.test(body)) { res.skipped++; continue; }
+              const f = body.match(/<(?:failure|error)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:failure|error)>)/);
+              if (!f) continue;
+              const msg = f[1].match(/message="([^"]*)"/)?.[1] || f[2] || '';
+              const file = decode(attrs.classname ?? 'unknown');
+              res.failures.set(`${file} > ${decode(attrs.name ?? '')}`, { file, name: attrs.name ?? '', msg });
+            }
+            return res;
+          }
+
+          const pr = parse('pr/junit.xml');
+          const base = parse('base/junit.xml');
+          const author = process.env.AUTHOR;
+          const out = [MARKER];
+
+          if (!pr) {
+            out.push(
+              '### ⚠️ Backend tests did not finish',
+              '',
+              `@${author}, the test run stopped before producing results (install or setup failure). ` +
+              `Please check the [run log](${process.env.RUN_URL}) and fix it.`,
+            );
+          } else {
+            const all = [...pr.failures.entries()];
+            const isNew = ([id]) => !base || !base.failures.has(id);
+            const newFails = all.filter(isNew).map(([, v]) => v);
+            const oldFails = all.filter((e) => !isNew(e)).map(([, v]) => v);
+            const passed = pr.total - pr.skipped - all.length;
+            const counts = `${passed} passed · ${all.length} failed · ${pr.skipped} skipped (${pr.total} tests)`;
+
+            const list = (fails) => {
+              const byFile = new Map();
+              for (const f of fails) byFile.set(f.file, [...(byFile.get(f.file) ?? []), f]);
+              const lines = [];
+              let shown = 0;
+              for (const [file, fs_] of byFile) {
+                if (shown >= MAX_LISTED) break;
+                lines.push(`- \`${clean(file, 120)}\``);
+                for (const f of fs_) {
+                  if (shown++ >= MAX_LISTED) break;
+                  lines.push(`  - ${clean(f.name, 140)}: \`${clean(f.msg, 160)}\``);
+                }
+              }
+              if (fails.length > MAX_LISTED) lines.push(`- …and ${fails.length - MAX_LISTED} more, see the run log.`);
+              return lines;
+            };
+
+            if (newFails.length) {
+              out.push(
+                `### ❌ Backend tests: ${newFails.length} new failure${newFails.length === 1 ? '' : 's'}`,
+                '',
+                `@${author}, this PR makes the following backend tests fail` +
+                (base ? ' (they pass on `main`)' : '') + '. Please fix them and push again.',
+                '',
+                ...list(newFails),
+              );
+              if (!base) out.push('', '_No `main` run to compare against yet, so every failure is listed here._');
+            } else {
+              out.push(`### ✅ Backend tests: no new failures`);
+            }
+            out.push('', counts);
+            if (oldFails.length) {
+              out.push(
+                '',
+                `<details><summary>${oldFails.length} test${oldFails.length === 1 ? '' : 's'} already failing on <code>main</code> (not caused by this PR)</summary>`,
+                '',
+                ...list(oldFails),
+                '',
+                '</details>',
+              );
+            }
+          }
+          out.push('', `[Full run log](${process.env.RUN_URL}) · commit \`${process.env.HEAD_SHA.slice(0, 7)}\``);
+          fs.writeFileSync('comment.md', out.join('\n') + '\n');
+          fs.writeFileSync('needs-attention', pr && [...pr.failures.keys()].some((id) => !base || !base.failures.has(id)) || !pr ? '1' : '0');
+          EOF
+          cat comment.md
+
+      - name: Post or update comment
+        if: steps.pr.outputs.number
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          EXISTING=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- backend-tests-report -->"))) | .id' | head -1)
+          if [ -n "$EXISTING" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$EXISTING" -F body=@comment.md > /dev/null
+            echo "Updated comment $EXISTING"
+          elif [ "$(cat needs-attention)" = "1" ]; then
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@comment.md > /dev/null
+            echo "Posted comment"
+          else
+            echo "No new failures and no earlier comment; not posting."
+          fi

@@ -85,6 +85,16 @@ jobs:
           --reporter=junit
           --outputFile.junit=test-results/junit.xml
 
+      # Read by backend-tests-comment.yml, which posts the PR comment. This
+      # run's token is read-only on fork PRs, so it can't comment itself.
+      - name: Record PR metadata
+        if: always() && github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p backend/test-results
+          echo "$PR_NUMBER" > backend/test-results/pr-number
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
