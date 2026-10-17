@@ -46,10 +46,19 @@ export class SlotBookingService extends BaseService {
     super(mongoDatabase);
   }
 
+  /**
+   * Rolling window (days) over which UNFULFILLED slots count as "wasted hours"
+   * in the student-facing warning. Keeps the warning a recent-accountability
+   * signal that decays once the student gets back on track, not an all-time tally.
+   */
+  private static readonly LOST_HOURS_WINDOW_DAYS = 7;
+
   /** How many days before the study day booking opens. */
   private static readonly BOOKING_OPEN_LEAD_DAYS = 2;
-  /** Hour (IST) at which booking opens on D-2 and closes on D. */
-  private static readonly BOOKING_CUTOFF_HOUR = 9;
+  /** Hour (IST) at which booking opens on D-2. */
+  private static readonly BOOKING_OPEN_HOUR = 9;
+  /** Hours before a slot's start after which it can no longer be cancelled. */
+  private static readonly CANCEL_CUTOFF_HOURS = 1;
 
   /** IST "now" as epoch ms whose UTC fields read as the IST wall clock. */
   private getISTNowMs(): number {
@@ -76,26 +85,35 @@ export class SlotBookingService extends BaseService {
   }
 
   /**
-   * Booking window for study day D: opens at 09:00 IST on D-2 and closes at
-   * 09:00 IST on D. So at any moment a student may book today (only before
-   * 9 AM), tomorrow (all day), and the day after tomorrow (only from 9 AM).
-   * Returns the open/close instants as IST-space epoch ms.
+   * When booking opens for study day D: 09:00 IST on D-2. Returned as an
+   * IST-space epoch ms. A student may book today, tomorrow, and the day after
+   * tomorrow (the latter only once its 09:00 IST D-2 open time is reached).
    */
-  private bookingWindowForDate(date: string): {openMs: number; closeMs: number} {
+  private bookingOpenMs(date: string): number {
     const [y, m, d] = date.split('-').map(Number);
-    const closeMs = Date.UTC(
+    const nineAm = Date.UTC(
       y,
       m - 1,
       d,
-      SlotBookingService.BOOKING_CUTOFF_HOUR,
+      SlotBookingService.BOOKING_OPEN_HOUR,
       0,
       0,
       0,
     );
-    const openMs =
-      closeMs -
-      SlotBookingService.BOOKING_OPEN_LEAD_DAYS * 24 * 60 * 60 * 1000;
-    return {openMs, closeMs};
+    return (
+      nineAm - SlotBookingService.BOOKING_OPEN_LEAD_DAYS * 24 * 60 * 60 * 1000
+    );
+  }
+
+  /**
+   * When a specific slot closes for booking: its own start time on study day D.
+   * A slot can be booked right up until it starts; once it has begun it can no
+   * longer be booked. Returned as an IST-space epoch ms.
+   */
+  private slotCloseMs(date: string, from: string): number {
+    const [y, m, d] = date.split('-').map(Number);
+    const [h, min] = from.split(':').map(Number);
+    return Date.UTC(y, m - 1, d, h, min, 0, 0);
   }
 
   private toMinutes(time: string): number {
@@ -177,8 +195,10 @@ export class SlotBookingService extends BaseService {
         throw new BadRequestError('Invalid booking date.');
       }
 
-      // The booking window: opens 09:00 IST on D-2, closes 09:00 IST on D.
-      const {openMs, closeMs} = this.bookingWindowForDate(date);
+      // The booking window: opens 09:00 IST on D-2, and a slot stays bookable
+      // right up until it starts (it closes at its own start time on D).
+      const openMs = this.bookingOpenMs(date);
+      const closeMs = this.slotCloseMs(date, slot.from);
       const nowMs = this.getISTNowMs();
       if (nowMs < openMs) {
         throw new BadRequestError(
@@ -188,8 +208,8 @@ export class SlotBookingService extends BaseService {
       }
       if (nowMs >= closeMs) {
         throw new BadRequestError(
-          `Booking for ${date} has closed. ` +
-            'Bookings close at 9:00 AM IST on the study day.',
+          `Booking for the ${slot.from}–${slot.to} slot on ${date} has closed. ` +
+            'A slot can be booked up until it starts.',
         );
       }
 
@@ -232,59 +252,72 @@ export class SlotBookingService extends BaseService {
           ).length
         : 0;
       const effectiveAllowance = baseAllowance + bonusesToday;
-      if (madeToday.length >= effectiveAllowance) {
+      // A booking beyond the normal daily allowance (base + earned bonus) is
+      // only permitted by drawing from the instructor-awarded extra-bookings
+      // pool. Such grant bookings bypass the capacity cap and the hours budget.
+      const extraBookingsPool =
+        (enrollment as {commitmentExtraBookings?: number})
+          .commitmentExtraBookings ?? 0;
+      const usingGrant = madeToday.length >= effectiveAllowance;
+      if (usingGrant && extraBookingsPool <= 0) {
         const earned = bonusesToday > 0 ? ` (+${bonusesToday} bonus)` : '';
         throw new BadRequestError(
           `You have used your ${effectiveAllowance} booking(s) for today${earned}.`,
         );
       }
-      // A booking beyond the base allowance is a bonus booking.
+      // A booking beyond the base allowance is an extra (bonus) booking.
       const kind =
         madeToday.length >= baseAllowance
           ? SlotBookingKind.BONUS
           : SlotBookingKind.BASE;
 
-      // Hard capacity cap — the per-window concurrency ceiling.
-      if (configured.maxStudents) {
-        const taken = await this.slotBookingRepo.countActiveInSlot(
-          courseId,
-          courseVersionId,
-          date,
-          slot,
-          session,
-        );
-        if (taken >= configured.maxStudents) {
-          throw new BadRequestError(
-            'This time slot is full. Please choose another.',
-          );
-        }
-      }
-
       const hoursReserved = this.slotHours(slot.from, slot.to);
 
-      // Per-course hours budget — the "committed hours" ceiling, plus any extra
-      // hours an instructor has granted this student. A booking reserves its
-      // hours; the student can't exceed their budget. Undefined = unlimited.
-      if (timeslots.totalBudgetHours != null) {
-        const budget =
-          timeslots.totalBudgetHours +
-          ((enrollment as {commitmentExtraHours?: number})
-            .commitmentExtraHours ?? 0);
-        const consumed = await this.slotBookingRepo.sumReservedHoursForStudent(
-          userId,
-          courseId,
-          courseVersionId,
-          session,
-        );
-        if (consumed + hoursReserved > budget) {
-          const remaining = Math.max(
-            0,
-            Math.round((budget - consumed) * 100) / 100,
+      // Capacity cap and hours budget apply to normal bookings only; an awarded
+      // grant booking bypasses both by design.
+      if (!usingGrant) {
+        // Hard capacity cap — the per-window concurrency ceiling.
+        if (configured.maxStudents) {
+          const taken = await this.slotBookingRepo.countActiveInSlot(
+            courseId,
+            courseVersionId,
+            date,
+            slot,
+            session,
           );
-          throw new BadRequestError(
-            `This booking (${hoursReserved}h) exceeds your committed hours for this course. ` +
-              `You have ${remaining}h of ${budget}h remaining.`,
-          );
+          if (taken >= configured.maxStudents) {
+            throw new BadRequestError(
+              'This time slot is full. Please choose another.',
+            );
+          }
+        }
+
+        // Per-course hours budget — the "committed hours" ceiling, plus any
+        // extra hours an instructor has granted this student. A booking reserves
+        // its hours; the student can't exceed their budget. Undefined =
+        // unlimited.
+        if (timeslots.totalBudgetHours != null) {
+          const budget =
+            timeslots.totalBudgetHours +
+            ((enrollment as {commitmentExtraHours?: number})
+              .commitmentExtraHours ?? 0);
+          const consumed =
+            await this.slotBookingRepo.sumReservedHoursForStudent(
+              userId,
+              courseId,
+              courseVersionId,
+              session,
+            );
+          if (consumed + hoursReserved > budget) {
+            const remaining = Math.max(
+              0,
+              Math.round((budget - consumed) * 100) / 100,
+            );
+            throw new BadRequestError(
+              `This booking (${hoursReserved}h) exceeds your committed hours for this course. ` +
+                `You have ${remaining}h of ${budget}h remaining.`,
+            );
+          }
         }
       }
 
@@ -314,11 +347,24 @@ export class SlotBookingService extends BaseService {
       if (!created) {
         throw new InternalServerError('Failed to create the booking.');
       }
+      // Draw one from the awarded pool when this booking exceeded the normal
+      // daily allowance, so each grant is single-use.
+      if (usingGrant) {
+        await this.enrollmentService.consumeCommitmentExtraBooking(
+          String(enrollment._id),
+          session,
+        );
+      }
       return created;
     });
   }
 
-  /** Cancel one of the student's own bookings (used for re-booking / changes). */
+  /**
+   * Cancel one of the student's own bookings (used for re-booking / changes).
+   * Only allowed up to CANCEL_CUTOFF_HOURS before the slot starts — once inside
+   * that window (or after the slot has started) it can no longer be cancelled
+   * and counts as an unused slot, which the fulfilment job marks UNFULFILLED.
+   */
   async cancelBooking(userId: string, bookingId: string): Promise<boolean> {
     return this._withTransaction(async (session) => {
       const booking = await this.slotBookingRepo.findById(bookingId, session);
@@ -327,6 +373,19 @@ export class SlotBookingService extends BaseService {
       }
       if (String(booking.userId) !== String(userId)) {
         throw new ForbiddenError('You can only cancel your own bookings.');
+      }
+      // Lock cancellation within the cutoff window before the slot starts.
+      if (booking.date && booking.from) {
+        const startMs = this.slotCloseMs(booking.date, booking.from);
+        const cancelDeadlineMs =
+          startMs -
+          SlotBookingService.CANCEL_CUTOFF_HOURS * 60 * 60 * 1000;
+        if (this.getISTNowMs() >= cancelDeadlineMs) {
+          throw new BadRequestError(
+            `Bookings can only be cancelled up to ${SlotBookingService.CANCEL_CUTOFF_HOURS} hour before the slot starts. ` +
+              'It will count as an unused slot if you do not attend.',
+          );
+        }
       }
       return this.slotBookingRepo.cancelBooking(bookingId, session);
     });
@@ -345,6 +404,117 @@ export class SlotBookingService extends BaseService {
       courseVersionId,
       date,
     );
+  }
+
+  /**
+   * The size of a student's awarded extra-bookings pool — how many bookings
+   * they may still make beyond their normal daily allowance. Lets the client
+   * keep the "Book" action enabled when an instructor has granted extras.
+   */
+  async getStudentExtraBookings(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+  ): Promise<number> {
+    let enrollment = await this.enrollmentService.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
+    if (!enrollment && cohortId) {
+      enrollment = await this.enrollmentService.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+    }
+    return (
+      (enrollment as {commitmentExtraBookings?: number} | null)
+        ?.commitmentExtraBookings ?? 0
+    );
+  }
+
+  /**
+   * A student's committed-hours summary for the course: their budget, the hours
+   * they've reserved against it, and — the part worth surfacing — the hours
+   * LOST to unused (UNFULFILLED) slots. Lets the UI warn e.g. "you've lost 2h of
+   * your 16h budget to missed slots." `hasBudget` is false when the course sets
+   * no hours budget (everything is then unlimited).
+   */
+  async getStudentHoursSummary(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    cohortId?: string,
+  ): Promise<{
+    hasBudget: boolean;
+    budgetHours: number | null;
+    reservedHours: number;
+    lostHours: number;
+    remainingHours: number | null;
+  }> {
+    const timeslots = await this.settingsRepo.readTimeslotsSettings(
+      courseId,
+      courseVersionId,
+    );
+    let enrollment = await this.enrollmentService.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
+    if (!enrollment && cohortId) {
+      enrollment = await this.enrollmentService.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+      );
+    }
+
+    // Only recent misses count toward the warning, so it decays as the student
+    // recovers rather than lingering for the life of the course.
+    const lostSince = this.formatISTDate(
+      this.getISTNowMs() -
+        SlotBookingService.LOST_HOURS_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    );
+    const [reservedHours, lostHours] = await Promise.all([
+      this.slotBookingRepo.sumReservedHoursForStudent(
+        userId,
+        courseId,
+        courseVersionId,
+      ),
+      this.slotBookingRepo.sumUnfulfilledHoursForStudent(
+        userId,
+        courseId,
+        courseVersionId,
+        lostSince,
+      ),
+    ]);
+    const round = (n: number) => Math.round(n * 100) / 100;
+
+    const base = timeslots?.totalBudgetHours;
+    if (base == null) {
+      return {
+        hasBudget: false,
+        budgetHours: null,
+        reservedHours: round(reservedHours),
+        lostHours: round(lostHours),
+        remainingHours: null,
+      };
+    }
+    const budgetHours =
+      base +
+      ((enrollment as {commitmentExtraHours?: number} | null)
+        ?.commitmentExtraHours ?? 0);
+    return {
+      hasBudget: true,
+      budgetHours: round(budgetHours),
+      reservedHours: round(reservedHours),
+      lostHours: round(lostHours),
+      remainingHours: round(Math.max(0, budgetHours - reservedHours)),
+    };
   }
 
   /**

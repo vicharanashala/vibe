@@ -9,6 +9,7 @@ import { ActivityRepository } from "../repositories/index.js";
 import { BadRequestError, NotFoundError } from "routing-controllers";
 import { IActivitySubmissionRepository } from "../interfaces/IActivitySubmissionRepository.js";
 import { HpResetMode } from "../models.js";
+import { HpAccessService } from "./hpAccessService.js";
 
 
 const EXISTING_COHORTS_MAP: Record<string, Record<string, string>> = {
@@ -47,6 +48,9 @@ export class CohortsService extends BaseService {
         @inject(GLOBAL_TYPES.SettingRepo)
         private readonly settingsRepository: ISettingRepository,
 
+        @inject(HP_SYSTEM_TYPES.hpAccessService)
+        private readonly hpAccessService: HpAccessService,
+
     ) {
         super(mongoDatabase);
     }
@@ -60,14 +64,16 @@ export class CohortsService extends BaseService {
                     {
                         courseVersionId: "000000000000000000000001",
                         versionName: "Pinternship",
-                        totalCohorts: 4, 
+                        totalCohorts: 4,
                         createdAt: "2025-12-18T07:52:42Z",
+                        hpEnabled: true,
                     },
                     {
                         courseVersionId: "000000000000000000000002",
                         versionName: "Vinternship",
-                        totalCohorts: 3, 
+                        totalCohorts: 3,
                         createdAt: "2025-12-18T07:52:42Z",
+                        hpEnabled: true,
                     }
                 ]
             }
@@ -669,6 +675,8 @@ export class CohortsService extends BaseService {
         throw new NotFoundError('Cohort Not found');
       }
 
+      await this.hpAccessService.assertEnabled(resolved.courseVersionId);
+
       return this.cohortRepository.resetHpforCohort(
         resolved.courseVersionId.toString(),
         resolved._id!.toString(),
@@ -697,6 +705,8 @@ export class CohortsService extends BaseService {
         if (!resolved) {
             throw new NotFoundError('Cohort Not found');
         }
+
+        await this.hpAccessService.assertEnabled(resolved.courseVersionId);
 
         return this.cohortRepository.resetHpForStudent(
             resolved.courseVersionId.toString(),

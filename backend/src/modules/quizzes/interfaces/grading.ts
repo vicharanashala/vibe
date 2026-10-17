@@ -38,6 +38,11 @@ interface IQuestionAnswer {
   questionId: string | ObjectId;
   questionType: string;
   answer: Answer;
+  /**
+   * Stage-2 crowd questions only: the student's 👍/👎 on the ungraded peer
+   * question. Ignored for graded questions.
+   */
+  thumb?: 'UP' | 'DOWN';
 }
 
 interface IAttempt {
@@ -108,6 +113,13 @@ interface IQuestionDetails {
    * STUDENT_GENERATED entries are rendered ungraded; grading skips them.
    */
   source?: 'STUDENT_GENERATED';
+  /**
+   * Stage-2 crowd questions only: the lot-item id (from the shuffled render
+   * view) that is the correct answer. Persisted at serve time because the peer
+   * render view's lot-item ids are generated fresh per attempt and aren't
+   * otherwise recoverable. Used to score the ungraded response at capture.
+   */
+  peerCorrectLotItemId?: ObjectId;
 }
 
 interface IQuestionAnswerFeedback {

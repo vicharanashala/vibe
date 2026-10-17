@@ -49,6 +49,8 @@ export default function ConfigureCohorts() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isCancelInvitesConfirmOpen, setIsCancelInvitesConfirmOpen] = useState(false)
+  const [pendingInviteCount, setPendingInviteCount] = useState(0)
   const [cohortName, setCohortName] = useState("")
   const [selectedCohort, setSelectedCohort] = useState<any>(null)
   const [isSearching, setIsSearching] = useState(false);
@@ -212,18 +214,26 @@ export default function ConfigureCohorts() {
     }
   }
 
-  const deleteCohort = async () => {
+  const deleteCohort = async (confirmCancelInvites: boolean = false) => {
     try{
-        await deleteMutation.mutateAsync({
+        const result = await deleteMutation.mutateAsync({
         params: {
             path: {
             courseId : courseId??"",
             versionId: versionId??"",
             cohortId: selectedCohort.id
-            }
+            },
+            query: confirmCancelInvites ? { confirmCancelInvites: true } : undefined
         }
         })
+        if (result?.requiresConfirmation) {
+          setIsDeleteOpen(false)
+          setPendingInviteCount(result.pendingInviteCount ?? 0)
+          setIsCancelInvitesConfirmOpen(true)
+          return
+        }
         setIsDeleteOpen(false)
+        setIsCancelInvitesConfirmOpen(false)
         refetch()
         toast.success("Cohort deleted successfully")
     }catch(err: any){
@@ -741,7 +751,7 @@ export default function ConfigureCohorts() {
           </p>
           <Button
             variant="destructive"
-            onClick={deleteCohort}
+            onClick={() => deleteCohort(false)}
             disabled={deleteMutation.isPending}
             className="mt-10"
           >
@@ -749,6 +759,37 @@ export default function ConfigureCohorts() {
               ? <Loader2 className="animate-spin mr-2"/>
               : null}
             Delete
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Pending Invites + Delete Confirmation Dialog */}
+      <Dialog open={isCancelInvitesConfirmOpen}
+              onOpenChange={setIsCancelInvitesConfirmOpen}>
+        <DialogContent className="p-10">
+          <DialogHeader className="mb-4">
+            <DialogTitle>
+              Cancel Pending Invites?
+            </DialogTitle>
+          </DialogHeader>
+
+          <p>
+            <strong>{" Cohort- "} {selectedCohort?.name}</strong> has{" "}
+            <strong>{pendingInviteCount}</strong> pending invite{pendingInviteCount === 1 ? "" : "s"} that
+            {pendingInviteCount === 1 ? " has" : " have"} not been accepted yet.
+            Deleting this cohort will cancel {pendingInviteCount === 1 ? "this invite" : "these invites"}.
+            This cannot be undone.
+          </p>
+          <Button
+            variant="destructive"
+            onClick={() => deleteCohort(true)}
+            disabled={deleteMutation.isPending}
+            className="mt-10"
+          >
+            {deleteMutation.isPending
+              ? <Loader2 className="animate-spin mr-2"/>
+              : null}
+            Cancel Invites &amp; Delete Cohort
           </Button>
         </DialogContent>
       </Dialog>

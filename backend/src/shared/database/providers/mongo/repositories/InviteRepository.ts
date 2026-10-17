@@ -350,7 +350,7 @@ export class InviteRepository {
   // }
 
   async cancelPendingInvites(
-    filter: {courseId?: string; courseVersionId?: string},
+    filter: {courseId?: string; courseVersionId?: string; cohortId?: string},
     session?: ClientSession,
   ): Promise<void> {
     const query: Record<string, any> = {
@@ -360,10 +360,25 @@ export class InviteRepository {
     if (filter.courseId) query.courseId = new ObjectId(filter.courseId);
     if (filter.courseVersionId)
       query.courseVersionId = new ObjectId(filter.courseVersionId);
+    if (filter.cohortId) query.cohortId = new ObjectId(filter.cohortId);
 
     await this.inviteCollection.updateMany(
       query,
       {$set: {inviteStatus: 'CANCELLED'}},
+      {session},
+    );
+  }
+
+  async countPendingInvitesByCohort(
+    cohortId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    return await this.inviteCollection.countDocuments(
+      {
+        cohortId: new ObjectId(cohortId),
+        inviteStatus: {$in: ['PENDING', 'EMAIL_FAILED']},
+      },
       {session},
     );
   }

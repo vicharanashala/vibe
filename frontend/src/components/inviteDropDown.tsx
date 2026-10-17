@@ -48,6 +48,8 @@ type InviteDropdownProps = {
   onMarkSystemRead?: (id: string) => void;
   onMarkAllSystemRead?: () => void;
   enrollments?: any[];
+  /** Render flat (full-width, no absolute popover chrome) — e.g. inside a dialog. */
+  inline?: boolean;
 };
 
 const getSystemNotificationIcon = (type: SystemNotification['type']) => {
@@ -127,7 +129,7 @@ const InviteDropdown = ({
   onMarkSystemRead,
   onMarkAllSystemRead,
   enrollments=[],
-  
+  inline = false,
 }: InviteDropdownProps) => {
   const navigate = useNavigate();
   const {mutate: markAsRead, isPending} = useMarkNotificationAsRead();
@@ -260,7 +262,7 @@ useEffect(() => {
 
   return (
     <>
-      <div className="absolute right-0 top-full mt-1 w-80 bg-white dark:bg-black rounded-lg shadow-lg border border-border dark:border-zinc-700 z-50">
+      <div className={inline ? "w-full" : "absolute right-0 top-full mt-1 w-80 bg-white dark:bg-black rounded-lg shadow-lg border border-border dark:border-zinc-700 z-50"}>
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
           <span className="text-xs font-semibold text-foreground">

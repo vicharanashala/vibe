@@ -1008,7 +1008,106 @@ class TaskStatusdetailsResponse{
   data: audioData | trascriptGenerationData | segmentationData | questionGenerationData | contentUploadData;
 }
 
+@JSONSchema({ title: 'VideoSnapPointsQuery' })
+class VideoSnapPointsQuery {
+  @JSONSchema({
+    title: 'Video URL',
+    description:
+      'YouTube URL of the video whose snap points are wanted. Any recognised form works — watch, youtu.be, embed, shorts, live — and extra parameters are ignored.',
+    example: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  url: string;
+}
+
+@JSONSchema({ title: 'TranscriptChunk' })
+class TranscriptChunk {
+  @JSONSchema({
+    description: 'Start of the chunk, in seconds from the beginning of the video',
+    example: 0,
+    type: 'number',
+  })
+  @IsNumber()
+  start: number;
+
+  @JSONSchema({
+    description:
+      'End of the chunk in seconds, or null when the transcriber left it open (the final chunk).',
+    example: 5,
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  end: number | null;
+
+  @JSONSchema({
+    description: 'What is said during the chunk',
+    example: 'and that is why the loop terminates.',
+    type: 'string',
+  })
+  @IsString()
+  text: string;
+}
+
+@JSONSchema({ title: 'VideoSnapPointsResponse' })
+class VideoSnapPointsResponse {
+  @JSONSchema({
+    description: `Whether usable snap points were found.<br/>
+    READY — boundaries and/or transcript available.<br/>
+    PENDING — a job exists but has not produced either yet.<br/>
+    NO_JOB — this video never went through the AI workflow.<br/>
+    NO_ACCESS — a job exists on a course the caller cannot read.`,
+    enum: ['READY', 'PENDING', 'NO_JOB', 'NO_ACCESS'],
+    example: 'READY',
+    type: 'string',
+  })
+  @IsString()
+  status: 'READY' | 'PENDING' | 'NO_JOB' | 'NO_ACCESS';
+
+  @JSONSchema({
+    description: 'Normalised identity of the video the lookup resolved to',
+    example: 'yt:dQw4w9WgXcQ',
+    type: 'string',
+  })
+  @IsString()
+  videoKey: string;
+
+  @JSONSchema({
+    description: 'Job the data came from, or null when there is none',
+    type: 'string',
+    readOnly: true,
+  })
+  @IsOptional()
+  @IsMongoId()
+  jobId: ID | null;
+
+  @JSONSchema({
+    description:
+      'Topic boundaries in seconds, ascending and de-duplicated. The better snap target of the two.',
+    example: [0, 42, 118],
+    type: 'array',
+  })
+  @IsArray()
+  @IsNumber({}, { each: true })
+  segmentBoundaries: number[];
+
+  @JSONSchema({
+    description:
+      'Transcript chunks, ascending by start. Chunk ends serve as sentence-level snap points, and the text lets the UI show what is being said at a cut.',
+    type: 'array',
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TranscriptChunk)
+  chunks: TranscriptChunk[];
+}
+
 export {
+  VideoSnapPointsQuery,
+  VideoSnapPointsResponse,
+  TranscriptChunk,
   JobType,
   GenAIResponse,
   JobStatusResponse,
@@ -1027,6 +1126,9 @@ export {
 };
 
 export const GENAI_VALIDATORS = [
+  VideoSnapPointsQuery,
+  VideoSnapPointsResponse,
+  TranscriptChunk,
   JobType,
   GenAIResponse,
   JobStatusResponse,

@@ -140,6 +140,13 @@ export class GenAI {
 export class GenAIBody extends GenAI {
 	_id?: ID;
 	userId: ID;
+	/**
+	 * Normalised identity of `url` (see utils/videoKey.ts), indexed so a job can
+	 * be found from a course item's video URL. Optional because jobs written
+	 * before this field existed do not carry it; the backfill script populates
+	 * them, and lookups fall back to a raw-url match meanwhile.
+	 */
+	videoKey?: string;
 	audioProvided?: boolean;
 	transcriptProvided?: boolean;
 	createdAt: Date;

@@ -36,8 +36,10 @@ export function setupAnomalyAbilities(
       case 'STUDENT':
         break;
       case 'INSTRUCTOR':
-        can(AnomalyActions.View, 'Anomaly', versionBounded);
-        can(AnomalyActions.Delete, 'Anomaly', versionBounded);
+        // Instructor == admin, scoped to their own versions. Kept on
+        // versionBounded (not courseBounded like MANAGER) so the subject
+        // shapes the anomaly controllers already pass keep matching.
+        can('manage', 'Anomaly', versionBounded);
         break;
       case 'MANAGER':
         can('manage', 'Anomaly', courseBounded);

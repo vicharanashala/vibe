@@ -105,7 +105,8 @@ export async function setupAttemptAbilities(
           can(AttemptActions.Submit, 'Attempt', attemptBounded);
           break;
         case 'INSTRUCTOR':
-          can(AttemptActions.View, 'Attempt', courseBounded);
+          // Instructor == admin, scoped to their own courses.
+          can('manage', 'Attempt', courseBounded);
           break;
         case 'MANAGER':
           can('manage', 'Attempt', courseBounded);

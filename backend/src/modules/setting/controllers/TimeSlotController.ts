@@ -116,6 +116,14 @@ class ExtendStudentHoursRequestBody {
   extraHours: number;
 }
 
+// Request body for awarding a student extra bookings (consumable pool).
+class GrantExtraBookingsRequestBody {
+  courseId: string;
+  courseVersionId: string;
+  studentId: string;
+  extraBookings: number;
+}
+
 // Response for time slot operations
 class TimeSlotResponse {
   success: boolean;
@@ -605,6 +613,54 @@ class TimeSlotController {
         throw error;
       }
       throw new InternalServerError(`Failed to grant extra hours: ${error}`);
+    }
+  }
+
+  @OpenAPI({
+    summary: 'Award a student extra bookings',
+    description:
+      "Adds extra bookings to a student's consumable pool so they can book beyond their daily allowance (instructor action). These grant bookings bypass the slot capacity cap and hours budget.",
+  })
+  @Authorized()
+  @Put('/grant-bookings')
+  @HttpCode(200)
+  @ResponseSchema(TimeSlotResponse, {
+    description: 'Extra bookings awarded successfully',
+  })
+  async grantExtraBookings(
+    @Body() body: GrantExtraBookingsRequestBody,
+    @CurrentUser() user: IUser,
+    @Ability(getItemAbility) { ability },
+  ): Promise<TimeSlotResponse> {
+    const itemResource = subject('Item', { versionId: body.courseVersionId });
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    try {
+      const data = await this.timeSlotService.grantExtraBookings(
+        body.courseId,
+        body.courseVersionId,
+        body.studentId,
+        body.extraBookings,
+        user._id.toString(),
+      );
+      return {
+        success: true,
+        message: 'Extra bookings awarded successfully',
+        data,
+      };
+    } catch (error) {
+      if (
+        error instanceof BadRequestError ||
+        error instanceof NotFoundError ||
+        error instanceof ForbiddenError
+      ) {
+        throw error;
+      }
+      throw new InternalServerError(`Failed to award extra bookings: ${error}`);
     }
   }
 

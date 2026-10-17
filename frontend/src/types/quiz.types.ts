@@ -153,7 +153,9 @@ export type SaveQuestion = {
     text?: string;
     numericAnswer?: string;
     order?: string[];
-  }
+  };
+  /** Stage-2 crowd questions only: the student's 👍/👎 on the ungraded peer question. */
+  thumb?: 'UP' | 'DOWN';
 };
 
 export interface IQuestionAnswerFeedback {

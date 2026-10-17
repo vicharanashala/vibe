@@ -70,8 +70,8 @@ class SignUpBody {
     type: 'string',
   })
   @IsString()
-  @IsNotEmpty()
-  recaptchaToken: string;
+  @IsOptional()
+  recaptchaToken?: string;
 
   @JSONSchema({
     title: 'Profile Image',
@@ -332,8 +332,8 @@ class LoginBody {
     type: 'string',
   })
   @IsString()
-  @IsNotEmpty()
-  recaptchaToken: string;
+  @IsOptional()
+  recaptchaToken?: string;
 }
 
 class LoginResponse {

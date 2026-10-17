@@ -64,8 +64,9 @@ export class AuthController {
   async signup(@Body({ options: { limit: '10mb' } }) body: SignUpBody, @Req() req: any) {
     const { recaptchaToken, ...signUpData } = body;
 
-    // Verify reCAPTCHA token
-    if (!recaptchaToken) {
+    // Verify reCAPTCHA token (only enforced when reCAPTCHA is actually enabled,
+    // matching verifyRecaptcha's own bypass for IS_RECAPTCHA_ENABLED !== 'true').
+    if (process.env.IS_RECAPTCHA_ENABLED === 'true' && !recaptchaToken) {
       throw new HttpError(400, 'reCAPTCHA verification is required');
     }
 
@@ -189,8 +190,14 @@ export class AuthController {
     }
 
     // Proceed with Firebase authentication
+    const emulatorHost = process.env.FIREBASE_AUTH_EMULATOR_HOST;
+    const baseUrl = emulatorHost
+      ? `http://${emulatorHost}/identitytoolkit.googleapis.com/v1`
+      : 'https://identitytoolkit.googleapis.com/v1';
+    const apiKey = appConfig.firebase.apiKey || 'emulator-key';
+
     const data = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
+      `${baseUrl}/accounts:signInWithPassword?key=${apiKey}`,
       {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -203,8 +210,11 @@ export class AuthController {
     );
     const result = await data.json();
 
-    // ✅ fetch your app user from DB
-    // const user = await this.authService.getCurrentUserFromToken(result.idToken);
+    if (!data.ok || result.error) {
+      const message = result.error?.message || 'Invalid credentials';
+      throw new HttpError(401, message);
+    }
+
     return result;
   }
 }

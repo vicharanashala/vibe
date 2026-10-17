@@ -78,6 +78,19 @@ class ProgressRepository {
     }
 
     try {
+      // Deletion cascades (module/section/item) update watch time by itemId
+      // alone; without this index each update scans the whole collection.
+      await this.watchTimeCollection.createIndex(
+        {
+          itemId: 1,
+        },
+        { background: true },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
       await this.attemptCollection.createIndex(
         {
           userId: 1,
@@ -225,9 +238,17 @@ class ProgressRepository {
     itemId: string,
     session?: ClientSession,
   ): Promise<void> {
+    await this.deleteWatchTimeByItemIds([itemId], session);
+  }
+
+  async deleteWatchTimeByItemIds(
+    itemIds: (string | ObjectId)[],
+    session?: ClientSession,
+  ): Promise<void> {
     await this.init();
+    if (itemIds.length === 0) return;
     await this.watchTimeCollection.updateMany(
-      { itemId: new ObjectId(itemId) },
+      { itemId: { $in: itemIds.map(id => new ObjectId(id)) } },
       { $set: { isDeleted: true, deletedAt: new Date() } },
       { session },
     );

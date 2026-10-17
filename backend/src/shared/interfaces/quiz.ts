@@ -92,6 +92,17 @@ interface IQuestionBank {
   points?: number;
   createdAt: Date;
   updatedAt: Date;
+  // Crowd-sourced "Submitted – Pending Validation" staging bank (see
+  // studentQuestions/CROWD_QUESTION_BANK.md). When true, this bank holds
+  // student-submitted questions awaiting peer validation + instructor approval
+  // and is NOT referenced by the live quiz's questionBankRefs, so it never
+  // affects graded quiz draws. Keyed to the quiz it belongs to via
+  // sourceGradedBankId (the quiz's graded questionBankRefs[0].bankId).
+  crowdSubmitted?: boolean;
+  sourceGradedBankId?: ID;
+  sourceQuizId?: ID;
+  isDeleted?: boolean;
+  deletedAt?: Date;
 }
 
 type QuestionQuizView = Omit<IQuestion, 'hint'>;

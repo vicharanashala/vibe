@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useHpStudents } from "@/hooks/hooks";
+import { useHpStudents, useHpVersionAccess } from "@/hooks/hooks";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, History, Mail, FileText, RefreshCw } from "lucide-react";
@@ -36,6 +36,9 @@ export function StudentsTab({ courseVersionId, cohortId, cohortName }: StudentsT
 
   const itemsPerPage = 10;
   const navigate = useNavigate();
+
+  // Balances of a switched-off course stay visible but can no longer be moved.
+  const { readOnly } = useHpVersionAccess(courseVersionId);
 
   const { data: students = [], isLoading, refetch, isRefetching } = useHpStudents(
     courseVersionId,
@@ -146,13 +149,15 @@ export function StudentsTab({ courseVersionId, cohortId, cohortName }: StudentsT
               {isRefetching ? "Refreshing..." : "Refresh"}
             </Button>
             
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setOpenReset(true)}
-            >
-              Reset HP
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setOpenReset(true)}
+              >
+                Reset HP
+              </Button>
+            )}
           </div>
 
       </div>
@@ -300,16 +305,18 @@ export function StudentsTab({ courseVersionId, cohortId, cohortName }: StudentsT
                       HP History
                     </Button>
 
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedStudent(student);
-                        setOpenStudentReset(true);
-                      }}
-                    >
-                      Reset HP
-                    </Button>
+                    {!readOnly && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedStudent(student);
+                          setOpenStudentReset(true);
+                        }}
+                      >
+                        Reset HP
+                      </Button>
+                    )}
                   </td>
 
                 </tr>

@@ -14,6 +14,8 @@ interface EmotionSelectorProps {
   onEmotionSelect: (emotion: EmotionType, feedbackText?: string) => Promise<void>;
   disabled?: boolean;
   selectedEmotion?: EmotionType | null;
+  /** Tighter layout for narrow spaces (e.g. the course drawer). */
+  compact?: boolean;
 }
 
 const emotionConfig = {
@@ -54,6 +56,7 @@ export function EmotionSelector({
   onEmotionSelect,
   disabled = false,
   selectedEmotion = null,
+  compact = false,
 }: EmotionSelectorProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(selectedEmotion !== null);
@@ -96,7 +99,7 @@ export function EmotionSelector({
   };
 
   return (
-    <div className="rounded-lg border border-primary/10 bg-gradient-to-r from-primary/5 to-accent/5 px-4 py-3">
+    <div className={cn("rounded-lg border border-primary/10 bg-gradient-to-r from-primary/5 to-accent/5", compact ? "px-3 py-2" : "px-4 py-3")}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="flex flex-col gap-0.5 min-w-max">
           <span className="text-xs font-semibold text-foreground">How are you feeling?</span>
@@ -115,7 +118,8 @@ export function EmotionSelector({
                     size="sm"
                     variant="ghost"
                     className={cn(
-                      "h-11 w-11 p-0 rounded-full transition-all duration-200 ease-out",
+                      compact ? "h-8 w-8" : "h-11 w-11",
+                      "p-0 rounded-full transition-all duration-200 ease-out",
                       "hover:scale-125 hover:bg-accent/25 hover:shadow-md",
                       isSelected && "scale-115 bg-accent/30 ring-2 ring-accent/50 shadow-sm",
                       disabled || isSubmitting ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
@@ -124,7 +128,7 @@ export function EmotionSelector({
                     disabled={disabled || isSubmitting}
                     title={config.label}
                   >
-                    <span className="text-2xl leading-none">{config.emoji}</span>
+                    <span className={cn("leading-none", compact ? "text-lg" : "text-2xl")}>{config.emoji}</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" align="center" className="text-xs">

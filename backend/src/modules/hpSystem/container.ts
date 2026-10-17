@@ -13,6 +13,7 @@ import { ActivitySubmissionsRepository, LedgerRepository, RuleConfigsRepository 
 import { CohortsController } from './controllers/cohortsController.js';
 import { CohortsService } from './services/cohortsService.js';
 import { CohortRepository } from './repositories/providers/mongodb/cohortsRepository.js';
+import { HpAccessService } from './services/hpAccessService.js';
 
 export const hpSystemContainerModule = new ContainerModule(options => {
     // Controllers
@@ -28,6 +29,7 @@ export const hpSystemContainerModule = new ContainerModule(options => {
     options.bind(HP_SYSTEM_TYPES.activitySubmissionsService).to(ActivitySubmissionsService).inSingletonScope();
     options.bind(HP_SYSTEM_TYPES.ledgerService).to(LedgerService).inSingletonScope();
     options.bind(HP_SYSTEM_TYPES.ruleConfigsService).to(RuleConfigService).inSingletonScope();
+    options.bind(HP_SYSTEM_TYPES.hpAccessService).to(HpAccessService).inSingletonScope();
 
     // Repositories
     options.bind(HP_SYSTEM_TYPES.activityRepository).to(ActivityRepository);

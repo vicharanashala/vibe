@@ -7,6 +7,7 @@ import type { ArticleRef } from "@/types/article.types";
 import type { QuizRef } from "@/types/quiz.types";
 import type { ItemContainerProps, ItemContainerRef } from '@/types/item-container.types';
 import FeedbackForm from '@/app/pages/student/components/FeedbackForm';
+import ReflectionItemPanel, {type ReflectionItemPanelRef} from '@/components/peer-reviews/ReflectionItemPanel';
 import { useSubmitFeedback } from '@/hooks/hooks';
 
 export interface ISubmitFeedbackBody {
@@ -16,9 +17,10 @@ export interface ISubmitFeedbackBody {
   // isSkipped?: boolean;
   cohortId?: string;
 }
-const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, isNavigatingToPrev, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId, versionId, completedItemIdsRef, cohortId, cohortName, previousItem, pendingStudentQuestionContext, clearPendingStudentQuestionContext, focusMode }, ref) => {
+const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, nextItem, doGesture, onNext, onPrevVideo, isProgressUpdating, isNavigatingToPrev, readyToDetect, attemptId, anomalies, setQuizPassed, setAttemptId, rewindVid, pauseVid, pauseSignal, awayPaused, displayNextLesson, keyboardLockEnabled, setIsQuizSkipped, linearProgressionEnabled, seekForwardEnabled, courseId, versionId, completedItemIdsRef, cohortId, cohortName, previousItem, pendingStudentQuestionContext, clearPendingStudentQuestionContext, focusMode }, ref) => {
   const articleRef = useRef<ArticleRef>(null);
   const quizRef = useRef<QuizRef>(null);
+  const reflectionRef = useRef<ReflectionItemPanelRef>(null);
 
   // ✅ Expose stop function to parent - handles both article and quiz
   useImperativeHandle(ref, () => ({
@@ -27,6 +29,8 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
         await articleRef.current.stopItem();
       } else if (quizRef.current) {
         await quizRef.current.stopItem();
+      } else if (reflectionRef.current) {
+        await reflectionRef.current.stopItem();
       }
     },
     getCurrentDetails: () => {
@@ -47,9 +51,17 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
     const itemType = item.type.toLowerCase();
     switch (itemType) {
       case 'video':
+        /**
+         * One player component for both sources. Video picks an HLS or YouTube
+         * backend from `source` internally, so proctoring, seek gating,
+         * watch-time and the overlays are shared rather than duplicated —
+         * uploaded lessons get the same enforcement as YouTube ones.
+         */
         return <Video
           key={item._id.toString()}
           URL={item.details?.URL ? item.details.URL : ''}
+          source={item.details?.source}
+          assetId={item.details?.assetId}
           startTime={item.details?.startTime ? item.details.startTime : ''}
           endTime={item.details?.endTime ? item.details.endTime : ''}
           points={item.details?.points ? item.details.points : ''}
@@ -60,6 +72,8 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           isProgressUpdating={isProgressUpdating}
           rewindVid={rewindVid || false}
           pauseVid={pauseVid || false}
+          pauseSignal={pauseSignal}
+          awayPaused={awayPaused}
           readyToDetect={readyToDetect}
           anomalies={anomalies}
           linearProgressionEnabled={linearProgressionEnabled}
@@ -156,6 +170,21 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
           previousItem = {previousItem}
         />;
 
+      case 'reflection':
+        return <ReflectionItemPanel
+          key={item._id.toString()}
+          ref={reflectionRef}
+          courseId={courseId}
+          courseVersionId={versionId}
+          itemId={item._id.toString()}
+          title={item.name}
+          prompt={item.details?.prompt}
+          onNext={onNext}
+          isProgressUpdating={isProgressUpdating}
+          isAlreadyWatched={item.isAlreadyWatched || false}
+          completedItemIdsRef={completedItemIdsRef}
+        />;
+
       default:
         return (
           <div className="flex items-center justify-center h-64">
@@ -166,7 +195,7 @@ const ItemContainer = forwardRef<ItemContainerRef, ItemContainerProps>(({ item, 
   };
 
   return (
-    <div className={`${item.type.toLowerCase()==="video" ? (focusMode ? "fixed inset-0 z-40 bg-background h-screen" : "h-[85vh]") : "h-full" } w-full overflow-auto`}>
+    <div className={`${item.type.toLowerCase()==="video" ? (focusMode ? "fixed inset-0 z-40 bg-stage h-screen" : "h-[85vh]") : "h-full" } w-full overflow-auto`}>
       {renderContent()}
     </div>
   );

@@ -22,6 +22,7 @@ import {
   IsBoolean,
   IsOptional,
   IsMongoId,
+  IsIn,
   IsInt,
   Max,
   Min,
@@ -649,6 +650,28 @@ class GenerateAIQuestionsBody {
   @IsString()
   @IsOptional()
   text?: string;
+
+  @IsMongoId()
+  @IsOptional()
+  courseId?: string;
+
+  @IsMongoId()
+  @IsOptional()
+  versionId?: string;
+
+  @IsIn(['beginner', 'intermediate', 'advanced'])
+  @IsOptional()
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+
+  @IsString()
+  @Length(0, 300)
+  @IsOptional()
+  focusAreas?: string;
+
+  @IsString()
+  @Length(0, 300)
+  @IsOptional()
+  avoidTopics?: string;
 }
 
 export {

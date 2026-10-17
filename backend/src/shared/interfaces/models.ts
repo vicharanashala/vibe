@@ -27,6 +27,11 @@ export interface IUser {
   profileImage?: string;
   faceEmbedding?: number[];
   roles: 'admin' | 'user';
+  /**
+   * A passwordless identity created for a share-link recipient. They never
+   * signed up, so they are excluded from the course's own analytics.
+   */
+  isShareLinkGuest?: boolean;
 }
 
 export type Versions = {
@@ -43,6 +48,12 @@ export interface ICourse {
   createdAt?: Date;
   updatedAt?: Date;
   isDeleted?: boolean;
+  /**
+   * A hidden holder for videos shared outside any course — one per instructor.
+   * It exists only so a quick-shared video has somewhere to record watching;
+   * it is never shown as a course of theirs.
+   */
+  isQuickShareContainer?: boolean;
 }
 
 export type ID = string | ObjectId | null;
@@ -310,6 +321,7 @@ export enum ItemType {
   BLOG = 'BLOG',
   PROJECT = 'PROJECT',
   FEEDBACK = 'FEEDBACK',
+  REFLECTION = 'REFLECTION',
 }
 
 export interface IBaseItem {
@@ -326,8 +338,38 @@ export interface IProjectDetails {
   // Add fields as needed for project items, or leave empty if none
 }
 
+/**
+ * Where a video item's media comes from.
+ *
+ * `YOUTUBE` is the original and only historical source, played through the
+ * YouTube IFrame API. `GCS` is a video uploaded to ViBe and transcoded to HLS.
+ */
+export type VideoSource = 'YOUTUBE' | 'GCS';
+
+/**
+ * Resolve a video item's source, treating an absent value as YOUTUBE.
+ *
+ * Every video item written before uploads existed has no `source` field, so the
+ * absent case *must* mean YouTube — that is what lets the feature ship without
+ * migrating existing course content. Read the source through this helper rather
+ * than testing the field, so the default lives in one place.
+ */
+export function resolveVideoSource(details?: {
+  source?: VideoSource;
+}): VideoSource {
+  return details?.source ?? 'YOUTUBE';
+}
+
 export interface IVideoDetails {
-  URL: string;
+  /**
+   * Public video URL. Required for YOUTUBE, absent for GCS — an uploaded video
+   * has no durable public URL, only time-boxed signed grants.
+   */
+  URL?: string;
+  /** Absent means YOUTUBE; see resolveVideoSource. */
+  source?: VideoSource;
+  /** The uploaded video this item plays. Set only when source is GCS. */
+  assetId?: ID;
   startTime: string;
   endTime: string;
   points: number;
@@ -383,6 +425,22 @@ export interface IBlogDetails {
   estimatedReadTimeInMinutes: number;
 }
 
+/**
+ * A peer-reviewed reflection item: the student writes what they learned, and
+ * peers score it anonymously. Carries no answer key or grading config — the
+ * scoring lives entirely in the peerReviews module.
+ */
+export interface IReflectionDetails {
+  /** Optional instructor prompt shown above the editor. */
+  prompt?: string;
+  /** Cap on how many peers may score one reflection. Defaults to 10. */
+  maxReviewsPerReflection?: number;
+  /** Reviews a student owes before their own score unlocks. Defaults to 10. */
+  requiredReviewsToUnlock?: number;
+  /** Reviews needed before an average is shown at all. Defaults to 3. */
+  minReviewsToReveal?: number;
+}
+
 export interface IFeedBackFormDetails {
   jsonSchema: Record<string, any>;
   uiSchema: Record<string, any>;
@@ -406,6 +464,18 @@ export interface IEnrollment {
   enrollmentDate: Date;
   percentCompleted: number;
   completedItemsCount?: number;
+  /**
+   * This enrollment exists only to give a share-link recipient access. It is
+   * excluded from rosters and from the course's enrollment statistics, so
+   * sharing a course never moves the numbers that describe enrolled learners.
+   */
+  isShareLinkGuest?: boolean;
+  /**
+   * The instructor's own enrollment into their hidden quick-share holder. It
+   * is filtered out of their course lists and counts — the holder is not a
+   * course they teach.
+   */
+  isQuickShareContainer?: boolean;
   assignedTimeSlots?: Array<{
     from: string; // HH:MM format in IST
     to: string; // HH:MM format in IST
@@ -413,12 +483,21 @@ export interface IEnrollment {
   // Extra committed hours granted to this student by an instructor, added on
   // top of the course's totalBudgetHours when enforcing the hours budget.
   commitmentExtraHours?: number;
+  // A consumable pool of extra bookings an instructor has awarded this student.
+  // Each booking made beyond the student's normal daily allowance draws one from
+  // this pool; such bookings bypass the slot capacity cap and the hours budget.
+  commitmentExtraBookings?: number;
   isDeleted?: boolean;
   deletedAt?: Date;
   unenrolledAt?: Date;
   hpPoints?: number;
   hasNewItemsAfterCompletion?: boolean;
   cohortId?: ID;
+  // Staff-only (INSTRUCTOR/STAFF): the cohorts of this version the holder may
+  // read and act on. Absent or empty means no cohort has been assigned yet,
+  // which denies access rather than granting all — see resolveCohortScope.
+  // Never set on a STUDENT row; a student's scope is their own `cohortId`.
+  assignedCohortIds?: ID[];
   policyAcknowledgedAt?: Date;
   policyReacknowledgementRequired?: boolean;
   ethicsConsentSignedAt?: Date; // doubles as the "Date" on the consent form
@@ -545,6 +624,66 @@ export interface IInvite {
   createdAt: Date;
   expiresAt: Date;
 }
+/**
+ * How a share-link recipient watches.
+ *
+ * A person who was simply sent a video is not a learner working through a
+ * course, so the sharer chooses per link whether ViBe's learner behaviours
+ * apply. This never changes anything for enrolled learners.
+ */
+export enum ShareLinkViewingMode {
+  /** Plain playback: no proctoring, no rollback, no linear gating. */
+  PLAIN = 'PLAIN',
+  /** The full ViBe experience, same as an enrolled learner. */
+  PROCTORED = 'PROCTORED',
+}
+
+export enum ShareLinkEmailStatus {
+  /** The sharer chose to hand the link over themselves. */
+  NOT_SENT = 'NOT_SENT',
+  SENT = 'SENT',
+  FAILED = 'FAILED',
+}
+
+export enum ShareLinkStatus {
+  ACTIVE = 'ACTIVE',
+  OPENED = 'OPENED',
+  EXPIRED = 'EXPIRED',
+  REVOKED = 'REVOKED',
+}
+
+/**
+ * A per-recipient link to an existing course version.
+ *
+ * Unlike an invite, opening one never asks the recipient to sign up: the token
+ * itself carries their identity, and the first open binds it to a guest user so
+ * every watch-time, progress and activity record lands under a real userId.
+ */
+export interface IShareLink {
+  _id?: string | ObjectId | null;
+  token: string;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  cohortId?: string | ObjectId;
+  /** The video the link was generated for, when it was shared from one. */
+  itemId?: string | ObjectId;
+  recipientName: string;
+  recipientEmail: string;
+  createdBy: string | ObjectId;
+  /** Guest user the token was bound to on first open. */
+  guestUserId?: string | ObjectId;
+  viewingMode: ShareLinkViewingMode;
+  status: ShareLinkStatus;
+  emailStatus: ShareLinkEmailStatus;
+  emailedAt?: Date;
+  openCount: number;
+  createdAt: Date;
+  expiresAt: Date;
+  firstOpenedAt?: Date;
+  lastOpenedAt?: Date;
+  revokedAt?: Date;
+}
+
 // Interface for proctoring settings.
 /*export interface IProctoringSettings {
   components: ProctoringComponent[];
@@ -868,6 +1007,15 @@ export interface AuthenticatedUserEnrollements {
   courseId: string;
   versionId: string;
   role: 'STUDENT' | 'INSTRUCTOR' | 'MANAGER' | 'TA' | 'STAFF';
+  /**
+   * Cohorts this enrollment confines the caller to.
+   *
+   * `null` means the role is not cohort-scoped and may read the whole version
+   * (MANAGER, TA, and legacy students whose enrollment predates cohorts).
+   * An empty array means the role *is* scoped but nothing has been assigned —
+   * that reads as "no cohorts", not "all cohorts".
+   */
+  cohortIds: string[] | null;
 }
 
 export interface AuthenticatedUser {

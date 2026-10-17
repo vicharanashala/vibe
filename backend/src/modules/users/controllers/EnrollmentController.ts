@@ -6,6 +6,7 @@ import {
   IEnrollment,
   IProgress,
   IUser,
+  AuthenticatedUser,
 } from '#root/shared/interfaces/models.js';
 import {
   EnrolledUserResponse,
@@ -26,9 +27,12 @@ import {
   BulkChangeEnrollmentStatusBody,
   EthicsConsentBody,
   EthicsConsentStatusResponse,
+  AssignCohortsBody,
+  AssignCohortsResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
 import {QuizScoresExportResponseDto} from '../dtos/QuizScoresExportDto.js';
 import {EnrollmentService} from '#users/services/EnrollmentService.js';
+import {UserService} from '#users/services/UserService.js';
 
 import {USERS_TYPES} from '#users/types.js';
 import {injectable, inject} from 'inversify';
@@ -57,6 +61,11 @@ import {
   getEnrollmentAbility,
 } from '../abilities/enrollmentAbilities.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
+import {
+  CohortScopeService,
+  cohortScopeIds,
+  requireSingleCohort,
+} from '#root/shared/functions/cohortScope.js';
 import {subject} from '@casl/ability';
 
 import {BadRequestErrorResponse} from '#root/shared/index.js';
@@ -79,7 +88,37 @@ export class EnrollmentController {
   constructor(
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(USERS_TYPES.UserService)
+    private readonly userService: UserService,
+    @inject(CohortScopeService)
+    private readonly cohortScopeService: CohortScopeService,
   ) {}
+
+  /**
+   * Cohort to run a single-student read against, refused when that student
+   * falls outside the caller's cohort scope.
+   */
+  private async scopedStudentCohort(
+    authenticatedUser: AuthenticatedUser,
+    userId: string,
+    courseId: string,
+    versionId: string,
+    requestedCohortId?: string,
+  ): Promise<string | undefined> {
+    const scope = this.cohortScopeService.resolve(
+      authenticatedUser,
+      courseId,
+      versionId,
+      requestedCohortId,
+    );
+    return this.enrollmentService.resolveStudentCohort(
+      userId,
+      courseId,
+      versionId,
+      cohortScopeIds(scope),
+      requestedCohortId,
+    );
+  }
 
   @OpenAPI({
     summary: 'Enroll a user in a course version',
@@ -418,6 +457,147 @@ export class EnrollmentController {
   }
 
   @OpenAPI({
+    summary: 'Assign cohorts to an instructor',
+    description:
+      "Replaces the set of cohorts an instructor may see on this course version. An empty array clears the assignment, returning them to course-wide access. Restricted to admins and the course's managers.",
+  })
+  @Authorized()
+  @Patch('/:userId/enrollments/courses/:courseId/versions/:versionId/cohorts')
+  @UseInterceptor(AuditTrailsHandler)
+  @HttpCode(200)
+  @ResponseSchema(AssignCohortsResponse, {
+    description: 'Cohort assignment updated',
+  })
+  @ResponseSchema(EnrollmentNotFoundErrorResponse, {
+    description: 'Enrollment not found for the user in the course version',
+    statusCode: 404,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Cohort does not belong to the version, or role is not staff',
+    statusCode: 400,
+  })
+  async assignCohorts(
+    @Params() params: EnrollmentParams,
+    @Body() body: AssignCohortsBody,
+    @Ability(getEnrollmentAbility) {ability, user},
+    @Req() req: Request,
+  ): Promise<AssignCohortsResponse> {
+    const {userId, courseId, versionId} = params;
+
+    const enrollmentResource = subject('Enrollment', {courseId, versionId});
+    if (!ability.can(EnrollmentActions.AssignCohorts, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to assign cohorts for this course',
+      );
+    }
+
+    const before = await this.enrollmentService.findAnyEnrollment(
+      userId,
+      courseId,
+      versionId,
+    );
+
+    const result = await this.enrollmentService.assignCohorts(
+      userId,
+      courseId,
+      versionId,
+      body.cohortIds,
+    );
+
+    setAuditTrail(req, {
+      category: AuditCategory.COHORT,
+      action: AuditAction.COHORT_UPDATE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        userId: ObjectId.createFromHexString(userId),
+      },
+      changes: {
+        before: {
+          assignedCohortIds: (before?.assignedCohortIds ?? []).map(id =>
+            id.toString(),
+          ),
+        },
+        after: {assignedCohortIds: result.cohortIds},
+      },
+      outcome: {status: OutComeStatus.SUCCESS},
+    });
+
+    return result;
+  }
+
+  @OpenAPI({
+    summary: 'Reset face reference for a student',
+    description:
+      'Removes the faceEmbedding and profileImage from the user document, allowing the student to re-register their face.',
+  })
+  @Authorized()
+  @Post('/:userId/enrollments/courses/:courseId/versions/:versionId/reset-face')
+  @UseInterceptor(AuditTrailsHandler)
+  @HttpCode(200)
+  async resetFaceReference(
+    @Params() params: EnrollmentParams,
+    @Ability(getEnrollmentAbility) {ability, user},
+    @Req() req: Request,
+  ): Promise<{message: string}> {
+    const {userId, courseId, versionId} = params;
+
+    // Fetch enrollment to get the role for permission checking
+    const enrollmentData = await this.enrollmentService.findAnyEnrollment(
+      userId,
+      courseId,
+      versionId,
+    );
+    if (!enrollmentData) {
+      throw new NotFoundError('Enrollment not found');
+    }
+
+    const enrollmentResource = subject('Enrollment', {
+      courseId,
+      versionId,
+      role: enrollmentData.role,
+    });
+    if (!ability.can(EnrollmentActions.Modify, enrollmentResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to reset face reference for this student',
+      );
+    }
+
+    await this.userService.updateFaceReference(userId, null, null);
+
+    setAuditTrail(req, {
+      category: AuditCategory.ENROLLMENT,
+      action: AuditAction.ENROLLMENT_MODIFY,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseId: ObjectId.createFromHexString(courseId),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        userId: ObjectId.createFromHexString(userId),
+      },
+      changes: {
+        after: {
+          profileImage: null,
+          faceEmbedding: null,
+        },
+      },
+      outcome: {status: OutComeStatus.SUCCESS},
+    });
+
+    return {message: 'Face reference reset successfully'};
+  }
+
+  @OpenAPI({
     summary: 'Bulk change enrollment status',
     description:
       'Updates the status (ACTIVE/INACTIVE) of multiple enrollments in a course version.',
@@ -615,7 +795,7 @@ export class EnrollmentController {
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
     @QueryParams() query: EnrollmentsQuery,
-    @Ability(getEnrollmentAbility) {ability},
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
   ): Promise<CourseVersionEnrollmentResponse> {
     const enrollmentResource = subject('Enrollment', {courseId, versionId});
 
@@ -640,6 +820,13 @@ export class EnrollmentController {
       throw new BadRequestError('Page and limit must be positive integers.');
     }
 
+    const scope = this.cohortScopeService.resolve(
+      authenticatedUser,
+      courseId,
+      versionId,
+      cohort,
+    );
+
     // const skip = search && search.trim() !== '' ? 0 : (page - 1) * limit;
 
     const skip = (page - 1) * limit;
@@ -655,7 +842,7 @@ export class EnrollmentController {
         sortOrder,
         filter,
         statusTab,
-        cohort,
+        cohortScopeIds(scope),
       );
     if (
       !enrollmentsData ||
@@ -689,7 +876,7 @@ export class EnrollmentController {
           enrollmentDate: enrollment.enrollmentDate,
           unenrolledAt: enrollment.unenrolledAt,
           user: {...enrollment.userInfo, _id: enrollment.userId},
-          progress: enrollment.percentCompleted,
+          progress: enrollment.percentCompleted ?? 0,
           completedItemsCount: enrollment.completedItemsCount || 0,
           assignedTimeSlots: enrollment.assignedTimeSlots || [],
           totalQuizScore: enrollment.totalQuizScore || 0,
@@ -697,6 +884,7 @@ export class EnrollmentController {
           contentCounts: enrollment.contentCounts,
           cohortId: enrollment.cohortId,
           cohortName: enrollment.cohortName,
+          assignedCohortIds: enrollment.assignedCohortIds || [],
           id: enrollment._id,
         }))
         .sort((a, b) => {
@@ -723,7 +911,7 @@ export class EnrollmentController {
   @HttpCode(200)
   async getStudentProgressDetail(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) {ability}: any,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser}: any,
     @QueryParam('cohortId') cohortId?: string,
   ): Promise<any> {
     const {userId, courseId, versionId} = params;
@@ -738,7 +926,13 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
-      cohortId,
+      await this.scopedStudentCohort(
+        authenticatedUser,
+        userId,
+        courseId,
+        versionId,
+        cohortId,
+      ),
     );
 
     if (!detail) {
@@ -760,7 +954,7 @@ export class EnrollmentController {
   @HttpCode(200)
   async getStudentCourseStructure(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) {ability}: any,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser}: any,
     @QueryParam('cohortId') cohortId?: string,
   ): Promise<any> {
     const {userId, courseId, versionId} = params;
@@ -776,7 +970,13 @@ export class EnrollmentController {
       userId,
       courseId,
       versionId,
-      cohortId,
+      await this.scopedStudentCohort(
+        authenticatedUser,
+        userId,
+        courseId,
+        versionId,
+        cohortId,
+      ),
     );
     if (!structure) {
       return {message: 'Enrollment not found'};
@@ -922,7 +1122,7 @@ export class EnrollmentController {
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
     @QueryParam('statusTab') statusTab: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
-    @Ability(getEnrollmentAbility) {ability, user},
+    @Ability(getEnrollmentAbility) {ability, user, authenticatedUser},
     @QueryParam('cohortId') cohortId?: string,
   ): Promise<QuizScoresExportResponseDto> {
     // Check if user has instructor or manager role (can view course-level enrollments)
@@ -944,11 +1144,19 @@ export class EnrollmentController {
         'You do not have permission to view quiz scores for this course',
       );
     }
+    const scope = this.cohortScopeService.resolve(
+      authenticatedUser,
+      courseId,
+      versionId,
+      cohortId,
+    );
+
     return this.enrollmentService.getQuizScoresForCourseVersion(
       courseId,
       versionId,
       statusTab,
       cohortId,
+      cohortScopeIds(scope),
     );
   }
 
@@ -963,7 +1171,7 @@ export class EnrollmentController {
   async exportGuruSetuFeedback(
     @Param('courseId') courseId: string,
     @Param('versionId') versionId: string,
-    @Ability(getEnrollmentAbility) {ability},
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
     @QueryParam('cohortId') cohortId?: string,
   ): Promise<{ data: any[] }> {
     const courseResource = subject('Enrollment', {courseId});
@@ -984,10 +1192,19 @@ export class EnrollmentController {
       );
     }
 
-    const data = await this.enrollmentService.getGuruSetuFeedbackRows(
+    // This export can only express one cohort, so a scoped caller holding
+    // several has to pick rather than silently receive one of them.
+    const scope = this.cohortScopeService.resolve(
+      authenticatedUser,
       courseId,
       versionId,
       cohortId,
+    );
+
+    const data = await this.enrollmentService.getGuruSetuFeedbackRows(
+      courseId,
+      versionId,
+      requireSingleCohort(scope, cohortId),
     );
 
     return { data };
@@ -1164,7 +1381,7 @@ export class EnrollmentController {
   })
   async getUserModuleProgress(
     @Params() params: EnrollmentParams,
-    @Ability(getEnrollmentAbility) {ability}: any,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser}: any,
     @QueryParam('cohortId') cohortId?: string,
   ): Promise<{
     modules: Array<{
@@ -1193,7 +1410,13 @@ export class EnrollmentController {
         userId,
         courseId,
         versionId,
-        cohortId,
+        await this.scopedStudentCohort(
+          authenticatedUser,
+          userId,
+          courseId,
+          versionId,
+          cohortId,
+        ),
       );
 
     return {modules: moduleProgress};

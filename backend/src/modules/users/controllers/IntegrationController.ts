@@ -6,6 +6,7 @@ import {
   JsonController,
   Get,
   HttpCode,
+  Param,
   QueryParam,
   UseBefore,
 } from 'routing-controllers';
@@ -63,6 +64,88 @@ class IntegrationController {
     }>;
   }> {
     return await this.enrollmentService.getLearnersWithCompletedCourses(
+      page,
+      limit,
+    );
+  }
+
+  @OpenAPI({
+    summary: 'List candidates who completed a specific course',
+    description:
+      'Returns a paginated roster of candidates who have completed the ' +
+      'given course (identified by `courseId`). Authenticate with the ' +
+      '`X-API-Key` header. Use `page` and `limit` (max 200) to page through ' +
+      'candidates.',
+  })
+  @Get('/courses/:courseId/completions')
+  @HttpCode(200)
+  async getCourseCompletions(
+    @Param('courseId') courseId: string,
+    @QueryParam('page') page = 1,
+    @QueryParam('limit') limit = 50,
+  ): Promise<{
+    page: number;
+    limit: number;
+    totalCandidates: number;
+    totalPages: number;
+    candidates: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      courseVersionId: string;
+      completedAt?: Date;
+    }>;
+  }> {
+    return await this.enrollmentService.getCourseCompletions(
+      courseId,
+      page,
+      limit,
+    );
+  }
+
+  @OpenAPI({
+    summary: 'Get the progress roster for a course version',
+    description:
+      'Returns a paginated roster of every active learner on the given course ' +
+      'version together with how far through they are — including learners ' +
+      'who have not finished. Authenticate with the `X-API-Key` header. ' +
+      'Pass `cohortId` to scope the roster to a single cohort: on a ' +
+      'multi-cohort version, omitting it returns every cohort and a learner ' +
+      'enrolled in two cohorts appears once per cohort. Use `page` and ' +
+      '`limit` (max 200) to page through learners.',
+  })
+  @Get('/courses/:courseId/versions/:versionId/progress')
+  @HttpCode(200)
+  async getCourseVersionProgress(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @QueryParam('cohortId') cohortId?: string,
+    @QueryParam('page') page = 1,
+    @QueryParam('limit') limit = 50,
+  ): Promise<{
+    page: number;
+    limit: number;
+    totalLearners: number;
+    totalPages: number;
+    cohortId: string | null;
+    learners: Array<{
+      userId: string;
+      email: string;
+      name: string;
+      courseVersionId: string;
+      cohortId: string | null;
+      percentCompleted: number;
+      completedItems: number;
+      totalItems: number;
+      completed: boolean;
+      completedAt?: Date;
+      enrolledAt?: Date;
+    }>;
+  }> {
+    return await this.enrollmentService.getCourseVersionProgress(
+      courseId,
+      versionId,
+      cohortId,
       page,
       limit,
     );

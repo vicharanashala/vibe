@@ -9,7 +9,8 @@ export async function createUser(app: typeof Express, role?: string): Promise<st
     password: faker.internet.password(),
     firstName: faker.person.firstName().replace(/[^a-zA-Z]/g, ''),
     lastName: faker.person.lastName().replace(/[^a-zA-Z]/g, ''),
-    roles: role
+    roles: role,
+    recaptchaToken: 'mock-token'
   };
 
   // Send POST request to sign up the user

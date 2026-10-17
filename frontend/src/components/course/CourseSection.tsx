@@ -1,10 +1,9 @@
-import { Info } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CourseCard, CourseCardSkeleton } from "@/components/course/CourseCard";
 import { CourseListCard } from "@/components/course/CourseListCard";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/utils/utils";
 import type { CourseSectionProps } from '@/types/course.types';
 
@@ -32,7 +31,7 @@ export const CourseSection = ({
         <div className={cn(
           "grid gap-6",
           viewMode === 'grid' 
-            ? (variant === 'dashboard' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 md:grid-cols-2") 
+            ? (variant === 'dashboard' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 md:grid-cols-2") 
             : "grid-cols-1"
         )}>
           {Array.from({ length: skeletonCount }, (_, i) => (
@@ -83,7 +82,7 @@ export const CourseSection = ({
         <div className={cn(
           "grid gap-6",
           viewMode === 'grid' 
-            ? (variant === 'dashboard' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1 md:grid-cols-2") 
+            ? (variant === 'dashboard' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 md:grid-cols-2") 
             : "grid-cols-1"
         )}>
           {enrollments
@@ -113,6 +112,20 @@ export const CourseSection = ({
                 />
               );
             })}
+
+          {showViewAll && onViewAll && viewMode === 'grid' && (
+            <button
+              type="button"
+              onClick={onViewAll}
+              aria-label="View all courses"
+              className="group flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-[24px] border-2 border-dashed border-neutral-200 bg-neutral-50/50 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/[0.03] hover:text-primary dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-primary/40"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-full border border-current/20 transition-transform group-hover:scale-110">
+                <ArrowRight className="h-5 w-5" />
+              </span>
+              <span className="text-sm font-semibold">View all courses</span>
+            </button>
+          )}
         </div>
 
         {/* Show pagination info for dashboard variant */}
@@ -136,37 +149,11 @@ export const CourseSection = ({
 
   return (
     <div className={className}>
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
+      {title && (
+        <div className="flex justify-between items-center mb-3">
           <h2 className="text-xl font-semibold">{title}</h2>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                <Info className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>
-                {title === "In progress learning content"
-                  ? "Courses you're currently enrolled in and actively learning"
-                  : title === "Recommended for you"
-                    ? "Personalized course recommendations based on your learning history and interests"
-                    : "View detailed information about this section"
-                }
-              </p>
-            </TooltipContent>
-          </Tooltip>
         </div>
-        {showViewAll && onViewAll && (
-          <Button
-            variant="link"
-            className="text-primary text-sm font-medium flex items-center"
-            onClick={onViewAll}
-          >
-            View all
-          </Button>
-        )}
-      </div>
+      )}
 
       {renderContent()}
     </div>

@@ -18,6 +18,15 @@ import {aiConfig} from '#root/config/ai.js';
 import {Anthropic} from '@anthropic-ai/sdk';
 import {TranscriptResponse} from '#root/shared/index.js';
 import JSON5 from 'json5';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+
+interface AIQuestionGenerationContext {
+  courseId?: string;
+  versionId?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  focusAreas?: string;
+  avoidTopics?: string;
+}
 
 @injectable()
 class QuestionService extends BaseService {
@@ -36,10 +45,71 @@ class QuestionService extends BaseService {
     @inject(QUIZZES_TYPES.QuizRepo)
     private quizRepository: QuizRepository,
 
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private courseRepository: ICourseRepository,
+
     @inject(GLOBAL_TYPES.Database)
     private database: MongoDatabase, // Replace with actual database type if needed
   ) {
     super(database);
+  }
+
+  /**
+   * Best-effort: instructor-supplied context is a quality hint, not a
+   * requirement, so a lookup failure (bad id, deleted course, etc.) must not
+   * block question generation.
+   */
+  private async _buildCourseContextBlock(
+    context: AIQuestionGenerationContext | undefined,
+    session: ClientSession,
+  ): Promise<string> {
+    if (!context) return '';
+
+    const lines: string[] = [];
+
+    if (context.courseId) {
+      try {
+        const course = await this.courseRepository.read(
+          context.courseId,
+          session,
+        );
+        if (course?.name) lines.push(`Course: ${course.name}`);
+        if (course?.description)
+          lines.push(`Course description: ${course.description}`);
+      } catch {
+        // ignore — proceed without course metadata
+      }
+    }
+
+    if (context.versionId) {
+      try {
+        const version = await this.courseRepository.readVersion(
+          context.versionId,
+          session,
+        );
+        if (version?.description)
+          lines.push(`Version description: ${version.description}`);
+      } catch {
+        // ignore — proceed without version metadata
+      }
+    }
+
+    if (context.difficulty)
+      lines.push(`Target difficulty: ${context.difficulty}`);
+    if (context.focusAreas) lines.push(`Emphasize: ${context.focusAreas}`);
+    if (context.avoidTopics) lines.push(`Avoid: ${context.avoidTopics}`);
+
+    if (lines.length === 0) return '';
+
+    return `
+    ================================
+    COURSE CONTEXT
+    ================================
+    Use this context to keep questions relevant to the course, but still
+    generate them ONLY from the transcript content below — do not invent
+    facts about the course that aren't in the transcript.
+    ${lines.join('\n    ')}
+`;
   }
 
   private async _getQuestionSkipCount(
@@ -298,12 +368,18 @@ class QuestionService extends BaseService {
   public async generateQuestionsWithAI(
     userId: string,
     text: string,
+    context?: AIQuestionGenerationContext,
   ): Promise<TranscriptResponse[]> {
     return this._withTransaction(async session => {
       try {
         if (!text || text.trim().length === 0) {
           throw new BadRequestError('Input text cannot be empty');
         }
+
+        const courseContextBlock = await this._buildCourseContextBlock(
+          context,
+          session,
+        );
 
         const prompt = `
     You are an expert MERN stack educator and question-generation specialist. You will generate high-quality Multiple Choice Questions (MCQs) based ONLY on the provided video transcript text.
@@ -351,7 +427,7 @@ class QuestionService extends BaseService {
     - No extra fields outside the schema
     - MUST be valid JSON that can be parsed directly
     - Every field must be present and always a string where required
-
+${courseContextBlock}
     ================================
     CONTENT RULES
     ================================
@@ -421,9 +497,11 @@ class QuestionService extends BaseService {
           apiKey: ANTHROPIC_CRED!,
         });
 
+        
+
         const response = await anthropic.messages.create({
           model: ANTHROPIC_MODEL,
-          max_tokens: 4000,
+          max_tokens: 8000,
           temperature: 0.0,
           messages: [
             {
@@ -437,6 +515,7 @@ class QuestionService extends BaseService {
             },
           ],
         });
+
 
         const finalOutput =
           response.content?.map(c => ('text' in c ? c.text : '')).join('') ??

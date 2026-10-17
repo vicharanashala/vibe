@@ -21,6 +21,11 @@ interface QuestionUploadDialogProps {
   onUploadComplete: (youtubeURL: string,  csvFile:File) => Promise<void>
   moduleId?: string;
   sectionId?: string;
+  // Used to pull in course context (name/description) server-side and to scope
+  // the "generate questions" ability check. Only relevant to the AI-assisted
+  // (Smart Upload) path.
+  courseId?: string;
+  versionId?: string;
   // "video-segments" (default): existing flow that pairs a YouTube URL with a segmented CSV.
   // "quiz-questions": upload a CSV of questions to populate a single quiz; hides the YouTube URL
   // field, the Smart Upload button, and uses the quiz-questions CSV template + help text.
@@ -44,6 +49,8 @@ export const QuestionUploadDialog = ({
   open,
   onOpenChange,
   onUploadComplete,
+  courseId,
+  versionId,
   mode = "video-segments",
 }: QuestionUploadDialogProps) => {
   const isQuizQuestionsMode = mode === "quiz-questions";
@@ -64,6 +71,11 @@ export const QuestionUploadDialog = ({
   const [generalError, setGeneralError] = useState("")
   const [messageIndex, setMessageIndex] = useState(0);
 
+  // Optional context to steer the AI generation prompt toward this course.
+  const [difficulty, setDifficulty] = useState<"beginner" | "intermediate" | "advanced" | "">("");
+  const [focusAreas, setFocusAreas] = useState("");
+  const [avoidTopics, setAvoidTopics] = useState("");
+
   const [showAdvancedFlow, setShowAdvancedFlow] = useState(false)
 
   const { mutateAsync: generateQuestions, data, error: generateQuestionsError, isPending } = useGenerateAIQuestions();
@@ -78,6 +90,9 @@ export const QuestionUploadDialog = ({
     setGeneratedCSV("");
     setCustomCSVFile(null);
     setUseCustomCSV(false);
+    setDifficulty("");
+    setFocusAreas("");
+    setAvoidTopics("");
   };
 
   const handleClose = () => {
@@ -214,7 +229,14 @@ const handleGenerateLLMResponse = async () => {
     setStep("generating");
 
     const response = await generateQuestions({
-      body: { text: textContent }
+      body: {
+        text: textContent,
+        courseId,
+        versionId,
+        difficulty: difficulty || undefined,
+        focusAreas: focusAreas.trim() || undefined,
+        avoidTopics: avoidTopics.trim() || undefined,
+      }
     });
 
     toast.success("Question generation completed");
@@ -661,6 +683,50 @@ const handleGenerateLLMResponse = async () => {
                     </p>
                   )}
                 </div>
+
+                <div className="space-y-4 rounded-lg border p-4">
+                  <Label className="text-sm font-semibold">Question context (optional)</Label>
+                  <p className="text-xs text-muted-foreground -mt-2">
+                    Helps the AI tailor questions to this course. Questions are still generated only from the transcript above.
+                  </p>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="difficulty">Target difficulty</Label>
+                    <Select value={difficulty || undefined} onValueChange={(val) => setDifficulty(val as typeof difficulty)}>
+                      <SelectTrigger id="difficulty">
+                        <span>{difficulty ? difficulty[0].toUpperCase() + difficulty.slice(1) : "Select difficulty"}</span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="beginner">Beginner</SelectItem>
+                        <SelectItem value="intermediate">Intermediate</SelectItem>
+                        <SelectItem value="advanced">Advanced</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="focus-areas">Emphasize</Label>
+                    <Input
+                      id="focus-areas"
+                      placeholder="e.g. debugging workflow, not syntax"
+                      value={focusAreas}
+                      maxLength={300}
+                      onChange={(e) => setFocusAreas(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="avoid-topics">Avoid</Label>
+                    <Input
+                      id="avoid-topics"
+                      placeholder="e.g. deployment, covered in another module"
+                      value={avoidTopics}
+                      maxLength={300}
+                      onChange={(e) => setAvoidTopics(e.target.value)}
+                    />
+                  </div>
+                </div>
+
                 {generalError && (
                     <p className="text-red-500 text-sm mt-2">{generalError}</p>
                   )}
