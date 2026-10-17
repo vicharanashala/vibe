@@ -11,6 +11,7 @@ import { ObjectId, ClientSession } from "mongodb";
 import { MongoDatabase } from "#root/shared/index.js";
 import { GLOBAL_TYPES } from "#root/types.js";
 import { getActualCourseIds } from "./getActualCourseId.js";
+import { toProgressPercent } from "./toProgressPercent.js";
 import { HpRewardRule, HpRuleConfigTransformer, HpRuleLimits } from "../classes/transformers/RuleConfigs.js";
 import { CohortRepository } from "../repositories/providers/mongodb/cohortsRepository.js";
 import { CohortStudentItemDto } from "../classes/validators/courseAndCohorts.js";
@@ -135,7 +136,7 @@ const processMilestoneRewards = async (
     // OPTIMIZED: Filter students who actually need rewards (this is optimization!)
     const studentsNeedingReward = enrolledStudents.filter((student: CohortStudentItemDto) => {
         const studentId = student._id.toString();
-        const currentProgress = student.completionPercentage || 0;
+        const currentProgress = toProgressPercent(student.completionPercentage);
         const requiredProgress = activity.required_percentage;
         const hasReward = rewardMap.has(studentId);
 
@@ -211,7 +212,7 @@ const processStudentReward = async (
 
     const studentId = student._id.toString();
 
-    console.log(`\n🎓 Processing student: ${student.email}, ==> Current progress: ${student.completionPercentage || 0}%`);
+    console.log(`\n🎓 Processing student: ${student.email}, ==> Current progress: ${toProgressPercent(student.completionPercentage)}%`);
 
     // Calculate reward amount
     const currentHp = student.totalHp || 0;
@@ -232,7 +233,7 @@ const processStudentReward = async (
 
     const requiredPercentage = activity.required_percentage ?? 0;
 
-    const note = `Milestone completed for "${activity.title}". Progress: ${student.completionPercentage}% (required: ${requiredPercentage}%). Rewarded ${rewardAmount} HP.`;
+    const note = `Milestone completed for "${activity.title}". Progress: ${toProgressPercent(student.completionPercentage)}% (required: ${requiredPercentage}%). Rewarded ${rewardAmount} HP.`;
 
     await applyStudentReward(
         student,
