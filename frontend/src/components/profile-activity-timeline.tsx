@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useMemo } from "react"
-import { BookOpen, Award, GraduationCap, UserPlus, Clock, CheckCircle2, FileText, Star, Inbox, Camera, CheckCircle } from "lucide-react"
+import { BookOpen, Award, GraduationCap, UserPlus, Clock, CheckCircle2, Camera, CheckCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/utils/utils"

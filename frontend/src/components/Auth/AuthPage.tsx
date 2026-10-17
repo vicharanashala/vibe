@@ -653,7 +653,7 @@ export default function AuthPage({ role }: AuthPageProps) {
       if (redirectUrl) {
         navigate({ to: redirectUrl });
       } else {
-        navigate({ to: `/${activeRole}` });
+        navigate({ to: "/student" });
       }
 
     } catch (error: any) {

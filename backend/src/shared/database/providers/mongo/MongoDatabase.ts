@@ -40,15 +40,13 @@ export class MongoDatabase implements IDatabase<Db> {
       return;
     }
 
-    const isLocal = uri.startsWith('mongodb://127.0.0.1') || uri.startsWith('mongodb://localhost');
-
     this.client = new MongoClient(uri, {
-      ssl: !isLocal,
-      tls: !isLocal,
+      ssl: true,
+      tls: true,
       tlsAllowInvalidCertificates: false,
       tlsAllowInvalidHostnames: false,
 
-      retryWrites: !isLocal,
+      retryWrites: true,
 
       // 🔹 CONNECTION POOL
       maxPoolSize: 50,

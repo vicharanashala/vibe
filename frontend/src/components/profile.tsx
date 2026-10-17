@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/dialog"
 import { Slider } from "@/components/ui/slider"
 import { motion } from "motion/react"
-import ProfileActivityTimeline, { buildActivityFromEnrollment } from "@/components/profile-activity-timeline"
+import ProfileActivityTimeline, { buildActivityFromEnrollment, type Activity } from "@/components/profile-activity-timeline"
 import ProfileCompletionCard from "@/components/profile-completion-card"
 
 const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Other", "Prefer not to say"]
@@ -187,13 +187,16 @@ export default function UserProfile({ role = "student" }: { role?: "student" | "
 
   const recentActivities = useMemo(() => {
     return enrollments
-      .map((enrollment) => buildActivityFromEnrollment({
-        courseTitle: enrollment.course?.name || "Unknown Course",
-        enrolledAt: enrollment.enrollmentDate || enrollment.createdAt || new Date().toISOString(),
-        progress: enrollment.contentCounts?.totalItems
-          ? Math.round(((enrollment.completedItems || 0) / enrollment.contentCounts.totalItems) * 100)
-          : 0,
-      }))
+      .map((enrollment) =>
+        buildActivityFromEnrollment({
+          enrollmentDate: enrollment.enrollmentDate || enrollment.createdAt || new Date().toISOString(),
+          course: enrollment.course,
+          completedItems: enrollment.completedItems,
+          contentCounts: enrollment.contentCounts,
+          percentCompleted: enrollment.percentCompleted,
+        })
+      )
+      .filter((activity): activity is Activity => activity !== null)
       .slice(0, 10)
   }, [enrollments])
 

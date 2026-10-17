@@ -189,14 +189,8 @@ export class AuthController {
     }
 
     // Proceed with Firebase authentication
-    const emulatorHost = process.env.FIREBASE_AUTH_EMULATOR_HOST;
-    const baseUrl = emulatorHost
-      ? `http://${emulatorHost}/identitytoolkit.googleapis.com/v1`
-      : 'https://identitytoolkit.googleapis.com/v1';
-    const apiKey = appConfig.firebase.apiKey || 'emulator-key';
-
     const data = await fetch(
-      `${baseUrl}/accounts:signInWithPassword?key=${apiKey}`,
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${appConfig.firebase.apiKey}`,
       {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -209,11 +203,8 @@ export class AuthController {
     );
     const result = await data.json();
 
-    if (!data.ok || result.error) {
-      const message = result.error?.message || 'Invalid credentials';
-      throw new HttpError(401, message);
-    }
-
+    // ✅ fetch your app user from DB
+    // const user = await this.authService.getCurrentUserFromToken(result.idToken);
     return result;
   }
 }
