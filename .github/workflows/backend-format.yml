@@ -1,0 +1,50 @@
+name: Backend Format Check
+
+# Checks that backend lines changed by a PR follow the gts Prettier style
+# (backend/.prettierrc.cjs). Only changed lines are checked: most existing
+# backend files predate the style. See .github/scripts/check-backend-format.sh.
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/scripts/check-backend-format.sh'
+      - '.github/workflows/backend-format.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-format-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: Format Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # No version pin: action-setup reads the root package.json `packageManager`.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Provides gts, whose Prettier version and config the backend uses.
+      - name: Install backend dependencies
+        run: pnpm install --frozen-lockfile --filter ./backend...
+
+      - name: Check formatting of changed lines
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: bash .github/scripts/check-backend-format.sh "origin/$BASE_REF"
