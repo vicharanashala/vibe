@@ -569,16 +569,17 @@ class ProgressService extends BaseService {
         ),
       ]);
 
+      totalCompletedItemsCount = completedItemCount || completedItems;
       percentCompleted = this._calculateProgress(
         totalItems,
-        completedItemCount || completedItems,
+        totalCompletedItemsCount,
       );
     }
 
     await this.enrollmentRepo.updateProgressPercentById(
       enrollment._id.toString(),
       percentCompleted,
-      completedItemCount,
+      isReset ? completedItemCount : totalCompletedItemsCount,
       cohort,
       session,
     );
