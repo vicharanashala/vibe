@@ -1,22 +1,32 @@
-name: Backend Tests PR Comment
+name: Backend PR Checks Comment
 
-# Posts the Backend Tests (Vitest) result on the PR it ran for. It runs from
-# the default branch with write access, which fork PRs never get, so it must
-# never check out or execute PR code: it only reads the uploaded results.
+# Keeps one summary comment on each backend PR, covering the Backend Tests
+# (Vitest) and Backend Format Check results for the PR's latest commit, and
+# updates it whenever either check finishes. The author is tagged only when
+# something needs fixing.
 #
-# Failures are compared with the latest main run. Only failures that main
-# doesn't already have are attributed to the PR, and only then is the author
-# asked to fix them.
+# It runs from the default branch with write access, which fork PRs never
+# get, so it must never check out or execute PR code: it only reads the
+# results the two checks upload.
+#
+# Test failures are compared with the latest main run. Only failures main
+# doesn't already have are attributed to the PR.
 
 on:
   workflow_run:
-    workflows: ['Backend Tests (Vitest)']
+    workflows: ['Backend Tests (Vitest)', 'Backend Format Check']
     types: [completed]
 
 permissions:
   actions: read
   contents: read
   pull-requests: write
+
+# Both checks finish close together; one comment update at a time per commit
+# keeps them from each creating a comment.
+concurrency:
+  group: backend-pr-comment-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
 
 jobs:
   comment:
@@ -29,33 +39,46 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
-      RUN_ID: ${{ github.event.workflow_run.id }}
-      RUN_URL: ${{ github.event.workflow_run.html_url }}
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
 
     steps:
-      - name: Download PR results
-        run: gh run download "$RUN_ID" -R "$REPO" -n backend-test-results -D pr || true
+      - name: Collect check results for this commit
+        run: |
+          collect() {  # <workflow file> <artifact name> <dir>
+            local info id status conclusion url
+            info=$(gh run list -R "$REPO" --workflow "$1" --commit "$HEAD_SHA" --event pull_request -L 1 \
+              --json databaseId,status,conclusion,url --jq '.[0] // empty | "\(.databaseId) \(.status) \(.conclusion) \(.url)"')
+            mkdir -p "$3"
+            if [ -z "$info" ]; then echo missing > "$3/state"; return; fi
+            read -r id status conclusion url <<< "$info"
+            echo "$url" > "$3/url"
+            if [ "$status" != completed ]; then echo running > "$3/state"; return; fi
+            echo "$conclusion" > "$3/state"
+            gh run download "$id" -R "$REPO" -n "$2" -D "$3/files" || true
+          }
+          collect backend-tests.yml backend-test-results tests
+          collect backend-format.yml backend-format-results format
+          head -n1 tests/state format/state
 
       - name: Resolve PR
         id: pr
         run: |
-          PR=$(cat pr/pr-number 2>/dev/null || true)
+          PR=$(cat tests/files/pr-number format/files/pr-number 2>/dev/null | head -n1 || true)
           if ! [[ "$PR" =~ ^[0-9]+$ ]]; then
             echo "No PR number in the results; nothing to comment on."
             exit 0
           fi
-          # The artifact is written by PR code, so confirm it names the PR
-          # this run was really for.
+          # The artifacts are written by PR code, so confirm the number names
+          # the PR whose head is the commit these checks ran on.
           read -r PR_SHA AUTHOR < <(gh api "repos/$REPO/pulls/$PR" --jq '"\(.head.sha) \(.user.login)"')
           if [ "$PR_SHA" != "$HEAD_SHA" ]; then
-            echo "PR #$PR head is $PR_SHA, run was for $HEAD_SHA; skipping."
+            echo "PR #$PR head is $PR_SHA, checks ran on $HEAD_SHA; skipping."
             exit 0
           fi
           echo "number=$PR" >> "$GITHUB_OUTPUT"
           echo "author=$AUTHOR" >> "$GITHUB_OUTPUT"
 
-      - name: Download main baseline
+      - name: Download main test baseline
         if: steps.pr.outputs.number
         run: |
           BASE_RUN=$(gh run list -R "$REPO" --workflow backend-tests.yml --branch main \
@@ -73,101 +96,201 @@ jobs:
           const fs = require('fs');
           const MARKER = '<!-- backend-tests-report -->';
           const MAX_LISTED = 30;
+          const read = (p) => (fs.existsSync(p) ? fs.readFileSync(p, 'utf8').trim() : '');
 
           const decode = (s) => s
             .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
             .replace(/&apos;/g, "'").replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
             .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d)).replace(/&amp;/g, '&');
-          // Test output is untrusted: keep it on one line, inert, and short.
+          // Artifact contents are untrusted: keep them on one line, inert, and short.
           const clean = (s, max) => {
             const line = decode(s).replace(/\x1b\[[0-9;]*m/g, '').split('\n').find((l) => l.trim()) ?? '';
             const t = line.trim().replace(/`/g, "'").replace(/@/g, '@​').replace(/</g, '‹').replace(/>/g, '›');
             return t.length > max ? t.slice(0, max - 1) + '…' : t;
           };
+          const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
           function parse(path) {
-            if (!fs.existsSync(path)) return null;
-            const xml = fs.readFileSync(path, 'utf8');
-            const res = { total: 0, skipped: 0, failures: new Map() };
-            for (const m of xml.matchAll(/<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g)) {
-              const attrs = Object.fromEntries([...m[1].matchAll(/(\w+)="([^"]*)"/g)].map((a) => [a[1], a[2]]));
-              const body = m[2] ?? '';
-              res.total++;
-              if (/<skipped\b/.test(body)) { res.skipped++; continue; }
-              const f = body.match(/<(?:failure|error)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:failure|error)>)/);
-              if (!f) continue;
-              const msg = f[1].match(/message="([^"]*)"/)?.[1] || f[2] || '';
-              const file = decode(attrs.classname ?? 'unknown');
-              res.failures.set(`${file} > ${decode(attrs.name ?? '')}`, { file, name: attrs.name ?? '', msg });
+            const xml = read(path);
+            if (!xml) return null;
+            const res = {tests: {passed: 0, failed: 0, skipped: 0}, files: {passed: 0, failed: 0, skipped: 0}, failures: new Map()};
+            for (const suite of xml.matchAll(/<testsuite\b([^>]*)>([\s\S]*?)<\/testsuite>/g)) {
+              let failed = 0, skipped = 0, total = 0;
+              for (const m of suite[2].matchAll(/<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/g)) {
+                const attrs = Object.fromEntries([...m[1].matchAll(/(\w+)="([^"]*)"/g)].map((a) => [a[1], a[2]]));
+                const body = m[2] ?? '';
+                total++;
+                if (/<skipped\b/.test(body)) { skipped++; continue; }
+                const f = body.match(/<(?:failure|error)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:failure|error)>)/);
+                if (!f) continue;
+                failed++;
+                const file = decode(attrs.classname ?? 'unknown');
+                const msg = f[1].match(/message="([^"]*)"/)?.[1] || f[2] || '';
+                res.failures.set(`${file} > ${decode(attrs.name ?? '')}`, {file, name: attrs.name ?? '', msg});
+              }
+              res.tests.failed += failed;
+              res.tests.skipped += skipped;
+              res.tests.passed += total - failed - skipped;
+              if (failed) res.files.failed++;
+              else if (total && skipped === total) res.files.skipped++;
+              else res.files.passed++;
             }
             return res;
           }
 
-          const pr = parse('pr/junit.xml');
-          const base = parse('base/junit.xml');
-          const author = process.env.AUTHOR;
-          const out = [MARKER];
+          // Same shape as Vitest's own end-of-run summary.
+          const vitestLine = (label, c) => {
+            const parts = [];
+            if (c.failed) parts.push(`${c.failed} failed`);
+            parts.push(`${c.passed} passed`);
+            if (c.skipped) parts.push(`${c.skipped} skipped`);
+            return `${label.padStart(11)}  ${parts.join(' | ')} (${c.passed + c.failed + c.skipped})`;
+          };
 
-          if (!pr) {
-            out.push(
-              '### ⚠️ Backend tests did not finish',
-              '',
-              `@${author}, the test run stopped before producing results (install or setup failure). ` +
-              `Please check the [run log](${process.env.RUN_URL}) and fix it.`,
-            );
+          function listFailures(fails) {
+            const byFile = new Map();
+            for (const f of fails) byFile.set(f.file, [...(byFile.get(f.file) ?? []), f]);
+            const lines = [];
+            let shown = 0;
+            for (const [file, list] of byFile) {
+              if (shown >= MAX_LISTED) break;
+              lines.push(`- \`${clean(file, 120)}\``);
+              for (const f of list) {
+                if (shown++ >= MAX_LISTED) break;
+                lines.push(`  - ${clean(f.name, 140)}: \`${clean(f.msg, 160)}\``);
+              }
+            }
+            if (fails.length > MAX_LISTED) lines.push(`- …and ${fails.length - MAX_LISTED} more, see the run log.`);
+            return lines;
+          }
+
+          const testsState = read('tests/state');
+          const testsUrl = read('tests/url');
+          const formatState = read('format/state');
+          const formatUrl = read('format/url');
+          const link = (url, text) => (url ? `[${text}](${url})` : text);
+
+          // ---- Tests ----
+          const tests = [];
+          let testsNeedFix = false;
+          let testsIcon = '⏳';
+          const pr = parse('tests/files/junit.xml');
+          if (testsState === 'missing') {
+            testsIcon = '➖';
+            tests.push('Not run for this commit (no backend changes).');
+          } else if (testsState === 'running') {
+            tests.push(`Still running. ${link(testsUrl, 'View run')}`);
+          } else if (!pr) {
+            testsIcon = '⚠️';
+            testsNeedFix = true;
+            tests.push(`The test run stopped before producing results (install or setup failure). Check the ${link(testsUrl, 'run log')}.`);
           } else {
+            const base = parse('base/junit.xml');
             const all = [...pr.failures.entries()];
             const isNew = ([id]) => !base || !base.failures.has(id);
             const newFails = all.filter(isNew).map(([, v]) => v);
             const oldFails = all.filter((e) => !isNew(e)).map(([, v]) => v);
-            const passed = pr.total - pr.skipped - all.length;
-            const counts = `${passed} passed · ${all.length} failed · ${pr.skipped} skipped (${pr.total} tests)`;
-
-            const list = (fails) => {
-              const byFile = new Map();
-              for (const f of fails) byFile.set(f.file, [...(byFile.get(f.file) ?? []), f]);
-              const lines = [];
-              let shown = 0;
-              for (const [file, fs_] of byFile) {
-                if (shown >= MAX_LISTED) break;
-                lines.push(`- \`${clean(file, 120)}\``);
-                for (const f of fs_) {
-                  if (shown++ >= MAX_LISTED) break;
-                  lines.push(`  - ${clean(f.name, 140)}: \`${clean(f.msg, 160)}\``);
-                }
-              }
-              if (fails.length > MAX_LISTED) lines.push(`- …and ${fails.length - MAX_LISTED} more, see the run log.`);
-              return lines;
-            };
+            testsNeedFix = newFails.length > 0;
+            testsIcon = testsNeedFix ? '❌' : '✅';
 
             if (newFails.length) {
-              out.push(
-                `### ❌ Backend tests: ${newFails.length} new failure${newFails.length === 1 ? '' : 's'}`,
+              tests.push(
+                `**${plural(newFails.length, 'new failure')}**` + (base ? ' (these pass on `main`):' : ':'),
                 '',
-                `@${author}, this PR makes the following backend tests fail` +
-                (base ? ' (they pass on `main`)' : '') + '. Please fix them and push again.',
+                ...listFailures(newFails),
                 '',
-                ...list(newFails),
               );
-              if (!base) out.push('', '_No `main` run to compare against yet, so every failure is listed here._');
+              if (!base) tests.push('_No `main` run to compare against yet, so every failure is listed above._', '');
+            } else if (all.length) {
+              tests.push(`No new failures. ${plural(all.length, 'test')} also failing on \`main\` (listed below).`, '');
             } else {
-              out.push(`### ✅ Backend tests: no new failures`);
+              tests.push('All tests passed.', '');
             }
-            out.push('', counts);
+
+            const seconds = Number(read('tests/files/duration-seconds'));
+            const summary = [vitestLine('Test Files', pr.files), vitestLine('Tests', pr.tests)];
+            if (seconds > 0) summary.push(`${'Duration'.padStart(11)}  ${seconds}s`);
+            tests.push('```', ...summary, '```');
+
+            const excluded = read('tests/files/excluded.txt').split('\n').filter(Boolean).length;
+            if (excluded) tests.push(`${plural(excluded, 'known-broken test file')} not run (listed in \`.github/workflows/backend-tests.yml\`).`);
+
             if (oldFails.length) {
-              out.push(
+              tests.push(
                 '',
-                `<details><summary>${oldFails.length} test${oldFails.length === 1 ? '' : 's'} already failing on <code>main</code> (not caused by this PR)</summary>`,
+                `<details><summary>${plural(oldFails.length, 'test')} already failing on <code>main</code> (not caused by this PR)</summary>`,
                 '',
-                ...list(oldFails),
+                ...listFailures(oldFails),
                 '',
                 '</details>',
               );
             }
+            tests.push('', link(testsUrl, 'Test run log'));
           }
-          out.push('', `[Full run log](${process.env.RUN_URL}) · commit \`${process.env.HEAD_SHA.slice(0, 7)}\``);
+
+          // ---- Formatting ----
+          const format = [];
+          let formatNeedsFix = false;
+          let formatIcon = '⏳';
+          const report = read('format/files/format-report.txt').split('\n');
+          const formatStatus = report[0] || '';
+          if (formatState === 'missing') {
+            formatIcon = '➖';
+            format.push('Not run for this commit (no backend changes).');
+          } else if (formatState === 'running') {
+            format.push(`Still running. ${link(formatUrl, 'View run')}`);
+          } else if (formatStatus === 'none') {
+            formatIcon = '✅';
+            format.push('No backend source files changed.');
+          } else if (formatStatus === 'ok') {
+            formatIcon = '✅';
+            format.push('All changed backend lines follow the gts Prettier style.');
+          } else if (formatStatus === 'failed') {
+            formatIcon = '❌';
+            formatNeedsFix = true;
+            const byFile = new Map();
+            for (const line of report.slice(1)) {
+              const m = line.match(/^(\S+) (\d+) (\d+)$/);
+              if (!m) continue;
+              const range = m[2] === m[3] ? m[2] : `${m[2]}–${m[3]}`;
+              byFile.set(m[1], [...(byFile.get(m[1]) ?? []), range]);
+            }
+            format.push('These changed lines are not formatted:', '');
+            let shown = 0;
+            for (const [file, ranges] of byFile) {
+              if (shown++ >= MAX_LISTED) { format.push('- …more, see the run log.'); break; }
+              format.push(`- \`${clean(file, 140)}\`: ${ranges.length === 1 ? 'line' : 'lines'} ${ranges.join(', ')}`);
+            }
+            format.push(
+              '',
+              'Format those lines by hand, or reformat the whole file (a bigger diff on older files): ' +
+              '`cd backend && npx prettier@3.3.3 --write <file>`',
+            );
+          } else {
+            formatIcon = '⚠️';
+            formatNeedsFix = true;
+            format.push(`The format check stopped before producing results. Check the ${link(formatUrl, 'run log')}.`);
+          }
+          if (formatUrl && formatState !== 'running') format.push('', link(formatUrl, 'Format check log'));
+
+          // ---- Comment ----
+          const needsFix = testsNeedFix || formatNeedsFix;
+          const pending = testsState === 'running' || formatState === 'running';
+          const author = process.env.AUTHOR;
+          const headline = needsFix
+            ? '## ❌ Backend checks: changes needed'
+            : pending ? '## ⏳ Backend checks: running' : '## ✅ Backend checks passed';
+          const out = [MARKER, headline, ''];
+          if (needsFix) {
+            const what = [
+              testsNeedFix && (pr ? 'failing tests' : 'broken test run'),
+              formatNeedsFix && 'unformatted lines',
+            ].filter(Boolean).join(' and ');
+            out.push(`@${author}, please fix the ${what} below and push again.`, '');
+          }
+          out.push(`### ${testsIcon} Tests`, '', ...tests, '', `### ${formatIcon} Formatting`, '', ...format);
+          out.push('', `<sub>Commit \`${process.env.HEAD_SHA.slice(0, 7)}\` · updated on every push</sub>`);
           fs.writeFileSync('comment.md', out.join('\n') + '\n');
-          fs.writeFileSync('needs-attention', pr && [...pr.failures.keys()].some((id) => !base || !base.failures.has(id)) || !pr ? '1' : '0');
           EOF
           cat comment.md
 
@@ -181,9 +304,7 @@ jobs:
           if [ -n "$EXISTING" ]; then
             gh api -X PATCH "repos/$REPO/issues/comments/$EXISTING" -F body=@comment.md > /dev/null
             echo "Updated comment $EXISTING"
-          elif [ "$(cat needs-attention)" = "1" ]; then
+          else
             gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@comment.md > /dev/null
             echo "Posted comment"
-          else
-            echo "No new failures and no earlier comment; not posting."
           fi

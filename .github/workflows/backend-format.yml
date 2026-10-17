@@ -47,4 +47,23 @@ jobs:
       - name: Check formatting of changed lines
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: bash .github/scripts/check-backend-format.sh "origin/$BASE_REF"
+        run: |
+          bash .github/scripts/check-backend-format.sh "origin/$BASE_REF" \
+            format-results/format-report.txt
+
+      # Read by backend-tests-comment.yml, which posts the PR comment. This
+      # run's token is read-only on fork PRs, so it can't comment itself.
+      - name: Record PR metadata
+        if: always()
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p format-results
+          echo "$PR_NUMBER" > format-results/pr-number
+
+      - name: Upload format results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-format-results
+          path: format-results/

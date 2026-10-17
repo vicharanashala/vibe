@@ -3,12 +3,15 @@
 # style. Only changed lines are checked: most existing backend files predate
 # the style, so a whole-file check would fail on lines nobody touched.
 #
-# usage: check-backend-format.sh <base-ref>   (run from the repo root)
+# usage: check-backend-format.sh <base-ref> [report-file]   (from the repo root)
 # Prints GitHub error annotations and exits 1 if any changed line needs
-# formatting.
+# formatting. If report-file is given, writes "status" on the first line
+# (none | ok | failed), then one "file start end" line per unformatted range.
 set -euo pipefail
 
 BASE=$1
+REPORT=${2:+$(realpath -m "$2")}
+[ -z "$REPORT" ] || mkdir -p "$(dirname "$REPORT")"
 cd backend
 
 PRETTIER=$(node -p "require.resolve('prettier/bin/prettier.cjs', {paths: [require('path').dirname(require.resolve('gts/package.json'))]})")
@@ -18,6 +21,7 @@ mapfile -t FILES < <(git diff --name-only --diff-filter=AMR "$BASE"...HEAD -- \
 
 if [ ${#FILES[@]} -eq 0 ]; then
   echo "No backend source files changed."
+  [ -z "$REPORT" ] || echo none > "$REPORT"
   exit 0
 fi
 
@@ -37,6 +41,7 @@ ranges() {
 }
 
 failed=0
+[ -z "$REPORT" ] || : > "$REPORT.ranges"
 tmp=$(mktemp)
 for f in "${FILES[@]}"; do
   [ -f "$f" ] || continue
@@ -60,10 +65,15 @@ for f in "${FILES[@]}"; do
   while read -r s e; do
     [ -n "$s" ] || continue
     failed=1
+    [ -z "$REPORT" ] || echo "backend/$f $s $e" >> "$REPORT.ranges"
     echo "::error file=backend/$f,line=$s,endLine=$e,title=Formatting::Lines $s-$e are not formatted (gts Prettier style)."
   done <<< "$bad"
 done
 rm -f "$tmp"
+if [ -n "$REPORT" ]; then
+  { [ "$failed" -eq 1 ] && echo failed || echo ok; cat "$REPORT.ranges"; } > "$REPORT"
+  rm -f "$REPORT.ranges"
+fi
 
 if [ "$failed" -eq 1 ]; then
   echo

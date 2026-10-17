@@ -111,6 +111,11 @@ jobs:
             src/modules/users/tests/ProgressController.test.ts
             src/modules/users/tests/ProgressService.attemptedItemBypassDeadlock.test.ts
           )
+          # The PR comment reports the excluded count and the run's duration.
+          mkdir -p test-results
+          printf '%s\n' "${KNOWN_BROKEN[@]}" > test-results/excluded.txt
+          start=$SECONDS
+          status=0
           # --retry=1: CrowdQuestion.e2e can hit
           # MongoDB's 5ms transaction lock timeout when every file runs in
           # parallel (1 run in 5 locally). A test that fails twice still fails.
@@ -120,7 +125,9 @@ jobs:
             --reporter=default \
             --reporter=github-actions \
             --reporter=junit \
-            --outputFile.junit=test-results/junit.xml
+            --outputFile.junit=test-results/junit.xml || status=$?
+          echo $((SECONDS - start)) > test-results/duration-seconds
+          exit $status
 
       # Read by backend-tests-comment.yml, which posts the PR comment. This
       # run's token is read-only on fork PRs, so it can't comment itself.
