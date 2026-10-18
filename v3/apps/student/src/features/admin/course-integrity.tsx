@@ -86,6 +86,7 @@ import {
   type IncidentType,
   type Removal,
 } from './integrity-api';
+import { useStudioAccess } from './queries';
 import { ConfirmDialog, ErrorText, formatDate, StatStrip } from './studio-ui';
 
 export const INCIDENT_TYPES: Record<
@@ -177,6 +178,8 @@ export function CourseIntegrity({
 }) {
   const [view, setView] = useState<View>('incidents');
   const appeals = useAppeals(courseId, versionId);
+  // Removing and reinstating students (and the removal history) are admin-only on the backend.
+  const { isAdmin } = useStudioAccess();
   const waiting =
     appeals.data?.filter((a) => a.status === 'PENDING').length ?? 0;
 
@@ -185,7 +188,7 @@ export function CourseIntegrity({
       <Tabs value={view} onValueChange={(v) => setView(v as View)}>
         <TabsList className="max-w-full overflow-x-auto [scrollbar-width:none]">
           <TabsTrigger value="incidents">Incidents</TabsTrigger>
-          <TabsTrigger value="removed">Removed</TabsTrigger>
+          {isAdmin && <TabsTrigger value="removed">Removed</TabsTrigger>}
           <TabsTrigger value="appeals">
             Appeals{' '}
             {waiting > 0 && (
@@ -200,7 +203,7 @@ export function CourseIntegrity({
       {view === 'incidents' && (
         <Incidents courseId={courseId} versionId={versionId} />
       )}
-      {view === 'removed' && (
+      {isAdmin && view === 'removed' && (
         <Removed courseId={courseId} versionId={versionId} />
       )}
       {view === 'appeals' && (
@@ -700,6 +703,7 @@ function StudentSheet({
   onOpenIncident: (i: Incident) => void;
 }) {
   const [removing, setRemoving] = useState(false);
+  const { isAdmin } = useStudioAccess();
   return (
     <Sheet open={!!student} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
@@ -753,9 +757,15 @@ function StudentSheet({
                 ))}
             </ol>
             <SheetFooter>
-              <Button variant="destructive" onClick={() => setRemoving(true)}>
-                <UserMinusIcon aria-hidden /> Remove from course
-              </Button>
+              {isAdmin ? (
+                <Button variant="destructive" onClick={() => setRemoving(true)}>
+                  <UserMinusIcon aria-hidden /> Remove from course
+                </Button>
+              ) : (
+                <p className="text-center text-xs text-muted-foreground">
+                  Only an admin can remove a student from the course.
+                </p>
+              )}
             </SheetFooter>
             <RemoveDialog
               courseId={courseId}
@@ -954,6 +964,8 @@ function Appeals({
 }) {
   const appeals = useAppeals(courseId, versionId);
   const decide = useDecideAppeal(courseId, versionId);
+  // Approving reinstates the student, which is otherwise admin-only, so admins decide appeals.
+  const { isAdmin } = useStudioAccess();
   const [status, setStatus] = useState<Appeal['status']>('PENDING');
   const [rejecting, setRejecting] = useState<Appeal | null>(null);
   const [reason, setReason] = useState('');
@@ -1028,7 +1040,12 @@ function Appeals({
                     Reason: {a.rejectionReason}
                   </p>
                 )}
-                {a.status === 'PENDING' && (
+                {a.status === 'PENDING' && !isAdmin && (
+                  <p className="text-xs text-muted-foreground">
+                    Waiting for an admin to decide.
+                  </p>
+                )}
+                {a.status === 'PENDING' && isAdmin && (
                   <div className="flex justify-end gap-2">
                     <Button
                       variant="outline"

@@ -22,7 +22,7 @@ describe('studio access', () => {
   it('keeps non-admins out of every studio page', async () => {
     signInStudent();
     renderApp(`/admin/courses/${SAMPLE.courseId}/${SAMPLE.versionId}`);
-    expect(await screen.findByText('Admins only')).toBeInTheDocument();
+    expect(await screen.findByText('For course teams')).toBeInTheDocument();
     expect(
       screen.queryByRole('heading', { name: SAMPLE.name }),
     ).not.toBeInTheDocument();

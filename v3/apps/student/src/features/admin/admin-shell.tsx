@@ -67,7 +67,7 @@ import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 
 import { NewCourseDialog } from './new-course-dialog';
-import { useCurrentUserProfile } from './queries';
+import { useStudioAccess } from './queries';
 
 type NavTo = '/admin' | '/admin/courses' | '/admin/users';
 
@@ -98,15 +98,15 @@ function titleFor(pathname: string) {
  * "New course" call to action) and its own warm theme, applied by putting
  * `studio` on <html> while mounted so portalled menus and dialogs match.
  */
-/** Admin check for every studio page: the sidebar shell and the full-screen editors. */
+/** Access check for every studio page (admins, or anyone teaching a course): the sidebar shell and the full-screen editors. */
 export function StudioGuard({
   children,
 }: {
   children: (profile: { email: string }) => ReactNode;
 }) {
-  const profile = useCurrentUserProfile();
+  const { profile, isPending, canEnter } = useStudioAccess();
 
-  if (profile.isPending) {
+  if (isPending) {
     return (
       <div className="grid min-h-dvh place-items-center bg-background">
         <Spinner className="size-6 text-muted-foreground" />
@@ -114,7 +114,7 @@ export function StudioGuard({
     );
   }
 
-  if (profile.isError || profile.data?.roles !== 'admin') {
+  if (profile.isError || !profile.data || !canEnter) {
     return (
       <div className="grid min-h-dvh place-items-center bg-background px-4">
         <Empty>
@@ -122,9 +122,12 @@ export function StudioGuard({
             <EmptyMedia variant="icon">
               <ShieldAlertIcon />
             </EmptyMedia>
-            <EmptyTitle className="font-aleo text-2xl">Admins only</EmptyTitle>
+            <EmptyTitle className="font-aleo text-2xl">
+              For course teams
+            </EmptyTitle>
             <EmptyDescription>
-              You need an admin account to use the studio.
+              The studio opens once you teach a course. Ask the course’s admin
+              or instructor to invite you as an instructor or TA.
             </EmptyDescription>
           </EmptyHeader>
           <Button
@@ -151,7 +154,7 @@ export function AdminShell() {
   );
 }
 
-/** Full-screen studio pages (the lesson editors): admin check and theme, no sidebar. */
+/** Full-screen studio pages (the lesson editors): access check and theme, no sidebar. */
 export function StudioEditorShell() {
   return <StudioGuard>{() => <Outlet />}</StudioGuard>;
 }
@@ -159,6 +162,9 @@ export function StudioEditorShell() {
 function StudioChrome({ email }: { email: string }) {
   const [newCourseOpen, setNewCourseOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // Creating courses and the Users page are admin-only on the backend.
+  const { isAdmin } = useStudioAccess();
+  const navGroups = isAdmin ? NAV_GROUPS : NAV_GROUPS.filter((g) => g.label !== 'People');
 
   return (
     <>
@@ -182,13 +188,18 @@ function StudioChrome({ email }: { email: string }) {
                 </span>
               </span>
             </Link>
-            <Button className="w-full" onClick={() => setNewCourseOpen(true)}>
-              <PlusIcon aria-hidden /> New course
-            </Button>
+            {isAdmin && (
+              <Button
+                className="w-full"
+                onClick={() => setNewCourseOpen(true)}
+              >
+                <PlusIcon aria-hidden /> New course
+              </Button>
+            )}
           </SidebarHeader>
 
           <SidebarContent>
-            {NAV_GROUPS.map((group, i) => (
+            {navGroups.map((group, i) => (
               <SidebarGroup key={group.label ?? i} className="py-1">
                 {group.label && (
                   <SidebarGroupLabel className="text-[11px] tracking-wider uppercase">
@@ -245,29 +256,36 @@ function StudioChrome({ email }: { email: string }) {
       </SidebarProvider>
       <StudioTabBar
         pathname={pathname}
-        onNewCourse={() => setNewCourseOpen(true)}
+        items={navGroups.flatMap((g) => g.items)}
+        onNewCourse={isAdmin ? () => setNewCourseOpen(true) : undefined}
       />
       <NewCourseDialog open={newCourseOpen} onOpenChange={setNewCourseOpen} />
     </>
   );
 }
 
-/** Phones: Substack-style floating tab bar, with New course as the round primary action. */
+/** Phones: Substack-style floating tab bar, with New course (admins) as the round primary action. */
 function StudioTabBar({
   pathname,
+  items,
   onNewCourse,
 }: {
   pathname: string;
-  onNewCourse: () => void;
+  items: { label: string; to: NavTo; icon: LucideIcon }[];
+  onNewCourse?: () => void;
 }) {
-  const items = NAV_GROUPS.flatMap((g) => g.items);
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
       <nav
         aria-label="Studio"
         className="flex-1 rounded-full border border-border bg-background/90 p-1 shadow-lg backdrop-blur-md"
       >
-        <ul className="grid grid-cols-3">
+        <ul
+          className={cn(
+            'grid',
+            items.length === 3 ? 'grid-cols-3' : 'grid-cols-2',
+          )}
+        >
           {items.map(({ label, to, icon: Icon }) => {
             const active =
               to === '/admin'
@@ -297,14 +315,16 @@ function StudioTabBar({
           })}
         </ul>
       </nav>
-      <Button
-        size="icon-lg"
-        aria-label="New course"
-        onClick={onNewCourse}
-        className="size-14 shrink-0 rounded-full shadow-lg"
-      >
-        <PlusIcon className="size-6" aria-hidden />
-      </Button>
+      {onNewCourse && (
+        <Button
+          size="icon-lg"
+          aria-label="New course"
+          onClick={onNewCourse}
+          className="size-14 shrink-0 rounded-full shadow-lg"
+        >
+          <PlusIcon className="size-6" aria-hidden />
+        </Button>
+      )}
     </div>
   );
 }

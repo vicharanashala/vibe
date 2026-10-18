@@ -12,16 +12,20 @@ import { cn } from '@/lib/utils';
 
 import { CourseList, CourseListSkeleton, sortCourses } from './courses-page';
 import { NewCourseDialog } from './new-course-dialog';
-import { useAllCourses, useAllUsers, useCourseEnrollments, useCurrentUserProfile, type AdminCourse } from './queries';
+import { useAllUsers, useCourseEnrollments, useStudioAccess, useStudioCourses, type AdminCourse } from './queries';
 import { ErrorText, formatDate, RoleBadge, SectionHeading, StatStrip, StudioPage } from './studio-ui';
 
 type CourseTab = 'overview' | 'content' | 'people' | 'proctoring';
 
-/** Studio home, after Substack's dashboard: setup checklist, overview numbers, latest course, people. */
+/**
+ * Studio home, after Substack's dashboard: setup checklist, overview numbers,
+ * latest course, people. Teachers who aren't admins see their own courses only
+ * (site-wide numbers and the user list are admin-only on the backend).
+ */
 export function StudioHomePage() {
-  const profile = useCurrentUserProfile();
-  const courses = useAllCourses();
-  const users = useAllUsers();
+  const { profile, isAdmin } = useStudioAccess();
+  const courses = useStudioCourses();
+  const users = useAllUsers(isAdmin);
   const sorted = sortCourses(courses.data ?? []);
   const latest = sorted[0];
 
@@ -32,8 +36,9 @@ export function StudioHomePage() {
 
       {courses.data && <GettingStarted latest={latest} />}
 
-      <section className="mt-8">
-        <SectionHeading>Overview</SectionHeading>
+      {isAdmin && (
+        <section className="mt-8">
+          <SectionHeading>Overview</SectionHeading>
         <StatStrip
           stats={[
             { label: 'Courses', value: courses.data ? courses.data.length : '–' },
@@ -41,13 +46,15 @@ export function StudioHomePage() {
             { label: 'Admins', value: users.data ? users.data.filter((u) => u.roles === 'admin').length : '–' },
           ]}
         />
-      </section>
+        </section>
+      )}
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      <div className={cn('mt-8 grid gap-6', isAdmin && 'lg:grid-cols-2')}>
         <section className="flex flex-col">
           <SectionHeading>Latest course</SectionHeading>
           {courses.isPending ? <Skeleton className="h-64 rounded-2xl" /> : latest ? <LatestCourseCard course={latest} /> : <NoCourseCard />}
         </section>
+        {isAdmin && (
         <section className="flex flex-col">
           <SectionHeading
             action={
@@ -77,6 +84,7 @@ export function StudioHomePage() {
             </ul>
           </div>
         </section>
+        )}
       </div>
 
       <section className="mt-8">

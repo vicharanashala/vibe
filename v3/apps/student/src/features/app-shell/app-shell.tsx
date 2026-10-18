@@ -36,7 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/features/auth/auth-provider';
-import { useCurrentUserProfile } from '@/features/admin/queries';
+import { useStudioAccess } from '@/features/admin/queries';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 import { Wordmark } from '@/features/landing/wordmark';
 import { cn } from '@/lib/utils';
@@ -172,8 +172,8 @@ function AccountMenu() {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const profile = useCurrentUserProfile();
-  const isAdmin = profile.data?.roles === 'admin';
+  // Admins and anyone teaching a course (instructor, manager, TA) can open the studio.
+  const { canEnter: canTeach } = useStudioAccess();
 
   async function onSignOut() {
     await signOut();
@@ -199,9 +199,9 @@ function AccountMenu() {
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           {theme === 'dark' ? 'Light theme' : 'Dark theme'}
         </DropdownMenuItem>
-        {isAdmin && (
+        {canTeach && (
           <DropdownMenuItem onClick={() => navigate({ to: '/admin' })}>
-            <ShieldIcon /> Admin
+            <ShieldIcon /> Studio
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />

@@ -9,7 +9,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { NewCourseDialog } from './new-course-dialog';
-import { useAllCourses, type AdminCourse } from './queries';
+import { useStudioAccess, useStudioCourses, type AdminCourse } from './queries';
 import { ErrorText, formatDate, PageHeader, StudioPage } from './studio-ui';
 
 /** Newest first. */
@@ -17,9 +17,11 @@ export function sortCourses(courses: AdminCourse[]) {
   return [...courses].sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
 }
 
-/** Substack "Posts"-style list of every course. */
+/** Substack "Posts"-style course list: every course for admins, the ones you teach otherwise. */
 export function CoursesPage() {
-  const courses = useAllCourses();
+  const courses = useStudioCourses();
+  // Only admins can create courses (backend rule); teachers are invited to theirs.
+  const { isAdmin } = useStudioAccess();
   const [query, setQuery] = useState('');
   const [newOpen, setNewOpen] = useState(false);
 
@@ -35,9 +37,11 @@ export function CoursesPage() {
         title="Courses"
         description="Everything you teach. Open a course to edit its content, invite people and set proctoring."
         actions={
-          <Button onClick={() => setNewOpen(true)}>
-            <PlusIcon aria-hidden /> New course
-          </Button>
+          isAdmin && (
+            <Button onClick={() => setNewOpen(true)}>
+              <PlusIcon aria-hidden /> New course
+            </Button>
+          )
         }
       />
 
@@ -63,11 +67,15 @@ export function CoursesPage() {
                 <PlusIcon />
               </EmptyMedia>
               <EmptyTitle>No courses yet</EmptyTitle>
-              <EmptyDescription>Create your first course to start adding lessons.</EmptyDescription>
+              <EmptyDescription>
+                {isAdmin ? 'Create your first course to start adding lessons.' : 'Courses you’re invited to teach appear here.'}
+              </EmptyDescription>
             </EmptyHeader>
-            <EmptyContent>
-              <Button onClick={() => setNewOpen(true)}>New course</Button>
-            </EmptyContent>
+            {isAdmin && (
+              <EmptyContent>
+                <Button onClick={() => setNewOpen(true)}>New course</Button>
+              </EmptyContent>
+            )}
           </Empty>
         )}
         {courses.data && courses.data.length > 0 && shown.length === 0 && (

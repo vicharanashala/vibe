@@ -10,6 +10,8 @@ import {
   signInStudent,
 } from '@/test/session';
 
+import type {} from './recaptcha'; // window.grecaptcha type
+
 vi.mock('@/lib/firebase', () =>
   import('@/test/session').then((m) => m.firebaseModule),
 );

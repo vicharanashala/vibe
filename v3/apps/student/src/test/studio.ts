@@ -29,6 +29,8 @@ import resultsItem from './fixtures/studio/results-item.json';
 import resultsPerformance from './fixtures/studio/results-performance.json';
 import resultsQuestions from './fixtures/studio/results-questions.json';
 import resultsSubmissions from './fixtures/studio/results-submissions.json';
+import teacherEnrollments from './fixtures/studio/teacher-enrollments.json';
+import userMeTeacher from './fixtures/studio/user-me-teacher.json';
 import users from './fixtures/studio/users.json';
 
 export const studio = {
@@ -43,6 +45,8 @@ export const studio = {
   quizItem,
   quizQuestions,
   userMeAdmin,
+  userMeTeacher,
+  teacherEnrollments,
   users,
   registration: {
     settings: registrationSettings,
@@ -246,4 +250,50 @@ export function signInAdmin() {
   api.GET.mockImplementation(async (path: string, opts?: Params) =>
     studioGet(path, opts),
   );
+}
+
+export const TEACHER: typeof STUDENT = {
+  uid: 'teacher-uid',
+  email: 'teacher@vibe.local',
+  displayName: 'Tara Teacher',
+  providerData: [{ providerId: 'password' }],
+  getIdToken: async () => 'test-token',
+  reload: async () => undefined,
+};
+
+const forbidden = (message: string) => ({
+  data: undefined,
+  error: { message },
+  response: new Response(null, { status: 403 }),
+});
+
+/**
+ * Signs in a non-admin teacher: INSTRUCTOR on the feedback course only
+ * (captured from the local backend). Admin-only endpoints answer 403 with the
+ * backend's own messages.
+ */
+export function signInTeacher() {
+  fakeAuth.currentUser = TEACHER;
+  localStorage.setItem(
+    `vibe:onboarding:${TEACHER.uid}`,
+    JSON.stringify({ completedAt: '2026-10-07T00:00:00Z' }),
+  );
+  api.GET.mockImplementation(async (path: string, opts?: Params) => {
+    switch (path) {
+      case '/api/users/me':
+        return ok(userMeTeacher);
+      case '/api/users/enrollments':
+        return opts?.params?.query?.role === 'INSTRUCTOR'
+          ? ok(teacherEnrollments)
+          : ok({ totalDocuments: 0, totalPages: 0, currentPage: 1, enrollments: [], activeCount: 0, archivedCount: 0, message: 'No enrollments found for the user' });
+      case '/api/courses/':
+        return forbidden('Only admins can list all courses');
+      case '/api/users/':
+        return forbidden('Only admins can list all users');
+      case '/api/ejections/history':
+        return forbidden('Only administrators can access ejection history');
+      default:
+        return studioGet(path, opts);
+    }
+  });
 }

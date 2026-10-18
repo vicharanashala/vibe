@@ -33,9 +33,11 @@ export interface AdminCourse {
   createdAt: string;
 }
 
-export function useAllCourses() {
+/** Every course (GET /courses/, admins only). */
+export function useAllCourses(enabled = true) {
   return useQuery({
     queryKey: ['admin', 'courses'],
+    enabled,
     queryFn: async () => {
       const raw = unwrap(await api.GET('/api/courses/', {})) as unknown as { courses: any[] };
       return raw.courses.map((c) => ({
@@ -48,6 +50,76 @@ export function useAllCourses() {
       })) as AdminCourse[];
     },
   });
+}
+
+/** Course roles that open the studio. The backend grants these course-level teaching rights. */
+export const TEACHING_ROLES = ['INSTRUCTOR', 'MANAGER', 'TA'] as const;
+
+/**
+ * Courses the signed-in user teaches, from their own enrolments (GET
+ * /users/enrollments, one call per role: the endpoint filters by a single role).
+ * Shaped like AdminCourse; `versions` holds only the versions they teach.
+ */
+export function useTaughtCourses(enabled = true) {
+  return useQuery({
+    queryKey: ['studio', 'taught-courses'],
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const pages = await Promise.all(
+        TEACHING_ROLES.map(
+          async (role) =>
+            unwrap(
+              await api.GET('/api/users/enrollments', {
+                params: { query: { page: 1, limit: 100, role, tab: 'active' } as never },
+              }),
+            ) as unknown as { enrollments?: any[] },
+        ),
+      );
+      const byCourse = new Map<string, AdminCourse>();
+      for (const e of pages.flatMap((p) => p.enrollments ?? [])) {
+        if (!(TEACHING_ROLES as readonly string[]).includes(e.role)) continue;
+        const courseId = toId(e.courseId);
+        const versionId = toId(e.courseVersionId);
+        const course: AdminCourse = byCourse.get(courseId) ?? {
+          _id: courseId,
+          name: e.course?.name ?? 'Course',
+          description: e.course?.description ?? '',
+          versions: [],
+          instructors: [],
+          createdAt: e.course?.createdAt ?? e.enrollmentDate,
+        };
+        if (!course.versions.includes(versionId)) course.versions.push(versionId);
+        byCourse.set(courseId, course);
+      }
+      return [...byCourse.values()];
+    },
+  });
+}
+
+/**
+ * Who may use the studio: admins (everything), and anyone who teaches at least
+ * one course as instructor, manager or TA (just those courses). There's no
+ * separate teacher login; it follows the backend's own course roles.
+ */
+export function useStudioAccess() {
+  const profile = useCurrentUserProfile();
+  const isAdmin = profile.data?.roles === 'admin';
+  const taught = useTaughtCourses(profile.isSuccess && !isAdmin);
+  return {
+    profile,
+    isAdmin,
+    isPending: profile.isPending || (profile.isSuccess && !isAdmin && taught.isPending),
+    canEnter: isAdmin || (taught.data?.length ?? 0) > 0,
+  };
+}
+
+/** The studio's course list: every course for admins, the ones you teach otherwise. */
+export function useStudioCourses() {
+  const { profile, isAdmin } = useStudioAccess();
+  const all = useAllCourses(isAdmin);
+  const taught = useTaughtCourses(profile.isSuccess && !isAdmin);
+  return isAdmin ? all : taught;
 }
 
 export interface CreateCourseInput {
@@ -257,9 +329,11 @@ export interface AdminUser {
   roles: 'admin' | 'user';
 }
 
-export function useAllUsers() {
+/** Every account (GET /users/, admins only). */
+export function useAllUsers(enabled = true) {
   return useQuery({
     queryKey: ['admin', 'users'],
+    enabled,
     queryFn: async () => {
       const raw = unwrap(await api.GET('/api/users/', {})) as unknown as { users: any[] };
       return raw.users.map((u) => ({

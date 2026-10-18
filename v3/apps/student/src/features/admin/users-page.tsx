@@ -4,19 +4,42 @@ import { toast } from 'sonner';
 
 import { GeneratedAvatar } from '@/components/generated-art';
 import { Button } from '@/components/ui/button';
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { useAllUsers, useMakeAdmin, type AdminUser } from './queries';
+import { useAllUsers, useMakeAdmin, useStudioAccess, type AdminUser } from './queries';
 import { ConfirmDialog, ErrorText, PageHeader, RoleBadge, StudioPage } from './studio-ui';
 
 type Filter = 'all' | 'admin' | 'user';
 
-/** Every account, Substack "Subscribers"-style: count, search, role filter, row actions. */
+/** Every account, Substack "Subscribers"-style: count, search, role filter, row actions. Admins only. */
 export function UsersPage() {
+  const { isAdmin } = useStudioAccess();
+  return isAdmin ? <AllUsers /> : <AdminsOnly />;
+}
+
+/** Teachers reach the studio too; the account list stays admin-only (as on the backend). */
+function AdminsOnly() {
+  return (
+    <StudioPage>
+      <Empty className="rounded-2xl border border-dashed border-border bg-card">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ShieldCheckIcon />
+          </EmptyMedia>
+          <EmptyTitle>Admins only</EmptyTitle>
+          <EmptyDescription>Only admins can see every account. You can manage the people in your own courses from each course’s People tab.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    </StudioPage>
+  );
+}
+
+function AllUsers() {
   const users = useAllUsers();
   const makeAdmin = useMakeAdmin();
   const [query, setQuery] = useState('');
