@@ -26,7 +26,8 @@ import { useCourseSettings } from '@/features/learn/queries';
 
 import { CourseContent, ITEM_TYPES } from './course-content';
 import { CoursePeople } from './course-people';
-import { CourseProctoring, DETECTORS } from './course-proctoring';
+import { CourseIntegrity } from './course-integrity';
+import { DETECTORS } from './course-proctoring';
 import { CourseRegistration } from './course-registration';
 import { useCourse, useCourseEnrollments } from './queries';
 import { ErrorText, SectionHeading, StatStrip, StudioPage } from './studio-ui';
@@ -172,7 +173,7 @@ export function CourseDetailPage({
           />
         </TabsContent>
         <TabsContent value="proctoring" className="pt-6">
-          <CourseProctoring courseId={courseId} versionId={versionId} />
+          <CourseIntegrity courseId={courseId} versionId={versionId} />
         </TabsContent>
       </Tabs>
     </StudioPage>

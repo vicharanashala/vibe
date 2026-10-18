@@ -1,8 +1,25 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { ApiError, unwrap } from '@vibe/api';
-import { ArrowLeftIcon, ArrowRightIcon, BadgeCheckIcon, CheckCircle2Icon, HandIcon, InfoIcon, LockIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  BadgeCheckIcon,
+  CheckCircle2Icon,
+  HandIcon,
+  InfoIcon,
+  LockIcon,
+  ShieldAlertIcon,
+  XIcon,
+} from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -17,13 +34,32 @@ import {
 } from '@/components/ui/alert-dialog';
 import { RichContent } from '@/components/rich-content';
 import { FeedbackFormFields } from '@/features/feedback/feedback-form';
-import { fieldName, isAnswered, schemaToFields, toSubmission, validate, type FormValues } from '@/features/feedback/form-schema';
+import {
+  fieldName,
+  isAnswered,
+  schemaToFields,
+  toSubmission,
+  validate,
+  type FormValues,
+} from '@/features/feedback/form-schema';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { itemTypeMeta, ProgressBar } from '@/features/courses/course-ui';
@@ -40,7 +76,11 @@ import {
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-import { CameraBubble, CameraRequired, useCameraPresence } from './camera-presence';
+import {
+  CameraBubble,
+  CameraRequired,
+  useCameraPresence,
+} from './camera-presence';
 import { ConsentGate } from './consent-gate';
 import { useBlurDetector } from './detectors/use-blur-detector';
 import { FaceEnrollment } from './detectors/face-enrollment';
@@ -65,6 +105,7 @@ import {
 } from './queries';
 import { TRACKS, useCourseTrack, useFlatSyllabus, type Track } from './tracks';
 import { QuizRunner } from './quiz';
+import { useIncidentReporter } from './incident-reporter';
 import { useAfterQuizSubmit } from './quiz-api';
 import { YouTubePlayer } from './youtube-player';
 
@@ -84,13 +125,20 @@ export function LessonPage({ track, ...ref }: LessonProps) {
   // role) — an instructor opening a green lesson hit a raw "Progress not
   // found" 404 the moment it tried to start the item.
   const enrollments = useEnrollments('active');
-  const enrollmentRole = enrollments.data?.enrollments.find((e) => e.courseVersionId === ref.versionId)?.role;
+  const enrollmentRole = enrollments.data?.enrollments.find(
+    (e) => e.courseVersionId === ref.versionId,
+  )?.role;
   const [, rememberTrack] = useCourseTrack(ref.versionId);
   useEffect(() => rememberTrack(track), [track, rememberTrack]);
 
   const progress = percentage.data?.percentCompleted ?? 0;
   const frame = (body: ReactNode) => (
-    <LessonFrame lessonRef={ref} track={track} title={lesson.data?.name} progress={progress}>
+    <LessonFrame
+      lessonRef={ref}
+      track={track}
+      title={lesson.data?.name}
+      progress={progress}
+    >
       {body}
     </LessonFrame>
   );
@@ -115,13 +163,19 @@ export function LessonPage({ track, ...ref }: LessonProps) {
       ),
     );
   }
-  if (!consent.data?.signed) return frame(<ConsentGate courseId={ref.courseId} versionId={ref.versionId} />);
+  if (!consent.data?.signed)
+    return frame(
+      <ConsentGate courseId={ref.courseId} versionId={ref.versionId} />,
+    );
 
   const item = lesson.data;
   const greenQuiz = track === 'green' && item.type === 'QUIZ';
   if (!VIEWABLE.has(item.type) && !greenQuiz) {
     return frame(
-      <Notice title={`${itemTypeMeta(item.type).label} lessons aren’t available here yet`} lessonRef={ref}>
+      <Notice
+        title={`${itemTypeMeta(item.type).label} lessons aren’t available here yet`}
+        lessonRef={ref}
+      >
         {track === 'blue'
           ? 'Study mode is for watching and reading. Assessments count only in certified mode.'
           : 'This version of the app can open videos and readings so far.'}
@@ -129,15 +183,24 @@ export function LessonPage({ track, ...ref }: LessonProps) {
     );
   }
 
-  if (track === 'blue') return <BlueLesson key={ref.itemId} lessonRef={ref} item={item} progress={progress} />;
+  if (track === 'blue')
+    return (
+      <BlueLesson
+        key={ref.itemId}
+        lessonRef={ref}
+        item={item}
+        progress={progress}
+      />
+    );
 
   // Green track tracks certified progress, which doesn't exist for a non-student
   // enrollment (e.g. an instructor) — only the blue track (no progress saved) works for them.
   if (enrollmentRole && enrollmentRole !== 'STUDENT') {
     return frame(
       <Notice title="Certified progress isn’t available here" lessonRef={ref}>
-        You’re enrolled on this course as {enrollmentRole.toLowerCase()}, not a student, so certified mode’s progress tracking doesn’t apply to
-        you. Switch to study mode to study this lesson.
+        You’re enrolled on this course as {enrollmentRole.toLowerCase()}, not a
+        student, so certified mode’s progress tracking doesn’t apply to you.
+        Switch to study mode to study this lesson.
       </Notice>,
     );
   }
@@ -147,32 +210,78 @@ export function LessonPage({ track, ...ref }: LessonProps) {
   const unsupported = unsupportedDetectors(item.proctoringDetectors);
   if (unsupported.length > 0) {
     return frame(
-      <Notice title="This lesson is proctored" icon={<ShieldAlertIcon aria-hidden />} lessonRef={ref}>
-        This lesson requires {unsupported.length === 1 ? 'a check' : 'checks'} ({unsupported.map((d) => d.detectorName).join(', ')}) that{' '}
-        {unsupported.length === 1 ? "isn't" : "aren't"} available in this version of the app yet. You can still study it in study mode.
+      <Notice
+        title="This lesson is proctored"
+        icon={<ShieldAlertIcon aria-hidden />}
+        lessonRef={ref}
+      >
+        This lesson requires {unsupported.length === 1 ? 'a check' : 'checks'} (
+        {unsupported.map((d) => d.detectorName).join(', ')}) that{' '}
+        {unsupported.length === 1 ? "isn't" : "aren't"} available in this
+        version of the app yet. You can still study it in study mode.
       </Notice>,
     );
   }
-  return <GreenGate key={ref.itemId} lessonRef={ref} item={item} progress={progress} />;
+  return (
+    <GreenGate
+      key={ref.itemId}
+      lessonRef={ref}
+      item={item}
+      progress={progress}
+    />
+  );
 }
 
 /**
  * Green track: one lesson at a time, in order. Enforced here too, so it holds
  * even in courses whose backend linear-progression setting is off.
  */
-function GreenGate({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
+function GreenGate({
+  lessonRef: ref,
+  item,
+  progress,
+}: {
+  lessonRef: LessonRef;
+  item: LessonItem;
+  progress: number;
+}) {
   const path = useCurrentPath(ref.courseId, ref.versionId);
   const isCurrent = path.data?.item?.id === ref.itemId;
-  const isLocked = !path.isPending && !item.isAlreadyWatched && !!path.data?.item && !isCurrent;
+  const isLocked =
+    !path.isPending &&
+    !item.isAlreadyWatched &&
+    !!path.data?.item &&
+    !isCurrent;
   // Hooks must run unconditionally — don't gate this call behind the early
   // returns below. Instead it takes its own `enabled` flag, so a lesson that's
   // still loading or locked never opens the camera for content it isn't showing.
-  const { blocked, overlay } = useProctoring(item.proctoringDetectors, ref.courseId, ref.versionId, !path.isPending && !isLocked);
+  const { blocked, overlay } = useProctoring(
+    item.proctoringDetectors,
+    ref.courseId,
+    ref.versionId,
+    !path.isPending && !isLocked,
+    ref.itemId,
+  );
 
-  if (path.isPending) return <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}><Skeleton className="mx-auto mt-10 h-64 w-full max-w-3xl" /></LessonFrame>;
+  if (path.isPending)
+    return (
+      <LessonFrame
+        lessonRef={ref}
+        track="green"
+        title={item.name}
+        progress={progress}
+      >
+        <Skeleton className="mx-auto mt-10 h-64 w-full max-w-3xl" />
+      </LessonFrame>
+    );
   if (isLocked) {
     return (
-      <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}>
+      <LessonFrame
+        lessonRef={ref}
+        track="green"
+        title={item.name}
+        progress={progress}
+      >
         <LockedLesson lessonRef={ref} track="green" />
       </LessonFrame>
     );
@@ -184,13 +293,21 @@ function GreenGate({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
           its own. Video pausing is wired explicitly (GreenLesson's `paused={blocked}`)
           precisely so a blocked lesson can't just keep playing to completion behind
           the overlay. */}
-      <div className={cn(blocked && 'pointer-events-none select-none blur-sm')} aria-hidden={blocked}>
+      <div
+        className={cn(blocked && 'pointer-events-none select-none blur-sm')}
+        aria-hidden={blocked}
+      >
         {item.type === 'QUIZ' ? (
           <GreenQuiz lessonRef={ref} item={item} progress={progress} />
         ) : item.type === 'FEEDBACK' ? (
           <GreenFeedback lessonRef={ref} item={item} progress={progress} />
         ) : (
-          <GreenLesson lessonRef={ref} item={item} progress={progress} blocked={blocked} />
+          <GreenLesson
+            lessonRef={ref}
+            item={item}
+            progress={progress}
+            blocked={blocked}
+          />
         )}
       </div>
       {overlay}
@@ -212,17 +329,29 @@ function useProctoring(
   versionId: string,
   /** False while the lesson itself isn't being shown yet (still loading / locked) — no camera prompt for content the student can't see. */
   enabled: boolean,
+  /** The lesson incidents are filed under. */
+  itemId: string,
 ): { blocked: boolean; overlay: ReactNode } {
   const needsCamera = enabled && isDetectorEnabled(detectors, 'cameraMic');
-  const needsRightClickBlock = enabled && isDetectorEnabled(detectors, 'rightClickDisabled');
+  const needsRightClickBlock =
+    enabled && isDetectorEnabled(detectors, 'rightClickDisabled');
   const needsBlur = enabled && isDetectorEnabled(detectors, 'blurDetection');
-  const needsGesture = enabled && isDetectorEnabled(detectors, 'handGestureDetection');
+  const needsGesture =
+    enabled && isDetectorEnabled(detectors, 'handGestureDetection');
   const needsVoice = enabled && isDetectorEnabled(detectors, 'voiceDetection');
-  const needsFaceCount = enabled && isDetectorEnabled(detectors, 'faceCountDetection');
-  const needsFaceRecognition = enabled && isDetectorEnabled(detectors, 'faceRecognition');
+  const needsFaceCount =
+    enabled && isDetectorEnabled(detectors, 'faceCountDetection');
+  const needsFaceRecognition =
+    enabled && isDetectorEnabled(detectors, 'faceRecognition');
   // Every detector below needs a live camera feed to analyse, even on courses
   // that didn't separately turn the cameraMic detector on.
-  const needsCameraStream = needsCamera || needsBlur || needsGesture || needsVoice || needsFaceCount || needsFaceRecognition;
+  const needsCameraStream =
+    needsCamera ||
+    needsBlur ||
+    needsGesture ||
+    needsVoice ||
+    needsFaceCount ||
+    needsFaceRecognition;
   const camera = useCameraPresence({ audio: true, enabled: needsCameraStream });
   const cameraReady = camera.state === 'on';
 
@@ -237,11 +366,35 @@ function useProctoring(
   const gesture = useGestureDetector(captureRef, needsGesture && cameraReady);
   useThumbsUpChallenge(gesture, needsGesture && cameraReady);
   const isSpeaking = useVoiceDetector(camera.stream, needsVoice && cameraReady);
-  const faceCount = useFaceCountDetector(captureRef, needsFaceCount && cameraReady);
+  const faceCount = useFaceCountDetector(
+    captureRef,
+    needsFaceCount && cameraReady,
+  );
 
   const faceReference = useFaceReference(courseId, versionId);
-  const referenceEmbedding = needsFaceRecognition ? faceReference.data?.faceEmbedding : undefined;
-  const recognitionStatus = useFaceRecognition(captureRef, referenceEmbedding, needsFaceRecognition && cameraReady);
+  const referenceEmbedding = needsFaceRecognition
+    ? faceReference.data?.faceEmbedding
+    : undefined;
+  const recognitionStatus = useFaceRecognition(
+    captureRef,
+    referenceEmbedding,
+    needsFaceRecognition && cameraReady,
+  );
+
+  // Record incidents for the course team (with a still photo, as the consent form says).
+  useIncidentReporter(
+    { courseId, versionId, itemId },
+    captureRef,
+    {
+      NO_FACE: needsFaceCount && faceCount === 0,
+      MULTIPLE_FACES: needsFaceCount && faceCount !== null && faceCount > 1,
+      BLUR_DETECTION: needsBlur && isBlurry,
+      VOICE_DETECTION: needsVoice && isSpeaking,
+      FACE_RECOGNITION:
+        needsFaceRecognition && recognitionStatus === 'mismatched',
+    },
+    cameraReady,
+  );
   const [retakingReference, setRetakingReference] = useState(false);
 
   useEffect(() => {
@@ -267,62 +420,102 @@ function useProctoring(
   useEffect(() => {
     if (!needsVoice) return;
     if (isSpeaking) {
-      toast.message('Voice detected', { id: 'voice-warning', description: 'Keep your surroundings quiet during this lesson.' });
+      toast.message('Voice detected', {
+        id: 'voice-warning',
+        description: 'Keep your surroundings quiet during this lesson.',
+      });
     } else {
       toast.dismiss('voice-warning');
     }
   }, [isSpeaking, needsVoice]);
 
   // Face recognition needs a saved reference before it can run at all.
-  const needsEnrollment = needsFaceRecognition && faceReference.isSuccess && !faceReference.data.faceEmbedding;
+  const needsEnrollment =
+    needsFaceRecognition &&
+    faceReference.isSuccess &&
+    !faceReference.data.faceEmbedding;
   const showEnrollment = needsEnrollment || retakingReference;
 
-  let blockNotice: { title: string; message: string; showRetake?: boolean } | null = null;
+  let blockNotice: {
+    title: string;
+    message: string;
+    showRetake?: boolean;
+  } | null = null;
   if (needsFaceCount && faceCount !== null && faceCount !== 1) {
     blockNotice =
       faceCount === 0
-        ? { title: 'No face detected', message: 'Make sure your face is clearly visible to the camera.' }
-        : { title: 'Multiple faces detected', message: 'Only one person should be visible to the camera during this lesson.' };
-  } else if (needsFaceRecognition && !showEnrollment && faceReference.data?.faceEmbedding && recognitionStatus !== 'matched') {
+        ? {
+            title: 'No face detected',
+            message: 'Make sure your face is clearly visible to the camera.',
+          }
+        : {
+            title: 'Multiple faces detected',
+            message:
+              'Only one person should be visible to the camera during this lesson.',
+          };
+  } else if (
+    needsFaceRecognition &&
+    !showEnrollment &&
+    faceReference.data?.faceEmbedding &&
+    recognitionStatus !== 'matched'
+  ) {
     blockNotice =
       recognitionStatus === 'mismatched'
         ? {
             title: 'Face doesn’t match',
-            message: 'We couldn’t confirm this is you. Make sure you’re well-lit and facing the camera, or add a new reference photo.',
+            message:
+              'We couldn’t confirm this is you. Make sure you’re well-lit and facing the camera, or add a new reference photo.',
             showRetake: true,
           }
-        : { title: 'Checking it’s you…', message: 'Face the camera directly in good light.' };
+        : {
+            title: 'Checking it’s you…',
+            message: 'Face the camera directly in good light.',
+          };
   }
 
-  const blocked = (needsCameraStream && !cameraReady) || showEnrollment || blockNotice !== null;
+  const blocked =
+    (needsCameraStream && !cameraReady) ||
+    showEnrollment ||
+    blockNotice !== null;
 
   const overlay = (
     <>
       {needsCameraStream && (
         <>
           {/* eslint-disable-next-line jsx-a11y/media-has-caption -- hidden frame source for detectors, not a media player */}
-          <video ref={captureRef} autoPlay playsInline muted className="hidden" aria-hidden="true" />
+          <video
+            ref={captureRef}
+            autoPlay
+            playsInline
+            muted
+            className="hidden"
+            aria-hidden="true"
+          />
           <CameraBubble stream={camera.stream} />
           <CameraRequired
             state={camera.state}
             onRetry={camera.retry}
-            idleHint="This lesson is proctored and needs your camera and microphone on. Nothing is recorded or sent anywhere."
+            idleHint="This lesson is proctored and needs your camera and microphone on. Nothing is recorded unless a check flags something; then a still photo is saved for your course team, as in the consent form."
           />
         </>
       )}
       {cameraReady && showEnrollment && (
         <Dialog open>
-          <DialogContent showCloseButton={false} className="h-dvh max-w-none overflow-y-auto rounded-none p-0 sm:max-w-none" aria-label="Add a reference photo">
-          <FaceEnrollment
-            videoRef={captureRef}
-            stream={camera.stream}
-            courseId={courseId}
-            versionId={versionId}
-            onDone={() => {
-              setRetakingReference(false);
-              void faceReference.refetch();
-            }}
-          />
+          <DialogContent
+            showCloseButton={false}
+            className="h-dvh max-w-none overflow-y-auto rounded-none p-0 sm:max-w-none"
+            aria-label="Add a reference photo"
+          >
+            <FaceEnrollment
+              videoRef={captureRef}
+              stream={camera.stream}
+              courseId={courseId}
+              versionId={versionId}
+              onDone={() => {
+                setRetakingReference(false);
+                void faceReference.refetch();
+              }}
+            />
           </DialogContent>
         </Dialog>
       )}
@@ -330,7 +523,14 @@ function useProctoring(
         <BlockingNotice
           title={blockNotice.title}
           message={blockNotice.message}
-          action={blockNotice.showRetake ? { label: 'Add a new reference photo', onClick: () => setRetakingReference(true) } : undefined}
+          action={
+            blockNotice.showRetake
+              ? {
+                  label: 'Add a new reference photo',
+                  onClick: () => setRetakingReference(true),
+                }
+              : undefined
+          }
         />
       )}
     </>
@@ -377,27 +577,52 @@ function useGoToNext(ref: LessonRef) {
   const queryClient = useQueryClient();
   return useCallback(async () => {
     const path = unwrap(
-      await api.GET('/api/users/progress/courses/{courseId}/versions/{versionId}/current-path', {
-        params: { path: { courseId: ref.courseId, versionId: ref.versionId } },
-      }),
+      await api.GET(
+        '/api/users/progress/courses/{courseId}/versions/{versionId}/current-path',
+        {
+          params: {
+            path: { courseId: ref.courseId, versionId: ref.versionId },
+          },
+        },
+      ),
     ) as unknown as CurrentPath;
-    queryClient.setQueryData(courseKeys.currentPath(ref.courseId, ref.versionId), path);
+    queryClient.setQueryData(
+      courseKeys.currentPath(ref.courseId, ref.versionId),
+      path,
+    );
     const next = path?.item;
     if (next && next.id !== ref.itemId && path.module && path.section) {
       await navigate({
         to: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId',
-        params: { courseId: ref.courseId, versionId: ref.versionId, moduleId: path.module.id, sectionId: path.section.id, itemId: next.id },
+        params: {
+          courseId: ref.courseId,
+          versionId: ref.versionId,
+          moduleId: path.module.id,
+          sectionId: path.section.id,
+          itemId: next.id,
+        },
         search: { track: 'green' },
       });
     } else {
       if (!next) toast.success('You’ve finished every lesson in this course.');
-      await navigate({ to: '/courses/$courseId/$versionId', params: { courseId: ref.courseId, versionId: ref.versionId } });
+      await navigate({
+        to: '/courses/$courseId/$versionId',
+        params: { courseId: ref.courseId, versionId: ref.versionId },
+      });
     }
   }, [navigate, queryClient, ref]);
 }
 
 /** Green-track quiz: the attempt's submission grades it and advances progress when passed. */
-function GreenQuiz({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
+function GreenQuiz({
+  lessonRef: ref,
+  item,
+  progress,
+}: {
+  lessonRef: LessonRef;
+  item: LessonItem;
+  progress: number;
+}) {
   const navigate = useNavigate();
   const goToNext = useGoToNext(ref);
   const refresh = useAfterQuizSubmit();
@@ -432,7 +657,12 @@ function GreenQuiz({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
           await refresh();
           await goToNext();
         }}
-        onExit={() => navigate({ to: '/courses/$courseId/$versionId', params: { courseId: ref.courseId, versionId: ref.versionId } })}
+        onExit={() =>
+          navigate({
+            to: '/courses/$courseId/$versionId',
+            params: { courseId: ref.courseId, versionId: ref.versionId },
+          })
+        }
       />
     </LessonFrame>
   );
@@ -443,10 +673,21 @@ function GreenQuiz({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
  * the item; sending answers (POST /quizzes/{item}/feedback/submit) then stopping
  * the item completes it and moves the student on, as the old frontend did.
  */
-function GreenFeedback({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
+function GreenFeedback({
+  lessonRef: ref,
+  item,
+  progress,
+}: {
+  lessonRef: LessonRef;
+  item: LessonItem;
+  progress: number;
+}) {
   const goToNext = useGoToNext(ref);
   const complete = useCompleteItem(ref);
-  const fields = useMemo(() => schemaToFields(item.details.jsonSchema, item.details.uiSchema), [item.details.jsonSchema, item.details.uiSchema]);
+  const fields = useMemo(
+    () => schemaToFields(item.details.jsonSchema, item.details.uiSchema),
+    [item.details.jsonSchema, item.details.uiSchema],
+  );
   const alreadyDone = Boolean(item.isAlreadyWatched);
   const watchItem = useRef<Promise<string> | null>(null);
   const [values, setValues] = useState<FormValues>({});
@@ -468,7 +709,11 @@ function GreenFeedback({ lessonRef: ref, item, progress }: { lessonRef: LessonRe
       const problems = validate(fields, values);
       setErrors(problems);
       if (Object.keys(problems).length) {
-        document.getElementById(`fb-${fields.findIndex((f) => problems[fieldName(f)])}`)?.focus();
+        document
+          .getElementById(
+            `fb-${fields.findIndex((f) => problems[fieldName(f)])}`,
+          )
+          ?.focus();
         return;
       }
     }
@@ -479,7 +724,12 @@ function GreenFeedback({ lessonRef: ref, item, progress }: { lessonRef: LessonRe
         unwrap(
           await api.POST('/api/quizzes/{itemId}/feedback/submit', {
             params: { path: { itemId: ref.itemId } },
-            body: { details: toSubmission(fields, values), courseId: ref.courseId, courseVersionId: ref.versionId, sectionId: ref.sectionId } as never,
+            body: {
+              details: toSubmission(fields, values),
+              courseId: ref.courseId,
+              courseVersionId: ref.versionId,
+              sectionId: ref.sectionId,
+            } as never,
           }),
         );
         sent.current = true;
@@ -498,7 +748,8 @@ function GreenFeedback({ lessonRef: ref, item, progress }: { lessonRef: LessonRe
       setError(
         sent.current
           ? 'Your feedback was sent, but we couldn’t save your progress. Press Continue to try again.'
-          : (e as Error).message || 'Couldn’t send your feedback. Please try again.',
+          : (e as Error).message ||
+              'Couldn’t send your feedback. Please try again.',
       );
     } finally {
       setSending(false);
@@ -515,7 +766,10 @@ function GreenFeedback({ lessonRef: ref, item, progress }: { lessonRef: LessonRe
       footerTone={alreadyDone ? 'success' : 'neutral'}
       footer={
         <>
-          <p className="text-center text-sm text-muted-foreground empty:hidden sm:text-left" aria-live="polite">
+          <p
+            className="text-center text-sm text-muted-foreground empty:hidden sm:text-left"
+            aria-live="polite"
+          >
             {error ? (
               <span className="text-destructive">{error}</span>
             ) : alreadyDone ? (
@@ -528,11 +782,22 @@ function GreenFeedback({ lessonRef: ref, item, progress }: { lessonRef: LessonRe
           </p>
           <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">
             {(canSkip || alreadyDone) && !sent.current && (
-              <Button variant="ghost" size="lg" className="h-11 flex-1 sm:h-10 sm:flex-none" onClick={() => void finish(false)} disabled={sending}>
+              <Button
+                variant="ghost"
+                size="lg"
+                className="h-11 flex-1 sm:h-10 sm:flex-none"
+                onClick={() => void finish(false)}
+                disabled={sending}
+              >
                 {alreadyDone ? 'Continue' : 'Skip'}
               </Button>
             )}
-            <Button size="lg" className="h-11 flex-1 sm:h-10 sm:flex-none" onClick={() => void finish(true)} disabled={sending || fields.length === 0}>
+            <Button
+              size="lg"
+              className="h-11 flex-1 sm:h-10 sm:flex-none"
+              onClick={() => void finish(true)}
+              disabled={sending || fields.length === 0}
+            >
               {sending && <Spinner />}
               {sent.current ? 'Continue' : 'Send feedback'}
             </Button>
@@ -541,9 +806,15 @@ function GreenFeedback({ lessonRef: ref, item, progress }: { lessonRef: LessonRe
       }
     >
       <article className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-10">
-        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Feedback</p>
-        <h1 className="mt-1 font-aleo text-2xl tracking-tight sm:text-3xl">{item.name}</h1>
-        {item.description && item.description !== item.name && <p className="mt-2 text-muted-foreground">{item.description}</p>}
+        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+          Feedback
+        </p>
+        <h1 className="mt-1 font-aleo text-2xl tracking-tight sm:text-3xl">
+          {item.name}
+        </h1>
+        {item.description && item.description !== item.name && (
+          <p className="mt-2 text-muted-foreground">{item.description}</p>
+        )}
         <form
           className="mt-8"
           onSubmit={(e) => {
@@ -553,7 +824,9 @@ function GreenFeedback({ lessonRef: ref, item, progress }: { lessonRef: LessonRe
           noValidate
         >
           {fields.length === 0 ? (
-            <p className="text-sm text-muted-foreground">This feedback form has no questions yet.</p>
+            <p className="text-sm text-muted-foreground">
+              This feedback form has no questions yet.
+            </p>
           ) : (
             <FeedbackFormFields
               cards
@@ -622,7 +895,8 @@ function GreenLesson({
   useEffect(() => {
     if (!active || alreadyDone) return;
     const id = window.setInterval(() => {
-      if (watchItemId.current && document.visibilityState === 'visible') void heartbeat(watchItemId.current, ref.itemId);
+      if (watchItemId.current && document.visibilityState === 'visible')
+        void heartbeat(watchItemId.current, ref.itemId);
     }, HEARTBEAT_MS);
     return () => window.clearInterval(id);
   }, [active, alreadyDone, ref.itemId]);
@@ -633,28 +907,53 @@ function GreenLesson({
     setFinishing(true);
     try {
       if (!alreadyDone) {
-        if (!watchItemId.current) throw new Error(startError ?? 'The lesson hasn’t finished starting. Please try again.');
+        if (!watchItemId.current)
+          throw new Error(
+            startError ??
+              'The lesson hasn’t finished starting. Please try again.',
+          );
         await complete.mutateAsync(watchItemId.current);
       }
       const path = unwrap(
-        await api.GET('/api/users/progress/courses/{courseId}/versions/{versionId}/current-path', {
-          params: { path: { courseId: ref.courseId, versionId: ref.versionId } },
-        }),
+        await api.GET(
+          '/api/users/progress/courses/{courseId}/versions/{versionId}/current-path',
+          {
+            params: {
+              path: { courseId: ref.courseId, versionId: ref.versionId },
+            },
+          },
+        ),
       ) as unknown as CurrentPath;
-      queryClient.setQueryData(courseKeys.currentPath(ref.courseId, ref.versionId), path);
+      queryClient.setQueryData(
+        courseKeys.currentPath(ref.courseId, ref.versionId),
+        path,
+      );
       const next = path?.item;
       if (next && next.id !== ref.itemId && path.module && path.section) {
         await navigate({
           to: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId',
-          params: { courseId: ref.courseId, versionId: ref.versionId, moduleId: path.module.id, sectionId: path.section.id, itemId: next.id },
+          params: {
+            courseId: ref.courseId,
+            versionId: ref.versionId,
+            moduleId: path.module.id,
+            sectionId: path.section.id,
+            itemId: next.id,
+          },
           search: { track: 'green' },
         });
       } else {
-        if (!next) toast.success('You’ve finished every lesson in this course.');
-        await navigate({ to: '/courses/$courseId/$versionId', params: { courseId: ref.courseId, versionId: ref.versionId } });
+        if (!next)
+          toast.success('You’ve finished every lesson in this course.');
+        await navigate({
+          to: '/courses/$courseId/$versionId',
+          params: { courseId: ref.courseId, versionId: ref.versionId },
+        });
       }
     } catch (e) {
-      toast.error((e as Error).message || 'Couldn’t save your progress. Please try again.');
+      toast.error(
+        (e as Error).message ||
+          'Couldn’t save your progress. Please try again.',
+      );
     } finally {
       setFinishing(false);
     }
@@ -662,7 +961,12 @@ function GreenLesson({
 
   if (startError && OUT_OF_ORDER.test(startError)) {
     return (
-      <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress}>
+      <LessonFrame
+        lessonRef={ref}
+        track="green"
+        title={item.name}
+        progress={progress}
+      >
         <LockedLesson lessonRef={ref} track="green" />
       </LessonFrame>
     );
@@ -674,12 +978,21 @@ function GreenLesson({
       track="green"
       title={item.name}
       progress={progress}
-      footerTone={alreadyDone || (ready && item.type === 'VIDEO') ? 'success' : 'neutral'}
+      footerTone={
+        alreadyDone || (ready && item.type === 'VIDEO') ? 'success' : 'neutral'
+      }
       footerLayout="stack"
-      exitWarning={alreadyDone ? undefined : 'This lesson only counts once you finish it. If you leave now, you’ll start it again next time.'}
+      exitWarning={
+        alreadyDone
+          ? undefined
+          : 'This lesson only counts once you finish it. If you leave now, you’ll start it again next time.'
+      }
       footer={
         <>
-          <p className="text-center text-sm text-muted-foreground empty:hidden sm:text-left" aria-live="polite">
+          <p
+            className="text-center text-sm text-muted-foreground empty:hidden sm:text-left"
+            aria-live="polite"
+          >
             {alreadyDone ? (
               <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
                 <CheckCircle2Icon className="size-4" aria-hidden /> Completed
@@ -690,7 +1003,14 @@ function GreenLesson({
               'Watch to the end to continue'
             ) : null}
           </p>
-          <Button size="lg" className="h-11 w-full sm:h-10 sm:w-auto" onClick={goNext} disabled={!ready || finishing || Boolean(startError && !alreadyDone)}>
+          <Button
+            size="lg"
+            className="h-11 w-full sm:h-10 sm:w-auto"
+            onClick={goNext}
+            disabled={
+              !ready || finishing || Boolean(startError && !alreadyDone)
+            }
+          >
             {finishing && <Spinner />}
             Continue
           </Button>
@@ -699,7 +1019,9 @@ function GreenLesson({
     >
       <LessonContent
         item={item}
-        allowSeekForward={(settings.data?.settings.seekForwardEnabled ?? false) || alreadyDone}
+        allowSeekForward={
+          (settings.data?.settings.seekForwardEnabled ?? false) || alreadyDone
+        }
         paused={blocked}
         onPlayingChange={setPlaying}
         onEnded={() => setVideoEnded(true)}
@@ -713,7 +1035,15 @@ function GreenLesson({
  * previous/next through the syllabus. Camera must be on; nothing is detected,
  * reported or saved — no start/stop/heartbeat calls at all.
  */
-function BlueLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
+function BlueLesson({
+  lessonRef: ref,
+  item,
+  progress,
+}: {
+  lessonRef: LessonRef;
+  item: LessonItem;
+  progress: number;
+}) {
   const camera = useCameraPresence();
   const version = useCourseVersion(ref.versionId);
   const { items } = useFlatSyllabus(version.data);
@@ -724,7 +1054,13 @@ function BlueLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; 
 
   const linkTo = (target: (typeof items)[number]) => ({
     to: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId' as const,
-    params: { courseId: ref.courseId, versionId: ref.versionId, moduleId: target.moduleId, sectionId: target.sectionId, itemId: target._id },
+    params: {
+      courseId: ref.courseId,
+      versionId: ref.versionId,
+      moduleId: target.moduleId,
+      sectionId: target.sectionId,
+      itemId: target._id,
+    },
     search: { track: 'blue' as const },
   });
 
@@ -737,26 +1073,38 @@ function BlueLesson({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; 
       footer={
         <>
           {prev ? (
-            <Link {...linkTo(prev)} className={buttonVariants({ variant: 'ghost' })}>
+            <Link
+              {...linkTo(prev)}
+              className={buttonVariants({ variant: 'ghost' })}
+            >
               <ArrowLeftIcon data-icon="inline-start" /> Previous
             </Link>
           ) : (
             <span />
           )}
-          <p className="hidden text-xs text-muted-foreground sm:block">Study mode · not saved to your progress</p>
+          <p className="hidden text-xs text-muted-foreground sm:block">
+            Study mode · not saved to your progress
+          </p>
           {next ? (
             <Link {...linkTo(next)} className={buttonVariants({ size: 'lg' })}>
               Next <ArrowRightIcon data-icon="inline-end" />
             </Link>
           ) : (
-            <Link to="/courses/$courseId/$versionId" params={{ courseId: ref.courseId, versionId: ref.versionId }} className={buttonVariants({ size: 'lg' })}>
+            <Link
+              to="/courses/$courseId/$versionId"
+              params={{ courseId: ref.courseId, versionId: ref.versionId }}
+              className={buttonVariants({ size: 'lg' })}
+            >
               Back to the course
             </Link>
           )}
         </>
       }
     >
-      <div className={cn(blocked && 'pointer-events-none select-none blur-sm')} aria-hidden={blocked}>
+      <div
+        className={cn(blocked && 'pointer-events-none select-none blur-sm')}
+        aria-hidden={blocked}
+      >
         <LessonContent item={item} allowSeekForward paused={blocked} />
       </div>
       <CameraBubble stream={camera.stream} />
@@ -785,9 +1133,15 @@ function LessonContent({
   const videoId = item.type === 'VIDEO' ? youtubeId(item.details.URL) : null;
   return (
     <article className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-10">
-      <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{itemTypeMeta(item.type).label}</p>
-      <h1 className="mt-1 font-aleo text-2xl tracking-tight sm:text-3xl">{item.name}</h1>
-      {item.description && item.description !== item.name && <p className="mt-2 text-muted-foreground">{item.description}</p>}
+      <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+        {itemTypeMeta(item.type).label}
+      </p>
+      <h1 className="mt-1 font-aleo text-2xl tracking-tight sm:text-3xl">
+        {item.name}
+      </h1>
+      {item.description && item.description !== item.name && (
+        <p className="mt-2 text-muted-foreground">{item.description}</p>
+      )}
       <div className="mt-6">
         {item.type === 'VIDEO' &&
           (videoId ? (
@@ -803,23 +1157,39 @@ function LessonContent({
           ) : (
             <Alert>
               <InfoIcon />
-              <AlertDescription>This video is hosted on ViBe’s own storage, which this version of the app can’t play yet.</AlertDescription>
+              <AlertDescription>
+                This video is hosted on ViBe’s own storage, which this version
+                of the app can’t play yet.
+              </AlertDescription>
             </Alert>
           ))}
         {item.type === 'FEEDBACK' && (
           <div className="grid gap-6">
             <Alert>
               <InfoIcon />
-              <AlertDescription>This is the feedback form for the previous lesson. Answers are sent only in certified mode.</AlertDescription>
+              <AlertDescription>
+                This is the feedback form for the previous lesson. Answers are
+                sent only in certified mode.
+              </AlertDescription>
             </Alert>
-            <FeedbackFormFields fields={schemaToFields(item.details.jsonSchema, item.details.uiSchema)} values={{}} onChange={() => undefined} disabled />
+            <FeedbackFormFields
+              fields={schemaToFields(
+                item.details.jsonSchema,
+                item.details.uiSchema,
+              )}
+              values={{}}
+              onChange={() => undefined}
+              disabled
+            />
           </div>
         )}
         {item.type === 'BLOG' && (
           <div>
             <RichContent content={item.details.content ?? ''} />
             {item.details.estimatedReadTimeInMinutes ? (
-              <p className="mt-8 text-xs text-muted-foreground">About {item.details.estimatedReadTimeInMinutes} min read</p>
+              <p className="mt-8 text-xs text-muted-foreground">
+                About {item.details.estimatedReadTimeInMinutes} min read
+              </p>
             ) : null}
           </div>
         )}
@@ -834,7 +1204,13 @@ const TRACK_BADGE: Record<Track, string> = {
   green: 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
 };
 
-export function TrackBadge({ track, className }: { track: Track; className?: string }) {
+export function TrackBadge({
+  track,
+  className,
+}: {
+  track: Track;
+  className?: string;
+}) {
   return (
     <Badge className={cn(TRACK_BADGE[track], className)}>
       <BadgeCheckIcon data-icon="inline-start" aria-hidden />
@@ -873,7 +1249,10 @@ function LessonFrame({
   const other: Track = track === 'blue' ? 'green' : 'blue';
   const navigate = useNavigate();
   const [confirmExit, setConfirmExit] = useState(false);
-  const course = { to: '/courses/$courseId/$versionId' as const, params: { courseId: ref.courseId, versionId: ref.versionId } };
+  const course = {
+    to: '/courses/$courseId/$versionId' as const,
+    params: { courseId: ref.courseId, versionId: ref.versionId },
+  };
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -885,16 +1264,31 @@ function LessonFrame({
       >
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
           {exitWarning ? (
-            <Button variant="ghost" size="icon-lg" aria-label="Close lesson" onClick={() => setConfirmExit(true)}>
+            <Button
+              variant="ghost"
+              size="icon-lg"
+              aria-label="Close lesson"
+              onClick={() => setConfirmExit(true)}
+            >
               <XIcon />
             </Button>
           ) : (
-            <Link {...course} aria-label="Close lesson" className={buttonVariants({ variant: 'ghost', size: 'icon-lg' })}>
+            <Link
+              {...course}
+              aria-label="Close lesson"
+              className={buttonVariants({ variant: 'ghost', size: 'icon-lg' })}
+            >
               <XIcon />
             </Link>
           )}
-          <ProgressBar value={progress} className="flex-1 [&_[data-slot=progress-track]]:h-2" label="Certified progress" />
-          <span className="hidden max-w-52 truncate text-sm text-muted-foreground md:inline">{title}</span>
+          <ProgressBar
+            value={progress}
+            className="flex-1 [&_[data-slot=progress-track]]:h-2"
+            label="Certified progress"
+          />
+          <span className="hidden max-w-52 truncate text-sm text-muted-foreground md:inline">
+            {title}
+          </span>
           <TrackBadge track={track} />
           <Link
             to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
@@ -906,20 +1300,32 @@ function LessonFrame({
           </Link>
         </div>
       </header>
-      <main id="main" className={cn('flex flex-1 flex-col', footer ? 'pb-[calc(9rem+env(safe-area-inset-bottom))] sm:pb-24' : 'pb-[env(safe-area-inset-bottom)]')}>
+      <main
+        id="main"
+        className={cn(
+          'flex flex-1 flex-col',
+          footer
+            ? 'pb-[calc(9rem+env(safe-area-inset-bottom))] sm:pb-24'
+            : 'pb-[env(safe-area-inset-bottom)]',
+        )}
+      >
         {children}
       </main>
       {footer && (
         <footer
           className={cn(
             'fixed inset-x-0 bottom-0 z-30 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md',
-            footerTone === 'success' ? 'border-emerald-600/20 bg-emerald-50/90 dark:bg-emerald-950/60' : 'border-border bg-muted/70',
+            footerTone === 'success'
+              ? 'border-emerald-600/20 bg-emerald-50/90 dark:bg-emerald-950/60'
+              : 'border-border bg-muted/70',
           )}
         >
           <div
             className={cn(
               'mx-auto flex max-w-5xl gap-4 px-4 py-3',
-              footerLayout === 'stack' ? 'flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4' : 'items-center justify-between',
+              footerLayout === 'stack'
+                ? 'flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4'
+                : 'items-center justify-between',
             )}
           >
             {footer}
@@ -928,17 +1334,36 @@ function LessonFrame({
       )}
 
       <Sheet open={confirmExit} onOpenChange={setConfirmExit}>
-        <SheetContent side="bottom" showCloseButton={false} className="mx-auto max-w-lg gap-0 rounded-t-2xl px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center sm:bottom-6 sm:rounded-2xl sm:border">
-          <span aria-hidden className="mx-auto grid size-14 place-items-center rounded-full bg-primary/15 text-primary">
+        <SheetContent
+          side="bottom"
+          showCloseButton={false}
+          className="mx-auto max-w-lg gap-0 rounded-t-2xl px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center sm:bottom-6 sm:rounded-2xl sm:border"
+        >
+          <span
+            aria-hidden
+            className="mx-auto grid size-14 place-items-center rounded-full bg-primary/15 text-primary"
+          >
             <HandIcon className="size-7" />
           </span>
-          <SheetTitle className="mt-4 font-aleo text-2xl">Hold it right there!</SheetTitle>
+          <SheetTitle className="mt-4 font-aleo text-2xl">
+            Hold it right there!
+          </SheetTitle>
           <SheetDescription className="mt-2">{exitWarning}</SheetDescription>
           <div className="mt-6 grid grid-cols-2 gap-3">
-            <Button variant="outline" size="lg" className="h-11" onClick={() => void navigate(course)}>
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-11"
+              onClick={() => void navigate(course)}
+            >
               Leave lesson
             </Button>
-            <Button size="lg" className="h-11" autoFocus onClick={() => setConfirmExit(false)}>
+            <Button
+              size="lg"
+              className="h-11"
+              autoFocus
+              onClick={() => setConfirmExit(false)}
+            >
               Keep learning
             </Button>
           </div>
@@ -949,13 +1374,25 @@ function LessonFrame({
 }
 
 /** A lesson-sized empty state: icon, heading, message and one action. */
-function LessonEmpty({ icon, title, children, action }: { icon?: ReactNode; title: string; children: ReactNode; action: ReactNode }) {
+function LessonEmpty({
+  icon,
+  title,
+  children,
+  action,
+}: {
+  icon?: ReactNode;
+  title: string;
+  children: ReactNode;
+  action: ReactNode;
+}) {
   return (
     <Empty className="mx-auto w-full max-w-md flex-1 py-16">
       <EmptyHeader>
         {icon && <EmptyMedia variant="icon">{icon}</EmptyMedia>}
         <EmptyTitle>
-          <h1 className="font-aleo text-2xl font-normal tracking-tight">{title}</h1>
+          <h1 className="font-aleo text-2xl font-normal tracking-tight">
+            {title}
+          </h1>
         </EmptyTitle>
         <EmptyDescription>{children}</EmptyDescription>
       </EmptyHeader>
@@ -964,25 +1401,45 @@ function LessonEmpty({ icon, title, children, action }: { icon?: ReactNode; titl
   );
 }
 
-function LockedLesson({ lessonRef: ref, track }: { lessonRef: LessonRef; track: Track }) {
+function LockedLesson({
+  lessonRef: ref,
+  track,
+}: {
+  lessonRef: LessonRef;
+  track: Track;
+}) {
   const path = useCurrentPath(ref.courseId, ref.versionId);
   const next = path.data;
   return (
     <LessonEmpty
       icon={<LockIcon />}
-      title={track === 'blue' ? 'Not unlocked yet' : 'Finish the earlier lessons first'}
+      title={
+        track === 'blue'
+          ? 'Not unlocked yet'
+          : 'Finish the earlier lessons first'
+      }
       action={
         next?.item && next.module && next.section ? (
           <Link
             to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
-            params={{ courseId: ref.courseId, versionId: ref.versionId, moduleId: next.module.id, sectionId: next.section.id, itemId: next.item.id }}
+            params={{
+              courseId: ref.courseId,
+              versionId: ref.versionId,
+              moduleId: next.module.id,
+              sectionId: next.section.id,
+              itemId: next.item.id,
+            }}
             search={{ track: 'green' }}
             className={cn(buttonVariants(), 'h-auto min-h-9 whitespace-normal')}
           >
             Go to your next lesson: {next.item.name}
           </Link>
         ) : (
-          <Link to="/courses/$courseId/$versionId" params={{ courseId: ref.courseId, versionId: ref.versionId }} className={buttonVariants({ variant: 'outline' })}>
+          <Link
+            to="/courses/$courseId/$versionId"
+            params={{ courseId: ref.courseId, versionId: ref.versionId }}
+            className={buttonVariants({ variant: 'outline' })}
+          >
             Back to the course
           </Link>
         )
@@ -995,13 +1452,27 @@ function LockedLesson({ lessonRef: ref, track }: { lessonRef: LessonRef; track: 
   );
 }
 
-function Notice({ title, icon, children, lessonRef: ref }: { title: string; icon?: ReactNode; children: ReactNode; lessonRef: LessonRef }) {
+function Notice({
+  title,
+  icon,
+  children,
+  lessonRef: ref,
+}: {
+  title: string;
+  icon?: ReactNode;
+  children: ReactNode;
+  lessonRef: LessonRef;
+}) {
   return (
     <LessonEmpty
       icon={icon}
       title={title}
       action={
-        <Link to="/courses/$courseId/$versionId" params={{ courseId: ref.courseId, versionId: ref.versionId }} className={buttonVariants({ variant: 'outline' })}>
+        <Link
+          to="/courses/$courseId/$versionId"
+          params={{ courseId: ref.courseId, versionId: ref.versionId }}
+          className={buttonVariants({ variant: 'outline' })}
+        >
           Back to the course
         </Link>
       }

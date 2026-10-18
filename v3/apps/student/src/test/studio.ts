@@ -17,8 +17,11 @@ import quizBankRefs from './fixtures/studio/quiz-bank-refs.json';
 import quizItem from './fixtures/studio/quiz-item.json';
 import quizQuestions from './fixtures/studio/quiz-questions.json';
 import userMeAdmin from './fixtures/studio/user-me-admin.json';
+import incidentStats from './fixtures/studio/incident-stats.json';
+import incidents from './fixtures/studio/incidents.json';
 import registrationRequests from './fixtures/studio/registration-requests.json';
 import registrationSettings from './fixtures/studio/registration-settings.json';
+import removalHistory from './fixtures/studio/removal-history.json';
 import resultsAnalytics from './fixtures/studio/results-analytics.json';
 import resultsBank from './fixtures/studio/results-bank.json';
 import resultsBankRefs from './fixtures/studio/results-bank-refs.json';
@@ -45,6 +48,8 @@ export const studio = {
     settings: registrationSettings,
     requests: registrationRequests,
   },
+  /** Incidents on the feedback course (the no-face one came from the real proctoring pipeline). */
+  integrity: { incidents, stats: incidentStats, history: removalHistory },
   results: {
     item: resultsItem,
     analytics: resultsAnalytics,
@@ -162,6 +167,32 @@ export function studioGet(path: string, opts?: Params) {
           ? resultsSubmissions
           : { data: [], totalCount: 0, currentPage: 1, totalPages: 0 },
       );
+    case '/api/anomalies/course/{courseId}/version/{versionId}/stats':
+      return ok(
+        p.versionId === FEEDBACK.versionId
+          ? incidentStats
+          : Object.fromEntries(Object.keys(incidentStats).map((k) => [k, 0])),
+      );
+    case '/api/anomalies/course/{courseId}/version/{versionId}':
+      return ok(
+        p.versionId === FEEDBACK.versionId
+          ? incidents
+          : {
+              data: [],
+              currentPage: 1,
+              totalDocuments: 0,
+              totalPages: 1,
+              limit: 10,
+            },
+      );
+    case '/api/ejections/history':
+      return ok(
+        opts?.params?.query?.courseVersionId === FEEDBACK.versionId
+          ? removalHistory
+          : { history: [], totalDocuments: 0, totalPages: 0 },
+      );
+    case '/api/appeals/':
+      return ok([]);
     case '/api/course/registration/build-form/version/{versionId}':
       return ok(
         p.versionId === REGISTRATION.versionId

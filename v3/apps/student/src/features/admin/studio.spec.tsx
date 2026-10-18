@@ -204,6 +204,7 @@ describe('course page', () => {
   it('saves proctoring switches with the rest of the settings untouched', async () => {
     const user = userEvent.setup();
     renderApp(`${base}?tab=proctoring`);
+    await user.click(await screen.findByRole('tab', { name: 'Settings' }));
     await user.click(await screen.findByRole('switch', { name: /Face count/ }));
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() =>
