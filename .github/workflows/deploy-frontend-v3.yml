@@ -1,0 +1,138 @@
+name: Deploy Frontend v3 to Firebase
+
+# Builds the v3 student/studio app (v3/apps/student) and deploys it to its own
+# Firebase Hosting site, next to the current frontend. Same backend, same
+# Firebase project; the current site is not touched.
+#
+# CI equivalent of the manual deploy:
+#   cd v3 && pnpm install && cd apps/student && pnpm exec vite build --mode production
+#   cd ../../.. && firebase deploy --only hosting:v3
+#
+# Target: hosting "v3" → site vibe-5b35a-v3 (firebase.json / .firebaserc).
+# Run it from the v3 branch ("Use workflow from: v3").
+#
+# Reads the same secrets as deploy-frontend.yml from the `production` GitHub
+# Environment (Settings → Environments → production):
+#   GCP_SA_KEY (needs Firebase Hosting Admin on vibe-5b35a)
+#   VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID,
+#   VITE_FIREBASE_APP_ID, VITE_BASE_URL, VITE_RECAPTCHA_SITE_KEY, VITE_IS_RECAPTCHA_ENABLED
+# VITE_BASE_URL is the backend URL with its /api prefix (as the current app
+# uses it); v3 adds /api itself, so the prefix is stripped here.
+#
+# Before the first deploy, outside this repo (no backend code changes):
+#   - backend env APP_ORIGINS: add https://vibe-5b35a-v3.web.app (and any custom domain)
+#   - Firebase Auth → Settings → Authorized domains: add the same domain(s)
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_tests:
+        description: "Typecheck and run the frontend tests before deploying?"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-frontend-v3
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  deploy:
+    name: Build & deploy (v3)
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          # v3 is its own workspace (allowBuilds in v3/pnpm-workspace.yaml needs
+          # pnpm 11), separate from the root's pnpm 10 `packageManager`.
+          package_json_file: v3/package.json
+          version: 11.9.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: v3/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: v3
+        run: pnpm install --frozen-lockfile
+
+      - name: Write .env.production.local
+        working-directory: v3/apps/student
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
+          VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
+          VITE_IS_RECAPTCHA_ENABLED: ${{ secrets.VITE_IS_RECAPTCHA_ENABLED }}
+        run: |
+          missing=""
+          for v in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_APP_ID VITE_BASE_URL; do
+            [ -z "${!v}" ] && missing="$missing $v"
+          done
+          if [ "$VITE_IS_RECAPTCHA_ENABLED" = "true" ] && [ -z "$VITE_RECAPTCHA_SITE_KEY" ]; then
+            missing="$missing VITE_RECAPTCHA_SITE_KEY"
+          fi
+          if [ -n "$missing" ]; then
+            echo "::error::Missing secrets in the 'production' environment:$missing"
+            exit 1
+          fi
+
+          # https://host/api → https://host (v3 calls /api/... itself).
+          api_base="${VITE_BASE_URL%/}"
+          api_base="${api_base%/api}"
+
+          {
+            printf 'VITE_API_BASE_URL=%s\n' "$api_base"
+            printf 'VITE_FIREBASE_API_KEY=%s\n' "$VITE_FIREBASE_API_KEY"
+            printf 'VITE_FIREBASE_AUTH_DOMAIN=%s\n' "$VITE_FIREBASE_AUTH_DOMAIN"
+            printf 'VITE_FIREBASE_PROJECT_ID=%s\n' "$VITE_FIREBASE_PROJECT_ID"
+            printf 'VITE_FIREBASE_APP_ID=%s\n' "$VITE_FIREBASE_APP_ID"
+            printf 'VITE_RECAPTCHA_SITE_KEY=%s\n' "$VITE_RECAPTCHA_SITE_KEY"
+            printf 'VITE_IS_RECAPTCHA_ENABLED=%s\n' "$VITE_IS_RECAPTCHA_ENABLED"
+            # Never talk to the local Auth emulator from a deployed build.
+            printf 'VITE_FIREBASE_AUTH_EMULATOR_URL=\n'
+          } > .env.production.local
+
+      - name: Typecheck and test
+        if: ${{ inputs.run_tests == 'true' }}
+        working-directory: v3
+        run: |
+          pnpm exec tsc --noEmit -p apps/student/tsconfig.app.json
+          pnpm exec vitest run --root apps/student
+
+      - name: Build frontend
+        working-directory: v3/apps/student
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: pnpm exec vite build --mode production
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Deploy to Firebase Hosting
+        run: |
+          npx --yes firebase-tools@latest deploy \
+            --only "hosting:v3" \
+            --non-interactive \
+            --message "GitHub Actions (v3): ${GITHUB_SHA::7} by ${GITHUB_ACTOR}"
