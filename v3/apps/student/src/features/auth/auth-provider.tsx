@@ -10,7 +10,9 @@ import {
 } from 'firebase/auth';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { NO_CAPTCHA } from '@/components/recaptcha';
 import { api } from '@/lib/api';
+import { env } from '@/lib/env';
 import { auth, googleProvider } from '@/lib/firebase';
 import { queryClient } from '@/lib/query-client';
 
@@ -23,12 +25,13 @@ export interface SignUpInput {
   lastName?: string;
   email: string;
   password: string;
+  recaptchaToken?: string;
 }
 
 interface AuthContextValue {
   status: AuthStatus;
   user: User | null;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, recaptchaToken?: string) => Promise<void>;
   signUp: (input: SignUpInput) => Promise<void>;
   signInWithGoogle: () => Promise<{ isNewUser: boolean }>;
   sendPasswordReset: (email: string) => Promise<void>;
@@ -56,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const signIn = useCallback(async (email: string, password: string) => {
+  const firebaseSignIn = useCallback(async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
@@ -65,20 +68,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
+   * With reCAPTCHA on, the backend checks the token first (POST /auth/login,
+   * as the current app does), then we sign in with Firebase.
+   */
+  const signIn = useCallback(
+    async (email: string, password: string, recaptchaToken?: string) => {
+      if (env.recaptcha.enabled) {
+        const result = await api.POST('/api/auth/login', { body: { email, password, recaptchaToken: recaptchaToken ?? '' } as never });
+        if (result.error || !result.response.ok) {
+          throw new Error((result.error as { message?: string } | undefined)?.message || 'Could not log in. Please try again.');
+        }
+      }
+      await firebaseSignIn(email, password);
+    },
+    [firebaseSignIn],
+  );
+
+  /**
    * Same sequence as the current app: the backend creates the Firebase account
    * and the ViBe user record (POST /auth/signup), then we sign in with Firebase.
    */
-  const signUp = useCallback(async ({ firstName, lastName, email, password }: SignUpInput) => {
+  const signUp = useCallback(async ({ firstName, lastName, email, password, recaptchaToken }: SignUpInput) => {
     const result = await api.POST('/api/auth/signup', {
-      body: { email, password, firstName, lastName: lastName || undefined, recaptchaToken: 'NO_CAPTCHA' },
+      body: { email, password, firstName, lastName: lastName || undefined, recaptchaToken: recaptchaToken ?? NO_CAPTCHA },
     });
     if (result.error || !result.response.ok) {
       const body = result.error as { message?: string; errors?: { constraints?: Record<string, string> }[] } | undefined;
       const details = body?.errors?.flatMap((e) => Object.values(e.constraints ?? {})).join('. ');
       throw new Error(details || body?.message || 'Could not create your account. Please try again.');
     }
-    await signIn(email, password);
-  }, [signIn]);
+    // The reCAPTCHA token was spent on sign-up, so skip the backend check here.
+    await firebaseSignIn(email, password);
+  }, [firebaseSignIn]);
 
   /** Google sign-in; first-time users are registered with the backend afterwards. */
   const signInWithGoogle = useCallback(async () => {

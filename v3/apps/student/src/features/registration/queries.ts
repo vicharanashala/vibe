@@ -83,21 +83,15 @@ export function useRejectedRegistrations() {
   });
 }
 
-/**
- * The backend always requires a reCAPTCHA token; with reCAPTCHA disabled
- * (IS_RECAPTCHA_ENABLED != "true") it accepts any value.
- * TODO(recaptcha): send a real token once the site key is wired in.
- */
-const NO_CAPTCHA = 'NO_CAPTCHA';
-
 export function useRegister(versionId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (detail: Record<string, unknown>) =>
+    /** `recaptchaToken`: from useRecaptcha (NO_CAPTCHA when reCAPTCHA is off). */
+    mutationFn: async ({ detail, recaptchaToken }: { detail: Record<string, unknown>; recaptchaToken: string }) =>
       unwrap(
         await api.POST('/api/course/registration/version/{versionId}', {
           params: { path: { versionId } },
-          body: { ...detail, recaptchaToken: NO_CAPTCHA },
+          body: { ...detail, recaptchaToken },
         }),
       ) as unknown as RegistrationResult,
     onSuccess: () => {

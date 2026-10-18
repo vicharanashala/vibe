@@ -13,6 +13,7 @@ import {
 import { Fragment, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
 import { GeneratedAvatar, GeneratedCover } from '@/components/generated-art';
+import { useRecaptcha } from '@/components/recaptcha';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -234,9 +235,9 @@ function RegistrationCard({ details, versionId, cohortId }: { details: Registrat
       cohorts={cohortId ? [] : cohorts}
       cohortId={cohortId}
       pending={register.isPending}
-      onSubmit={async (detail) => {
+      onSubmit={async (detail, recaptchaToken) => {
         try {
-          const result = await register.mutateAsync(detail);
+          const result = await register.mutateAsync({ detail, recaptchaToken });
           setOutcome(result.status);
           return null;
         } catch (err) {
@@ -265,7 +266,7 @@ function RegistrationFormCard({
   cohorts: { cohortId: string; cohortName: string }[];
   cohortId?: string;
   pending: boolean;
-  onSubmit: (detail: Record<string, unknown>) => Promise<string | null>;
+  onSubmit: (detail: Record<string, unknown>, recaptchaToken: string) => Promise<string | null>;
 }) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -278,6 +279,7 @@ function RegistrationFormCard({
   const [cohortError, setCohortError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const wasRejected = rejected.data?.some((r) => r.versionId === versionId) ?? false;
+  const recaptcha = useRecaptcha();
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -294,7 +296,9 @@ function RegistrationFormCard({
       el?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
       return;
     }
-    setError(await onSubmit({ ...toSubmission(schema, values), ...(cohort ? { cohort } : {}) }));
+    const failed = await onSubmit({ ...toSubmission(schema, values), ...(cohort ? { cohort } : {}) }, recaptcha.token);
+    setError(failed);
+    if (failed) recaptcha.reset();
   }
 
   async function switchAccount() {
@@ -371,11 +375,13 @@ function RegistrationFormCard({
           }}
         />
 
+        {recaptcha.widget}
+
         <FormError message={error} />
 
         {/* On phones the button stays pinned while scrolling through a long form. */}
         <div className="sticky bottom-0 z-10 -mx-4 -mb-4 border-t border-border bg-card/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:static sm:mx-0 sm:mb-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
-        <Button type="submit" size="lg" className="w-full" disabled={pending}>
+        <Button type="submit" size="lg" className="w-full" disabled={pending || !recaptcha.ready}>
           {pending && <Spinner />}
           Register
         </Button>

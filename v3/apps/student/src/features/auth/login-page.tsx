@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 
 import { PasswordInput } from '@/components/password-input';
+import { useRecaptcha } from '@/components/recaptcha';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
@@ -17,6 +18,7 @@ export function LoginPage({ redirect }: { redirect?: string }) {
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState<'email' | 'google' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const recaptcha = useRecaptcha();
 
   const goNext = (isNewUser = false) =>
     isNewUser ? navigate({ to: '/onboarding', search: { redirect }, replace: true }) : navigate({ to: redirect ?? '/home', replace: true });
@@ -26,10 +28,11 @@ export function LoginPage({ redirect }: { redirect?: string }) {
     setError(null);
     setPending('email');
     try {
-      await signIn(email.trim(), password);
+      await signIn(email.trim(), password, recaptcha.token);
       await goNext();
     } catch (err) {
       setError((err as Error).message);
+      recaptcha.reset();
     } finally {
       setPending(null);
     }
@@ -92,9 +95,11 @@ export function LoginPage({ redirect }: { redirect?: string }) {
             </Link>
           </Field>
 
+          {recaptcha.widget}
+
           <FormError message={error} />
 
-          <Button type="submit" size="lg" className="w-full" disabled={pending !== null || !email || !password}>
+          <Button type="submit" size="lg" className="w-full" disabled={pending !== null || !email || !password || !recaptcha.ready}>
             {pending === 'email' && <Spinner />}
             Continue
           </Button>

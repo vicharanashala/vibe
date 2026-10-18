@@ -3,6 +3,7 @@ import { CheckCircle2Icon, CircleIcon } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 
 import { PasswordInput } from '@/components/password-input';
+import { useRecaptcha } from '@/components/recaptcha';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
@@ -33,6 +34,7 @@ export function SignupPage({ redirect }: { redirect?: string } = {}) {
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState<'email' | 'google' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const recaptcha = useRecaptcha();
 
   const nameValid = NAME_PATTERN.test(fullName.trim());
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -52,10 +54,11 @@ export function SignupPage({ redirect }: { redirect?: string } = {}) {
     setError(null);
     setPending('email');
     try {
-      await signUp({ ...splitName(fullName), email: email.trim(), password });
+      await signUp({ ...splitName(fullName), email: email.trim(), password, recaptchaToken: recaptcha.token });
       await navigate({ to: '/onboarding', search: { redirect }, replace: true });
     } catch (err) {
       setError((err as Error).message);
+      recaptcha.reset();
     } finally {
       setPending(null);
     }
@@ -125,9 +128,11 @@ export function SignupPage({ redirect }: { redirect?: string } = {}) {
               </ul>
             </Field>
 
+            {recaptcha.widget}
+
             <FormError message={error} />
 
-            <Button type="submit" size="lg" className="w-full" disabled={!passwordValid || pending !== null}>
+            <Button type="submit" size="lg" className="w-full" disabled={!passwordValid || pending !== null || !recaptcha.ready}>
               {pending === 'email' && <Spinner />}
               Create account
             </Button>

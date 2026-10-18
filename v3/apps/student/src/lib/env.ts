@@ -15,6 +15,11 @@ export const env = {
     projectId,
     appId: e.VITE_FIREBASE_APP_ID as string | undefined,
   },
+  /** Google reCAPTCHA v2 (same variables as the current app). Off unless VITE_IS_RECAPTCHA_ENABLED is "true". */
+  recaptcha: {
+    enabled: e.VITE_IS_RECAPTCHA_ENABLED === 'true' && !!e.VITE_RECAPTCHA_SITE_KEY,
+    siteKey: (e.VITE_RECAPTCHA_SITE_KEY as string | undefined) ?? '',
+  },
   /**
    * When set, Firebase Auth talks to the emulator. "same-origin" routes it through
    * the Vite dev proxy (works over an SSH tunnel); a URL points at it directly.
