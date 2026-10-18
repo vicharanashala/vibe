@@ -1,6 +1,6 @@
 import { ApiError } from '@vibe/api';
 import { MonitorIcon, XIcon } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 import {
   AlertDialog,
@@ -280,5 +280,45 @@ export function DesktopHint({
         </Button>
       </AlertAction>
     </Alert>
+  );
+}
+
+/**
+ * Text clamped to a few lines, with a "Show more" / "Show less" button when it
+ * doesn't fit. A tap target rather than a hover tooltip, so it works on phones.
+ * Long unbroken words (URLs) wrap instead of widening the page.
+ */
+export function ClampedText({ children, className }: { children: string; className?: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || expanded) return;
+    const measure = () => setOverflows(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(el);
+    return () => observer?.disconnect();
+  }, [children, expanded]);
+
+  return (
+    <div className={className}>
+      <p ref={ref} className={cn('text-sm break-words whitespace-pre-line text-muted-foreground', !expanded && 'line-clamp-2')}>
+        {children}
+      </p>
+      {(overflows || expanded) && (
+        <Button
+          variant="link"
+          size="xs"
+          className="h-auto p-0 text-xs text-foreground"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((e) => !e)}
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </Button>
+      )}
+    </div>
   );
 }

@@ -39,7 +39,7 @@ import {
   useUpdateModule,
   useUpdateSection,
 } from './queries';
-import { ConfirmDialog, ErrorText } from './studio-ui';
+import { ClampedText, ConfirmDialog, ErrorText } from './studio-ui';
 
 export const ITEM_TYPES: Record<string, { label: string; icon: LucideIcon; tone: string }> = {
   VIDEO: { label: 'Video', icon: VideoIcon, tone: 'bg-blush text-blush-foreground' },
@@ -162,12 +162,8 @@ function ModuleBlock({ courseId, versionId, module, index }: Ids & { module: Cou
             {module.isHidden && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-muted-foreground normal-case">Hidden</span>}
           </p>
           <h3 className="mt-0.5 font-aleo text-lg leading-snug break-words">{module.name}</h3>
-          {/* Two lines at most; the full text is in Edit. Long words and URLs break instead of widening the page. */}
-          {module.description && (
-            <p className="mt-0.5 line-clamp-2 text-sm break-words text-muted-foreground" title={module.description}>
-              {module.description}
-            </p>
-          )}
+          {/* Two lines, then "Show more" (tap, so it works on phones). */}
+          {module.description && <ClampedText className="mt-0.5">{module.description}</ClampedText>}
         </div>
         <RowMenu
           label={`Module ${module.name}`}
