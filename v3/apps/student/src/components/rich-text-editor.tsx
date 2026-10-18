@@ -333,7 +333,7 @@ function Divider() {
   return (
     <Separator
       orientation="vertical"
-      className="mx-1 h-5 data-[orientation=vertical]:h-5"
+      className="mx-1 data-[orientation=vertical]:h-5 data-[orientation=vertical]:self-center"
     />
   );
 }

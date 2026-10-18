@@ -91,7 +91,7 @@ function BarStart({
       <SidebarTrigger aria-label="Show module outline" />
       <Separator
         orientation="vertical"
-        className="mx-0.5 data-[orientation=vertical]:h-5 max-sm:hidden"
+        className="mx-0.5 data-[orientation=vertical]:h-5 data-[orientation=vertical]:self-center max-sm:hidden"
       />
       <Button
         variant="ghost"
