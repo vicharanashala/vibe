@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { ApiError, unwrap } from '@vibe/api';
 import { ArrowLeftIcon, ArrowRightIcon, BadgeCheckIcon, CheckCircle2Icon, HandIcon, InfoIcon, LockIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -16,6 +16,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { RichContent } from '@/components/rich-content';
+import { FeedbackFormFields } from '@/features/feedback/feedback-form';
+import { schemaToFields, toSubmission, validate, type FormValues } from '@/features/feedback/form-schema';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -67,7 +69,7 @@ import { useAfterQuizSubmit } from './quiz-api';
 import { YouTubePlayer } from './youtube-player';
 
 const HEARTBEAT_MS = 30_000;
-const VIEWABLE = new Set(['VIDEO', 'BLOG']);
+const VIEWABLE = new Set(['VIDEO', 'BLOG', 'FEEDBACK']);
 /** The backend's reply when a linear-progression course is opened out of order. */
 const OUT_OF_ORDER = /do not match current progress/i;
 
@@ -185,6 +187,8 @@ function GreenGate({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
       <div className={cn(blocked && 'pointer-events-none select-none blur-sm')} aria-hidden={blocked}>
         {item.type === 'QUIZ' ? (
           <GreenQuiz lessonRef={ref} item={item} progress={progress} />
+        ) : item.type === 'FEEDBACK' ? (
+          <GreenFeedback lessonRef={ref} item={item} progress={progress} />
         ) : (
           <GreenLesson lessonRef={ref} item={item} progress={progress} blocked={blocked} />
         )}
@@ -434,6 +438,143 @@ function GreenQuiz({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; i
   );
 }
 
+/**
+ * Green-track feedback form: about the lesson just before it. Opening it starts
+ * the item; sending answers (POST /quizzes/{item}/feedback/submit) then stopping
+ * the item completes it and moves the student on, as the old frontend did.
+ */
+function GreenFeedback({ lessonRef: ref, item, progress }: { lessonRef: LessonRef; item: LessonItem; progress: number }) {
+  const goToNext = useGoToNext(ref);
+  const complete = useCompleteItem(ref);
+  const fields = useMemo(() => schemaToFields(item.details.jsonSchema, item.details.uiSchema), [item.details.jsonSchema, item.details.uiSchema]);
+  const alreadyDone = Boolean(item.isAlreadyWatched);
+  const watchItem = useRef<Promise<string> | null>(null);
+  const [values, setValues] = useState<FormValues>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const canSkip = !fields.some((f) => f.required);
+
+  useEffect(() => {
+    if (!alreadyDone) watchItem.current ??= startItem(ref);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ref.itemId, alreadyDone]);
+
+  // Answers already sent: a retry after a failed "complete" must not send them again.
+  const sent = useRef(false);
+
+  async function finish(submit: boolean) {
+    if (submit && !sent.current) {
+      const problems = validate(fields, values);
+      setErrors(problems);
+      if (Object.keys(problems).length) {
+        document.getElementById(`fb-${fields.findIndex((f) => problems[f.label.trim()])}`)?.focus();
+        return;
+      }
+    }
+    setSending(true);
+    setError(null);
+    try {
+      if (submit && !sent.current) {
+        unwrap(
+          await api.POST('/api/quizzes/{itemId}/feedback/submit', {
+            params: { path: { itemId: ref.itemId } },
+            body: { details: toSubmission(fields, values), courseId: ref.courseId, courseVersionId: ref.versionId, sectionId: ref.sectionId } as never,
+          }),
+        );
+        sent.current = true;
+      }
+      if (!alreadyDone) {
+        const id = await (watchItem.current ??= startItem(ref));
+        // The backend's progress write can hit a transient Mongo write conflict; one retry clears it.
+        await complete.mutateAsync(id).catch(async () => {
+          await new Promise((r) => setTimeout(r, 600));
+          return complete.mutateAsync(id);
+        });
+      }
+      if (sent.current) toast.success('Thanks for your feedback.');
+      await goToNext();
+    } catch (e) {
+      setError(
+        sent.current
+          ? 'Your feedback was sent, but we couldn’t save your progress. Press Continue to try again.'
+          : (e as Error).message || 'Couldn’t send your feedback. Please try again.',
+      );
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <LessonFrame
+      lessonRef={ref}
+      track="green"
+      title={item.name}
+      progress={progress}
+      footerLayout="stack"
+      footerTone={alreadyDone ? 'success' : 'neutral'}
+      footer={
+        <>
+          <p className="text-center text-sm text-muted-foreground empty:hidden sm:text-left" aria-live="polite">
+            {error ? (
+              <span className="text-destructive">{error}</span>
+            ) : alreadyDone ? (
+              <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2Icon className="size-4" aria-hidden /> Completed
+              </span>
+            ) : null}
+          </p>
+          <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">
+            {(canSkip || alreadyDone) && !sent.current && (
+              <Button variant="ghost" size="lg" className="h-11 flex-1 sm:h-10 sm:flex-none" onClick={() => void finish(false)} disabled={sending}>
+                {alreadyDone ? 'Continue' : 'Skip'}
+              </Button>
+            )}
+            <Button size="lg" className="h-11 flex-1 sm:h-10 sm:flex-none" onClick={() => void finish(true)} disabled={sending || fields.length === 0}>
+              {sending && <Spinner />}
+              {sent.current ? 'Continue' : 'Send feedback'}
+            </Button>
+          </div>
+        </>
+      }
+    >
+      <article className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-10">
+        <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Feedback</p>
+        <h1 className="mt-1 font-aleo text-2xl tracking-tight sm:text-3xl">{item.name}</h1>
+        {item.description && item.description !== item.name && <p className="mt-2 text-muted-foreground">{item.description}</p>}
+        <form
+          className="mt-8"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void finish(true);
+          }}
+          noValidate
+        >
+          {fields.length === 0 ? (
+            <p className="text-sm text-muted-foreground">This feedback form has no questions yet.</p>
+          ) : (
+            <FeedbackFormFields
+              fields={fields}
+              values={values}
+              errors={errors}
+              disabled={sending}
+              onChange={(name, v) => {
+                setValues((prev) => ({ ...prev, [name]: v }));
+                setErrors((prev) => {
+                  if (!prev[name]) return prev;
+                  const rest = { ...prev };
+                  delete rest[name];
+                  return rest;
+                });
+              }}
+            />
+          )}
+        </form>
+      </article>
+    </LessonFrame>
+  );
+}
+
 function GreenLesson({
   lessonRef: ref,
   item,
@@ -662,6 +803,15 @@ function LessonContent({
               <AlertDescription>This video is hosted on ViBe’s own storage, which this version of the app can’t play yet.</AlertDescription>
             </Alert>
           ))}
+        {item.type === 'FEEDBACK' && (
+          <div className="grid gap-6">
+            <Alert>
+              <InfoIcon />
+              <AlertDescription>This is the feedback form for the previous lesson. Answers are sent only in certified mode.</AlertDescription>
+            </Alert>
+            <FeedbackFormFields fields={schemaToFields(item.details.jsonSchema, item.details.uiSchema)} values={{}} onChange={() => undefined} disabled />
+          </div>
+        )}
         {item.type === 'BLOG' && (
           <div>
             <RichContent content={item.details.content ?? ''} />

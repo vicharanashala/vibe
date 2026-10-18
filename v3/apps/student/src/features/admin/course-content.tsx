@@ -307,11 +307,11 @@ function ItemRows({ courseId, versionId, moduleId, sectionId, itemsGroupId }: Id
 }
 
 /** Lesson types the studio editors handle. */
-const EDITABLE = ['VIDEO', 'BLOG', 'QUIZ'];
+const EDITABLE = ['VIDEO', 'BLOG', 'QUIZ', 'FEEDBACK'];
 
 function AddLessonMenu({ courseId, versionId, moduleId, sectionId }: Ids & { moduleId: string; sectionId: string }) {
   const navigate = useNavigate();
-  const go = (type: 'VIDEO' | 'BLOG' | 'QUIZ') =>
+  const go = (type: 'VIDEO' | 'BLOG' | 'QUIZ' | 'FEEDBACK') =>
     void navigate({ to: '/admin/courses/$courseId/$versionId/lesson', params: { courseId, versionId }, search: { module: moduleId, section: sectionId, type } });
   return (
     <DropdownMenu>
@@ -324,6 +324,7 @@ function AddLessonMenu({ courseId, versionId, moduleId, sectionId }: Ids & { mod
             ['VIDEO', 'A YouTube video, or a clip of one'],
             ['BLOG', 'Text with headings, images and links'],
             ['QUIZ', 'Questions to check understanding'],
+            ['FEEDBACK', 'A short form about the lesson before it'],
           ] as const
         ).map(([type, help]) => {
           const t = itemType(type);

@@ -30,11 +30,12 @@ import {
 import { ITEM_TYPES } from '../course-content';
 import type { LessonLocation, LessonType } from './lesson-api';
 
-const EDITABLE = ['VIDEO', 'BLOG', 'QUIZ'];
+const EDITABLE = ['VIDEO', 'BLOG', 'QUIZ', 'FEEDBACK'];
 const NEW_TYPES: { type: LessonType; label: string }[] = [
   { type: 'VIDEO', label: 'Video' },
   { type: 'BLOG', label: 'Article' },
   { type: 'QUIZ', label: 'Quiz' },
+  { type: 'FEEDBACK', label: 'Feedback' },
 ];
 
 const ordered = <T extends { order: string; isDeleted?: boolean }>(list: T[]) =>

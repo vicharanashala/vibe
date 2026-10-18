@@ -169,7 +169,7 @@ const studioEditorLayoutRoute = createRoute({
   beforeLoad: ({ location }) => requireOnboardedUser(location),
   component: StudioEditorShell,
 });
-const LESSON_TYPES: LessonType[] = ['VIDEO', 'BLOG', 'QUIZ'];
+const LESSON_TYPES: LessonType[] = ['VIDEO', 'BLOG', 'QUIZ', 'FEEDBACK'];
 const lessonEditorRoute = createRoute({
   getParentRoute: () => studioEditorLayoutRoute,
   path: '/admin/courses/$courseId/$versionId/lesson',

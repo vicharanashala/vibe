@@ -29,6 +29,9 @@ export interface LessonItem {
     content?: string;
     estimatedReadTimeInMinutes?: number;
     points?: number | string;
+    // FEEDBACK (JSON Schema + rjsf uiSchema; see features/feedback/form-schema.ts)
+    jsonSchema?: Record<string, unknown>;
+    uiSchema?: Record<string, unknown>;
   };
 }
 
