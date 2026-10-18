@@ -2,18 +2,18 @@
 
 import * as React from "react"
 import {
-  Bell,
   BookOpen,
+<<<<<<< HEAD
+=======
   Bot,
   Command,
   Frame,
   GalleryVerticalEnd,
   LifeBuoy,
   Map,
+>>>>>>> 75d7f3b8f211e06eff0e05ad3f727d3d4cb8759e
   Megaphone,
-  PieChart,
-  Settings2,
-  Shield,
+  MessagesSquare,
   SquareTerminal,
 } from "lucide-react"
 
@@ -32,13 +32,28 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useAuthStore } from "@/store/auth-store"
+<<<<<<< HEAD
+import { useCourseStore } from "@/store/course-store"
+=======
 import { useInstructorHasHpCourses } from "@/hooks/hooks"
+>>>>>>> 75d7f3b8f211e06eff0e05ad3f727d3d4cb8759e
 
 export function AppSidebar() {
   // Set default state to "expanded"
   const { state } = useSidebar()
   const { user } = useAuthStore.getState()
+<<<<<<< HEAD
+  const { currentCourse } = useCourseStore()
+
+  // Discussion is course-scoped — only render the nav entry when a course
+  // is in context. The URL is dynamic, so the entry is added below via the
+  // resolved-href pattern (`resolveHref` on NavMain).
+  const discussionHref = currentCourse?.courseId
+    ? `/teacher/courses/${currentCourse.courseId}/discussions`
+    : null
+=======
   const { hasHpCourses } = useInstructorHasHpCourses()
+>>>>>>> 75d7f3b8f211e06eff0e05ad3f727d3d4cb8759e
 
   const data = {
     user: {
@@ -46,11 +61,6 @@ export function AppSidebar() {
       avatar: user?.avatar,
     },
     navMain: [
-      // {
-      //   title: "Dashboard",
-      //   url: "/teacher",
-      //   icon: PieChart,
-      // },
       {
         title: "Courses",
         url: "#",
@@ -70,6 +80,20 @@ export function AppSidebar() {
         url: "/teacher/announcements",
         icon: Megaphone,
       },
+<<<<<<< HEAD
+      // Course-scoped Discussion entry — added only when a course is open.
+      // `url` is the path prefix that all discussion sub-routes share so
+      // `NavMain`'s `pathname.startsWith` check still produces an active
+      // state on both list and thread pages.
+      ...(discussionHref
+        ? [
+            {
+              title: "Discussion",
+              url: "/teacher/courses/",
+              icon: MessagesSquare,
+            },
+          ]
+=======
       // The HP System is opt-in per course, so this only appears once the
       // instructor has a course that uses it.
       ...(hasHpCourses
@@ -78,17 +102,13 @@ export function AppSidebar() {
           url: "/teacher/hp-system",
           icon: SquareTerminal,
         }]
+>>>>>>> 75d7f3b8f211e06eff0e05ad3f727d3d4cb8759e
         : []),
       {
         title: "Support Queue",
         url: "/teacher/support",
         icon: LifeBuoy,
       },
-      // {
-      //   title: "Notifications",
-      //   url: "/teacher/notifications",
-      //   icon: Bell,
-      // },
     ],
   }
 
@@ -113,7 +133,17 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain
+          items={data.navMain}
+          resolveHref={item =>
+            // The discussion entry only appears with a real courseId;
+            // resolve the placeholder URL to the active course's discussion
+            // list so the link actually navigates somewhere real.
+            item.title === "Discussion" && discussionHref
+              ? discussionHref
+              : item.url
+          }
+        />
       </SidebarContent>
 
       <SidebarFooter>

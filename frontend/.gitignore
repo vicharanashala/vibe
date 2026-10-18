@@ -27,3 +27,4 @@ pnpm-lock.yaml
 
 package.json
 package-lock.json
+!.example.env

@@ -22,6 +22,8 @@ import LearningAnalytics from "@/app/pages/student/analytics/LearningAnalytics";
 import StudentProfile from "@/app/pages/student/profile";
 import StudentAnnouncements from "../pages/student/announcements/StudentAnnouncements";
 import StudentMySubmissions from "../pages/student/StudentMySubmissions";
+import StudentDiscussions from "../pages/student/discussions/StudentDiscussions";
+import StudentDiscussionThread from "../pages/student/discussions/StudentDiscussionThread";
 import AddCoursePage from '@/app/pages/teacher/AddCoursePage';
 import TeacherProfile from "@/app/pages/teacher/profile";
 import { AudioTranscripter } from '@/app/pages/teacher/AudioTranscripter'
@@ -51,6 +53,8 @@ import CourseIssueReports from '../pages/student/FlagResponse'
 // import LoginPage from '../pages/LoginPage'
 import FeedbackFormEditor from '../pages/teacher/FeedbackFormEditor'
 import TeacherAnnouncements from '../pages/teacher/announcements'
+import TeacherDiscussions from '../pages/teacher/discussions/TeacherDiscussions';
+import TeacherDiscussionThread from '../pages/teacher/discussions/TeacherDiscussionThread';
 import Leaderboard from '../pages/student/leaderboard'
 import ForgotPasswordPage from '../pages/ForgotPasswordPage'
 import ResetPasswordPage from '../pages/ResetPasswordPage'
@@ -430,6 +434,26 @@ const teacherAnnouncementsRoute = new Route({
   component: TeacherAnnouncements,
 })
 
+// ---------------------------------------------------------------------------
+// Discussion board routes — Milestone B (view + create + read only).
+//
+// Routed under `/teacher/courses/$courseId/discussions[/$threadId]` so they
+// live inside the teacher layout (which renders `AppSidebar` + the main
+// content panel). The courseId is also kept in `useCourseStore.currentCourse`,
+// so the pages fall back to it when the URL omits the param — that mirrors
+// the announcement pages which are *not* course-id scoped in the URL.
+// ---------------------------------------------------------------------------
+const teacherDiscussionsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/$courseId/discussions',
+  component: TeacherDiscussions,
+})
+const teacherDiscussionThreadRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/$courseId/discussions/$threadId',
+  component: TeacherDiscussionThread,
+})
+
 // Teacher generate section route
 const teacherGenerateSectionRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
@@ -562,6 +586,19 @@ const studentAnnouncementsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
   path: '/announcements',
   component: StudentAnnouncements,
+});
+
+// Discussion board routes — student side.
+// See `teacherDiscussionsRoute` above for the rationale on path + layout.
+const studentDiscussionsRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/courses/$courseId/discussions',
+  component: StudentDiscussions,
+});
+const studentDiscussionThreadRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/courses/$courseId/discussions/$threadId',
+  component: StudentDiscussionThread,
 });
 
 // Student "my MCQ submissions" route
@@ -759,6 +796,8 @@ const routeTree = rootRoute.addChildren([
     teacherReflectionsRoute,
     teacherFeedBackEditorRoute,
     teacherAnnouncementsRoute,
+    teacherDiscussionsRoute,
+    teacherDiscussionThreadRoute,
     teacherAuditRoute,
     teacherSupportRoute,
     teacherConfigureCohortsRoute,
@@ -782,6 +821,8 @@ const routeTree = rootRoute.addChildren([
     studentIssuesRoute,
     studentLeaderboardRoute,
     studentAnnouncementsRoute,
+    studentDiscussionsRoute,
+    studentDiscussionThreadRoute,
     studentMySubmissionsRoute,
     studentHpSystemCohortsRoute,
     studentHpSystemActivitiesRoute,
