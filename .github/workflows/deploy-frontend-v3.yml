@@ -130,7 +130,9 @@ jobs:
         if: ${{ inputs.run_tests == 'true' }}
         working-directory: v3
         run: |
-          pnpm exec tsc --noEmit -p apps/student/tsconfig.app.json
+          # Build mode: it builds the referenced @vibe/api types first. With
+          # --noEmit -p, a fresh checkout fails (TS6305: packages/api/dist missing).
+          pnpm exec tsc -b apps/student/tsconfig.app.json apps/student/tsconfig.spec.json
           pnpm exec vitest run --root apps/student
 
       - name: Build frontend
