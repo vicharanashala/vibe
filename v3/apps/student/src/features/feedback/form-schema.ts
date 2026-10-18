@@ -40,6 +40,20 @@ export interface FormField {
   /** number: bounds; rating: scale size in max */
   min?: number;
   max?: number;
+  /**
+   * The property key answers are stored under, when the form came from storage.
+   * It can differ from the label (e.g. key "Year", label "Year of study") and is
+   * kept when the label is edited, so earlier answers still line up. New fields
+   * have none and are keyed by their label.
+   */
+  name?: string;
+  /** Stored as JSON Schema "integer" rather than "number". */
+  integer?: boolean;
+}
+
+/** The key a field's answer is stored under. */
+export function fieldName(f: FormField) {
+  return f.name ?? f.label.trim();
 }
 
 type JsonSchema = {
@@ -145,7 +159,9 @@ export function schemaToFields(
     return {
       key: fieldKey(),
       kind,
+      name,
       label: p.title ?? name,
+      ...(p.type === 'integer' ? { integer: true } : {}),
       help: u['ui:help'] ?? p.description ?? '',
       placeholder: u['ui:placeholder'] ?? '',
       required: required.has(name),
@@ -164,7 +180,11 @@ export function formProblem(fields: FormField[]): string | null {
   if (empty !== -1) return `Question ${empty + 1} needs a label.`;
   const dup = labels.findIndex((l, i) => labels.indexOf(l) !== i);
   if (dup !== -1)
-    return `Two questions are labelled “${labels[dup]}”. Labels must be unique, because answers are stored under them.`;
+    return `Two questions are labelled “${labels[dup]}”. Please make labels unique.`;
+  const names = fields.map(fieldName);
+  const dupName = names.findIndex((n, i) => names.indexOf(n) !== i);
+  if (dupName !== -1)
+    return `Question ${dupName + 1} would be stored under “${names[dupName]}”, which another question already uses. Please rename it.`;
   const noOptions = fields.findIndex(
     (f) =>
       (f.kind === 'radio' || f.kind === 'select' || f.kind === 'checkboxes') &&
@@ -181,10 +201,11 @@ export function fieldsToSchema(fields: FormField[]): {
 } {
   const properties: Record<string, PropertySchema> = {};
   const required: string[] = [];
-  const uiSchema: UiSchema = { 'ui:order': fields.map((f) => f.label.trim()) };
+  const uiSchema: UiSchema = { 'ui:order': fields.map(fieldName) };
 
   for (const f of fields) {
-    const name = f.label.trim();
+    const name = fieldName(f);
+    const label = f.label.trim();
     const options = f.options.map((o) => o.trim()).filter(Boolean);
     const ui: Record<string, unknown> = {};
     let p: PropertySchema;
@@ -195,7 +216,7 @@ export function fieldsToSchema(fields: FormField[]): {
         break;
       case 'number':
         p = {
-          type: 'number',
+          type: f.integer ? 'integer' : 'number',
           ...(f.min !== undefined ? { minimum: f.min } : {}),
           ...(f.max !== undefined ? { maximum: f.max } : {}),
         };
@@ -259,6 +280,8 @@ export function fieldsToSchema(fields: FormField[]): {
     }
     if (f.help.trim()) ui['ui:help'] = f.help.trim();
     if (f.placeholder.trim()) ui['ui:placeholder'] = f.placeholder.trim();
+    // The label is the title whenever it isn't simply the key.
+    if (label !== name) p.title = label;
     properties[name] = p;
     uiSchema[name] = ui;
     if (f.required) required.push(name);
@@ -273,14 +296,14 @@ export function isAnswered(f: FormField, v: unknown) {
   return !(v === undefined || v === '' || (Array.isArray(v) && v.length === 0));
 }
 
-/** Client-side checks matching the schema; returns field label → message. */
+/** Client-side checks matching the schema; returns field name → message. */
 export function validate(
   fields: FormField[],
   values: FormValues,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const f of fields) {
-    const name = f.label.trim();
+    const name = fieldName(f);
     const v = values[name];
     const empty =
       v === undefined ||
@@ -320,7 +343,7 @@ export function toSubmission(
 ): FormValues {
   const out: FormValues = {};
   for (const f of fields) {
-    const name = f.label.trim();
+    const name = fieldName(f);
     const v = values[name];
     if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) {
       if (f.kind === 'checkbox') out[name] = false;

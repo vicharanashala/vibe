@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { RichContent } from '@/components/rich-content';
 import { FeedbackFormFields } from '@/features/feedback/feedback-form';
-import { isAnswered, schemaToFields, toSubmission, validate, type FormValues } from '@/features/feedback/form-schema';
+import { fieldName, isAnswered, schemaToFields, toSubmission, validate, type FormValues } from '@/features/feedback/form-schema';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -468,7 +468,7 @@ function GreenFeedback({ lessonRef: ref, item, progress }: { lessonRef: LessonRe
       const problems = validate(fields, values);
       setErrors(problems);
       if (Object.keys(problems).length) {
-        document.getElementById(`fb-${fields.findIndex((f) => problems[f.label.trim()])}`)?.focus();
+        document.getElementById(`fb-${fields.findIndex((f) => problems[fieldName(f)])}`)?.focus();
         return;
       }
     }
@@ -523,7 +523,7 @@ function GreenFeedback({ lessonRef: ref, item, progress }: { lessonRef: LessonRe
                 <CheckCircle2Icon className="size-4" aria-hidden /> Completed
               </span>
             ) : fields.length > 0 ? (
-              `${fields.filter((f) => isAnswered(f, values[f.label.trim()])).length} of ${fields.length} answered`
+              `${fields.filter((f) => isAnswered(f, values[fieldName(f)])).length} of ${fields.length} answered`
             ) : null}
           </p>
           <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">

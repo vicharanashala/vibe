@@ -142,4 +142,63 @@ describe('feedback form schema', () => {
       }),
     ).toEqual({ 'How was it?': 'Good', Age: 42, Agree: true });
   });
+
+  it('keeps stored keys, titles and integer types from registration forms', () => {
+    // Shaped like a real course registration form (key "Year", title "Year of study").
+    const jsonSchema = {
+      type: 'object',
+      required: ['Name', 'Year'],
+      properties: {
+        Name: { type: 'string', title: 'Name' },
+        Year: {
+          type: 'string',
+          title: 'Year of study',
+          enum: ['1st year', '2nd year'],
+        },
+        Experience: {
+          type: 'integer',
+          title: 'Years of programming experience',
+          minimum: 0,
+          maximum: 40,
+        },
+      },
+    };
+    const uiSchema = {
+      Year: { 'ui:widget': 'select' },
+      Experience: { 'ui:widget': 'updown' },
+    };
+    const fields = schemaToFields(jsonSchema, uiSchema);
+    expect(fields.map((f) => [f.name, f.label, f.kind])).toEqual([
+      ['Name', 'Name', 'text'],
+      ['Year', 'Year of study', 'select'],
+      ['Experience', 'Years of programming experience', 'number'],
+    ]);
+
+    // Relabel a field: the key stays, the label becomes its title.
+    fields[1] = { ...fields[1], label: 'Current year' };
+    const out = fieldsToSchema(fields);
+    expect(Object.keys(out.jsonSchema.properties!)).toEqual([
+      'Name',
+      'Year',
+      'Experience',
+    ]);
+    expect(out.jsonSchema.properties!.Year).toMatchObject({
+      title: 'Current year',
+      enum: ['1st year', '2nd year'],
+    });
+    expect(out.jsonSchema.properties!.Experience).toMatchObject({
+      type: 'integer',
+      minimum: 0,
+      maximum: 40,
+    });
+    expect(out.jsonSchema.required).toEqual(['Name', 'Year']);
+
+    // Answers are validated and stored under the key.
+    expect(validate(fields, { Name: 'Asha' })).toEqual({
+      Year: 'This question is required.',
+    });
+    expect(
+      toSubmission(fields, { Name: 'Asha', Year: '1st year', Experience: '3' }),
+    ).toEqual({ Name: 'Asha', Year: '1st year', Experience: 3 });
+  });
 });

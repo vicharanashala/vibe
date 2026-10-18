@@ -21,7 +21,12 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 
-import { isAnswered, type FormField, type FormValues } from './form-schema';
+import {
+  fieldName,
+  isAnswered,
+  type FormField,
+  type FormValues,
+} from './form-schema';
 
 /**
  * Renders a feedback form from its fields. Shared by the student lesson and
@@ -52,12 +57,12 @@ export function FeedbackFormFields({
         if (!cards) return node;
         const answered = isAnswered(
           f,
-          values[f.label.trim() || `Question ${i + 1}`],
+          values[fieldName(f) || `Question ${i + 1}`],
         );
         return (
           <Card
             key={f.key}
-            data-invalid={!!errors[f.label.trim()] || undefined}
+            data-invalid={!!errors[fieldName(f)] || undefined}
             className="gap-4 px-5 py-5 data-invalid:ring-destructive/40 sm:px-6"
           >
             <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
@@ -79,13 +84,14 @@ export function FeedbackFormFields({
   );
 
   function renderField(f: FormField, i: number) {
-    const name = f.label.trim() || `Question ${i + 1}`;
+    // `name` is where the answer is stored; the label is what students read.
+    const name = fieldName(f) || `Question ${i + 1}`;
     const id = `${idPrefix}-${i}`;
     const error = errors[name];
     const value = values[name];
     const label = (
       <>
-        {name}
+        {f.label.trim() || `Question ${i + 1}`}
         {f.required && (
           <span className="text-destructive" aria-hidden>
             *

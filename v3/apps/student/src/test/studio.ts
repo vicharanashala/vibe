@@ -17,6 +17,8 @@ import quizBankRefs from './fixtures/studio/quiz-bank-refs.json';
 import quizItem from './fixtures/studio/quiz-item.json';
 import quizQuestions from './fixtures/studio/quiz-questions.json';
 import userMeAdmin from './fixtures/studio/user-me-admin.json';
+import registrationRequests from './fixtures/studio/registration-requests.json';
+import registrationSettings from './fixtures/studio/registration-settings.json';
 import resultsAnalytics from './fixtures/studio/results-analytics.json';
 import resultsBank from './fixtures/studio/results-bank.json';
 import resultsBankRefs from './fixtures/studio/results-bank-refs.json';
@@ -39,6 +41,10 @@ export const studio = {
   quizQuestions,
   userMeAdmin,
   users,
+  registration: {
+    settings: registrationSettings,
+    requests: registrationRequests,
+  },
   results: {
     item: resultsItem,
     analytics: resultsAnalytics,
@@ -80,6 +86,12 @@ export const QUIZ_ITEM_ID = quizItem.item._id;
  * other than the @vibe.local test accounts were given pseudonyms (student2@…,
  * student3@…) when captured; scores and answers are as recorded.
  */
+/** The course with a registration form and two waiting requests (Sample: Introduction to Algorithms). */
+export const REGISTRATION = {
+  courseId: registrationRequests.registrations[0].courseId,
+  versionId: registrationRequests.registrations[0].versionId,
+};
+
 export const RESULTS_QUIZ_ID = resultsItem.item._id;
 
 type Params = {
@@ -150,6 +162,33 @@ export function studioGet(path: string, opts?: Params) {
           ? resultsSubmissions
           : { data: [], totalCount: 0, currentPage: 1, totalPages: 0 },
       );
+    case '/api/course/registration/build-form/version/{versionId}':
+      return ok(
+        p.versionId === REGISTRATION.versionId
+          ? registrationSettings
+          : {
+              jsonSchema: null,
+              uiSchema: null,
+              isActive: true,
+              cohortSettings: [],
+              cohortSettingDetails: [],
+            },
+      );
+    case '/api/course/registration/requests/version/{versionId}': {
+      const status = opts?.params?.query?.status ?? 'ALL';
+      const mine =
+        p.versionId === REGISTRATION.versionId
+          ? registrationRequests.registrations
+          : [];
+      const shown =
+        status === 'ALL' ? mine : mine.filter((r) => r.status === status);
+      return ok({
+        totalDocuments: shown.length,
+        totalPages: shown.length ? 1 : 0,
+        currentPage: 1,
+        registrations: shown,
+      });
+    }
     case '/api/courses/{courseId}/item/{feedbackId}/feedback/submissions':
       return ok(feedbackSubmissions);
     default:

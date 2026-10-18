@@ -452,14 +452,18 @@ describe('feedback editor', () => {
     await waitFor(() => expect(api.PUT).toHaveBeenCalled());
     const { body } = api.PUT.mock.calls[0][1];
     expect(body.type).toBe('FEEDBACK');
+    // Renaming keeps the stored key, so earlier responses still line up; the new text becomes its title.
     expect(Object.keys(body.details.jsonSchema.properties)).toEqual([
       'How useful was the previous lesson?',
-      'What should change?',
+      'What could make it better?',
       'Which part was hardest?',
     ]);
+    expect(
+      body.details.jsonSchema.properties['What could make it better?'].title,
+    ).toBe('What should change?');
     expect(body.details.uiSchema['ui:order']).toEqual([
       'How useful was the previous lesson?',
-      'What should change?',
+      'What could make it better?',
       'Which part was hardest?',
     ]);
     expect(
