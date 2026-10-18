@@ -35,6 +35,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -417,6 +418,9 @@ function StudioAccountMenu() {
             </DialogDescription>
           </DialogHeader>
           <AppearancePicker columns={3} />
+          <DialogFooter>
+            <Button onClick={() => setAppearanceOpen(false)}>Done</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
