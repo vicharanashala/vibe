@@ -333,4 +333,19 @@
   .prose-vibe th,
   .prose-vibe td { @apply border border-border px-3 py-2 text-left; }
   .prose-vibe img { @apply rounded-xl; }
+  .prose-vibe hr { @apply my-8 border-border; }
+  .prose-vibe strong { @apply font-semibold text-foreground; }
+  .prose-vibe > :first-child { @apply mt-0; }
+
+  /* Short rich text (quiz questions/options): tighter rhythm, inherits size. */
+  .prose-compact { @apply text-[length:inherit] leading-[inherit] text-inherit; }
+  .prose-compact > * + * { @apply mt-2; }
+
+  /* Tiptap editor */
+  .tiptap p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    @apply pointer-events-none float-left h-0 text-muted-foreground/70;
+  }
+  .tiptap img.ProseMirror-selectednode { @apply ring-2 ring-ring ring-offset-2 ring-offset-background; }
+  .tiptap a { @apply cursor-text; }
 }

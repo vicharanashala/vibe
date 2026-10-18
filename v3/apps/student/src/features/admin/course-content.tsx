@@ -14,6 +14,7 @@ import {
   VideoIcon,
   type LucideIcon,
 } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -21,27 +22,22 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useCourseVersion, useSectionItems, type CourseModule, type CourseSection } from '@/features/courses/queries';
 import { cn } from '@/lib/utils';
 
 import {
-  useCreateItem,
   useCreateModule,
   useCreateSection,
   useDeleteItem,
   useDeleteModule,
   useDeleteSection,
-  useItemDetail,
-  useUpdateItem,
   useUpdateModule,
   useUpdateSection,
-  type NewItemInput,
 } from './queries';
 import { ConfirmDialog, ErrorText } from './studio-ui';
 
@@ -218,7 +214,6 @@ function ModuleBlock({ courseId, versionId, module, index }: Ids & { module: Cou
 
 function SectionBlock({ courseId, versionId, moduleId, section, label }: Ids & { moduleId: string; section: CourseSection; label: string }) {
   const [editing, setEditing] = useState(false);
-  const [addingItem, setAddingItem] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const deleteSection = useDeleteSection();
   const itemsGroupId = (section as unknown as { itemsGroupId?: string }).itemsGroupId ?? '';
@@ -231,18 +226,11 @@ function SectionBlock({ courseId, versionId, moduleId, section, label }: Ids & {
           {section.name}
           {section.isHidden && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">Hidden</span>}
         </p>
-        <RowMenu
-          label={`Section ${section.name}`}
-          onEdit={() => setEditing(true)}
-          onAdd={{ label: 'Add lesson', run: () => setAddingItem(true) }}
-          onDelete={() => setDeleting(true)}
-        />
+        <RowMenu label={`Section ${section.name}`} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} />
       </div>
       <ItemRows courseId={courseId} versionId={versionId} moduleId={moduleId} sectionId={section.sectionId} itemsGroupId={itemsGroupId} />
       <div className="border-t border-border px-2 py-1.5">
-        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setAddingItem(true)}>
-          <PlusIcon aria-hidden /> Add lesson
-        </Button>
+        <AddLessonMenu courseId={courseId} versionId={versionId} moduleId={moduleId} sectionId={section.sectionId} />
       </div>
 
       <NameDialog
@@ -253,7 +241,6 @@ function SectionBlock({ courseId, versionId, moduleId, section, label }: Ids & {
         initial={{ name: section.name, description: section.description ?? '' }}
         update={(name, description) => ({ versionId, moduleId, sectionId: section.sectionId, name, description })}
       />
-      <ItemDialog open={addingItem} onOpenChange={setAddingItem} courseId={courseId} versionId={versionId} moduleId={moduleId} sectionId={section.sectionId} />
       <ConfirmDialog
         open={deleting}
         onOpenChange={setDeleting}
@@ -269,7 +256,7 @@ function SectionBlock({ courseId, versionId, moduleId, section, label }: Ids & {
 function ItemRows({ courseId, versionId, moduleId, sectionId, itemsGroupId }: Ids & { moduleId: string; sectionId: string; itemsGroupId: string }) {
   const items = useSectionItems(versionId, moduleId, sectionId);
   const deleteItem = useDeleteItem();
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
 
   if (items.isPending) return <div className="border-t border-border px-3.5 py-3"><Skeleton className="h-5 w-1/2" /></div>;
@@ -281,34 +268,32 @@ function ItemRows({ courseId, versionId, moduleId, sectionId, itemsGroupId }: Id
       <ul className="divide-y divide-border border-t border-border">
         {[...items.data].sort((a, b) => a.order.localeCompare(b.order)).map((item) => {
           const t = itemType(item.type);
+          const editable = EDITABLE.includes(item.type);
+          const open = () =>
+            void navigate({ to: '/admin/courses/$courseId/$versionId/lesson', params: { courseId, versionId }, search: { module: moduleId, section: sectionId, item: item._id } });
           return (
             <li key={item._id} className="group flex items-center gap-3 px-3.5 py-2 transition-colors hover:bg-muted/40">
               <span className={cn('grid size-7 shrink-0 place-items-center rounded-md', t.tone)}>
                 <t.icon className="size-3.5" aria-hidden />
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm">{item.name}</span>
+              {editable ? (
+                <button type="button" onClick={open} className="min-w-0 flex-1 truncate text-left text-sm hover:underline hover:underline-offset-4">
+                  {item.name}
+                </button>
+              ) : (
+                <span className="min-w-0 flex-1 truncate text-sm">{item.name}</span>
+              )}
               <span className="hidden text-xs text-muted-foreground sm:inline">{t.label}</span>
               {item.isOptional && <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">Optional</span>}
               <RowMenu
                 label={`Lesson ${item.name}`}
-                onEdit={() => setEditingId(item._id)}
+                onEdit={editable ? open : undefined}
                 onDelete={itemsGroupId ? () => setDeleting({ id: item._id, name: item.name }) : undefined}
               />
             </li>
           );
         })}
       </ul>
-      {editingId && (
-        <ItemDialog
-          open
-          onOpenChange={(o) => !o && setEditingId(null)}
-          courseId={courseId}
-          versionId={versionId}
-          moduleId={moduleId}
-          sectionId={sectionId}
-          itemId={editingId}
-        />
-      )}
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
@@ -321,6 +306,44 @@ function ItemRows({ courseId, versionId, moduleId, sectionId, itemsGroupId }: Id
   );
 }
 
+/** Lesson types the studio editors handle. */
+const EDITABLE = ['VIDEO', 'BLOG', 'QUIZ'];
+
+function AddLessonMenu({ courseId, versionId, moduleId, sectionId }: Ids & { moduleId: string; sectionId: string }) {
+  const navigate = useNavigate();
+  const go = (type: 'VIDEO' | 'BLOG' | 'QUIZ') =>
+    void navigate({ to: '/admin/courses/$courseId/$versionId/lesson', params: { courseId, versionId }, search: { module: moduleId, section: sectionId, type } });
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="text-muted-foreground" />}>
+        <PlusIcon aria-hidden /> Add lesson
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-64">
+        {(
+          [
+            ['VIDEO', 'A YouTube video, or a clip of one'],
+            ['BLOG', 'Text with headings, images and links'],
+            ['QUIZ', 'Questions to check understanding'],
+          ] as const
+        ).map(([type, help]) => {
+          const t = itemType(type);
+          return (
+            <DropdownMenuItem key={type} onClick={() => go(type)} className="items-start gap-3 py-2">
+              <span className={cn('mt-0.5 grid size-7 shrink-0 place-items-center rounded-md', t.tone)}>
+                <t.icon className="size-3.5" />
+              </span>
+              <span>
+                <span className="block font-medium">{t.label === 'Reading' ? 'Article' : t.label}</span>
+                <span className="block text-xs text-muted-foreground">{help}</span>
+              </span>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function RowMenu({
   label,
   onEdit,
@@ -328,7 +351,7 @@ function RowMenu({
   onDelete,
 }: {
   label: string;
-  onEdit: () => void;
+  onEdit?: () => void;
   onAdd?: { label: string; run: () => void };
   onDelete?: () => void;
 }) {
@@ -338,9 +361,11 @@ function RowMenu({
         <MoreHorizontalIcon aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuItem onClick={onEdit}>
-          <PencilIcon /> Edit
-        </DropdownMenuItem>
+        {onEdit && (
+          <DropdownMenuItem onClick={onEdit}>
+            <PencilIcon /> Edit
+          </DropdownMenuItem>
+        )}
         {onAdd && (
           <DropdownMenuItem onClick={onAdd.run}>
             <PlusIcon /> {onAdd.label}
@@ -348,7 +373,7 @@ function RowMenu({
         )}
         {onDelete && (
           <>
-            <DropdownMenuSeparator />
+            {(onEdit || onAdd) && <DropdownMenuSeparator />}
             <DropdownMenuItem variant="destructive" onClick={onDelete}>
               <TrashIcon /> Delete
             </DropdownMenuItem>
@@ -438,175 +463,6 @@ function NameDialog(
           <Button type="submit" form={id} disabled={mutation.isPending}>
             {mutation.isPending && <Spinner className="size-4" />}
             {props.create ? 'Add' : 'Save'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/** Add a lesson (video or quiz), or edit one when `itemId` is given. */
-function ItemDialog({
-  open,
-  onOpenChange,
-  courseId,
-  versionId,
-  moduleId,
-  sectionId,
-  itemId,
-}: Ids & { open: boolean; onOpenChange: (open: boolean) => void; moduleId: string; sectionId: string; itemId?: string }) {
-  const editing = !!itemId;
-  const detail = useItemDetail(courseId, versionId, moduleId, sectionId, itemId ?? '', editing && open);
-  const createItem = useCreateItem();
-  const updateItem = useUpdateItem();
-  const [type, setType] = useState<'VIDEO' | 'QUIZ'>('VIDEO');
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [url, setUrl] = useState('');
-  const [startTime, setStartTime] = useState('0:00');
-  const [endTime, setEndTime] = useState('');
-  const [points, setPoints] = useState(10);
-  const [loadedId, setLoadedId] = useState<string | null>(null);
-
-  if (editing && detail.data && loadedId !== detail.data._id) {
-    setLoadedId(detail.data._id);
-    setName(detail.data.name);
-    setDescription(detail.data.description);
-    if (detail.data.type === 'VIDEO') {
-      setUrl(detail.data.details?.URL ?? '');
-      setStartTime(detail.data.details?.startTime ?? '');
-      setEndTime(detail.data.details?.endTime ?? '');
-      setPoints(detail.data.details?.points ?? 0);
-    }
-  }
-
-  const effectiveType = editing ? detail.data?.type : type;
-  const mutation = editing ? updateItem : createItem;
-
-  function close(next: boolean) {
-    onOpenChange(next);
-    if (!next && !editing) {
-      setName('');
-      setDescription('');
-      setUrl('');
-      setStartTime('0:00');
-      setEndTime('');
-      setPoints(10);
-      createItem.reset();
-    }
-  }
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (editing) {
-      if (!detail.data) return;
-      const details = detail.data.type === 'VIDEO' ? { ...detail.data.details, URL: url, startTime, endTime, points } : detail.data.details;
-      await updateItem.mutateAsync({ courseId, versionId, itemId: itemId!, name, description, type: detail.data.type, details });
-    } else {
-      const input: NewItemInput = {
-        versionId,
-        moduleId,
-        sectionId,
-        name,
-        description,
-        type,
-        ...(type === 'VIDEO' ? { videoDetails: { URL: url, startTime, endTime, points } } : {}),
-      };
-      await createItem.mutateAsync(input);
-    }
-    close(false);
-  }
-
-  const formId = editing ? `item-edit-${itemId}` : `item-new-${sectionId}`;
-  return (
-    <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{editing ? 'Edit lesson' : 'New lesson'}</DialogTitle>
-          {!editing && <DialogDescription>Pick what students will do in this lesson.</DialogDescription>}
-        </DialogHeader>
-
-        {editing && detail.isPending ? (
-          <div className="grid gap-3">
-            <Skeleton className="h-9" />
-            <Skeleton className="h-20" />
-          </div>
-        ) : editing && detail.isError ? (
-          <ErrorText error={detail.error} />
-        ) : (
-          <form id={formId} onSubmit={(e) => void onSubmit(e).catch(() => undefined)} className="grid gap-4">
-            {!editing && (
-              <ToggleGroup
-                aria-label="Lesson type"
-                variant="outline"
-                value={[type]}
-                onValueChange={(v: string[]) => v[0] && setType(v[0] as 'VIDEO' | 'QUIZ')}
-                className="grid w-full grid-cols-2"
-              >
-                {(['VIDEO', 'QUIZ'] as const).map((t) => {
-                  const meta = itemType(t);
-                  return (
-                    <ToggleGroupItem key={t} value={t} className="h-auto flex-col gap-1 py-3 data-[pressed]:border-primary data-[pressed]:bg-blush/40">
-                      <meta.icon className="size-5" aria-hidden />
-                      <span className="text-sm font-medium">{meta.label}</span>
-                    </ToggleGroupItem>
-                  );
-                })}
-              </ToggleGroup>
-            )}
-            {editing && effectiveType && (
-              <p className="inline-flex w-fit items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                {itemType(effectiveType).label}
-              </p>
-            )}
-            <Field>
-              <FieldLabel htmlFor={`${formId}-name`}>Title</FieldLabel>
-              <Input id={`${formId}-name`} value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor={`${formId}-description`}>Description</FieldLabel>
-              <Textarea id={`${formId}-description`} value={description} onChange={(e) => setDescription(e.target.value)} required rows={2} />
-            </Field>
-            {effectiveType === 'VIDEO' && (
-              <>
-                <Field>
-                  <FieldLabel htmlFor={`${formId}-url`}>YouTube link</FieldLabel>
-                  <Input id={`${formId}-url`} type="url" placeholder="https://www.youtube.com/watch?v=…" value={url} onChange={(e) => setUrl(e.target.value)} required />
-                </Field>
-                <div className="grid grid-cols-3 gap-3">
-                  <Field>
-                    <FieldLabel htmlFor={`${formId}-start`}>Start</FieldLabel>
-                    <Input id={`${formId}-start`} placeholder="0:00" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor={`${formId}-end`}>End</FieldLabel>
-                    <Input id={`${formId}-end`} placeholder="12:30" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor={`${formId}-points`}>Points</FieldLabel>
-                    <Input id={`${formId}-points`} type="number" min={0} value={points} onChange={(e) => setPoints(Number(e.target.value))} required />
-                  </Field>
-                </div>
-                <FieldDescription>Start and end are m:ss, so you can use part of a longer video.</FieldDescription>
-              </>
-            )}
-            {effectiveType === 'QUIZ' && !editing && (
-              <p className="rounded-lg bg-secondary px-3 py-2.5 text-sm text-secondary-foreground">
-                Creates an empty quiz (70% to pass, unlimited attempts). Questions are added from a question bank.
-              </p>
-            )}
-            {editing && effectiveType !== 'VIDEO' && <FieldDescription>Only the title and description of this lesson type can be edited here.</FieldDescription>}
-            {mutation.isError && <ErrorText error={mutation.error} />}
-          </form>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => close(false)}>
-            Cancel
-          </Button>
-          <Button type="submit" form={formId} disabled={mutation.isPending || (editing && !detail.data)}>
-            {mutation.isPending && <Spinner className="size-4" />}
-            {editing ? 'Save' : 'Add lesson'}
           </Button>
         </DialogFooter>
       </DialogContent>

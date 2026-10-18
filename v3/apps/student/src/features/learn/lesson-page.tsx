@@ -3,8 +3,6 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { ApiError, unwrap } from '@vibe/api';
 import { ArrowLeftIcon, ArrowRightIcon, BadgeCheckIcon, CheckCircle2Icon, HandIcon, InfoIcon, LockIcon, ShieldAlertIcon, XIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import Markdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 
 import {
@@ -17,6 +15,7 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { RichContent } from '@/components/rich-content';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -664,8 +663,8 @@ function LessonContent({
             </Alert>
           ))}
         {item.type === 'BLOG' && (
-          <div className="prose-vibe">
-            <Markdown remarkPlugins={[remarkGfm]}>{item.details.content ?? ''}</Markdown>
+          <div>
+            <RichContent content={item.details.content ?? ''} />
             {item.details.estimatedReadTimeInMinutes ? (
               <p className="mt-8 text-xs text-muted-foreground">About {item.details.estimatedReadTimeInMinutes} min read</p>
             ) : null}

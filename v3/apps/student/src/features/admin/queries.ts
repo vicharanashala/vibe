@@ -210,97 +210,6 @@ export function useDeleteSection() {
 
 // ---- Items ----
 
-export interface NewItemInput {
-  versionId: string;
-  moduleId: string;
-  sectionId: string;
-  name: string;
-  description: string;
-  type: 'VIDEO' | 'QUIZ';
-  videoDetails?: { URL: string; startTime: string; endTime: string; points: number };
-}
-
-export function useCreateItem() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ versionId, moduleId, sectionId, name, description, type, videoDetails }: NewItemInput) =>
-      unwrap(
-        await api.POST('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items', {
-          params: { path: { versionId, moduleId, sectionId } },
-          body:
-            type === 'VIDEO'
-              ? { name, description, type, videoDetails }
-              : {
-                  name,
-                  description,
-                  type,
-                  quizDetails: {
-                    passThreshold: 0.7,
-                    maxAttempts: -1,
-                    quizType: 'NO_DEADLINE',
-                    approximateTimeToComplete: '0:05:00',
-                    allowPartialGrading: true,
-                    allowHint: true,
-                    allowSkip: false,
-                    showCorrectAnswersAfterSubmission: true,
-                    showExplanationAfterSubmission: true,
-                    showScoreAfterSubmission: true,
-                    questionVisibility: 1,
-                    releaseTime: new Date().toISOString(),
-                  },
-                },
-        }),
-      ),
-    onSuccess: (_data, { versionId }) => invalidateVersion(queryClient, versionId),
-  });
-}
-
-export interface ItemDetail {
-  _id: string;
-  name: string;
-  description: string;
-  type: string;
-  isOptional?: boolean;
-  details: any;
-}
-
-export function useItemDetail(courseId: string, versionId: string, moduleId: string, sectionId: string, itemId: string, enabled = true) {
-  return useQuery({
-    queryKey: ['admin', 'item', itemId],
-    queryFn: async () => {
-      const raw = unwrap(
-        await api.GET('/api/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}', {
-          params: { path: { courseId, versionId, moduleId, sectionId, itemId } },
-        }),
-      ) as unknown as { item: ItemDetail };
-      return raw.item;
-    },
-    enabled: enabled && !!itemId,
-  });
-}
-
-export function useUpdateItem() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      courseId,
-      versionId,
-      itemId,
-      name,
-      description,
-      type,
-      details,
-    }: { courseId: string; versionId: string; itemId: string; name: string; description: string; type: string; details: unknown }) =>
-      unwrap(
-        await api.PUT('/api/courses/{courseId}/versions/{versionId}/items/{itemId}', {
-          params: { path: { courseId, versionId, itemId } },
-          body: { name, description, type, details } as any,
-        }),
-      ),
-    onSuccess: (_data, { versionId }) => invalidateVersion(queryClient, versionId),
-  });
-}
-
 export function useDeleteItem() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -396,7 +305,7 @@ export function useCourseEnrollments(courseId: string, versionId: string) {
  * `useCourseSettings` and only override `detectors` (see course-detail-page.tsx),
  * so those are round-tripped untouched rather than silently reset. The generated
  * OpenAPI type for this body is degraded (detectors/settings lose their real
- * shape), so it's cast at the call site here, same as useUpdateItem above.
+ * shape), so it's cast at the call site here.
  */
 export function useUpdateCourseSettings(courseId: string, versionId: string) {
   const queryClient = useQueryClient();

@@ -12,7 +12,7 @@ import {
   UsersIcon,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { ArtPaletteContext, GeneratedAvatar, STUDIO_PALETTE } from '@/components/generated-art';
 import { useTheme } from '@/components/theme-provider';
@@ -67,10 +67,13 @@ function titleFor(pathname: string) {
  * "New course" call to action) and its own warm theme, applied by putting
  * `studio` on <html> while mounted so portalled menus and dialogs match.
  */
-export function AdminShell() {
+/**
+ * Admin check plus the studio's warm theme: puts `studio` on <html> while
+ * mounted (so menus and dialogs portalled to <body> match) and swaps the
+ * generated-art palette. Wraps both the sidebar shell and the full-screen editors.
+ */
+export function StudioGuard({ children }: { children: (profile: { email: string }) => ReactNode }) {
   const profile = useCurrentUserProfile();
-  const [newCourseOpen, setNewCourseOpen] = useState(false);
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
     document.documentElement.classList.add('studio');
@@ -96,7 +99,7 @@ export function AdminShell() {
             <EmptyTitle className="font-aleo text-2xl">Admins only</EmptyTitle>
             <EmptyDescription>You need an admin account to use the studio.</EmptyDescription>
           </EmptyHeader>
-          <Button variant="outline" render={<Link to="/home" />}>
+          <Button variant="outline" nativeButton={false} render={<Link to="/home" />}>
             <ArrowLeftIcon aria-hidden /> Back to learning
           </Button>
         </Empty>
@@ -104,8 +107,25 @@ export function AdminShell() {
     );
   }
 
+  return <ArtPaletteContext.Provider value={STUDIO_PALETTE}>{children(profile.data)}</ArtPaletteContext.Provider>;
+}
+
+/** Studio: the teacher/admin area, with a Substack-like sidebar and a "New course" call to action. */
+export function AdminShell() {
+  return <StudioGuard>{(profile) => <StudioChrome email={profile.email} />}</StudioGuard>;
+}
+
+/** Full-screen studio pages (the lesson editors): admin check and theme, no sidebar. */
+export function StudioEditorShell() {
+  return <StudioGuard>{() => <Outlet />}</StudioGuard>;
+}
+
+function StudioChrome({ email }: { email: string }) {
+  const [newCourseOpen, setNewCourseOpen] = useState(false);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
   return (
-    <ArtPaletteContext.Provider value={STUDIO_PALETTE}>
+    <>
       <SidebarProvider>
         <Sidebar aria-label="Studio sidebar">
           <SidebarHeader className="gap-3 p-3">
@@ -113,7 +133,7 @@ export function AdminShell() {
               <span className="grid size-7 place-items-center rounded-md bg-primary font-aleo text-sm font-semibold text-primary-foreground">V</span>
               <span className="min-w-0 leading-tight">
                 <span className="block font-aleo text-sm font-semibold">ViBe Studio</span>
-                <span className="block truncate text-[11px] text-muted-foreground">{profile.data.email}</span>
+                <span className="block truncate text-[11px] text-muted-foreground">{email}</span>
               </span>
             </Link>
             <Button className="w-full" onClick={() => setNewCourseOpen(true)}>
@@ -158,7 +178,7 @@ export function AdminShell() {
         </SidebarInset>
       </SidebarProvider>
       <NewCourseDialog open={newCourseOpen} onOpenChange={setNewCourseOpen} />
-    </ArtPaletteContext.Provider>
+    </>
   );
 }
 
@@ -181,7 +201,7 @@ function StudioNav({ items, pathname }: { items: { label: string; to: NavTo; ico
   );
 }
 
-function ThemeButton() {
+export function ThemeButton() {
   const { theme, toggleTheme } = useTheme();
   return (
     <Button variant="ghost" size="icon" aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} onClick={toggleTheme}>

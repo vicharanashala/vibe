@@ -51,7 +51,7 @@ export function CourseDetailPage({ courseId, versionId, tab = 'overview' }: { co
             {course.isPending ? <Skeleton className="h-8 w-64" /> : <h1 className="font-aleo text-3xl leading-tight tracking-tight text-balance">{course.data?.name ?? 'Course'}</h1>}
           </div>
         </div>
-        <Button variant="outline" render={<Link to="/courses/$courseId/$versionId" params={{ courseId, versionId }} />}>
+        <Button variant="outline" nativeButton={false} render={<Link to="/courses/$courseId/$versionId" params={{ courseId, versionId }} />}>
           Student view <ExternalLinkIcon aria-hidden />
         </Button>
       </div>

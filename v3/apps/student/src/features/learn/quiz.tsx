@@ -1,6 +1,7 @@
 import { ArrowDownIcon, ArrowUpIcon, CheckCircle2Icon, CircleAlertIcon, ClockIcon, KeyboardIcon, LightbulbIcon, ListChecksIcon, RotateCcwIcon, TargetIcon, XCircleIcon } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 
+import { RichText } from '@/components/rich-content';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -155,7 +156,7 @@ export function QuizRunner({
             <span className="mb-2 block font-sans text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
               Question {i + 1} of {questions.length}
             </span>
-            {q.text}
+            <RichText text={q.text} inline />
           </QuestionnaireTitle>
           <QuestionnaireDescription>{TYPE_HINT[q.type]}</QuestionnaireDescription>
           {details.allowHint && q.hint && <Hint text={q.hint} />}
@@ -255,7 +256,9 @@ function Hint({ text }: { text: string }) {
   return open ? (
     <Alert className="border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200">
       <LightbulbIcon aria-hidden />
-      <AlertDescription className="text-inherit">{text}</AlertDescription>
+      <AlertDescription className="text-inherit">
+        <RichText text={text} inline />
+      </AlertDescription>
     </Alert>
   ) : (
     <Button variant="ghost" size="sm" className="w-fit px-0 text-muted-foreground hover:bg-transparent" onClick={() => setOpen(true)}>
@@ -270,7 +273,7 @@ function QuestionBody({ question: q }: { question: QuizQuestion }) {
       <QuestionnaireChoices>
         {q.options.map((o) => (
           <QuestionnaireChoice key={o.id} value={o.id} className="min-h-12 rounded-xl bg-card text-base">
-            {o.text}
+            <RichText text={o.text} inline />
           </QuestionnaireChoice>
         ))}
       </QuestionnaireChoices>
@@ -327,7 +330,9 @@ function OrderList({ options }: { options: QuizQuestion['options'] }) {
             {i + 1}
           </ItemMedia>
           <ItemContent>
-            <ItemTitle className="text-base font-normal">{o.text}</ItemTitle>
+            <ItemTitle className="text-base font-normal">
+              <RichText text={o.text} inline />
+            </ItemTitle>
           </ItemContent>
           <Button type="button" variant="ghost" size="icon-sm" data-dir="up" aria-label={`Move “${o.text}” up`} disabled={i === 0} onClick={() => move(i, -1)} onKeyDown={enterGoesForward}>
             <ArrowUpIcon />
@@ -435,9 +440,9 @@ function QuizReview({
               <li key={q.id}>
                 <Card size="sm" className="px-4">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-medium">
-                    <span className="text-muted-foreground">{i + 1}.</span> {q.text}
-                  </p>
+                  <div className="flex gap-1.5 text-sm font-medium">
+                    <span className="text-muted-foreground">{i + 1}.</span> <RichText text={q.text} inline />
+                  </div>
                   {f && (
                     <Badge
                       variant="outline"

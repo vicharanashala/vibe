@@ -8,9 +8,11 @@ import {
   redirect,
 } from '@tanstack/react-router';
 
-import { AdminShell } from '@/features/admin/admin-shell';
+import { AdminShell, StudioEditorShell } from '@/features/admin/admin-shell';
 import { CourseDetailPage, parseCourseTab, type CourseTab } from '@/features/admin/course-detail-page';
 import { CoursesPage as StudioCoursesPage } from '@/features/admin/courses-page';
+import { LessonEditorPage } from '@/features/admin/editor/lesson-editor-page';
+import type { LessonType } from '@/features/admin/editor/lesson-api';
 import { StudioHomePage } from '@/features/admin/home-page';
 import { UsersPage } from '@/features/admin/users-page';
 import { AppShell } from '@/features/app-shell/app-shell';
@@ -160,6 +162,30 @@ const adminCourseRoute = createRoute({
   },
 });
 
+/** Full-screen lesson editors: studio theme and admin check, but no sidebar. */
+const studioEditorLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'studio-editor',
+  beforeLoad: ({ location }) => requireOnboardedUser(location),
+  component: StudioEditorShell,
+});
+const LESSON_TYPES: LessonType[] = ['VIDEO', 'BLOG', 'QUIZ'];
+const lessonEditorRoute = createRoute({
+  getParentRoute: () => studioEditorLayoutRoute,
+  path: '/admin/courses/$courseId/$versionId/lesson',
+  validateSearch: (search: Record<string, unknown>): { module: string; section: string; item?: string; type?: LessonType } => ({
+    module: typeof search.module === 'string' ? search.module : '',
+    section: typeof search.section === 'string' ? search.section : '',
+    item: typeof search.item === 'string' && search.item ? search.item : undefined,
+    type: LESSON_TYPES.includes(search.type as LessonType) ? (search.type as LessonType) : undefined,
+  }),
+  component: function LessonEditorRoute() {
+    const { courseId, versionId } = lessonEditorRoute.useParams();
+    const { module, section, item, type } = lessonEditorRoute.useSearch();
+    return <LessonEditorPage loc={{ courseId, versionId, moduleId: module, sectionId: section }} itemId={item} type={type} />;
+  },
+});
+
 /** The registration link instructors share. Needs an account (every registration API does). */
 const registerRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -194,6 +220,7 @@ const routeTree = rootRoute.addChildren([
   ...legacyRegisterRoutes,
   appRoute.addChildren([homeRoute, coursesRoute, courseRoute, profileRoute]),
   adminLayoutRoute.addChildren([adminIndexRoute, adminCoursesRoute, adminCourseRoute, adminUsersRoute]),
+  studioEditorLayoutRoute.addChildren([lessonEditorRoute]),
 ]);
 
 export function createAppRouter(options: { initialPath?: string } = {}) {

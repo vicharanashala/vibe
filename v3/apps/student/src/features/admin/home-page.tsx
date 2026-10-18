@@ -196,7 +196,7 @@ function LatestCourseCard({ course }: { course: AdminCourse }) {
         ))}
       </dl>
       <div className="mt-auto p-4 pt-3">
-        <Button variant="secondary" className="w-full" render={<Link to="/admin/courses/$courseId/$versionId" params={{ courseId: course._id, versionId }} />}>
+        <Button variant="secondary" className="w-full" nativeButton={false} render={<Link to="/admin/courses/$courseId/$versionId" params={{ courseId: course._id, versionId }} />}>
           Open course
         </Button>
       </div>
