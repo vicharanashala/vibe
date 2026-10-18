@@ -74,6 +74,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
@@ -84,6 +85,7 @@ import {
   TitleFields,
   type SaveState,
 } from './editor-frame';
+import { QuizResults } from './quiz-results';
 import {
   blankOption,
   blankQuestion,
@@ -210,6 +212,7 @@ function QuizEditorBody({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tab, setTab] = useState<'questions' | 'results'>('questions');
   const [savedOnce, setSavedOnce] = useState(false);
 
   const totalPoints = questions.reduce(
@@ -327,10 +330,12 @@ function QuizEditorBody({
         />
       ) : null}
 
-      <DesktopHint id="quiz-editor">
-        You can review and make small changes here. For writing several
-        questions, please use a computer.
-      </DesktopHint>
+      {tab === 'questions' && (
+        <DesktopHint id="quiz-editor">
+          You can review and make small changes here. For writing several
+          questions, please use a computer.
+        </DesktopHint>
+      )}
 
       <TitleFields
         title={name}
@@ -347,77 +352,108 @@ function QuizEditorBody({
         subtitlePlaceholder="What does this quiz check?"
       />
 
-      <Item variant="muted" className="mt-6">
-        <ItemContent>
-          <ItemTitle>
-            {questions.length}{' '}
-            {questions.length === 1 ? 'question' : 'questions'} · {totalPoints}{' '}
-            points
-          </ItemTitle>
-          <ItemDescription>
-            Pass at {Math.round(details.passThreshold * 100)}% ·{' '}
-            {details.maxAttempts === -1
-              ? 'unlimited attempts'
-              : `${details.maxAttempts} ${details.maxAttempts === 1 ? 'attempt' : 'attempts'}`}{' '}
-            ·{' '}
-            {perAttempt === null
-              ? 'every question each attempt'
-              : `${perAttempt} random questions each attempt`}
-          </ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <SlidersHorizontalIcon aria-hidden /> Settings
-          </Button>
-        </ItemActions>
-      </Item>
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as 'questions' | 'results')}
+        className="mt-6 flex-col gap-0"
+      >
+        {item && (
+          <TabsList className="mb-6">
+            <TabsTrigger value="questions">Questions</TabsTrigger>
+            <TabsTrigger value="results">Results</TabsTrigger>
+          </TabsList>
+        )}
+        <TabsContent value="questions">
+          <Item variant="muted">
+            <ItemContent>
+              <ItemTitle>
+                {questions.length}{' '}
+                {questions.length === 1 ? 'question' : 'questions'} ·{' '}
+                {totalPoints} points
+              </ItemTitle>
+              <ItemDescription>
+                Pass at {Math.round(details.passThreshold * 100)}% ·{' '}
+                {details.maxAttempts === -1
+                  ? 'unlimited attempts'
+                  : `${details.maxAttempts} ${details.maxAttempts === 1 ? 'attempt' : 'attempts'}`}{' '}
+                ·{' '}
+                {perAttempt === null
+                  ? 'every question each attempt'
+                  : `${perAttempt} random questions each attempt`}
+              </ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <SlidersHorizontalIcon aria-hidden /> Settings
+              </Button>
+            </ItemActions>
+          </Item>
 
-      <div className="mt-6 grid gap-4">
-        {questions.map((q, i) => (
-          <div key={q.key} id={`question-${q.key}`} className="scroll-mt-20">
-            <QuestionCard
-              q={q}
-              index={i}
-              onChange={(patch) => update(q.key, patch)}
-              onDuplicate={() => {
-                setQuestions((qs) => {
-                  const copy: DraftQuestion = {
-                    ...q,
-                    key: newKey(),
-                    id: undefined,
-                    options: q.options.map((o) => ({ ...o, key: newKey() })),
-                  };
-                  return [...qs.slice(0, i + 1), copy, ...qs.slice(i + 1)];
-                });
-                setDirty(true);
-              }}
-              onDelete={() => {
-                setQuestions((qs) => qs.filter((x) => x.key !== q.key));
-                setDirty(true);
-              }}
-            />
+          <div className="mt-6 grid gap-4">
+            {questions.map((q, i) => (
+              <div
+                key={q.key}
+                id={`question-${q.key}`}
+                className="scroll-mt-20"
+              >
+                <QuestionCard
+                  q={q}
+                  index={i}
+                  onChange={(patch) => update(q.key, patch)}
+                  onDuplicate={() => {
+                    setQuestions((qs) => {
+                      const copy: DraftQuestion = {
+                        ...q,
+                        key: newKey(),
+                        id: undefined,
+                        options: q.options.map((o) => ({
+                          ...o,
+                          key: newKey(),
+                        })),
+                      };
+                      return [...qs.slice(0, i + 1), copy, ...qs.slice(i + 1)];
+                    });
+                    setDirty(true);
+                  }}
+                  onDelete={() => {
+                    setQuestions((qs) => qs.filter((x) => x.key !== q.key));
+                    setDirty(true);
+                  }}
+                />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <AddQuestionMenu
-        onAdd={(type) => {
-          const q = blankQuestion(type);
-          setQuestions((qs) => [...qs, q]);
-          setDirty(true);
-          setTimeout(
-            () =>
-              document
-                .getElementById(`question-${q.key}`)
-                ?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
-            50,
-          );
-        }}
-      />
+          <AddQuestionMenu
+            onAdd={(type) => {
+              const q = blankQuestion(type);
+              setQuestions((qs) => [...qs, q]);
+              setDirty(true);
+              setTimeout(
+                () =>
+                  document
+                    .getElementById(`question-${q.key}`)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+                50,
+              );
+            }}
+          />
+        </TabsContent>
+        {item && (
+          <TabsContent value="results">
+            <QuizResults
+              quizId={item._id}
+              questions={serverQuestions}
+              passThreshold={details.passThreshold}
+              maxAttempts={details.maxAttempts}
+            />
+          </TabsContent>
+        )}
+      </Tabs>
 
       <QuizSettingsSheet
         open={settingsOpen}

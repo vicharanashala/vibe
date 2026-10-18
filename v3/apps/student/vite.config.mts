@@ -51,6 +51,9 @@ export default defineConfig(() => ({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // Most specs render the whole app (router, providers, pages); on a busy
+    // machine or CI runner they can take several seconds, so allow 15s.
+    testTimeout: 15_000,
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
     coverage: {

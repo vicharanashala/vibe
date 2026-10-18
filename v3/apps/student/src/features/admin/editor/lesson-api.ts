@@ -677,3 +677,150 @@ export function useFeedbackSummary(
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Quiz results
+// ---------------------------------------------------------------------------
+
+export interface QuizAnalytics {
+  totalAttempts: number;
+  submissions: number;
+  passRate: number;
+  averageScore: number;
+  averagePercentage: number;
+}
+
+export interface QuizQuestionPerformance {
+  questionId: string;
+  correctRate: number;
+  averageScore: number;
+}
+
+export interface QuizAttemptResult {
+  id: string;
+  attemptId: string;
+  userId: string;
+  submittedAt: string;
+  status: 'PASSED' | 'FAILED' | 'PENDING' | string;
+  score: number;
+  maxScore: number;
+  user: { firstName?: string; lastName?: string; email?: string };
+  questions: {
+    questionId: string;
+    status: string;
+    score: number;
+    feedback?: string;
+  }[];
+}
+
+/** GET /quizzes/quiz/{id}/analytics and /performance: headline numbers and per-question correct rates. */
+export function useQuizAnalytics(quizId: string | undefined) {
+  return useQuery({
+    queryKey: ['studio', 'quiz-analytics', quizId],
+    enabled: !!quizId,
+    queryFn: async () => {
+      const [analytics, performance] = await Promise.all([
+        api
+          .GET('/api/quizzes/quiz/{quizId}/analytics', {
+            params: { path: { quizId: quizId! } },
+          })
+          .then(unwrap),
+        api
+          .GET('/api/quizzes/quiz/{quizId}/performance', {
+            params: { path: { quizId: quizId! } },
+          })
+          .then(unwrap),
+      ]);
+      return {
+        analytics: analytics as unknown as QuizAnalytics,
+        performance: (
+          (performance as unknown as QuizQuestionPerformance[]) ?? []
+        ).map((p) => ({ ...p, questionId: toId(p.questionId as never) })),
+      };
+    },
+  });
+}
+
+function toAttempt(s: any): QuizAttemptResult {
+  const g = s.gradingResult ?? {};
+  return {
+    id: toId(s._id),
+    attemptId: toId(s.attemptId),
+    userId: toId(s.userId),
+    submittedAt: s.submittedAt,
+    status: g.gradingStatus ?? 'PENDING',
+    score: g.totalScore ?? 0,
+    maxScore: g.totalMaxScore ?? 0,
+    // The backend sends the whole user document; only these fields are used.
+    user: {
+      firstName: s.userInfo?.firstName,
+      lastName: s.userInfo?.lastName,
+      email: s.userInfo?.email,
+    },
+    questions: (g.overallFeedback ?? []).map((q: any) => ({
+      questionId: toId(q.questionId),
+      status: q.status,
+      score: q.score ?? 0,
+      feedback: q.answerFeedback,
+    })),
+  };
+}
+
+export type AttemptSort = 'date_desc' | 'date_asc' | 'score_desc' | 'score_asc';
+
+/** GET /quizzes/quiz/{id}/submissions: one row per submitted attempt, paged, with status filter, search and sort. */
+export function useQuizAttempts(
+  quizId: string | undefined,
+  opts: {
+    page: number;
+    limit: number;
+    status?: 'PASSED' | 'FAILED' | 'PENDING';
+    search?: string;
+    sort?: AttemptSort;
+  },
+) {
+  return useQuery({
+    queryKey: ['studio', 'quiz-attempts', quizId, opts],
+    enabled: !!quizId,
+    placeholderData: (prev) => prev,
+    queryFn: async () => {
+      const raw = unwrap(
+        await api.GET('/api/quizzes/quiz/{quizId}/submissions', {
+          params: {
+            path: { quizId: quizId! },
+            query: {
+              currentPage: opts.page,
+              limit: opts.limit,
+              sort: opts.sort ?? 'date_desc',
+              ...(opts.status ? { gradeStatus: opts.status } : {}),
+              ...(opts.search ? { search: opts.search } : {}),
+            } as never,
+          },
+        }),
+      ) as unknown as { data: any[]; totalCount: number; totalPages: number };
+      return {
+        total: raw.totalCount ?? 0,
+        totalPages: raw.totalPages ?? 1,
+        attempts: (raw.data ?? []).map(toAttempt),
+      };
+    },
+  });
+}
+
+/** POST /quizzes/quiz/{id}/user/{userId}/reset-attempts: gives a student their full attempt allowance again. */
+export function useResetQuizAttempts(quizId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string) =>
+      unwrap(
+        await api.POST(
+          '/api/quizzes/quiz/{quizId}/user/{userId}/reset-attempts',
+          { params: { path: { quizId, userId } } },
+        ),
+      ),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({
+        queryKey: ['studio', 'quiz-attempts', quizId],
+      }),
+  });
+}

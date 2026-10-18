@@ -17,6 +17,13 @@ import quizBankRefs from './fixtures/studio/quiz-bank-refs.json';
 import quizItem from './fixtures/studio/quiz-item.json';
 import quizQuestions from './fixtures/studio/quiz-questions.json';
 import userMeAdmin from './fixtures/studio/user-me-admin.json';
+import resultsAnalytics from './fixtures/studio/results-analytics.json';
+import resultsBank from './fixtures/studio/results-bank.json';
+import resultsBankRefs from './fixtures/studio/results-bank-refs.json';
+import resultsItem from './fixtures/studio/results-item.json';
+import resultsPerformance from './fixtures/studio/results-performance.json';
+import resultsQuestions from './fixtures/studio/results-questions.json';
+import resultsSubmissions from './fixtures/studio/results-submissions.json';
 import users from './fixtures/studio/users.json';
 
 export const studio = {
@@ -32,6 +39,13 @@ export const studio = {
   quizQuestions,
   userMeAdmin,
   users,
+  results: {
+    item: resultsItem,
+    analytics: resultsAnalytics,
+    performance: resultsPerformance,
+    questions: resultsQuestions,
+    submissions: resultsSubmissions,
+  },
 };
 
 /** ObjectIds arrive as hex strings or as raw BSON buffers, depending on the endpoint. */
@@ -60,6 +74,13 @@ export const FEEDBACK = {
 };
 
 export const QUIZ_ITEM_ID = quizItem.item._id;
+
+/**
+ * A quiz with real submitted attempts (the sample course's checkpoint). Students
+ * other than the @vibe.local test accounts were given pseudonyms (student2@…,
+ * student3@…) when captured; scores and answers are as recorded.
+ */
+export const RESULTS_QUIZ_ID = resultsItem.item._id;
 
 type Params = {
   params?: { path?: Record<string, string>; query?: Record<string, string> };
@@ -95,13 +116,40 @@ export function studioGet(path: string, opts?: Params) {
     case '/api/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}':
       if (p.itemId === FEEDBACK.itemId) return ok(feedbackItem);
       if (p.itemId === QUIZ_ITEM_ID) return ok(quizItem);
+      if (p.itemId === RESULTS_QUIZ_ID) return ok(resultsItem);
       return respond(path);
     case '/api/quizzes/quiz/{quizId}/bank':
-      return ok(quizBankRefs);
+      return ok(p.quizId === RESULTS_QUIZ_ID ? resultsBankRefs : quizBankRefs);
     case '/api/quizzes/question-bank/{questionBankId}':
-      return ok(quizBank);
+      return ok(
+        hex(resultsBank._id) === p.questionBankId ? resultsBank : quizBank,
+      );
     case '/api/quizzes/questions/{questionId}':
-      return ok(quizQuestions.find((q) => hex(q._id) === p.questionId));
+      return ok(
+        [...quizQuestions, ...resultsQuestions].find(
+          (q) => hex(q._id) === p.questionId,
+        ),
+      );
+    case '/api/quizzes/quiz/{quizId}/analytics':
+      return ok(
+        p.quizId === RESULTS_QUIZ_ID
+          ? resultsAnalytics
+          : {
+              totalAttempts: 0,
+              submissions: 0,
+              passRate: 0,
+              averageScore: 0,
+              averagePercentage: 0,
+            },
+      );
+    case '/api/quizzes/quiz/{quizId}/performance':
+      return ok(p.quizId === RESULTS_QUIZ_ID ? resultsPerformance : []);
+    case '/api/quizzes/quiz/{quizId}/submissions':
+      return ok(
+        p.quizId === RESULTS_QUIZ_ID
+          ? resultsSubmissions
+          : { data: [], totalCount: 0, currentPage: 1, totalPages: 0 },
+      );
     case '/api/courses/{courseId}/item/{feedbackId}/feedback/submissions':
       return ok(feedbackSubmissions);
     default:

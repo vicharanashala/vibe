@@ -7,6 +7,7 @@ import {
   FEEDBACK,
   hex,
   QUIZ_ITEM_ID,
+  RESULTS_QUIZ_ID,
   signInAdmin,
   studio,
   studioGet,
@@ -269,6 +270,169 @@ describe('quiz editor', () => {
     expect(itemPut[1].body.details.questionBankRefs).toEqual(
       studio.quizItem.item.details.questionBankRefs,
     );
+  });
+});
+
+describe('quiz results', () => {
+  const resultsUrl = lessonUrl(`item=${RESULTS_QUIZ_ID}`);
+  const SUBMISSIONS = '/api/quizzes/quiz/{quizId}/submissions';
+
+  it('summarises attempts: headline numbers, score distribution and hardest questions', async () => {
+    const user = userEvent.setup();
+    renderApp(resultsUrl);
+    await user.click(await screen.findByRole('tab', { name: 'Results' }));
+    const { analytics, submissions, performance } = studio.results;
+    const strip = await screen.findByText('Students');
+    const students = new Set(submissions.data.map((s) => s.userId)).size;
+    expect(strip.nextElementSibling).toHaveTextContent(String(students));
+    await waitFor(() =>
+      expect(
+        screen.getByText('Average score').nextElementSibling,
+      ).toHaveTextContent(`${Math.round(analytics.averagePercentage)}%`),
+    );
+    expect(screen.getByText('Pass rate').nextElementSibling).toHaveTextContent(
+      `${Math.round(analytics.passRate)}%`,
+    );
+    expect(
+      screen.getByText('Attempts', { selector: 'dt' }).nextElementSibling,
+    ).toHaveTextContent(String(analytics.totalAttempts));
+
+    // One bar per 10-point range, labelled for screen readers and hover.
+    const scores = submissions.data.map((s) =>
+      Math.round(
+        (s.gradingResult.totalScore / s.gradingResult.totalMaxScore) * 100,
+      ),
+    );
+    const top = scores.filter((x) => x >= 90).length;
+    expect(
+      screen.getByLabelText(
+        `90–100%: ${top} ${top === 1 ? 'attempt' : 'attempts'}`,
+      ),
+    ).toBeInTheDocument();
+
+    // Hardest question first.
+    const lowest = Math.round(
+      Math.min(...performance.map((p) => p.correctRate)) * 100,
+    );
+    const rates = screen.getAllByText(/% correct$/).map((el) => el.textContent);
+    expect(rates[0]).toBe(`${lowest}% correct`);
+  });
+
+  it('lists every attempt, filters by result and opens one question by question', async () => {
+    const user = userEvent.setup();
+    renderApp(resultsUrl);
+    await user.click(await screen.findByRole('tab', { name: 'Results' }));
+    await user.click(await screen.findByRole('tab', { name: /Attempts/ }));
+    const table = await screen.findByRole('table');
+    expect(
+      within(table).getAllByRole('button', { name: /view answers/ }),
+    ).toHaveLength(studio.results.submissions.data.length);
+
+    await user.click(screen.getByRole('tab', { name: 'Failed' }));
+    await waitFor(() =>
+      expect(api.GET).toHaveBeenCalledWith(
+        SUBMISSIONS,
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({ gradeStatus: 'FAILED' }),
+          }),
+        }),
+      ),
+    );
+    await user.click(screen.getByRole('tab', { name: 'All' }));
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Sort attempts' }),
+      'score_asc',
+    );
+    await waitFor(() =>
+      expect(api.GET).toHaveBeenCalledWith(
+        SUBMISSIONS,
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({ sort: 'score_asc' }),
+          }),
+        }),
+      ),
+    );
+
+    const first = studio.results.submissions.data[0];
+    await user.click(
+      (
+        await within(await screen.findByRole('table')).findAllByRole('button', {
+          name: /view answers/,
+        })
+      )[0],
+    );
+    const sheet = await screen.findByRole('dialog');
+    expect(
+      within(sheet).getAllByText(/^(Correct|Incorrect|Partly correct)$/),
+    ).toHaveLength(first.gradingResult.overallFeedback.length);
+    expect(
+      within(sheet).getByText(
+        first.gradingResult.overallFeedback[0].answerFeedback!,
+      ),
+    ).toBeInTheDocument();
+    // Unlimited attempts: nothing to reset.
+    expect(
+      within(sheet).queryByRole('button', { name: 'Reset attempts' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('resets a student’s attempts after confirming, when attempts are limited', async () => {
+    const user = userEvent.setup();
+    const limited = {
+      item: {
+        ...studio.results.item.item,
+        details: { ...studio.results.item.item.details, maxAttempts: 2 },
+      },
+    };
+    api.GET.mockImplementation(
+      async (
+        path: string,
+        opts?: { params?: { path?: Record<string, string> } },
+      ) =>
+        path.endsWith('/item/{itemId}') &&
+        opts?.params?.path?.itemId === RESULTS_QUIZ_ID
+          ? ok(limited)
+          : studioGet(path, opts),
+    );
+    renderApp(resultsUrl);
+    await user.click(await screen.findByRole('tab', { name: 'Results' }));
+    await user.click(await screen.findByRole('tab', { name: /Attempts/ }));
+    await user.click(
+      (
+        await within(await screen.findByRole('table')).findAllByRole('button', {
+          name: /view answers/,
+        })
+      )[0],
+    );
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Reset attempts',
+      }),
+    );
+    const confirm = await screen.findByRole('alertdialog');
+    await user.click(
+      within(confirm).getByRole('button', { name: 'Reset attempts' }),
+    );
+    const first = studio.results.submissions.data[0];
+    await waitFor(() =>
+      expect(api.POST).toHaveBeenCalledWith(
+        '/api/quizzes/quiz/{quizId}/user/{userId}/reset-attempts',
+        {
+          params: {
+            path: { quizId: RESULTS_QUIZ_ID, userId: hex(first.userId) },
+          },
+        },
+      ),
+    );
+  });
+
+  it('says so when nobody has attempted the quiz yet', async () => {
+    const user = userEvent.setup();
+    renderApp(lessonUrl(`item=${QUIZ_ITEM_ID}`));
+    await user.click(await screen.findByRole('tab', { name: 'Results' }));
+    expect(await screen.findByText('No attempts yet')).toBeInTheDocument();
   });
 });
 
