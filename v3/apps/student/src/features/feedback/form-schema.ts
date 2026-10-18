@@ -268,6 +268,11 @@ export function fieldsToSchema(fields: FormField[]): {
 
 export type FormValues = Record<string, unknown>;
 
+export function isAnswered(f: FormField, v: unknown) {
+  if (f.kind === 'checkbox') return v === true;
+  return !(v === undefined || v === '' || (Array.isArray(v) && v.length === 0));
+}
+
 /** Client-side checks matching the schema; returns field label → message. */
 export function validate(
   fields: FormField[],

@@ -14,6 +14,7 @@ import {
   ListIcon,
   MailIcon,
   MoreHorizontalIcon,
+  PencilIcon,
   PhoneIcon,
   PlusIcon,
   SearchIcon,
@@ -72,6 +73,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from '@/components/ui/native-select';
+import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -102,7 +104,9 @@ import { EditorFrame, TitleFields, type SaveState } from './editor-frame';
 import {
   downloadFeedbackCsv,
   useFeedbackResponses,
+  useFeedbackSummary,
   useSaveLesson,
+  type FeedbackResponse,
   type LessonItem,
   type LessonLocation,
 } from './lesson-api';
@@ -184,6 +188,10 @@ export function FeedbackEditor({
   const [preview, setPreview] = useState(false);
   const [previewValues, setPreviewValues] = useState<FormValues>({});
   const [tab, setTab] = useState<'questions' | 'responses'>('questions');
+  // Like Google Forms: one question open for editing, the rest shown as compact previews.
+  const [activeKey, setActiveKey] = useState<string | null>(() =>
+    item ? null : (fields[0]?.key ?? null),
+  );
   const placement = usePlacementProblem(loc, item?._id);
 
   const state: SaveState = save.isPending
@@ -305,24 +313,21 @@ export function FeedbackEditor({
         )}
         <TabsContent value="questions">
           {preview ? (
-            <Card>
-              <CardContent>
-                <FeedbackFormFields
-                  fields={fields}
-                  values={previewValues}
-                  onChange={(n, v) =>
-                    setPreviewValues((p) => ({ ...p, [n]: v }))
-                  }
-                  idPrefix="preview"
-                />
-              </CardContent>
-            </Card>
+            <FeedbackFormFields
+              cards
+              fields={fields}
+              values={previewValues}
+              onChange={(n, v) => setPreviewValues((p) => ({ ...p, [n]: v }))}
+              idPrefix="preview"
+            />
           ) : (
             <>
               <div className="grid gap-4">
                 {fields.map((f, i) => (
                   <FieldCard
                     key={f.key}
+                    active={activeKey === f.key}
+                    onActivate={() => setActiveKey(f.key)}
                     field={f}
                     index={i}
                     count={fields.length}
@@ -362,8 +367,17 @@ export function FeedbackEditor({
                       <DropdownMenuItem
                         key={k}
                         onClick={() => {
-                          setFields((fs) => [...fs, blankField(k)]);
+                          const added = blankField(k);
+                          setFields((fs) => [...fs, added]);
+                          setActiveKey(added.key);
                           setDirty(true);
+                          setTimeout(
+                            () =>
+                              document
+                                .getElementById(`${added.key}-label`)
+                                ?.focus(),
+                            50,
+                          );
                         }}
                       >
                         <Icon /> {KIND_LABELS[k]}
@@ -417,11 +431,15 @@ function FieldCard({
   field: f,
   index,
   count,
+  active,
+  onActivate,
   onChange,
   onMove,
   onDuplicate,
   onDelete,
 }: {
+  active: boolean;
+  onActivate: () => void;
   field: FormField;
   index: number;
   count: number;
@@ -433,8 +451,57 @@ function FieldCard({
   const Icon = KIND_ICONS[f.kind];
   const n = index + 1;
 
+  if (!active) {
+    return (
+      <Card
+        aria-label={`Question ${n}`}
+        onClick={onActivate}
+        className="cursor-pointer gap-3 px-5 py-4 transition-shadow hover:ring-primary/40 sm:px-6"
+      >
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="tabular-nums">
+            {n}
+          </Badge>
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Icon className="size-3.5" aria-hidden /> {KIND_LABELS[f.kind]}
+          </span>
+          {f.required && <Badge variant="outline">Required</Badge>}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
+            onClick={(e) => {
+              e.stopPropagation();
+              onActivate();
+            }}
+          >
+            <PencilIcon aria-hidden /> Edit
+          </Button>
+        </div>
+        <div className="pointer-events-none" aria-hidden>
+          {f.label.trim() ? (
+            <FeedbackFormFields
+              fields={[{ ...f, required: false }]}
+              values={{}}
+              onChange={() => undefined}
+              disabled
+              idPrefix={`mini-${f.key}`}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground italic">
+              Untitled question
+            </p>
+          )}
+        </div>
+      </Card>
+    );
+  }
+
   return (
-    <Card aria-label={`Question ${n}`} className="gap-0 py-0">
+    <Card
+      aria-label={`Question ${n}`}
+      className="gap-0 py-0 ring-2 ring-primary/40"
+    >
       <CardHeader className="flex flex-wrap items-center gap-2 border-b py-3 [.border-b]:pb-3">
         <Badge className="tabular-nums">{n}</Badge>
         <DropdownMenu>
@@ -701,16 +768,9 @@ function Responses({
   fields: FormField[];
   formName: string;
 }) {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
+  const [view, setView] = useState<'summary' | 'individual'>('summary');
   const [exporting, setExporting] = useState(false);
-  const responses = useFeedbackResponses(
-    courseId,
-    feedbackId,
-    page,
-    search.trim(),
-  );
-  const columns = fields.map((f) => f.label.trim()).filter(Boolean);
+  const summary = useFeedbackSummary(courseId, feedbackId);
 
   async function exportCsv() {
     setExporting(true);
@@ -727,127 +787,322 @@ function Responses({
     }
   }
 
-  const show = (v: unknown) =>
-    Array.isArray(v)
-      ? v.join(', ')
-      : typeof v === 'boolean'
-        ? v
-          ? 'Yes'
-          : 'No'
-        : v === undefined || v === null || v === ''
-          ? '—'
-          : String(v);
+  if (summary.isPending) return <Skeleton className="h-48 rounded-2xl" />;
+  if (summary.isError) return <ErrorText error={summary.error} />;
+  if (summary.data.total === 0) {
+    return (
+      <Empty className="rounded-2xl border border-dashed border-border bg-card">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <TextIcon />
+          </EmptyMedia>
+          <EmptyTitle>No responses yet</EmptyTitle>
+          <EmptyDescription>
+            Responses appear here as students send the form in certified mode.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
 
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-medium">
-          {responses.data
-            ? `${responses.data.total} ${responses.data.total === 1 ? 'response' : 'responses'}`
-            : ' '}
-        </p>
-        <div className="flex w-full items-center gap-2 sm:w-auto">
-          <InputGroup className="flex-1 bg-card sm:w-64">
-            <InputGroupAddon>
-              <SearchIcon aria-hidden />
-            </InputGroupAddon>
-            <InputGroupInput
-              aria-label="Search by first name"
-              placeholder="Search by first name…"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-            />
-          </InputGroup>
-          <Button
-            variant="outline"
-            onClick={() => void exportCsv()}
-            disabled={exporting || !responses.data?.total}
-          >
-            <DownloadIcon aria-hidden /> Export CSV
-          </Button>
-        </div>
+        <Tabs
+          value={view}
+          onValueChange={(v) => setView(v as 'summary' | 'individual')}
+        >
+          <TabsList>
+            <TabsTrigger value="summary">Summary</TabsTrigger>
+            <TabsTrigger value="individual">
+              Individual{' '}
+              <span className="text-muted-foreground tabular-nums">
+                {summary.data.total}
+              </span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Button
+          variant="outline"
+          onClick={() => void exportCsv()}
+          disabled={exporting}
+        >
+          <DownloadIcon aria-hidden /> Export CSV
+        </Button>
       </div>
+      {view === 'summary' ? (
+        <ResponseSummary
+          fields={fields}
+          rows={summary.data.rows}
+          total={summary.data.total}
+        />
+      ) : (
+        <IndividualResponses
+          courseId={courseId}
+          feedbackId={feedbackId}
+          fields={fields}
+        />
+      )}
+    </div>
+  );
+}
+
+const showValue = (v: unknown) =>
+  Array.isArray(v)
+    ? v.join(', ')
+    : typeof v === 'boolean'
+      ? v
+        ? 'Yes'
+        : 'No'
+      : v === undefined || v === null || v === ''
+        ? '—'
+        : String(v);
+
+/** Google Forms-style summary: averages and distributions for ratings, counts for choices, recent written answers. */
+function ResponseSummary({
+  fields,
+  rows,
+  total,
+}: {
+  fields: FormField[];
+  rows: { details: Record<string, unknown> }[];
+  total: number;
+}) {
+  return (
+    <div className="grid gap-4">
+      {fields.map((f, i) => {
+        const name = f.label.trim();
+        const answers = rows
+          .map((r) => r.details[name])
+          .filter(
+            (v) =>
+              v !== undefined &&
+              v !== null &&
+              v !== '' &&
+              !(Array.isArray(v) && v.length === 0),
+          );
+        const choices =
+          f.kind === 'rating'
+            ? Array.from({ length: f.max ?? 5 }, (_, n) => String(n + 1))
+            : f.kind === 'checkbox'
+              ? ['Yes', 'No']
+              : ['radio', 'select', 'checkboxes'].includes(f.kind)
+                ? f.options
+                : null;
+        const countOf = (c: string) =>
+          answers.filter((v) =>
+            Array.isArray(v)
+              ? v.map(String).includes(c)
+              : f.kind === 'checkbox'
+                ? (v === true ? 'Yes' : 'No') === c
+                : String(v) === c,
+          ).length;
+        const ratings =
+          f.kind === 'rating'
+            ? answers.map(Number).filter(Number.isFinite)
+            : [];
+        const avg = ratings.length
+          ? ratings.reduce((a, b) => a + b, 0) / ratings.length
+          : null;
+
+        return (
+          <Card key={f.key} className="gap-4 px-5 py-5 sm:px-6">
+            <div>
+              <p className="text-xs text-muted-foreground">Question {i + 1}</p>
+              <p className="font-medium">{name}</p>
+              <p className="text-xs text-muted-foreground">
+                {answers.length} of {total} answered
+              </p>
+            </div>
+            {f.kind === 'rating' && avg !== null && (
+              <p className="flex items-baseline gap-1.5">
+                <span className="text-3xl font-semibold tabular-nums">
+                  {avg.toFixed(1)}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  average out of {f.max ?? 5}
+                </span>
+              </p>
+            )}
+            {choices ? (
+              <ul className="grid gap-2.5">
+                {choices.map((c) => {
+                  const count = countOf(c);
+                  const pct = answers.length
+                    ? Math.round((count / answers.length) * 100)
+                    : 0;
+                  return (
+                    <li
+                      key={c}
+                      className="grid grid-cols-[minmax(0,8rem)_1fr_auto] items-center gap-3 text-sm"
+                    >
+                      <span className="truncate">{c}</span>
+                      <Progress
+                        value={pct}
+                        aria-label={`${c}: ${pct}%`}
+                        className="h-2"
+                      />
+                      <span className="w-16 text-right text-muted-foreground tabular-nums">
+                        {count} · {pct}%
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <ul className="grid gap-2">
+                {answers.slice(0, 5).map((a, ai) => (
+                  <li
+                    key={ai}
+                    className="rounded-lg bg-muted/60 px-3 py-2 text-sm"
+                  >
+                    {showValue(a)}
+                  </li>
+                ))}
+                {answers.length > 5 && (
+                  <li className="text-xs text-muted-foreground">
+                    and {answers.length - 5} more in Individual
+                  </li>
+                )}
+                {answers.length === 0 && (
+                  <li className="text-sm text-muted-foreground">
+                    No answers yet.
+                  </li>
+                )}
+              </ul>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function IndividualResponses({
+  courseId,
+  feedbackId,
+  fields,
+}: {
+  courseId: string;
+  feedbackId: string;
+  fields: FormField[];
+}) {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const responses = useFeedbackResponses(
+    courseId,
+    feedbackId,
+    page,
+    search.trim(),
+  );
+  const columns = fields.map((f) => f.label.trim()).filter(Boolean);
+  const person = (r: FeedbackResponse) =>
+    [r.user.firstName, r.user.lastName].filter(Boolean).join(' ') || 'Student';
+
+  return (
+    <div className="grid gap-4">
+      <InputGroup className="bg-card sm:w-72">
+        <InputGroupAddon>
+          <SearchIcon aria-hidden />
+        </InputGroupAddon>
+        <InputGroupInput
+          aria-label="Search by first name"
+          placeholder="Search by first name…"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+        />
+      </InputGroup>
 
       {responses.isPending && <Skeleton className="h-48 rounded-2xl" />}
       {responses.isError && <ErrorText error={responses.error} />}
-      {responses.data && responses.data.total === 0 && !search && (
-        <Empty className="rounded-2xl border border-dashed border-border bg-card">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <TextIcon />
-            </EmptyMedia>
-            <EmptyTitle>No responses yet</EmptyTitle>
-            <EmptyDescription>
-              Responses appear here as students send the form in certified mode.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+      {responses.data && responses.data.responses.length === 0 && (
+        <p className="rounded-2xl border border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground">
+          No responses match.
+        </p>
       )}
-      {responses.data && (responses.data.total > 0 || search) && (
-        <div className="overflow-x-auto rounded-2xl border border-border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="pl-4">Student</TableHead>
-                {columns.map((c) => (
-                  <TableHead
-                    key={c}
-                    className="max-w-56 min-w-32 whitespace-normal"
-                  >
-                    {c}
-                  </TableHead>
-                ))}
-                <TableHead className="pr-4 text-right">Sent</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {responses.data.responses.map((r) => (
-                <TableRow key={r._id}>
-                  <TableCell className="pl-4">
-                    <div className="flex items-center gap-2.5">
-                      <GeneratedAvatar seed={r.user._id} size={28} />
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">
-                          {[r.user.firstName, r.user.lastName]
-                            .filter(Boolean)
-                            .join(' ') || 'Student'}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {r.user.email}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  {columns.map((c) => (
-                    <TableCell
-                      key={c}
-                      className="max-w-56 align-top whitespace-normal"
-                    >
-                      {show(r.details[c])}
-                    </TableCell>
-                  ))}
-                  <TableCell className="pr-4 text-right whitespace-nowrap text-muted-foreground">
+
+      {responses.data && responses.data.responses.length > 0 && (
+        <>
+          {/* Phones: one card per response. */}
+          <div className="grid gap-3 md:hidden">
+            {responses.data.responses.map((r) => (
+              <Card key={r._id} className="gap-3 px-4 py-4">
+                <div className="flex items-center gap-2.5">
+                  <GeneratedAvatar seed={r.user._id} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{person(r)}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {r.user.email}
+                    </p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
                     {formatDate(r.createdAt)}
-                  </TableCell>
+                  </span>
+                </div>
+                <dl className="grid gap-2 border-t border-border pt-3">
+                  {columns.map((c) => (
+                    <div key={c}>
+                      <dt className="text-xs text-muted-foreground">{c}</dt>
+                      <dd className="text-sm">{showValue(r.details[c])}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </Card>
+            ))}
+          </div>
+          {/* Larger screens: a table. */}
+          <div className="overflow-x-auto rounded-2xl border border-border bg-card max-md:hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="pl-4">Student</TableHead>
+                  {columns.map((c) => (
+                    <TableHead
+                      key={c}
+                      className="max-w-56 min-w-32 whitespace-normal"
+                    >
+                      {c}
+                    </TableHead>
+                  ))}
+                  <TableHead className="pr-4 text-right">Sent</TableHead>
                 </TableRow>
-              ))}
-              {responses.data.responses.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length + 2}
-                    className="py-8 text-center text-muted-foreground"
-                  >
-                    No responses match.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {responses.data.responses.map((r) => (
+                  <TableRow key={r._id}>
+                    <TableCell className="pl-4">
+                      <div className="flex items-center gap-2.5">
+                        <GeneratedAvatar seed={r.user._id} size={28} />
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{person(r)}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {r.user.email}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    {columns.map((c) => (
+                      <TableCell
+                        key={c}
+                        className="max-w-56 align-top whitespace-normal"
+                      >
+                        {showValue(r.details[c])}
+                      </TableCell>
+                    ))}
+                    <TableCell className="pr-4 text-right whitespace-nowrap text-muted-foreground">
+                      {formatDate(r.createdAt)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
+
       {responses.data && responses.data.totalPages > 1 && (
         <div className="flex items-center justify-end gap-2">
           <span className="text-sm text-muted-foreground">

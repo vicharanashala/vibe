@@ -8,6 +8,7 @@ import {
   LightbulbIcon,
   ListChecksIcon,
   ListOrderedIcon,
+  MessageSquareTextIcon,
   MoreHorizontalIcon,
   PlusIcon,
   SlidersHorizontalIcon,
@@ -72,13 +73,17 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
-import { ErrorText } from '../studio-ui';
-import { EditorFrame, TitleFields, type SaveState } from './editor-frame';
+import { DesktopHint, ErrorText } from '../studio-ui';
+import {
+  EditorFrame,
+  EditorFrameSkeleton,
+  TitleFields,
+  type SaveState,
+} from './editor-frame';
 import {
   blankOption,
   blankQuestion,
@@ -157,26 +162,8 @@ export function QuizEditor({
   item?: LessonItem;
 }) {
   const existing = useQuizQuestions(item?._id);
-  if (item && existing.isPending) {
-    return (
-      <EditorFrame
-        loc={loc}
-        itemId={item?._id}
-        dirty={false}
-        kind="Quiz"
-        state="clean"
-        onSave={() => undefined}
-        saveLabel="Save"
-        canSave={false}
-      >
-        <div className="grid gap-4">
-          <Skeleton className="h-12 w-2/3" />
-          <Skeleton className="h-40 rounded-2xl" />
-          <Skeleton className="h-40 rounded-2xl" />
-        </div>
-      </EditorFrame>
-    );
-  }
+  if (item && existing.isPending)
+    return <EditorFrameSkeleton loc={loc} kind="Quiz" />;
   return (
     <QuizEditorBody
       loc={loc}
@@ -339,6 +326,11 @@ function QuizEditorBody({
           className="mb-6 rounded-lg bg-destructive/10 px-3 py-2"
         />
       ) : null}
+
+      <DesktopHint id="quiz-editor">
+        You can review and make small changes here. For writing several
+        questions, please use a computer.
+      </DesktopHint>
 
       <TitleFields
         title={name}
@@ -877,9 +869,11 @@ function OptionRow({
           {!explain && (
             <InputGroupButton
               onClick={() => setExplain(true)}
+              aria-label={`Explain option ${index + 1}`}
               className="text-muted-foreground"
             >
-              Explain
+              <MessageSquareTextIcon className="sm:hidden" aria-hidden />
+              <span className="max-sm:hidden">Explain</span>
             </InputGroupButton>
           )}
           {onRemove && (

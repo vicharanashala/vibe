@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { unwrap } from '@vibe/api';
 
 import { courseKeys } from '@/features/courses/queries';
@@ -98,8 +103,9 @@ export interface LessonItem {
   details: any;
 }
 
-export function useLesson(loc: LessonLocation, itemId?: string) {
-  return useQuery({
+/** Shared by useLesson and the outline's hover prefetch. */
+export function lessonQueryOptions(loc: LessonLocation, itemId?: string) {
+  return queryOptions({
     queryKey: ['studio', 'lesson', itemId],
     enabled: !!itemId,
     queryFn: async () => {
@@ -114,6 +120,10 @@ export function useLesson(loc: LessonLocation, itemId?: string) {
       return { ...raw.item, _id: toId(raw.item._id as never) || raw.item._id };
     },
   });
+}
+
+export function useLesson(loc: LessonLocation, itemId?: string) {
+  return useQuery(lessonQueryOptions(loc, itemId));
 }
 
 function invalidate(
@@ -404,8 +414,8 @@ interface BankRef {
 }
 
 /** Loads a quiz's own bank (the first one attached) and its questions. */
-export function useQuizQuestions(quizId?: string) {
-  return useQuery({
+export function quizQuestionsQueryOptions(quizId?: string) {
+  return queryOptions({
     queryKey: ['studio', 'quiz-questions', quizId],
     enabled: !!quizId,
     queryFn: async () => {
@@ -448,6 +458,10 @@ export function useQuizQuestions(quizId?: string) {
       return { bank: own, questions };
     },
   });
+}
+
+export function useQuizQuestions(quizId?: string) {
+  return useQuery(quizQuestionsQueryOptions(quizId));
 }
 
 /**
@@ -625,4 +639,41 @@ export async function downloadFeedbackCsv(
   a.download = filename;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * Every response (up to 1000) for the Summary view's counts and averages. The
+ * submissions endpoint is paged; one large page keeps this to a single request.
+ */
+export function useFeedbackSummary(
+  courseId: string,
+  feedbackId: string | undefined,
+) {
+  return useQuery({
+    queryKey: ['studio', 'feedback-summary', feedbackId],
+    enabled: !!feedbackId,
+    queryFn: async () => {
+      const raw = unwrap(
+        await api.GET(
+          '/api/courses/{courseId}/item/{feedbackId}/feedback/submissions',
+          {
+            params: {
+              path: { courseId, feedbackId: feedbackId! },
+              query: { page: '1', limit: '1000', search: '' },
+            },
+          },
+        ),
+      ) as unknown as {
+        submissions: { details?: Record<string, unknown>; createdAt: string }[];
+        total: number;
+      };
+      return {
+        total: raw.total ?? 0,
+        rows: (raw.submissions ?? []).map((s) => ({
+          details: s.details ?? {},
+          createdAt: s.createdAt,
+        })),
+      };
+    },
+  });
 }

@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { PlusIcon } from 'lucide-react';
 
@@ -19,6 +20,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSkeleton,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -28,7 +30,12 @@ import {
 } from '@/features/courses/queries';
 
 import { ITEM_TYPES } from '../course-content';
-import type { LessonLocation, LessonType } from './lesson-api';
+import {
+  lessonQueryOptions,
+  quizQuestionsQueryOptions,
+  type LessonLocation,
+  type LessonType,
+} from './lesson-api';
 
 const EDITABLE = ['VIDEO', 'BLOG', 'QUIZ', 'FEEDBACK'];
 const NEW_TYPES: { type: LessonType; label: string }[] = [
@@ -111,6 +118,14 @@ function OutlineSection({
 }) {
   const items = useSectionItems(loc.versionId, loc.moduleId, loc.sectionId);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { isMobile, setOpenMobile } = useSidebar();
+  // Load a lesson as soon as the pointer or focus lands on it, so opening it is instant.
+  const prefetch = (id: string, type: string) => {
+    void queryClient.prefetchQuery(lessonQueryOptions(loc, id));
+    if (type === 'QUIZ')
+      void queryClient.prefetchQuery(quizQuestionsQueryOptions(id));
+  };
 
   return (
     <SidebarGroup>
@@ -133,7 +148,8 @@ function OutlineSection({
             return (
               <DropdownMenuItem
                 key={type}
-                onClick={() =>
+                onClick={() => {
+                  if (isMobile) setOpenMobile(false);
                   void navigate({
                     to: '/admin/courses/$courseId/$versionId/lesson',
                     params: loc,
@@ -142,8 +158,8 @@ function OutlineSection({
                       section: loc.sectionId,
                       type,
                     },
-                  })
-                }
+                  });
+                }}
               >
                 <t.icon /> {typeLabel}
               </DropdownMenuItem>
@@ -181,6 +197,9 @@ function OutlineSection({
                               section: loc.sectionId,
                               item: item._id,
                             }}
+                            onPointerEnter={() => prefetch(item._id, item.type)}
+                            onFocus={() => prefetch(item._id, item.type)}
+                            onClick={() => isMobile && setOpenMobile(false)}
                           />
                         ) : undefined
                       }

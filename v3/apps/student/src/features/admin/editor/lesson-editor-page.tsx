@@ -1,25 +1,40 @@
-import { Skeleton } from '@/components/ui/skeleton';
-
 import { ErrorText } from '../studio-ui';
 import { ArticleEditor } from './article-editor';
+import { EditorFrameSkeleton, EditorLayout } from './editor-frame';
 import { FeedbackEditor } from './feedback-editor';
 import { useLesson, type LessonLocation, type LessonType } from './lesson-api';
 import { QuizEditor } from './quiz-editor';
 import { VideoEditor } from './video-editor';
 
 /** Opens the right editor for a new lesson (`type`) or an existing one (`itemId`). */
-export function LessonEditorPage({ loc, itemId, type }: { loc: LessonLocation; itemId?: string; type?: LessonType }) {
+export function LessonEditorPage({
+  loc,
+  itemId,
+  type,
+}: {
+  loc: LessonLocation;
+  itemId?: string;
+  type?: LessonType;
+}) {
+  return (
+    <EditorLayout loc={loc} itemId={itemId}>
+      <LessonEditor loc={loc} itemId={itemId} type={type} />
+    </EditorLayout>
+  );
+}
+
+function LessonEditor({
+  loc,
+  itemId,
+  type,
+}: {
+  loc: LessonLocation;
+  itemId?: string;
+  type?: LessonType;
+}) {
   const lesson = useLesson(loc, itemId);
 
-  if (itemId && lesson.isPending) {
-    return (
-      <div className="mx-auto grid max-w-[44rem] gap-4 px-5 pt-24">
-        <Skeleton className="h-10 w-2/3" />
-        <Skeleton className="h-6 w-1/2" />
-        <Skeleton className="h-64 rounded-2xl" />
-      </div>
-    );
-  }
+  if (itemId && lesson.isPending) return <EditorFrameSkeleton loc={loc} />;
   if (itemId && lesson.isError) {
     return (
       <div className="mx-auto max-w-[44rem] px-5 pt-24">
@@ -43,7 +58,9 @@ export function LessonEditorPage({ loc, itemId, type }: { loc: LessonLocation; i
     default:
       return (
         <div className="mx-auto max-w-[44rem] px-5 pt-24 text-sm text-muted-foreground">
-          {item ? `“${item.name}” is a ${item.type.toLowerCase()} lesson, which the studio can’t edit yet.` : 'Pick a lesson type to start.'}
+          {item
+            ? `“${item.name}” is a ${item.type.toLowerCase()} lesson, which the studio can’t edit yet.`
+            : 'Pick a lesson type to start.'}
         </div>
       );
   }

@@ -62,6 +62,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/features/auth/auth-provider';
+import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 
 import { NewCourseDialog } from './new-course-dialog';
@@ -215,23 +216,95 @@ function StudioChrome({ email }: { email: string }) {
 
         <SidebarInset className="min-w-0 bg-background">
           <header className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b border-border bg-background/90 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md [box-sizing:content-box] sm:px-6">
-            <SidebarTrigger className="-ml-1.5" />
+            <SidebarTrigger className="-ml-1.5 max-md:hidden" />
+            <Link
+              to="/admin"
+              aria-label="Studio home"
+              className="grid size-8 place-items-center rounded-lg bg-primary font-aleo text-sm font-semibold text-primary-foreground md:hidden"
+            >
+              V
+            </Link>
             <span className="text-lg font-semibold tracking-tight">
               {titleFor(pathname)}
             </span>
             <div className="ml-auto flex items-center gap-1">
-              <ThemeButton />
+              <ThemeButton className="max-sm:hidden" />
               <NotificationBell />
               <StudioAccountMenu />
             </div>
           </header>
-          <div id="main" className="relative flex-1">
+          {/* Bottom padding keeps content clear of the phone tab bar. */}
+          <div
+            id="main"
+            className="relative flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0"
+          >
             <Outlet />
           </div>
         </SidebarInset>
       </SidebarProvider>
+      <StudioTabBar
+        pathname={pathname}
+        onNewCourse={() => setNewCourseOpen(true)}
+      />
       <NewCourseDialog open={newCourseOpen} onOpenChange={setNewCourseOpen} />
     </>
+  );
+}
+
+/** Phones: Substack-style floating tab bar, with New course as the round primary action. */
+function StudioTabBar({
+  pathname,
+  onNewCourse,
+}: {
+  pathname: string;
+  onNewCourse: () => void;
+}) {
+  const items = NAV_GROUPS.flatMap((g) => g.items);
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
+      <nav
+        aria-label="Studio"
+        className="flex-1 rounded-full border border-border bg-background/90 p-1 shadow-lg backdrop-blur-md"
+      >
+        <ul className="grid grid-cols-3">
+          {items.map(({ label, to, icon: Icon }) => {
+            const active =
+              to === '/admin'
+                ? pathname === '/admin' || pathname === '/admin/'
+                : pathname.startsWith(to);
+            return (
+              <li key={to}>
+                <Link
+                  to={to}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    'flex h-12 flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors',
+                    active
+                      ? 'bg-secondary text-secondary-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon
+                    className="size-5"
+                    aria-hidden
+                    strokeWidth={active ? 2.25 : 1.75}
+                  />
+                  {label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+      <Button
+        size="icon-lg"
+        aria-label="New course"
+        onClick={onNewCourse}
+        className="size-14 shrink-0 rounded-full shadow-lg"
+      >
+        <PlusIcon className="size-6" aria-hidden />
+      </Button>
+    </div>
   );
 }
 
@@ -266,7 +339,7 @@ function StudioNav({
   );
 }
 
-export function ThemeButton() {
+export function ThemeButton({ className }: { className?: string }) {
   const { theme, toggleTheme } = useTheme();
   return (
     <Button
@@ -276,6 +349,7 @@ export function ThemeButton() {
         theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
       }
       onClick={toggleTheme}
+      className={className}
     >
       {theme === 'dark' ? <SunIcon aria-hidden /> : <MoonIcon aria-hidden />}
     </Button>
