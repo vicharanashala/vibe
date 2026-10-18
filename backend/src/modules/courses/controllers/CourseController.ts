@@ -118,7 +118,8 @@ export class CourseController {
 
   @OpenAPI({
     summary: 'List all courses (admin only)',
-    description: 'Fetches every course in the system, regardless of enrollment or registration settings. Admin only.',
+    description:
+      'Fetches every course in the system, regardless of enrollment or registration settings. Admin only.',
   })
   @Authorized()
   @Get('/', {transformResponse: true})

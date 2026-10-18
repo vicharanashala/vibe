@@ -74,7 +74,8 @@ export class UserController {
 
   @OpenAPI({
     summary: 'Get current user profile',
-    description: 'Retrieves user information for the currently authenticated user.',
+    description:
+      'Retrieves user information for the currently authenticated user.',
   })
   @Authorized()
   @Get('/me')
@@ -98,11 +99,11 @@ export class UserController {
   @Authorized()
   @Get('/')
   @HttpCode(200)
-  async listAllUsers(@CurrentUser({ required: true }) user: IUser) {
+  async listAllUsers(@CurrentUser({required: true}) user: IUser) {
     if (user.roles !== 'admin') {
       throw new ForbiddenError('Only admins can list all users');
     }
-    return { users: await this.userService.listAllUsers() };
+    return {users: await this.userService.listAllUsers()};
   }
 
   @OpenAPI({
