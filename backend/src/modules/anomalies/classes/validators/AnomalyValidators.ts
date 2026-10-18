@@ -7,10 +7,11 @@ import {
   IsString,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
+import {Transform} from 'class-transformer';
 // Import directly from the defining transformer rather than the module barrel
 // to avoid a circular dependency (the barrel re-exports controllers that pull
 // these validators back in, leaving AnomalyType undefined at eval time).
-import {AnomalyType, FileType, IAnomalyData} from '../transformers/Anomaly.js';
+import {AnomalyType, FileType, IAnomalyData, normalizeAnomalyType} from '../transformers/Anomaly.js';
 import {ObjectId} from 'mongodb';
 import {
   SortOrder,
@@ -22,6 +23,7 @@ export class NewAnomalyData {
     description: 'The type of anomaly detected',
     example: AnomalyType.VOICE_DETECTION,
   })
+  @Transform(({value}) => normalizeAnomalyType(value))
   @IsEnum(AnomalyType)
   @IsNotEmpty()
   type: AnomalyType;
