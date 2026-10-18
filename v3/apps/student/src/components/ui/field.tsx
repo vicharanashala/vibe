@@ -77,6 +77,9 @@ function Field({
       role="group"
       data-slot="field"
       data-orientation={orientation}
+      // Base UI only sets data-orientation; the shadcn classes also key off these.
+      data-horizontal={orientation === 'horizontal' ? '' : undefined}
+      data-vertical={orientation === 'vertical' ? '' : undefined}
       className={cn(fieldVariants({ orientation }), className)}
       {...props}
     />

@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrackBadge } from '@/features/learn/lesson-page';
 import { useCourseSettings } from '@/features/learn/queries';
 import { TRACKS, useCourseTrack, type Track } from '@/features/learn/tracks';
@@ -375,20 +375,16 @@ function TrackSwitcher({ track, onChange, linear }: { track: Track; onChange: (t
     <Card size="sm" role="region" aria-labelledby="track-title" className="mt-8">
       <CardHeader className="gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
         <CardTitle id="track-title">How do you want to go through this course?</CardTitle>
-        <ToggleGroup
-          aria-label="Mode"
-          variant="outline"
-          value={[track]}
-          onValueChange={(v: string[]) => v[0] && onChange(v[0] as Track)}
-          className="w-full sm:w-fit"
-        >
-          {(['green', 'blue'] as const).map((t) => (
-            <ToggleGroupItem key={t} value={t} className="flex-1 sm:flex-none">
-              <span className={cn('size-2 rounded-full', t === 'blue' ? 'bg-sky-500' : 'bg-emerald-500')} aria-hidden />
-              {TRACKS[t].label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+        <Tabs value={track} onValueChange={(v) => onChange(v as Track)}>
+          <TabsList aria-label="Mode" className="w-full sm:w-fit">
+            {(['green', 'blue'] as const).map((t) => (
+              <TabsTrigger key={t} value={t}>
+                <span className={cn('size-2 rounded-full', t === 'blue' ? 'bg-sky-500' : 'bg-emerald-500')} aria-hidden />
+                {TRACKS[t].label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </CardHeader>
       <CardContent className="flex items-start gap-3">
         <TrackBadge track={track} className="shrink-0" />

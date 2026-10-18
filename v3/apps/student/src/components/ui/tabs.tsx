@@ -11,6 +11,9 @@ function Tabs({
     <TabsPrimitive.Root
       data-slot="tabs"
       data-orientation={orientation}
+      // Base UI only sets data-orientation; the shadcn classes also key off these.
+      data-horizontal={orientation === 'horizontal' ? '' : undefined}
+      data-vertical={orientation === 'vertical' ? '' : undefined}
       className={cn(
         "group/tabs flex gap-2 data-horizontal:flex-col",
         className

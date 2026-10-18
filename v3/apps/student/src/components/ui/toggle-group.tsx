@@ -40,6 +40,9 @@ function ToggleGroup({
       data-size={size}
       data-spacing={spacing}
       data-orientation={orientation}
+      // Base UI only sets data-orientation; the shadcn classes also key off these.
+      data-horizontal={orientation === 'horizontal' ? '' : undefined}
+      data-vertical={orientation === 'vertical' ? '' : undefined}
       style={{ "--gap": spacing } as React.CSSProperties}
       className={cn(
         "rounded-md data-[spacing=0]:data-[variant=outline]:shadow-xs group/toggle-group flex w-fit flex-row items-center gap-[--spacing(var(--gap))] data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch",

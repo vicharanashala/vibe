@@ -1,15 +1,14 @@
 import { useNavigate } from '@tanstack/react-router';
 import { unwrap } from '@vibe/api';
 import { updateProfile } from 'firebase/auth';
-import { CheckCircle2Icon, LogOutIcon, MoonIcon, SunIcon } from 'lucide-react';
+import { CheckCircle2Icon, LogOutIcon } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 
 import { PasswordInput } from '@/components/password-input';
-import { useTheme } from '@/components/theme-provider';
+import { AppearancePicker } from '@/components/appearance-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Spinner } from '@/components/ui/spinner';
 import { GeneratedAvatar } from '@/components/generated-art';
 import { useAuth } from '@/features/auth/auth-provider';
@@ -41,7 +40,6 @@ function Status({ kind, children }: { kind: 'ok' | 'error'; children: ReactNode 
 
 export function ProfilePage() {
   const { user, signOut } = useAuth();
-  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const usesPassword = user?.providerData.some((p) => p.providerId === 'password') ?? false;
 
@@ -64,21 +62,8 @@ export function ProfilePage() {
             <PasswordForm />
           </Panel>
         )}
-        <Panel title="Appearance" description="ViBe uses the light theme unless you choose otherwise.">
-          <ToggleGroup
-            aria-label="Theme"
-            variant="outline"
-            value={[theme]}
-            onValueChange={(v: string[]) => v[0] && setTheme(v[0] as 'light' | 'dark')}
-            className="w-full sm:w-fit"
-          >
-            <ToggleGroupItem value="light" className="flex-1 sm:flex-none">
-              <SunIcon aria-hidden /> Light
-            </ToggleGroupItem>
-            <ToggleGroupItem value="dark" className="flex-1 sm:flex-none">
-              <MoonIcon aria-hidden /> Dark
-            </ToggleGroupItem>
-          </ToggleGroup>
+        <Panel title="Appearance" description="Applies across ViBe on this device, including the studio.">
+          <AppearancePicker />
         </Panel>
         <Panel title="Session">
           <Button

@@ -1,7 +1,6 @@
 import Avatar from 'boring-avatars';
 
-import { createContext, useContext } from 'react';
-
+import { useArtColors } from '@/components/theme-provider';
 import { Avatar as UiAvatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
@@ -9,16 +8,8 @@ import { cn } from '@/lib/utils';
  * Deterministic, generative placeholders (boring-avatars) for anything that has
  * no real logo or image. The same seed always draws the same picture, so a
  * course or person is recognisable everywhere it appears.
- *
- * Palette: the indigo theme's gradient stops plus violet, teal and a pale tint.
+ * Colours follow the current theme's palette.
  */
-export const ART_PALETTE = ['#312E81', '#4F46E5', '#8B5CF6', '#14B8A6', '#E0E7FF'];
-
-/** The studio (admin) area's warm palette, from the same Color Hunt set as its theme. */
-export const STUDIO_PALETTE = ['#9E3F3F', '#E36A6A', '#FFB2B2', '#F2C46D', '#FFF2D0'];
-
-/** Lets an area (e.g. the studio) swap the art palette for everything inside it. */
-export const ArtPaletteContext = createContext<string[]>(ART_PALETTE);
 
 const MINOR_WORDS = new Set(['a', 'an', 'and', 'the', 'of', 'in', 'on', 'to', 'for', 'with']);
 
@@ -35,7 +26,7 @@ export function initialsOf(name: string) {
 /** Generative cover for a course: marble art seeded by the course id, with its initials. */
 export function GeneratedCover({ seed, title, className, compact }: { seed: string; title: string; className?: string; compact?: boolean }) {
   const letters = initialsOf(title);
-  const colors = useContext(ArtPaletteContext);
+  const colors = useArtColors() as string[];
   return (
     <div aria-hidden className={cn('relative isolate overflow-hidden rounded-xl bg-muted', className)}>
       <Avatar
@@ -79,7 +70,7 @@ export function GeneratedAvatar({
   src?: string | null;
   className?: string;
 }) {
-  const colors = useContext(ArtPaletteContext);
+  const colors = useArtColors() as string[];
   return (
     <UiAvatar
       className={cn('shrink-0', className)}

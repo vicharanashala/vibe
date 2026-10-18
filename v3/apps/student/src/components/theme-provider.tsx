@@ -1,31 +1,66 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+
+import {
+  DEFAULT_PALETTE,
+  isPaletteId,
+  paletteById,
+  type PaletteId,
+} from '@/lib/palettes';
 
 export type Theme = 'light' | 'dark';
 
 const STORAGE_KEY = 'theme';
+const PALETTE_KEY = 'palette';
 
 interface ThemeContextValue {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
+  palette: PaletteId;
+  setPalette: (palette: PaletteId) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function readStoredTheme(): Theme {
+function read(key: string) {
   try {
-    return localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light';
+    return localStorage.getItem(key);
   } catch {
-    return 'light';
+    return null;
+  }
+}
+
+function write(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // storage unavailable (private mode) — the in-memory choice still applies
   }
 }
 
 /**
- * Light by default (system preference is deliberately ignored); the user's
- * choice is remembered in localStorage and applied as a class on <html>.
+ * Light/dark mode plus a colour palette (see lib/palettes.ts), one theme for
+ * the whole app — student pages and the studio alike. Light + coral by default
+ * (system preference is deliberately ignored); choices are remembered in
+ * localStorage and applied to <html> as the `dark` class and `data-palette`.
+ * index.html applies the same two before React loads, so there's no flash.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(readStoredTheme);
+  const [theme, setThemeState] = useState<Theme>(() =>
+    read(STORAGE_KEY) === 'dark' ? 'dark' : 'light',
+  );
+  const [palette, setPaletteState] = useState<PaletteId>(() => {
+    const stored = read(PALETTE_KEY);
+    return isPaletteId(stored) ? stored : DEFAULT_PALETTE;
+  });
 
   useEffect(() => {
     const root = document.documentElement;
@@ -34,25 +69,44 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.colorScheme = theme;
   }, [theme]);
 
+  useEffect(() => {
+    document.documentElement.dataset.palette = palette;
+  }, [palette]);
+
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      // storage unavailable (private mode) — the in-memory theme still applies
-    }
+    write(STORAGE_KEY, next);
+  }, []);
+
+  const setPalette = useCallback((next: PaletteId) => {
+    setPaletteState(next);
+    write(PALETTE_KEY, next);
   }, []);
 
   const value = useMemo(
-    () => ({ theme, setTheme, toggleTheme: () => setTheme(theme === 'dark' ? 'light' : 'dark') }),
-    [theme, setTheme],
+    () => ({
+      theme,
+      setTheme,
+      toggleTheme: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
+      palette,
+      setPalette,
+    }),
+    [theme, setTheme, palette, setPalette],
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
 }
 
 export function useTheme() {
   const ctx = useContext(ThemeContext);
   if (!ctx) throw new Error('useTheme must be used inside ThemeProvider');
   return ctx;
+}
+
+/** Colours for generated art in the current palette (default palette outside a provider, e.g. in isolated tests). */
+export function useArtColors(): readonly string[] {
+  const ctx = useContext(ThemeContext);
+  return paletteById(ctx?.palette ?? DEFAULT_PALETTE).art;
 }

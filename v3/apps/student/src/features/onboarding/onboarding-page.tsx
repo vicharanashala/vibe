@@ -5,6 +5,7 @@ import { updateProfile } from 'firebase/auth';
 import { ArrowLeftIcon, PartyPopperIcon } from 'lucide-react';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 
+import { AppearancePicker } from '@/components/appearance-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
@@ -15,11 +16,12 @@ import { NAME_PATTERN } from '@/features/auth/signup-page';
 import { useAuth } from '@/features/auth/auth-provider';
 import { api } from '@/lib/api';
 import { auth } from '@/lib/firebase';
+import { cn } from '@/lib/utils';
 
 import { MediaCheck, type MediaCheckStatus } from './media-check';
 import { writeOnboarding } from './onboarding-state';
 
-const STEPS = ['name', 'media', 'done'] as const;
+const STEPS = ['name', 'look', 'media', 'done'] as const;
 type Step = (typeof STEPS)[number];
 
 /** Uxcel-style onboarding: progress bar on top, one question per screen, sticky action bar. */
@@ -57,7 +59,7 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
       unwrap(await api.PATCH('/api/users/edit', { body: { firstName: first, lastName: last || undefined } }));
       if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: [first, last].filter(Boolean).join(' ') });
       await queryClient.invalidateQueries();
-      setStep('media');
+      setStep('look');
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -67,6 +69,7 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
 
   function next() {
     if (step === 'name') return void saveName();
+    if (step === 'look') return setStep('media');
     if (step === 'media') {
       if (mediaStatus === 'passed') writeOnboarding(uid, { mediaCheckPassedAt: new Date().toISOString() });
       return setStep('done');
@@ -104,7 +107,7 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
       </header>
 
       <main className="flex flex-1 justify-center px-4 pt-14 pb-32 sm:pt-20">
-        <div className="flex w-full max-w-md flex-col items-center text-center">
+        <div className={cn('flex w-full flex-col items-center text-center', step === 'look' ? 'max-w-xl' : 'max-w-md')}>
           {step === 'name' && (
             <>
               <h1 className="font-aleo text-3xl tracking-tight">What should we call you?</h1>
@@ -123,6 +126,14 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
               {error && (
                 <FieldError className="mt-4">{error}</FieldError>
               )}
+            </>
+          )}
+
+          {step === 'look' && (
+            <>
+              <h1 className="font-aleo text-3xl tracking-tight">Pick a look</h1>
+              <p className="mt-2 text-sm text-muted-foreground">Choose colours you enjoy. You can change this any time in your profile.</p>
+              <AppearancePicker className="mt-8 w-full text-left" />
             </>
           )}
 
@@ -154,7 +165,7 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
       <footer className="fixed inset-x-0 bottom-0 border-t border-border bg-muted/60 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4">
           {step !== 'done' ? (
-            <Button type="button" variant="ghost" onClick={() => (step === 'media' ? setStep('done') : finish())}>
+            <Button type="button" variant="ghost" onClick={() => (step === 'look' ? setStep('media') : step === 'media' ? setStep('done') : finish())}>
               Skip for now
             </Button>
           ) : (

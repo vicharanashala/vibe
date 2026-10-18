@@ -113,6 +113,22 @@ describe('onboarding', () => {
     await user.type(first, 'Asha');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     expect(api.PATCH).toHaveBeenCalledWith('/api/users/edit', { body: { firstName: 'Asha', lastName: 'Student' } });
+    expect(await screen.findByRole('heading', { name: 'Pick a look' })).toBeInTheDocument();
+  });
+
+  it('applies the chosen colours and mode straight away', async () => {
+    resetSession();
+    signInStudent({ onboarded: false });
+    const user = userEvent.setup();
+    renderApp('/onboarding');
+    await user.click(await screen.findByRole('button', { name: 'Continue' }));
+    await screen.findByRole('heading', { name: 'Pick a look' });
+    // Clicking anywhere on a palette card selects it.
+    await user.click(screen.getByText('Ocean'));
+    await user.click(screen.getByRole('tab', { name: 'Dark' }));
+    expect(document.documentElement.dataset.palette).toBe('ocean');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
     expect(await screen.findByRole('heading', { name: 'Check your camera and microphone' })).toBeInTheDocument();
   });
 });

@@ -4,13 +4,17 @@
     <meta charset="utf-8" />
     <title>ViBe — Learn it. Prove it. Then move on.</title>
     <meta name="description" content="ViBe is a learning platform built around continuous assessment, from the Vicharanashala Lab for Education Design, IIT Ropar." />
-    <meta name="theme-color" content="#dc8e43" />
+    <meta name="theme-color" content="#e36a6a" />
     <base href="/" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <script data-theme-boot>
-      try { if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) {}
+      try {
+        if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+        var palette = localStorage.getItem('palette');
+        if (palette) document.documentElement.dataset.palette = palette;
+      } catch (e) {}
     </script>
   </head>
   <body>
