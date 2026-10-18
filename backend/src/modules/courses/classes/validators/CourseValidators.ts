@@ -225,6 +225,119 @@ export class CourseVersionParams {
   })
   courseVersionId: string;
 }
+
+// ── Mentor management (SR teacher control) ───────────────────────
+
+/**
+ * Body for `PATCH /api/courses/:courseId/mentors`. Either or both
+ * arrays may be empty; both default to `[]`. Values must be valid
+ * Mongo user IDs (string form). `$addToSet` will dedupe `add`;
+ * `$pull` is a no-op on missing entries, so `remove` is safe to
+ * send speculatively.
+ */
+class ManageMentorsBody {
+  @JSONSchema({
+    description: 'User IDs to add to the course mentor list',
+    example: ['60d5ec49b3f1c8e4a8f8b8c4'],
+    type: 'array',
+    items: {type: 'string'},
+    default: [],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsMongoId({each: true})
+  add?: string[];
+
+  @JSONSchema({
+    description: 'User IDs to remove from the course mentor list',
+    example: ['60d5ec49b3f1c8e4a8f8b8c5'],
+    type: 'array',
+    items: {type: 'string'},
+    default: [],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsMongoId({each: true})
+  remove?: string[];
+}
+
+/**
+ * 200 response for `PATCH /api/courses/:courseId/mentors`. Returns
+ * the post-update `mentorIds` array so the caller can render it
+ * without an extra round trip.
+ */
+class ManageMentorsResponse {
+  @JSONSchema({
+    description: 'Updated list of mentor user IDs',
+    type: 'array',
+    items: {type: 'string'},
+  })
+  @IsArray()
+  mentorIds: string[];
+
+  @JSONSchema({
+    description: 'Course ID the mentor list belongs to',
+    type: 'string',
+  })
+  @IsString()
+  courseId: string;
+
+  @JSONSchema({
+    description: 'Echo of the `add` input for client-side diffing',
+    type: 'array',
+    items: {type: 'string'},
+  })
+  @IsArray()
+  added: string[];
+
+  @JSONSchema({
+    description: 'Echo of the `remove` input for client-side diffing',
+    type: 'array',
+    items: {type: 'string'},
+  })
+  @IsArray()
+  removed: string[];
+
+  @JSONSchema({
+    description: 'Mongo updateOne matchedCount',
+    type: 'integer',
+    example: 1,
+  })
+  @IsNumber()
+  matchedCount: number;
+
+  @JSONSchema({
+    description: 'Mongo updateOne modifiedCount',
+    type: 'integer',
+    example: 1,
+  })
+  @IsNumber()
+  modifiedCount: number;
+}
+
+/** 403 response when the caller is not an admin. */
+class ManageMentorsForbiddenResponse {
+  @JSONSchema({
+    description: 'Error message.',
+    example: 'Only admins can manage the course mentor list',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  message: string;
+}
+
+/** 404 response when the course ID does not exist. */
+class ManageMentorsNotFoundResponse {
+  @JSONSchema({
+    description: 'Error message.',
+    example: 'No course found with id 60d5ec49b3f1c8e4a8f8b8c2',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  message: string;
+}
 class CourseDataResponse implements ICourse {
   @JSONSchema({
     description: 'Unique identifier for the course',
@@ -315,6 +428,10 @@ export {
   CourseIdParams,
   CourseDataResponse,
   CourseNotFoundErrorResponse,
+  ManageMentorsBody,
+  ManageMentorsResponse,
+  ManageMentorsForbiddenResponse,
+  ManageMentorsNotFoundResponse,
 };
 
 export const COURSE_VALIDATORS = [
@@ -322,4 +439,8 @@ export const COURSE_VALIDATORS = [
   CourseIdParams,
   CourseDataResponse,
   CourseNotFoundErrorResponse,
+  ManageMentorsBody,
+  ManageMentorsResponse,
+  ManageMentorsForbiddenResponse,
+  ManageMentorsNotFoundResponse,
 ];

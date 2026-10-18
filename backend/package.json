@@ -27,7 +27,10 @@
     "#genAI/*.js": "./build/modules/genAI/*.js",
     "#settings/*.js": "./build/modules/settings/*.js",
     "#setting/*.js": "./build/modules/setting/*.js",
-    "#anomalies/*.js": "./build/modules/anomalies/*.js"
+    "#anomalies/*.js": "./build/modules/anomalies/*.js",
+    "#spacedRepetition/*.js": "./build/modules/spacedRepetition/*.js",
+    "#notifications/*.js": "./build/modules/notifications/*.js",
+    "#motivation/*.js": "./build/modules/motivation/*.js"
   },
   "type": "module",
   "keywords": [],

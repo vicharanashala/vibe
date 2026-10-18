@@ -1574,4 +1574,107 @@ export class CourseRepository implements ICourseRepository {
     }
   }
 
+  // ── Mentor management (SR teacher control) ───────────────────────
+
+  /**
+   * Atomically add users to and remove users from `course.mentorIds`.
+   * Uses Mongo's native `$addToSet` + `$pull` operators to avoid a
+   * read-modify-write race window. `add` values are deduplicated by
+   * `$addToSet` (idempotent); `remove` is a no-op on values that are
+   * not present (also idempotent).
+   *
+   * @returns the raw `UpdateResult` so the caller can read both
+   *   `matchedCount` and `modifiedCount`. Returns `null` when no
+   *   `add` or `remove` array was provided (skip the round trip).
+   */
+  async updateMentors(
+    courseId: string,
+    add: string[] = [],
+    remove: string[] = [],
+    session?: ClientSession,
+  ): Promise<UpdateResult | null> {
+    if (!add.length && !remove.length) {
+      // No-op: skip the Mongo round trip but still need a synthetic
+      // UpdateResult shape so callers can use `matchedCount`/`modifiedCount`
+      // uniformly. We can't fabricate a real `UpdateResult` from the
+      // driver, so we report matchedCount=0 / modifiedCount=0 and let
+      // the caller decide whether that's an error (no — see controller
+      // logic which only checks `matchedCount !== 1` for missing course).
+      return null;
+    }
+    try {
+      await this.init();
+      const result = await this.courseCollection.updateOne(
+        {_id: new ObjectId(courseId)},
+        {
+          ...(add.length ? {$addToSet: {mentorIds: {$each: add}}} : {}),
+          ...(remove.length ? {$pull: {mentorIds: {$in: remove}}} : {}),
+        },
+        {session},
+      );
+      return result;
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to update course mentors.\n More Details: ' + error,
+      );
+    }
+  }
+
+  /**
+   * Read the post-update `mentorIds` array fresh from Mongo. Returns
+   * `null` if the course was deleted between a prior check and this
+   * fetch (the caller can then surface a 404). Used after
+   * `updateMentors()` so the response reflects exactly what landed.
+   */
+  async getMentorIds(
+    courseId: string,
+    session?: ClientSession,
+  ): Promise<string[] | null> {
+    try {
+      await this.init();
+      const doc = await this.courseCollection.findOne(
+        {_id: new ObjectId(courseId)},
+        {projection: {mentorIds: 1}, session},
+      );
+      if (!doc) return null;
+      const ids = (doc as unknown as {mentorIds?: unknown[]}).mentorIds;
+      return (ids ?? []).map(id => id.toString());
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to read course mentor IDs.\n More Details: ' + error,
+      );
+    }
+  }
+
+  /**
+   * Returns true if `userId` appears in `course.mentorIds`. Used by
+   * the SR teacher dashboard auth gate to allow non-admin mentors to
+   * view a course's spaced-repetition data. Distinct from
+   * `course.instructors` (the actual teachers who own the course):
+   * mentors have read-access to the SR dashboard, instructors have
+   * full course admin.
+   */
+  async isMentorOnCourse(
+    courseId: string,
+    userId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    try {
+      await this.init();
+      const userObjectId = new ObjectId(userId);
+      const doc = await this.courseCollection.findOne(
+        {
+          _id: new ObjectId(courseId),
+          $or: [{instructors: userObjectId}, {mentorIds: userObjectId}],
+        },
+        {projection: {_id: 1}, session},
+      );
+      return doc !== null;
+    } catch (error) {
+      throw new InternalServerError(
+        'Failed to check mentor membership.\n More Details: ' + error,
+      );
+    }
+  }
+
 }
