@@ -1,5 +1,7 @@
 import Avatar from 'boring-avatars';
 
+import { createContext, useContext } from 'react';
+
 import { Avatar as UiAvatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +13,12 @@ import { cn } from '@/lib/utils';
  * Palette: the indigo theme's gradient stops plus violet, teal and a pale tint.
  */
 export const ART_PALETTE = ['#312E81', '#4F46E5', '#8B5CF6', '#14B8A6', '#E0E7FF'];
+
+/** The studio (admin) area's warm palette, from the same Color Hunt set as its theme. */
+export const STUDIO_PALETTE = ['#9E3F3F', '#E36A6A', '#FFB2B2', '#F2C46D', '#FFF2D0'];
+
+/** Lets an area (e.g. the studio) swap the art palette for everything inside it. */
+export const ArtPaletteContext = createContext<string[]>(ART_PALETTE);
 
 const MINOR_WORDS = new Set(['a', 'an', 'and', 'the', 'of', 'in', 'on', 'to', 'for', 'with']);
 
@@ -27,12 +35,13 @@ export function initialsOf(name: string) {
 /** Generative cover for a course: marble art seeded by the course id, with its initials. */
 export function GeneratedCover({ seed, title, className, compact }: { seed: string; title: string; className?: string; compact?: boolean }) {
   const letters = initialsOf(title);
+  const colors = useContext(ArtPaletteContext);
   return (
     <div aria-hidden className={cn('relative isolate overflow-hidden rounded-xl bg-muted', className)}>
       <Avatar
         name={seed}
         variant="marble"
-        colors={ART_PALETTE}
+        colors={colors}
         square
         size="100%"
         preserveAspectRatio="xMidYMid slice"
@@ -70,6 +79,7 @@ export function GeneratedAvatar({
   src?: string | null;
   className?: string;
 }) {
+  const colors = useContext(ArtPaletteContext);
   return (
     <UiAvatar
       className={cn('shrink-0', className)}
@@ -80,7 +90,7 @@ export function GeneratedAvatar({
     >
       {src && <AvatarImage src={src} alt="" />}
       <AvatarFallback className="bg-transparent">
-        <Avatar name={seed} variant="beam" colors={ART_PALETTE} size={size} title={false} aria-hidden className="size-full" />
+        <Avatar name={seed} variant="beam" colors={colors} size={size} title={false} aria-hidden className="size-full" />
       </AvatarFallback>
     </UiAvatar>
   );

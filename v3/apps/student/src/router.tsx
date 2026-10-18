@@ -8,9 +8,10 @@ import {
   redirect,
 } from '@tanstack/react-router';
 
-import { AdminPage } from '@/features/admin/admin-page';
 import { AdminShell } from '@/features/admin/admin-shell';
-import { CourseDetailPage } from '@/features/admin/course-detail-page';
+import { CourseDetailPage, parseCourseTab, type CourseTab } from '@/features/admin/course-detail-page';
+import { CoursesPage as StudioCoursesPage } from '@/features/admin/courses-page';
+import { StudioHomePage } from '@/features/admin/home-page';
 import { UsersPage } from '@/features/admin/users-page';
 import { AppShell } from '@/features/app-shell/app-shell';
 import { authReady } from '@/features/auth/auth-provider';
@@ -135,9 +136,9 @@ const courseRoute = createRoute({
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile', component: ProfilePage });
 
 /**
- * Admin gets its own shell/nav, separate from the student Home/My courses/Profile sidebar.
- * Role check happens inside AdminPage/CourseDetailPage (needs the user's Mongo profile, not just Firebase auth) -
- * a signed-in non-admin hitting these routes sees an "Admins only" message, not a redirect loop.
+ * Studio (teacher/admin) gets its own shell, nav and theme. AdminShell does the
+ * role check (it needs the user's Mongo profile, not just Firebase auth), so a
+ * signed-in non-admin sees an "Admins only" message, not a redirect loop.
  */
 const adminLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -145,14 +146,17 @@ const adminLayoutRoute = createRoute({
   beforeLoad: ({ location }) => requireOnboardedUser(location),
   component: AdminShell,
 });
-const adminIndexRoute = createRoute({ getParentRoute: () => adminLayoutRoute, path: '/admin', component: AdminPage });
+const adminIndexRoute = createRoute({ getParentRoute: () => adminLayoutRoute, path: '/admin', component: StudioHomePage });
+const adminCoursesRoute = createRoute({ getParentRoute: () => adminLayoutRoute, path: '/admin/courses', component: StudioCoursesPage });
 const adminUsersRoute = createRoute({ getParentRoute: () => adminLayoutRoute, path: '/admin/users', component: UsersPage });
 const adminCourseRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: '/admin/courses/$courseId/$versionId',
+  validateSearch: (search: Record<string, unknown>): { tab?: CourseTab } => ({ tab: parseCourseTab(search.tab) }),
   component: function AdminCourseRoute() {
     const { courseId, versionId } = adminCourseRoute.useParams();
-    return <CourseDetailPage key={versionId} courseId={courseId} versionId={versionId} />;
+    const { tab } = adminCourseRoute.useSearch();
+    return <CourseDetailPage key={versionId} courseId={courseId} versionId={versionId} tab={tab} />;
   },
 });
 
@@ -189,7 +193,7 @@ const routeTree = rootRoute.addChildren([
   registerRoute,
   ...legacyRegisterRoutes,
   appRoute.addChildren([homeRoute, coursesRoute, courseRoute, profileRoute]),
-  adminLayoutRoute.addChildren([adminIndexRoute, adminCourseRoute, adminUsersRoute]),
+  adminLayoutRoute.addChildren([adminIndexRoute, adminCoursesRoute, adminCourseRoute, adminUsersRoute]),
 ]);
 
 export function createAppRouter(options: { initialPath?: string } = {}) {

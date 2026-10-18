@@ -1,87 +1,131 @@
-import { ApiError } from '@vibe/api';
-import { ShieldCheckIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { MoreHorizontalIcon, SearchIcon, ShieldCheckIcon } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 
+import { GeneratedAvatar } from '@/components/generated-art';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Spinner } from '@/components/ui/spinner';
-import { cn } from '@/lib/utils';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { useAllUsers, useMakeAdmin } from './queries';
+import { useAllUsers, useMakeAdmin, type AdminUser } from './queries';
+import { ConfirmDialog, ErrorText, PageHeader, RoleBadge, StudioPage } from './studio-ui';
 
-function Status({ kind, children }: { kind: 'ok' | 'error'; children: ReactNode }) {
-  return (
-    <p role={kind === 'error' ? 'alert' : 'status'} className={cn('text-sm', kind === 'ok' ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive')}>
-      {children}
-    </p>
-  );
-}
+type Filter = 'all' | 'admin' | 'user';
 
-function errorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.message;
-  return error instanceof Error ? error.message : 'Something went wrong. Please try again.';
-}
-
+/** Every account, Substack "Subscribers"-style: count, search, role filter, row actions. */
 export function UsersPage() {
   const users = useAllUsers();
   const makeAdmin = useMakeAdmin();
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [promoting, setPromoting] = useState<AdminUser | null>(null);
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (users.data ?? []).filter(
+      (u) => (filter === 'all' || u.roles === filter) && (!q || u.email.toLowerCase().includes(q) || `${u.firstName} ${u.lastName ?? ''}`.toLowerCase().includes(q)),
+    );
+  }, [users.data, query, filter]);
+  const count = (f: Filter) => (users.data ?? []).filter((u) => f === 'all' || u.roles === f).length;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:py-10">
-      <h1 className="font-aleo text-3xl tracking-tight">Users</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Every account in the system. Promote someone to admin here - there's no way to demote one yet.</p>
+    <StudioPage>
+      <PageHeader title="Users" description="Every account on ViBe. Admins can open the studio and manage all courses." />
 
-      <div className="mt-6">
-        {users.isPending && <Spinner className="text-muted-foreground" />}
-        {users.isError && <Status kind="error">{errorMessage(users.error)}</Status>}
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+          <TabsList>
+            <TabsTrigger value="all">All {users.data && <span className="text-muted-foreground tabular-nums">{count('all')}</span>}</TabsTrigger>
+            <TabsTrigger value="admin">Admins {users.data && <span className="text-muted-foreground tabular-nums">{count('admin')}</span>}</TabsTrigger>
+            <TabsTrigger value="user">Learners {users.data && <span className="text-muted-foreground tabular-nums">{count('user')}</span>}</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <InputGroup className="w-full bg-card sm:w-72">
+          <InputGroupAddon>
+            <SearchIcon aria-hidden />
+          </InputGroupAddon>
+          <InputGroupInput aria-label="Search users" placeholder="Search by name or email…" value={query} onChange={(e) => setQuery(e.target.value)} />
+        </InputGroup>
+      </div>
+
+      <div className="mt-4">
+        {users.isPending && <Skeleton className="h-64 rounded-2xl" />}
+        {users.isError && <ErrorText error={users.error} />}
         {users.data && (
-          <div className="rounded-2xl border border-border">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="pl-4">User</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead />
+                  <TableHead className="w-12 pr-4" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.data.map((u) => (
+                {shown.map((u) => (
                   <TableRow key={u._id}>
-                    <TableCell>
-                      {u.firstName} {u.lastName ?? ''}
+                    <TableCell className="pl-4">
+                      <div className="flex items-center gap-3">
+                        <GeneratedAvatar seed={u._id} size={30} />
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">
+                            {u.firstName} {u.lastName ?? ''}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                        </div>
+                      </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{u.email}</TableCell>
                     <TableCell>
-                      {u.roles === 'admin' ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
-                          <ShieldCheckIcon className="size-3.5" aria-hidden /> Admin
-                        </span>
-                      ) : (
-                        'User'
-                      )}
+                      <RoleBadge role={u.roles === 'admin' ? 'admin' : 'learner'} />
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="pr-4 text-right">
                       {u.roles !== 'admin' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={makeAdmin.isPending}
-                          onClick={() => makeAdmin.mutate(u._id)}
-                        >
-                          {makeAdmin.isPending && makeAdmin.variables === u._id ? <Spinner className="size-3.5" /> : null}
-                          Make admin
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${u.email}`} className="text-muted-foreground" />}>
+                            <MoreHorizontalIcon aria-hidden />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem onClick={() => setPromoting(u)}>
+                              <ShieldCheckIcon /> Make admin
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </TableCell>
                   </TableRow>
                 ))}
+                {shown.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
+                      No users match.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
         )}
-        {makeAdmin.isError && <Status kind="error">{errorMessage(makeAdmin.error)}</Status>}
       </div>
-    </div>
+
+      <ConfirmDialog
+        open={!!promoting}
+        onOpenChange={(o) => !o && setPromoting(null)}
+        title={`Make ${promoting?.firstName ?? 'this user'} an admin?`}
+        description={
+          <>
+            {promoting?.email} will be able to open the studio and manage every course and user. There’s no way to remove admin rights here yet.
+          </>
+        }
+        confirmLabel="Make admin"
+        destructive={false}
+        onConfirm={async () => {
+          await makeAdmin.mutateAsync(promoting!._id);
+          toast.success(`${promoting!.email} is now an admin.`);
+        }}
+      />
+    </StudioPage>
   );
 }

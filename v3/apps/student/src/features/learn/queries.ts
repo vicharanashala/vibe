@@ -95,6 +95,7 @@ export function useLesson(r: LessonRef) {
 export function useCourseSettings(courseId: string, versionId: string) {
   return useQuery({
     queryKey: learnKeys.settings(courseId, versionId),
+    enabled: !!courseId && !!versionId,
     queryFn: async () =>
       unwrap(
         await api.GET('/api/setting/course-setting/{courseId}/{versionId}', { params: { path: { courseId, versionId } } }),

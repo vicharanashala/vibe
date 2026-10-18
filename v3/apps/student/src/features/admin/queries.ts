@@ -77,19 +77,24 @@ export function useCreateCourse() {
 export interface InviteUserInput {
   courseId: string;
   versionId: string;
-  email: string;
+  /** One invite per address; the endpoint takes a batch. */
+  emails: string[];
   role: 'STUDENT' | 'INSTRUCTOR';
 }
 
 export function useInviteUser() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ courseId, versionId, email, role }: InviteUserInput) =>
+    mutationFn: async ({ courseId, versionId, emails, role }: InviteUserInput) =>
       unwrap(
         await api.POST('/api/notifications/invite/courses/{courseId}/versions/{versionId}', {
           params: { path: { courseId, versionId } },
-          body: { inviteData: [{ email, role }] },
+          body: { inviteData: emails.map((email) => ({ email, role })) },
         }),
       ) as unknown as { invites: { inviteId: string; email: string; inviteStatus: string }[] },
+    onSuccess: (_data, { courseId, versionId }) => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'enrollments', courseId, versionId] });
+    },
   });
 }
 
@@ -329,6 +334,9 @@ export interface CourseEnrollment {
   role: string;
   status: string;
   enrollmentDate: string;
+  /** Percent complete, 0-100. */
+  progress?: number;
+  completedItemsCount?: number;
   user: { _id: string; email: string; firstName: string; lastName?: string };
 }
 
@@ -359,9 +367,7 @@ export function useAllUsers() {
 export function useMakeAdmin() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (userId: string) => {
-      await api.POST('/api/users/make-admin/{userId}', { params: { path: { userId } } });
-    },
+    mutationFn: async (userId: string) => unwrap(await api.POST('/api/users/make-admin/{userId}', { params: { path: { userId } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
     },

@@ -144,6 +144,7 @@ export function useEnrollments(tab: 'active' | 'archived' = 'active', search = '
 export function useCourseVersion(versionId: string) {
   return useQuery({
     queryKey: courseKeys.version(versionId),
+    enabled: !!versionId,
     queryFn: async () =>
       unwrap(await api.GET('/api/courses/versions/{versionId}', { params: { path: { versionId } } })) as unknown as CourseVersion,
   });
