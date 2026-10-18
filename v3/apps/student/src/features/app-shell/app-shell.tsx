@@ -103,7 +103,7 @@ export function AppShell() {
         </header>
         {/* Bottom padding keeps content clear of the phone tab bar. */}
         {/* SidebarInset is the <main> landmark; this is its scrollable content. */}
-        <div id="main" className="relative flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+        <div id="main" className="relative flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">
           {/* Soft Luma-style tint behind the top of every app page */}
           <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-primary/8 to-transparent" />
           <div className="relative">
@@ -136,38 +136,35 @@ function SidebarNav() {
   );
 }
 
-/** Uxcel Go-style bottom tab bar on phones; the sidebar takes over from md up. */
+/** Phones: the studio's floating pill tab bar; the sidebar takes over from md up. */
 function TabBar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
-    <nav
-      aria-label="Tabs"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
-    >
-      <ul className="mx-auto grid h-16 max-w-md grid-cols-3">
-        {NAV.map(({ label, to, icon: Icon }) => {
-          // "My courses" stays selected inside a course.
-          const active = pathname === to || (to === '/courses' && pathname.startsWith('/courses/'));
-          return (
-            <li key={to}>
-              <Link
-                to={to}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'flex h-full flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors',
-                  active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <span className={cn('grid h-7 w-12 place-items-center rounded-full transition-colors', active && 'bg-primary/12')}>
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
+      <nav aria-label="Tabs" className="pointer-events-auto mx-auto max-w-md rounded-full border border-border bg-background/90 p-1 shadow-lg backdrop-blur-md">
+        <ul className="grid grid-cols-3">
+          {NAV.map(({ label, to, icon: Icon }) => {
+            // "My courses" stays selected inside a course.
+            const active = pathname === to || (to === '/courses' && pathname.startsWith('/courses/'));
+            return (
+              <li key={to}>
+                <Link
+                  to={to}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    'flex h-12 flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-colors',
+                    active ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
                   <Icon className="size-5" aria-hidden strokeWidth={active ? 2.25 : 1.75} />
-                </span>
-                {label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+                  {label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </div>
   );
 }
 

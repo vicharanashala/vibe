@@ -83,7 +83,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
       className={cn(
         'mx-auto grid max-w-6xl gap-8 px-4 py-6 sm:px-6 md:py-8 lg:grid-cols-[1fr_300px] lg:py-10',
         // Room for the phone "Continue" bar.
-        continueLink && 'pb-24 md:pb-8',
+        continueLink && 'pb-12 md:pb-8',
       )}
     >
       <div className="min-w-0">
@@ -135,8 +135,8 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
             >
               {continueLabel}
             </Link>
-            <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-md md:hidden">
-              <Link {...continueLink} className={cn(buttonVariants({ size: 'lg' }), 'h-11 w-full')}>
+            <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-30 px-4 md:hidden">
+              <Link {...continueLink} className={cn(buttonVariants({ size: 'lg' }), 'pointer-events-auto mx-auto flex h-12 w-full max-w-md rounded-full shadow-lg')}>
                 <span className="min-w-0 truncate">{continueLabel}</span>
                 <ArrowRightIcon data-icon="inline-end" />
               </Link>
