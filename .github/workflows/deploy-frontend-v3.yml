@@ -96,9 +96,20 @@ jobs:
             exit 1
           fi
 
-          # https://host/api → https://host (v3 calls /api/... itself).
-          api_base="${VITE_BASE_URL%/}"
+          # https://host/api → https://host (v3 calls /api/... itself). Trim
+          # whitespace first: a stray newline/CR in the secret would stop the
+          # suffix match, and Vite trims it later, leaving .../api (→ /api/api/...).
+          api_base="$(printf '%s' "$VITE_BASE_URL" | tr -d '[:space:]')"
+          api_base="${api_base%/}"
           api_base="${api_base%/api}"
+          case "$api_base" in
+            https://*) ;;
+            *) echo "::error::VITE_BASE_URL doesn't look like https://<host>/api"; exit 1 ;;
+          esac
+          if [[ "$api_base" == */api ]]; then
+            echo "::error::Could not strip /api from VITE_BASE_URL"; exit 1
+          fi
+          echo "Backend origin: $api_base"
 
           {
             printf 'VITE_API_BASE_URL=%s\n' "$api_base"
