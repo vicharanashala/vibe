@@ -50,12 +50,12 @@ export function StudioHomePage() {
       )}
 
       <div className={cn('mt-8 grid gap-6', isAdmin && 'lg:grid-cols-2')}>
-        <section className="flex flex-col">
+        <section className="flex min-w-0 flex-col">
           <SectionHeading>Latest course</SectionHeading>
           {courses.isPending ? <Skeleton className="h-64 rounded-2xl" /> : latest ? <LatestCourseCard course={latest} /> : <NoCourseCard />}
         </section>
         {isAdmin && (
-        <section className="flex flex-col">
+        <section className="flex min-w-0 flex-col">
           <SectionHeading
             action={
               <Link to="/admin/users" className="text-sm text-muted-foreground hover:text-foreground">

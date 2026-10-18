@@ -97,7 +97,7 @@ export function CourseDetailPage({
             {course.isPending ? (
               <Skeleton className="h-8 w-64" />
             ) : (
-              <h1 className="font-aleo text-3xl leading-tight tracking-tight text-balance">
+              <h1 className="font-aleo text-3xl leading-tight tracking-tight text-balance break-words">
                 {course.data?.name ?? 'Course'}
               </h1>
             )}
@@ -277,7 +277,7 @@ function CourseOverview({
       {description && (
         <section>
           <SectionHeading>About this course</SectionHeading>
-          <p className="max-w-2xl text-sm leading-6 text-foreground/80">
+          <p className="max-w-2xl text-sm leading-6 break-words text-foreground/80">
             {description}
           </p>
         </section>

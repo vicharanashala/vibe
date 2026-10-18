@@ -114,7 +114,7 @@ export function CourseContent({ courseId, versionId }: Ids) {
           </EmptyContent>
         </Empty>
       ) : (
-        <ol className="mt-4 grid gap-4">
+        <ol className="mt-4 grid gap-4 [&>*]:min-w-0">
           {modules.map((m, i) => (
             <li key={m.moduleId}>
               <ModuleBlock courseId={courseId} versionId={versionId} module={m} index={i} />
@@ -161,8 +161,13 @@ function ModuleBlock({ courseId, versionId, module, index }: Ids & { module: Cou
             Module {String(index + 1).padStart(2, '0')}
             {module.isHidden && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-muted-foreground normal-case">Hidden</span>}
           </p>
-          <h3 className="mt-0.5 font-aleo text-lg leading-snug">{module.name}</h3>
-          {module.description && <p className="mt-0.5 text-sm text-muted-foreground">{module.description}</p>}
+          <h3 className="mt-0.5 font-aleo text-lg leading-snug break-words">{module.name}</h3>
+          {/* Two lines at most; the full text is in Edit. Long words and URLs break instead of widening the page. */}
+          {module.description && (
+            <p className="mt-0.5 line-clamp-2 text-sm break-words text-muted-foreground" title={module.description}>
+              {module.description}
+            </p>
+          )}
         </div>
         <RowMenu
           label={`Module ${module.name}`}
@@ -173,7 +178,7 @@ function ModuleBlock({ courseId, versionId, module, index }: Ids & { module: Cou
       </div>
 
       <CollapsibleContent>
-        <div className="grid gap-3 border-t border-border bg-background/60 p-3 sm:p-4">
+        <div className="grid gap-3 border-t border-border bg-background/60 p-3 sm:p-4 [&>*]:min-w-0">
           {sections.length === 0 && <p className="px-1 text-sm text-muted-foreground">No sections yet.</p>}
           {sections.map((s, si) => (
             <SectionBlock key={s.sectionId} courseId={courseId} versionId={versionId} moduleId={module.moduleId} section={s} label={`${index + 1}.${si + 1}`} />
