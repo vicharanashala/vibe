@@ -8,9 +8,9 @@ import { cn } from '@/lib/utils';
  * no real logo or image. The same seed always draws the same picture, so a
  * course or person is recognisable everywhere it appears.
  *
- * Palette: the "sunny" theme's warm gradient stops plus a light cream.
+ * Palette: the indigo theme's gradient stops plus violet, teal and a pale tint.
  */
-export const SUNNY_PALETTE = ['#9C3A21', '#C76829', '#DC8E43', '#E9B88A', '#F7E7D3'];
+export const ART_PALETTE = ['#312E81', '#4F46E5', '#8B5CF6', '#14B8A6', '#E0E7FF'];
 
 const MINOR_WORDS = new Set(['a', 'an', 'and', 'the', 'of', 'in', 'on', 'to', 'for', 'with']);
 
@@ -32,7 +32,7 @@ export function GeneratedCover({ seed, title, className, compact }: { seed: stri
       <Avatar
         name={seed}
         variant="marble"
-        colors={SUNNY_PALETTE}
+        colors={ART_PALETTE}
         square
         size="100%"
         preserveAspectRatio="xMidYMid slice"
@@ -80,7 +80,7 @@ export function GeneratedAvatar({
     >
       {src && <AvatarImage src={src} alt="" />}
       <AvatarFallback className="bg-transparent">
-        <Avatar name={seed} variant="beam" colors={SUNNY_PALETTE} size={size} title={false} aria-hidden className="size-full" />
+        <Avatar name={seed} variant="beam" colors={ART_PALETTE} size={size} title={false} aria-hidden className="size-full" />
       </AvatarFallback>
     </UiAvatar>
   );

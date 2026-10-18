@@ -4,7 +4,7 @@
 
 /*
  * Theme: StyleUI "notio" (shadcn registry block, Base UI primitives),
- * "sunny" colour scheme. Light is the default; `.dark` on <html> switches.
+ * indigo colour scheme (replaced "sunny" orange 10/18). Light is the default; `.dark` on <html> switches.
  *
  * Fonts:
  *   - Headings: Aleo (slab serif), self-hosted via @fontsource-variable/aleo.
@@ -110,86 +110,92 @@
 :root {
   --radius: 0.625rem;
 
+  /* Indigo on cool neutrals (Uxcel-inspired). */
   --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --foreground: oklch(0.2 0.02 270);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.2 0.02 270);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.713 0.1305 61.77);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.4823 0.1365 35.3);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.2 0.02 270);
+  --primary: oklch(0.52 0.21 275);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.95 0.025 275);
+  --secondary-foreground: oklch(0.36 0.15 275);
+  --muted: oklch(0.97 0.005 270);
+  --muted-foreground: oklch(0.52 0.02 270);
+  --accent: oklch(0.955 0.02 275);
+  --accent-foreground: oklch(0.36 0.15 275);
   --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0 0 0 / 20%);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: oklch(0.91 0.01 270);
+  --input: oklch(0.89 0.01 270);
+  --ring: oklch(0.52 0.21 275);
+  --chart-1: oklch(0.52 0.21 275);
+  --chart-2: oklch(0.6 0.2 300);
+  --chart-3: oklch(0.65 0.13 185);
+  --chart-4: oklch(0.75 0.15 75);
+  --chart-5: oklch(0.65 0.2 350);
+  --sidebar: oklch(0.985 0.003 270);
+  --sidebar-foreground: oklch(0.2 0.02 270);
+  --sidebar-primary: oklch(0.52 0.21 275);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.95 0.025 275);
+  --sidebar-accent-foreground: oklch(0.36 0.15 275);
+  --sidebar-border: oklch(0.92 0.01 270);
+  --sidebar-ring: oklch(0.52 0.21 275);
 
   --gradient-start: #ffffff;
-  --gradient-mid-light: #dc8e43;
-  --gradient-mid-dark: #c76829;
-  --gradient-end-light: #9c3a21;
-  --gradient-end-dark: #dc8e43;
-  --gradient-orb-base: #e9b88a;
-  --orb-color-light: rgba(233, 184, 138, 0.35);
-  --orb-color-dark: rgba(199, 104, 41, 0.35);
-  --orb-color-dark-fade: rgba(199, 104, 41, 0.15);
+  --gradient-mid-light: #c7d2fe;
+  --gradient-mid-dark: #818cf8;
+  --gradient-end-light: #4f46e5;
+  --gradient-end-dark: #c7d2fe;
+  --gradient-orb-base: #a5b4fc;
+  --orb-color-light: rgba(165, 180, 252, 0.35);
+  --orb-color-dark: rgba(99, 102, 241, 0.3);
+  --orb-color-dark-fade: rgba(99, 102, 241, 0.12);
 }
 
 .dark {
-  --background: oklch(0 0 0);
-  --foreground: oklch(1 0 0);
-  --card: oklch(0 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.713 0.1305 61.77);
-  --primary-foreground: oklch(0.145 0 0);
-  --secondary: oklch(0.618 0.1416 50.24);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.17 0.015 270);
+  --foreground: oklch(0.96 0.005 270);
+  --card: oklch(0.21 0.018 270);
+  --card-foreground: oklch(0.96 0.005 270);
+  --popover: oklch(0.23 0.02 270);
+  --popover-foreground: oklch(0.96 0.005 270);
+  --primary: oklch(0.68 0.16 277);
+  --primary-foreground: oklch(0.17 0.03 275);
+  --secondary: oklch(0.28 0.045 275);
+  --secondary-foreground: oklch(0.9 0.04 275);
+  --muted: oklch(0.25 0.015 270);
+  --muted-foreground: oklch(0.7 0.015 270);
+  --accent: oklch(0.28 0.04 275);
+  --accent-foreground: oklch(0.92 0.03 275);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.68 0.16 277);
+  --chart-1: oklch(0.68 0.16 277);
+  --chart-2: oklch(0.7 0.17 300);
+  --chart-3: oklch(0.72 0.12 185);
+  --chart-4: oklch(0.8 0.14 75);
+  --chart-5: oklch(0.72 0.18 350);
+  --sidebar: oklch(0.19 0.016 270);
+  --sidebar-foreground: oklch(0.96 0.005 270);
+  --sidebar-primary: oklch(0.68 0.16 277);
+  --sidebar-primary-foreground: oklch(0.17 0.03 275);
+  --sidebar-accent: oklch(0.27 0.035 275);
+  --sidebar-accent-foreground: oklch(0.92 0.03 275);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.68 0.16 277);
 
-  --gradient-start: #000000;
-  --gradient-mid-light: #c76829;
-  --gradient-mid-dark: #9c3a21;
-  --gradient-end-light: #dc8e43;
-  --gradient-end-dark: #dc8e43;
-  --gradient-orb-base: #c76829;
-  --orb-color-light: rgba(199, 104, 41, 0.35);
-  --orb-color-dark: rgba(199, 104, 41, 0.35);
-  --orb-color-dark-fade: rgba(199, 104, 41, 0.15);
+  --gradient-start: oklch(0.17 0.015 270);
+  --gradient-mid-light: #4338ca;
+  --gradient-mid-dark: #312e81;
+  --gradient-end-light: #6366f1;
+  --gradient-end-dark: #6366f1;
+  --gradient-orb-base: #4f46e5;
+  --orb-color-light: rgba(99, 102, 241, 0.3);
+  --orb-color-dark: rgba(99, 102, 241, 0.3);
+  --orb-color-dark-fade: rgba(99, 102, 241, 0.12);
 }
 
 @layer base {
@@ -201,6 +207,28 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+  }
+  /* Tailwind v4 dropped the pointer cursor on buttons; restore it for
+     everything clickable. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab'],
+  [role='menuitem'],
+  [role='option'],
+  [role='checkbox'],
+  [role='radio'],
+  [role='switch'],
+  summary,
+  select,
+  label[for],
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='file'] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
   }
 }
 
