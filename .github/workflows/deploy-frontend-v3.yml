@@ -97,14 +97,17 @@ jobs:
           fi
 
           # https://host/api → https://host (v3 calls /api/... itself). Trim
-          # whitespace first: a stray newline/CR in the secret would stop the
-          # suffix match, and Vite trims it later, leaving .../api (→ /api/api/...).
+          # whitespace and surrounding quotes first: the secret may be stored as
+          # "https://host/api", which stops the suffix match, and Vite would
+          # strip the quotes later, leaving .../api (→ /api/api/...).
           api_base="$(printf '%s' "$VITE_BASE_URL" | tr -d '[:space:]')"
+          api_base="${api_base#\"}"; api_base="${api_base%\"}"
+          api_base="${api_base#\'}"; api_base="${api_base%\'}"
           api_base="${api_base%/}"
           api_base="${api_base%/api}"
           case "$api_base" in
             https://*) ;;
-            *) echo "::error::VITE_BASE_URL doesn't look like https://<host>/api"; exit 1 ;;
+            *) echo "::error::VITE_BASE_URL doesn't look like https://<host>/api (starts with '${api_base:0:6}')"; exit 1 ;;
           esac
           if [[ "$api_base" == */api ]]; then
             echo "::error::Could not strip /api from VITE_BASE_URL"; exit 1
