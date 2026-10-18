@@ -56,6 +56,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { FeedbackFormFields } from '@/features/feedback/feedback-form';
 import { FormBuilder } from '@/features/feedback/form-builder';
+import { useCourseSettings } from '@/features/learn/queries';
 import {
   fieldName,
   fieldsToSchema,
@@ -66,7 +67,7 @@ import {
   type FormValues,
 } from '@/features/feedback/form-schema';
 
-import { useAllUsers } from './queries';
+import { useAllUsers, useStudioAccess, useUpdateCourseSettings } from './queries';
 import {
   useBulkApproveRegistrations,
   useRegistrationRequests,
@@ -97,9 +98,11 @@ type View = 'requests' | 'form' | 'settings';
 
 /** Course page → Registration: who asked to join, the form they fill in, and how requests are handled. */
 export function CourseRegistration({
+  courseId,
   versionId,
   registrationLink,
 }: {
+  courseId: string;
   versionId: string;
   registrationLink: React.ReactNode;
 }) {
@@ -137,6 +140,7 @@ export function CourseRegistration({
         <RegistrationForm versionId={versionId} settings={settings.data} />
       ) : (
         <RegistrationSettingsPanel
+          courseId={courseId}
           versionId={versionId}
           settings={settings.data}
           registrationLink={registrationLink}
@@ -150,11 +154,84 @@ export function CourseRegistration({
 // Settings
 // ---------------------------------------------------------------------------
 
+/**
+ * "List in the course catalogue": the course setting isPublic, which puts this
+ * version in GET /courses/public (Explore) for every signed-in student. Saved
+ * through the course-settings endpoint, which replaces every setting and turns
+ * a missing isPublic into false, so all current settings are sent back as-is.
+ */
+function CatalogueSwitch({
+  courseId,
+  versionId,
+  registrationOpen,
+}: {
+  courseId: string;
+  versionId: string;
+  registrationOpen: boolean;
+}) {
+  const settings = useCourseSettings(courseId, versionId);
+  const update = useUpdateCourseSettings(courseId, versionId);
+  const isPublic = settings.data?.settings.isPublic ?? false;
+
+  function set(next: boolean) {
+    if (!settings.data) return;
+    const { proctors, ...rest } = settings.data.settings;
+    update.mutate(
+      {
+        ...rest,
+        linearProgressionEnabled: rest.linearProgressionEnabled ?? false,
+        seekForwardEnabled: rest.seekForwardEnabled ?? false,
+        detectors: (proctors?.detectors ?? []).map((d) => ({
+          detectorName: d.detectorName,
+          settings: { enabled: !!d.settings?.enabled },
+        })),
+        isPublic: next,
+      },
+      {
+        onSuccess: () =>
+          toast.success(
+            next
+              ? 'Listed in the course catalogue.'
+              : 'Removed from the course catalogue.',
+          ),
+        onError: (e) => toast.error((e as Error).message),
+      },
+    );
+  }
+
+  return (
+    <Card className="px-5 py-5 sm:px-6">
+      <Field orientation="horizontal">
+        <FieldContent>
+          <FieldLabel htmlFor="reg-public">
+            List in the course catalogue
+          </FieldLabel>
+          <FieldDescription>
+            {isPublic
+              ? registrationOpen
+                ? 'Any signed-in student can find this course under Explore and register.'
+                : 'Shown under Explore, but registration is closed, so students can’t join yet.'
+              : 'Only people with the registration link or an invite can join.'}
+          </FieldDescription>
+        </FieldContent>
+        <Switch
+          id="reg-public"
+          checked={isPublic}
+          disabled={!settings.data || update.isPending}
+          onCheckedChange={(c) => set(c === true)}
+        />
+      </Field>
+    </Card>
+  );
+}
+
 function RegistrationSettingsPanel({
+  courseId,
   versionId,
   settings,
   registrationLink,
 }: {
+  courseId: string;
   versionId: string;
   settings: RegistrationSettings;
   registrationLink: React.ReactNode;
@@ -175,6 +252,11 @@ function RegistrationSettingsPanel({
 
   return (
     <div className="grid gap-4">
+      <CatalogueSwitch
+        courseId={courseId}
+        versionId={versionId}
+        registrationOpen={settings.isActive}
+      />
       <Card className="px-5 py-5 sm:px-6">
         <Field orientation="horizontal">
           <FieldContent>
@@ -434,7 +516,9 @@ function Requests({
     status,
     search: search.trim(),
   });
-  const users = useAllUsers();
+  // Names come from the account list when you can see it (admins); otherwise from the form.
+  const { isAdmin } = useStudioAccess();
+  const users = useAllUsers(isAdmin);
   const setOne = useSetRegistrationStatus(versionId);
   const bulk = useBulkApproveRegistrations(versionId);
 

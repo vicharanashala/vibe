@@ -168,6 +168,7 @@ export function CourseDetailPage({
         </TabsContent>
         <TabsContent value="registration" className="pt-6">
           <CourseRegistration
+            courseId={courseId}
             versionId={versionId}
             registrationLink={<RegistrationLink versionId={versionId} />}
           />

@@ -39,6 +39,8 @@ export interface CourseSettings {
   settings: {
     linearProgressionEnabled?: boolean;
     seekForwardEnabled?: boolean;
+    /** Listed in the course catalogue (GET /courses/public). */
+    isPublic?: boolean;
     proctors?: { detectors?: DetectorSetting[] };
   };
 }

@@ -11,6 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/features/auth/auth-provider';
 import { CourseCover, ProgressBar, percentOf } from '@/features/courses/course-ui';
 import { useCurrentPath, useEnrollments, type EnrollmentSummary } from '@/features/courses/queries';
+import { PublicCourseCard } from '@/features/explore/explore-page';
+import { publicKey, usePendingLookup, usePublicCourses } from '@/features/explore/queries';
 import { readOnboarding } from '@/features/onboarding/onboarding-state';
 import { usePendingRegistrations } from '@/features/registration/queries';
 import { cn } from '@/lib/utils';
@@ -77,6 +79,8 @@ export function HomePage() {
             </ul>
           </section>
         )}
+
+        <ExploreStrip />
       </div>
 
       <aside className="flex flex-col gap-4" aria-label="Getting started">
@@ -153,7 +157,38 @@ function EmptyCourses() {
         <EmptyTitle>You don’t have any active courses</EmptyTitle>
         <EmptyDescription>Courses appear here once you join one through an invite or a registration link from your course team.</EmptyDescription>
       </EmptyHeader>
+      <Link to="/explore" className={buttonVariants({ variant: 'outline' })}>
+        Explore open courses
+      </Link>
     </Empty>
+  );
+}
+
+/** A few open courses from the catalogue; hidden when there are none (or it can't load). */
+function ExploreStrip() {
+  const query = usePublicCourses('');
+  const isPending = usePendingLookup();
+  // Courses you can still register for come first.
+  const shown = [...(query.data ?? [])].sort((a, b) => Number(isPending(a)) - Number(isPending(b))).slice(0, 4);
+  if (shown.length === 0) return null;
+  return (
+    <section aria-labelledby="explore-title" className="mt-10">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 id="explore-title" className="text-lg font-semibold">
+          Explore courses
+        </h2>
+        <Link to="/explore" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+          View all
+        </Link>
+      </div>
+      <ul className="grid gap-4 sm:grid-cols-2">
+        {shown.map((c) => (
+          <li key={publicKey(c)}>
+            <PublicCourseCard course={c} compact requested={isPending(c)} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

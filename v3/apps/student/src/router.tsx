@@ -22,6 +22,7 @@ import { LoginPage } from '@/features/auth/login-page';
 import { SignupPage } from '@/features/auth/signup-page';
 import { CoursePage } from '@/features/courses/course-page';
 import { CoursesPage } from '@/features/courses/courses-page';
+import { ExplorePage } from '@/features/explore/explore-page';
 import { HomePage } from '@/features/home/home-page';
 import { LessonPage } from '@/features/learn/lesson-page';
 import { parseTrack, readTrack } from '@/features/learn/tracks';
@@ -127,6 +128,7 @@ const learnRoute = createRoute({
 
 const homeRoute = createRoute({ getParentRoute: () => appRoute, path: '/home', component: HomePage });
 const coursesRoute = createRoute({ getParentRoute: () => appRoute, path: '/courses', component: CoursesPage });
+const exploreRoute = createRoute({ getParentRoute: () => appRoute, path: '/explore', component: ExplorePage });
 const courseRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/courses/$courseId/$versionId',
@@ -218,7 +220,7 @@ const routeTree = rootRoute.addChildren([
   learnRoute,
   registerRoute,
   ...legacyRegisterRoutes,
-  appRoute.addChildren([homeRoute, coursesRoute, courseRoute, profileRoute]),
+  appRoute.addChildren([homeRoute, coursesRoute, exploreRoute, courseRoute, profileRoute]),
   adminLayoutRoute.addChildren([adminIndexRoute, adminCoursesRoute, adminCourseRoute, adminUsersRoute]),
   studioEditorLayoutRoute.addChildren([lessonEditorRoute]),
 ]);

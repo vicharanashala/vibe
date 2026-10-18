@@ -24,6 +24,7 @@ import itemVideo from './fixtures/item-video.json';
 import itemQuiz from './fixtures/item-quiz.json';
 import quizAttempt from './fixtures/quiz-attempt.json';
 import quizSubmit from './fixtures/quiz-submit.json';
+import publicCourses from './fixtures/public-courses.json';
 import registrationDetails from './fixtures/registration-details.json';
 import registrationForm from './fixtures/registration-form.json';
 import registrationPending from './fixtures/registration-pending.json';
@@ -35,6 +36,7 @@ import percentage from './fixtures/percentage.json';
 import sectionItems from './fixtures/section-items.json';
 
 export const fixtures = {
+  publicCourses,
   courseSettings,
   courseVersion,
   currentPath,
@@ -158,6 +160,9 @@ export function respond(path: string) {
       return ok(fixtures.courseSettings);
     case '/api/users/me':
       return ok(fixtures.userMe);
+    // The catalogue is empty unless a test serves fixtures.publicCourses.
+    case '/api/courses/public':
+      return ok({ courses: [], currentPage: 1, totalPages: 0, totalDocuments: 0 });
     case '/api/notifications/user/':
       return ok(fixtures.notificationsEmpty);
     case '/api/notifications/invite/':

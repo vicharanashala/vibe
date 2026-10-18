@@ -1,6 +1,7 @@
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import {
   BookOpenIcon,
+  CompassIcon,
   HomeIcon,
   LogOutIcon,
   MoonIcon,
@@ -41,9 +42,10 @@ import { NotificationBell } from '@/features/notifications/notification-bell';
 import { Wordmark } from '@/features/landing/wordmark';
 import { cn } from '@/lib/utils';
 
-const NAV: { label: string; to: '/home' | '/courses' | '/profile'; icon: LucideIcon }[] = [
+const NAV: { label: string; to: '/home' | '/courses' | '/explore' | '/profile'; icon: LucideIcon }[] = [
   { label: 'Home', to: '/home', icon: HomeIcon },
   { label: 'My courses', to: '/courses', icon: BookOpenIcon },
+  { label: 'Explore', to: '/explore', icon: CompassIcon },
   { label: 'Profile', to: '/profile', icon: UserIcon },
 ];
 
@@ -142,7 +144,7 @@ function TabBar() {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
       <nav aria-label="Tabs" className="pointer-events-auto mx-auto max-w-md rounded-full border border-border bg-background/90 p-1 shadow-lg backdrop-blur-md">
-        <ul className="grid grid-cols-3">
+        <ul className="grid grid-cols-4">
           {NAV.map(({ label, to, icon: Icon }) => {
             // "My courses" stays selected inside a course.
             const active = pathname === to || (to === '/courses' && pathname.startsWith('/courses/'));

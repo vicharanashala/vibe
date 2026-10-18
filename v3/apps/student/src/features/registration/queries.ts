@@ -97,6 +97,8 @@ export function useRegister(versionId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['registration'] });
       void queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      // Joined (or requested) courses drop out of the catalogue.
+      void queryClient.invalidateQueries({ queryKey: ['explore'] });
     },
   });
 }
