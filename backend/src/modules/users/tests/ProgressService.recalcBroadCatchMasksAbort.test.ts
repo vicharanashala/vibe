@@ -74,7 +74,7 @@ describe('stopItem non-fatal recalculation vs. a genuine MongoDB-level error', (
         currentSection: SECTION_ID,
         currentItem: ITEM_ID,
       }),
-      stopItemTracking: async () => ({
+      stopItemTrackingForItem: async () => ({
         _id: WATCH_ITEM_ID,
         startTime: new Date('2026-08-19T10:00:00Z'),
         endTime: new Date('2026-08-19T10:11:00Z'),

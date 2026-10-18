@@ -64,7 +64,8 @@ function makeService() {
       currentSection: SECTION_ID,
       currentItem: ITEM_ID,
     }),
-    stopItemTracking: async () => ({
+    isItemCompleted: async () => false,
+    stopItemTrackingForItem: async () => ({
       _id: WATCH_ITEM_ID,
       startTime: new Date('2026-08-19T10:00:00Z'),
       endTime: new Date('2026-08-19T10:11:00Z'),
