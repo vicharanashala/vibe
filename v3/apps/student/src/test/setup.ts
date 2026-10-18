@@ -7,6 +7,7 @@ afterEach(() => {
   localStorage.clear();
   document.documentElement.className = '';
   document.documentElement.removeAttribute('style');
+  document.documentElement.removeAttribute('data-palette');
 });
 
 // jsdom lacks these browser APIs; next-themes and motion's whileInView need them.

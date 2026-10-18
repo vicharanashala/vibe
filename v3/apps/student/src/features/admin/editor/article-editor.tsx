@@ -2,7 +2,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { RichContent } from '@/components/rich-content';
+import { RichContent, toArticleHtml } from '@/components/rich-content';
 import { RichTextEditor } from '@/components/rich-text-editor';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -36,7 +36,9 @@ export function ArticleEditor({
   const navigate = useNavigate();
   const [name, setName] = useState(item?.name ?? '');
   const [description, setDescription] = useState(item?.description ?? '');
-  const [content, setContent] = useState<string>(item?.details?.content ?? '');
+  const [content, setContent] = useState<string>(() =>
+    toArticleHtml(item?.details?.content ?? ''),
+  );
   const [points, setPoints] = useState<number>(
     Number(item?.details?.points ?? 0),
   );

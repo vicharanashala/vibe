@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { isHtml, RichContent, RichText, toEditorHtml, toStoredText } from './rich-content';
+import { isHtml, RichContent, RichText, toArticleHtml, toEditorHtml, toStoredText } from './rich-content';
 
 describe('stored text format', () => {
   it('keeps unformatted text as plain text', () => {
@@ -21,6 +21,11 @@ describe('stored text format', () => {
   it('loads plain text into the editor safely', () => {
     expect(toEditorHtml('a < b\nnext')).toBe('<p>a &lt; b<br>next</p>');
     expect(toEditorHtml('')).toBe('');
+  });
+
+  it('converts older Markdown articles to HTML for the editor', () => {
+    expect(toArticleHtml('## Title\n\nSome **bold** text')).toBe('<h2>Title</h2>\n<p>Some <strong>bold</strong> text</p>\n');
+    expect(toArticleHtml('<p>Already HTML</p>')).toBe('<p>Already HTML</p>');
   });
 
   it('tells HTML from Markdown', () => {

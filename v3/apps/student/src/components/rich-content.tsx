@@ -1,4 +1,5 @@
 import DOMPurify from 'dompurify';
+import { marked } from 'marked';
 import { useMemo } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -13,7 +14,8 @@ import { cn } from '@/lib/utils';
  * HTML is sanitized before rendering, because it is author input shown to
  * every student.
  */
-const HTML_TAG = /<(p|h[1-6]|ul|ol|li|div|br|strong|em|b|i|u|s|a|img|blockquote|pre|code|hr|table|span)[\s/>]/i;
+const HTML_TAG =
+  /<(p|h[1-6]|ul|ol|li|div|br|strong|em|b|i|u|s|a|img|blockquote|pre|code|hr|table|span)[\s/>]/i;
 
 export function isHtml(content: string) {
   return HTML_TAG.test(content);
@@ -31,19 +33,45 @@ function sanitize(html: string) {
     });
     hooked = true;
   }
-  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true }, ADD_ATTR: ['target'] });
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    ADD_ATTR: ['target'],
+  });
 }
 
-export function RichContent({ content, className }: { content: string; className?: string }) {
-  const html = useMemo(() => (isHtml(content) ? sanitize(content) : null), [content]);
+export function RichContent({
+  content,
+  className,
+}: {
+  content: string;
+  className?: string;
+}) {
+  const html = useMemo(
+    () => (isHtml(content) ? sanitize(content) : null),
+    [content],
+  );
   if (html !== null) {
-    return <div className={cn('prose-vibe', className)} dangerouslySetInnerHTML={{ __html: html }} />;
+    return (
+      <div
+        className={cn('prose-vibe', className)}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    );
   }
   return (
     <div className={cn('prose-vibe', className)}>
       <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
     </div>
   );
+}
+
+/**
+ * What to load into the article editor: HTML as is, older Markdown lessons
+ * converted to HTML so they open formatted (and are saved as HTML from then on).
+ */
+export function toArticleHtml(content: string): string {
+  if (!content || isHtml(content)) return content;
+  return sanitize(marked.parse(content, { async: false, gfm: true }));
 }
 
 /** Plain text of either format, e.g. to count words for a read time. */
@@ -53,7 +81,8 @@ export function plainText(content: string) {
   return doc.body.textContent ?? '';
 }
 
-const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /**
  * Short author text (quiz questions, options, hints) is stored as plain text
@@ -63,7 +92,8 @@ const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 export function toStoredText(editorHtml: string): string {
   const m = /^<p>([^<]*)<\/p>$/.exec(editorHtml.trim());
   if (!m) return editorHtml;
-  const plain = new DOMParser().parseFromString(m[1], 'text/html').body.textContent ?? '';
+  const plain =
+    new DOMParser().parseFromString(m[1], 'text/html').body.textContent ?? '';
   // Text that merely mentions a tag ("What does <p> do?") must stay escaped HTML,
   // or it would be read back as markup.
   return isHtml(plain) ? editorHtml : plain;
@@ -80,11 +110,24 @@ export function toEditorHtml(stored: string): string {
 }
 
 /** Renders short author text: sanitized HTML when formatted, otherwise plain text (never Markdown, so "2*3*4" stays as typed). */
-export function RichText({ text, className, inline }: { text: string; className?: string; inline?: boolean }) {
+export function RichText({
+  text,
+  className,
+  inline,
+}: {
+  text: string;
+  className?: string;
+  inline?: boolean;
+}) {
   const html = useMemo(() => (isHtml(text) ? sanitize(text) : null), [text]);
   if (html === null) {
     const Tag = inline ? 'span' : 'p';
     return <Tag className={cn('whitespace-pre-wrap', className)}>{text}</Tag>;
   }
-  return <div className={cn('prose-vibe prose-compact', className)} dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <div
+      className={cn('prose-vibe prose-compact', className)}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }

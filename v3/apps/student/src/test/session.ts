@@ -60,7 +60,14 @@ export const fixtures = {
   userMe,
 };
 
-type FakeUser = { uid: string; email: string; displayName: string | null; providerData: { providerId: string }[]; getIdToken: () => Promise<string>; reload: () => Promise<void> };
+type FakeUser = {
+  uid: string;
+  email: string;
+  displayName: string | null;
+  providerData: { providerId: string }[];
+  getIdToken: () => Promise<string>;
+  reload: () => Promise<void>;
+};
 
 export const STUDENT: FakeUser = {
   uid: 'student-uid',
@@ -89,7 +96,10 @@ export const firebaseModule = { auth: fakeAuth, googleProvider: {} };
 type AnyMock = Mock<(...args: any[]) => any>;
 
 export const firebaseAuthFns: {
-  onIdTokenChanged: (auth: unknown, cb: (u: FakeUser | null) => void) => () => boolean;
+  onIdTokenChanged: (
+    auth: unknown,
+    cb: (u: FakeUser | null) => void,
+  ) => () => boolean;
   signInWithEmailAndPassword: AnyMock;
   signOut: AnyMock;
   sendPasswordResetEmail: AnyMock;
@@ -110,15 +120,21 @@ export const firebaseAuthFns: {
   sendPasswordResetEmail: vi.fn(async () => undefined),
   signInWithPopup: vi.fn(),
   getAdditionalUserInfo: vi.fn(() => ({ isNewUser: false })),
-  updateProfile: vi.fn(async (user: FakeUser, profile: { displayName?: string }) => {
-    user.displayName = profile.displayName ?? user.displayName;
-  }),
+  updateProfile: vi.fn(
+    async (user: FakeUser, profile: { displayName?: string }) => {
+      user.displayName = profile.displayName ?? user.displayName;
+    },
+  ),
 };
 
-const ok = (data: unknown, status = 200) => ({ data, error: undefined, response: new Response(null, { status }) });
+const ok = (data: unknown, status = 200) => ({
+  data,
+  error: undefined,
+  response: new Response(null, { status }),
+});
 
 /** Route → fixture, matched on the OpenAPI path template the app calls. */
-function respond(path: string) {
+export function respond(path: string) {
   switch (path) {
     case '/api/users/enrollments':
       return ok(fixtures.enrollments);
@@ -160,18 +176,31 @@ function respond(path: string) {
 }
 
 /** Writes: start returns a watch-time id like the backend; everything else succeeds empty. */
-function respondPost(path: string) {
-  if (path === '/api/users/progress/courses/{courseId}/versions/{versionId}/start') return ok({ watchItemId: 'watch-1' }, 201);
+export function respondPost(path: string) {
+  if (
+    path === '/api/users/progress/courses/{courseId}/versions/{versionId}/start'
+  )
+    return ok({ watchItemId: 'watch-1' }, 201);
   if (path === '/api/quizzes/{quizId}/attempt') return ok(fixtures.quizAttempt);
-  if (path === '/api/quizzes/{quizId}/attempt/{attemptId}/submit') return ok(fixtures.quizSubmit);
-  if (path === '/api/course/registration/version/{versionId}') return ok(fixtures.registrationSubmit, 201);
+  if (path === '/api/quizzes/{quizId}/attempt/{attemptId}/submit')
+    return ok(fixtures.quizSubmit);
+  if (path === '/api/course/registration/version/{versionId}')
+    return ok(fixtures.registrationSubmit, 201);
   return ok({});
 }
 
-export const api: { GET: AnyMock; POST: AnyMock; PATCH: AnyMock } = {
+export const api: {
+  GET: AnyMock;
+  POST: AnyMock;
+  PATCH: AnyMock;
+  PUT: AnyMock;
+  DELETE: AnyMock;
+} = {
   GET: vi.fn(async (path: string) => respond(path)),
   POST: vi.fn(async (path: string) => respondPost(path)),
   PATCH: vi.fn(async () => ok({})),
+  PUT: vi.fn(async () => ok({})),
+  DELETE: vi.fn(async () => ok({})),
 };
 
 export const apiModule = { api };
@@ -184,10 +213,16 @@ export function resetSession() {
   api.GET.mockImplementation(async (path: string) => respond(path));
   api.POST.mockImplementation(async (path: string) => respondPost(path));
   api.PATCH.mockImplementation(async () => ok({}));
+  api.PUT.mockImplementation(async () => ok({}));
+  api.DELETE.mockImplementation(async () => ok({}));
 }
 
 /** Signs the test student in and marks onboarding as done, so /home etc. render directly. */
 export function signInStudent({ onboarded = true } = {}) {
   fakeAuth.currentUser = STUDENT;
-  if (onboarded) localStorage.setItem(`vibe:onboarding:${STUDENT.uid}`, JSON.stringify({ completedAt: '2026-10-07T00:00:00Z' }));
+  if (onboarded)
+    localStorage.setItem(
+      `vibe:onboarding:${STUDENT.uid}`,
+      JSON.stringify({ completedAt: '2026-10-07T00:00:00Z' }),
+    );
 }

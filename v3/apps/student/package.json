@@ -31,6 +31,7 @@
     "dompurify": "^3.4.17",
     "firebase": "^12.19.0",
     "lucide-react": "^1.52.0",
+    "marked": "^18.1.1",
     "motion": "^14.0.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
