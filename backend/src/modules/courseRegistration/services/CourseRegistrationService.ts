@@ -603,8 +603,11 @@ export class CourseRegistrationService extends BaseService {
   }
 
   async updateBulkStatus(registrationIds: string[]) {
-    return this._withTransaction(async (session: ClientSession) => {
-      try {
+    const {updatedCount, emailMessages} = await this._withTransaction(
+      async (session: ClientSession) => {
+        const emailMessages: Array<
+          Omit<nodemailer.SendMailOptions, 'from'>
+        > = [];
         const first = await this.courseRegistrationRepo.getRegistration(
           registrationIds[0],
           session,
@@ -629,7 +632,7 @@ export class CourseRegistrationService extends BaseService {
           first.versionId.toString(),
           session,
         );
-        for (let registrationId of registrationIds) {
+        for (const registrationId of registrationIds) {
           const item = await this.courseRegistrationRepo.getRegistration(
             registrationId,
             session,
@@ -662,30 +665,36 @@ export class CourseRegistrationService extends BaseService {
             undefined,
             session,
           );
-          const emailMessage = await this.createStatusEmailMessage(
-            item,
-            course,
-            'APPROVED',
-            item?.cohortId?.toString(),
+          emailMessages.push(
+            await this.createStatusEmailMessage(
+              item,
+              course,
+              'APPROVED',
+              item.cohortId?.toString(),
+            ),
           );
-          try {
-            await this.mailService.sendMail(emailMessage);
-          } catch (emailError) {
-            throw new InternalServerError(
-              `Failed to send email /MORE ${emailError}`,
-            );
-          }
         }
-        return await this.courseRegistrationRepo.updateBulkStatus(
-          registrationIds,
-          session,
-        );
-      } catch (error) {
-        throw new InternalServerError(
-          'Failed to bulk update registration status',
+        const updatedCount =
+          await this.courseRegistrationRepo.updateBulkStatus(
+            registrationIds,
+            session,
+          );
+        return {updatedCount, emailMessages};
+      },
+    );
+
+    for (const emailMessage of emailMessages) {
+      try {
+        await this.mailService.sendMail(emailMessage);
+      } catch (emailError) {
+        console.error(
+          'Failed to send bulk registration approval email:',
+          emailError,
         );
       }
-    });
+    }
+
+    return updatedCount;
   }
 
   async getSettings(versionId: string): Promise<{
