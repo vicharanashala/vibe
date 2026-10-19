@@ -392,7 +392,7 @@ const sysPagination = usePagination(combinedGeneralNotifications);
 
             <TabsContent value="notifications" className="mt-0">
               <div className="grid gap-4">
-                {systemNotifications.length === 0 ? (
+                {combinedGeneralNotifications.length === 0 ? (
                   <EmptyState 
                     icon={<Bell className="h-12 w-12 text-muted-foreground/50" />}
                     title="All caught up!"
