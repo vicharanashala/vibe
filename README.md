@@ -27,7 +27,23 @@ ViBe draws inspiration from the classical Indian tale of Vikram and Betaal. In t
 
 For detailed setup instructions and comprehensive guides for both developers and end users, please refer to our [Documentation(In Progress)](https://continuousactivelearning.github.io/vibe/).
 
-## License
+## Planning changes with OpenSpec
+
+Larger changes are planned with [OpenSpec](https://openspec.dev/docs) before code is written: the AI coding assistant drafts a short proposal, spec and task list under `openspec/changes/`, you review it, and it then builds from that plan. When the change ships, its spec merges into `openspec/specs/`, which describes how ViBe behaves today.
+
+1. Install the CLI once per machine (Node.js 20.19+): `npm install -g @fission-ai/openspec@latest`. The assistant runs it at every step, so it must be on your `PATH`.
+2. In Claude Code's chat (restart it once after pulling):
+
+   | Command | What it does |
+   |---|---|
+   | `/opsx:explore` | Think an idea through with the assistant; writes no code |
+   | `/opsx:propose <name>` | Draft `proposal.md`, delta specs, `design.md` and `tasks.md`; stops before code |
+   | `/opsx:apply` | Implement the tasks, checking them off in `tasks.md` |
+   | `/opsx:archive` | Merge the change's specs into `openspec/specs/` and move it to `openspec/changes/archive/` |
+
+Project context and rules for every plan live in `openspec/config.yaml`. Other tools: run `openspec init --tools <id>` ([supported tools](https://openspec.dev/docs)).
+
+
 
 ViBe is licensed under the [MIT License](LICENSE).
 
