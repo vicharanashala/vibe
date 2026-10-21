@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderApp } from '@/test/render-app';
@@ -32,7 +32,8 @@ beforeEach(() => {
   api.GET.mockImplementation(async (path: string, opts?: never) => (path === '/api/courses/' ? ok({ courses }) : studioGet(path, opts)));
 });
 
-const courseLinks = () => screen.getAllByRole('link', { name: /^Course \d+/ });
+// The page's list only: the sidebar also lists recent courses.
+const courseLinks = () => within(screen.getByRole('main')).getAllByRole('link', { name: /^Course \d+/ });
 
 describe('Courses page', () => {
   it('shows 20 courses a page, newest first, and pages through the rest', async () => {

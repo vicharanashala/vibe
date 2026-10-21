@@ -18,7 +18,8 @@ describe('studio for teachers who aren’t admins', () => {
   it('opens with the courses they teach, without admin-only parts', async () => {
     signInTeacher();
     renderApp('/admin/courses');
-    expect(await screen.findByRole('link', { name: /Studio feedback test/ })).toBeInTheDocument();
+    // The page's list (the sidebar also lists recent courses).
+    expect(await within(await screen.findByRole('main')).findByRole('link', { name: /Studio feedback test/ })).toBeInTheDocument();
     expect(screen.getByText('1 course')).toBeInTheDocument();
     // Creating courses and listing every user are admin-only on the backend.
     expect(screen.queryByRole('button', { name: /New course/ })).not.toBeInTheDocument();

@@ -18,10 +18,10 @@ import {
   UsersIcon,
   type LucideIcon,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 
 import { AppearancePicker } from '@/components/appearance-picker';
-import { GeneratedAvatar } from '@/components/generated-art';
+import { GeneratedAvatar, GeneratedCover } from '@/components/generated-art';
 import { useTheme } from '@/components/theme-provider';
 import { Button } from '@/components/ui/button';
 import {
@@ -57,6 +57,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarTrigger,
   useSidebar,
@@ -66,8 +69,10 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 
+import { sortCourses } from './courses-page';
 import { NewCourseDialog } from './new-course-dialog';
-import { useStudioAccess } from './queries';
+import { useStudioAccess, useStudioCourses } from './queries';
+import { useRecentCourses } from './recent-courses';
 
 type NavTo = '/admin' | '/admin/courses' | '/admin/users';
 
@@ -354,9 +359,76 @@ function StudioNav({
             <Icon aria-hidden />
             <span>{label}</span>
           </SidebarMenuButton>
+          {to === '/admin/courses' && <RecentCourses pathname={pathname} />}
         </SidebarMenuItem>
       ))}
     </SidebarMenu>
+  );
+}
+
+const RECENT_SHOWN = 5;
+
+/**
+ * Under Courses: the user's most recently opened courses (newest first), or
+ * their newest courses until they've opened one. Only courses in their studio
+ * course list appear, so deleted or no-longer-taught courses drop out.
+ */
+function RecentCourses({ pathname }: { pathname: string }) {
+  const courses = useStudioCourses();
+  const recent = useRecentCourses();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const rows = useMemo(() => {
+    const list = courses.data ?? [];
+    const byId = new Map(list.map((c) => [c._id, c]));
+    const opened = recent.flatMap((e) => {
+      const course = byId.get(e.courseId);
+      if (!course) return [];
+      // Back to the version they opened, if it still exists.
+      const versionId = course.versions.includes(e.versionId)
+        ? e.versionId
+        : course.versions[0];
+      return versionId ? [{ course, versionId }] : [];
+    });
+    const shown = opened.length
+      ? opened
+      : sortCourses(list).flatMap((course) =>
+          course.versions[0] ? [{ course, versionId: course.versions[0] }] : [],
+        );
+    return shown.slice(0, RECENT_SHOWN);
+  }, [courses.data, recent]);
+
+  if (rows.length === 0) return null;
+  return (
+    <SidebarMenuSub aria-label="Recent courses" className="mt-1 mr-0 pr-0">
+      {rows.map(({ course, versionId }) => {
+        const current = pathname.startsWith(`/admin/courses/${course._id}/`);
+        return (
+          <SidebarMenuSubItem key={course._id}>
+            <SidebarMenuSubButton
+              isActive={current}
+              render={
+                <Link
+                  to="/admin/courses/$courseId/$versionId"
+                  params={{ courseId: course._id, versionId }}
+                  title={course.name}
+                  aria-current={current ? 'page' : undefined}
+                  onClick={() => isMobile && setOpenMobile(false)}
+                />
+              }
+            >
+              <GeneratedCover
+                seed={course._id}
+                title={course.name}
+                compact
+                className="size-6 shrink-0 rounded-md ring-1 ring-sidebar-border [&>span]:text-[9px] [&>span]:tracking-tight"
+              />
+              <span>{course.name}</span>
+            </SidebarMenuSubButton>
+          </SidebarMenuSubItem>
+        );
+      })}
+    </SidebarMenuSub>
   );
 }
 

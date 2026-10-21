@@ -81,11 +81,13 @@ describe('courses', () => {
       screen.getByRole('textbox', { name: 'Search courses' }),
       'algorithms',
     );
+    // The page's list only: the sidebar also lists recent courses.
+    const main = within(screen.getByRole('main'));
     expect(
-      screen.getByText('Sample: Introduction to Algorithms'),
+      main.getByText('Sample: Introduction to Algorithms'),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText('Sample: Foundations of Data Structures'),
+      main.queryByText('Sample: Foundations of Data Structures'),
     ).not.toBeInTheDocument();
   });
 

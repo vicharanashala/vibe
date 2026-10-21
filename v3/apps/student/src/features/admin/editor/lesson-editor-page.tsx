@@ -1,3 +1,4 @@
+import { useRecordCourseVisit } from '../recent-courses';
 import { ErrorText } from '../studio-ui';
 import { ArticleEditor } from './article-editor';
 import { EditorFrameSkeleton, EditorLayout } from './editor-frame';
@@ -16,6 +17,7 @@ export function LessonEditorPage({
   itemId?: string;
   type?: LessonType;
 }) {
+  useRecordCourseVisit(loc.courseId, loc.versionId);
   return (
     <EditorLayout loc={loc} itemId={itemId}>
       <LessonEditor loc={loc} itemId={itemId} type={type} />

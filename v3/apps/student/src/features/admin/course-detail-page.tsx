@@ -30,6 +30,7 @@ import { CourseIntegrity } from './course-integrity';
 import { DETECTORS } from './course-proctoring';
 import { CourseRegistration } from './course-registration';
 import { useCourse, useCourseEnrollments } from './queries';
+import { useRecordCourseVisit } from './recent-courses';
 import { ErrorText, SectionHeading, StatStrip, StudioPage } from './studio-ui';
 
 export type CourseTab =
@@ -62,6 +63,7 @@ export function CourseDetailPage({
   const version = useCourseVersion(versionId);
   const navigate = useNavigate();
   const [inviteOpen, setInviteOpen] = useState(false);
+  useRecordCourseVisit(courseId, versionId);
 
   function goTo(next: CourseTab) {
     void navigate({
