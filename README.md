@@ -47,6 +47,10 @@ Project context and rules for every plan live in `openspec/config.yaml`. Other t
 
 ViBe is licensed under the [MIT License](LICENSE).
 
+## License
+
+ViBe is licensed under the [MIT License](LICENSE).
+
 ## Feedback and Contributions
 
 We welcome your feedback, contributions, and suggestions. Please:
