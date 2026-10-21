@@ -45,7 +45,7 @@ describe('role shapes from production', () => {
   it('opens studio Home when users have array or missing roles', async () => {
     serveMixedData();
     renderApp('/admin');
-    const people = (await screen.findByRole('heading', { name: 'People' })).parentElement!.parentElement!;
+    const people = (await screen.findByRole('heading', { name: 'Newest people' })).parentElement!.parentElement!;
     expect(await within(people).findByText(first.email)).toBeInTheDocument();
     expect(screen.queryByText(/Something went wrong/)).not.toBeInTheDocument();
   });

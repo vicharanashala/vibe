@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 
 import { CourseList, CourseListSkeleton, sortCourses } from './courses-page';
 import { NewCourseDialog } from './new-course-dialog';
-import { useAllUsers, useCourseEnrollments, useStudioAccess, useStudioCourses, type AdminCourse } from './queries';
+import { useAllUsers, useCourseEnrollments, useStudioAccess, useStudioCourses, type AdminCourse, type AdminUser } from './queries';
 import { ErrorText, formatDate, RoleBadge, SectionHeading, StatStrip, StudioPage } from './studio-ui';
 
 type CourseTab = 'overview' | 'content' | 'people' | 'proctoring';
@@ -63,13 +63,13 @@ export function StudioHomePage() {
               </Link>
             }
           >
-            People
+            Newest people
           </SectionHeading>
           <div className="flex-1 overflow-hidden rounded-2xl border border-border bg-card">
             {users.isPending && <div className="space-y-3 p-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-9" />)}</div>}
             {users.isError && <ErrorText error={users.error} className="p-4" />}
             <ul className="divide-y divide-border">
-              {users.data?.slice(0, 6).map((u) => (
+              {newestUsers(users.data).map((u) => (
                 <li key={u._id} className="flex items-center gap-3 px-4 py-2.5">
                   <GeneratedAvatar seed={u._id} size={30} />
                   <div className="min-w-0 flex-1">
@@ -103,6 +103,11 @@ export function StudioHomePage() {
       </section>
     </StudioPage>
   );
+}
+
+/** The six most recent sign-ups (joinedAt comes from each user's ObjectId). */
+function newestUsers(users?: AdminUser[]) {
+  return [...(users ?? [])].sort((a, b) => (b.joinedAt ?? 0) - (a.joinedAt ?? 0)).slice(0, 6);
 }
 
 /** Substack-style setup checklist, driven by the newest course. Hidden once everything is done. */

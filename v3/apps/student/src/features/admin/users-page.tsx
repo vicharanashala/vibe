@@ -1,11 +1,12 @@
-import { MoreHorizontalIcon, SearchIcon, ShieldCheckIcon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon, SearchIcon, ShieldCheckIcon } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { GeneratedAvatar } from '@/components/generated-art';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -39,20 +40,63 @@ function AdminsOnly() {
   );
 }
 
+const PAGE_SIZE = 50;
+type Sort = 'newest' | 'oldest' | 'name';
+type Joined = 'any' | '1' | '7' | '30' | '90' | '365';
+const JOINED: { value: Joined; label: string }[] = [
+  { value: 'any', label: 'Joined any time' },
+  { value: '1', label: 'Joined in the last 24 hours' },
+  { value: '7', label: 'Joined in the last 7 days' },
+  { value: '30', label: 'Joined in the last 30 days' },
+  { value: '90', label: 'Joined in the last 90 days' },
+  { value: '365', label: 'Joined in the last year' },
+];
+const DAY = 24 * 60 * 60 * 1000;
+
+const joinedFmt = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const joinedFull = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
 function AllUsers() {
   const users = useAllUsers();
   const makeAdmin = useMakeAdmin();
   const [query, setQuery] = useState('');
+  const search = useDeferredValue(query.trim().toLowerCase());
   const [filter, setFilter] = useState<Filter>('all');
+  const [sort, setSort] = useState<Sort>('newest');
+  const [joined, setJoined] = useState<Joined>('any');
+  const [page, setPage] = useState(0);
   const [promoting, setPromoting] = useState<AdminUser | null>(null);
 
+  // Back to the first page whenever what's shown changes.
+  useEffect(() => setPage(0), [search, filter, sort, joined]);
+
+  const all = users.data;
+  const counts = useMemo(() => {
+    const list = all ?? [];
+    const admins = list.reduce((n, u) => n + (u.roles === 'admin' ? 1 : 0), 0);
+    return { all: list.length, admin: admins, user: list.length - admins };
+  }, [all]);
+
   const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return (users.data ?? []).filter(
-      (u) => (filter === 'all' || u.roles === filter) && (!q || u.email.toLowerCase().includes(q) || `${u.firstName} ${u.lastName ?? ''}`.toLowerCase().includes(q)),
+    const since = joined === 'any' ? null : Date.now() - Number(joined) * DAY;
+    const list = (all ?? []).filter(
+      (u) =>
+        (filter === 'all' || u.roles === filter) &&
+        (!search || u.searchText.includes(search)) &&
+        (since === null || (u.joinedAt !== null && u.joinedAt >= since)),
     );
-  }, [users.data, query, filter]);
-  const count = (f: Filter) => (users.data ?? []).filter((u) => f === 'all' || u.roles === f).length;
+    // Accounts without a creation time sort last either way.
+    const time = (u: AdminUser, missing: number) => u.joinedAt ?? missing;
+    if (sort === 'newest') list.sort((a, b) => time(b, -Infinity) - time(a, -Infinity));
+    else if (sort === 'oldest') list.sort((a, b) => time(a, Infinity) - time(b, Infinity));
+    else list.sort((a, b) => `${a.firstName} ${a.lastName ?? ''}`.localeCompare(`${b.firstName} ${b.lastName ?? ''}`) || a.email.localeCompare(b.email));
+    return list;
+  }, [all, search, filter, sort, joined]);
+
+  const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+  const current = Math.min(page, pages - 1);
+  const rows = shown.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
+  const nf = new Intl.NumberFormat();
 
   return (
     <StudioPage>
@@ -61,9 +105,9 @@ function AllUsers() {
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
         <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
           <TabsList>
-            <TabsTrigger value="all">All {users.data && <span className="text-muted-foreground tabular-nums">{count('all')}</span>}</TabsTrigger>
-            <TabsTrigger value="admin">Admins {users.data && <span className="text-muted-foreground tabular-nums">{count('admin')}</span>}</TabsTrigger>
-            <TabsTrigger value="user">Learners {users.data && <span className="text-muted-foreground tabular-nums">{count('user')}</span>}</TabsTrigger>
+            <TabsTrigger value="all">All {all && <span className="text-muted-foreground tabular-nums">{nf.format(counts.all)}</span>}</TabsTrigger>
+            <TabsTrigger value="admin">Admins {all && <span className="text-muted-foreground tabular-nums">{nf.format(counts.admin)}</span>}</TabsTrigger>
+            <TabsTrigger value="user">Learners {all && <span className="text-muted-foreground tabular-nums">{nf.format(counts.user)}</span>}</TabsTrigger>
           </TabsList>
         </Tabs>
         <InputGroup className="w-full bg-card sm:w-72">
@@ -74,23 +118,39 @@ function AllUsers() {
         </InputGroup>
       </div>
 
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <NativeSelect size="sm" aria-label="Joined" value={joined} onChange={(e) => setJoined(e.target.value as Joined)} className="bg-card">
+          {JOINED.map((j) => (
+            <NativeSelectOption key={j.value} value={j.value}>
+              {j.label}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+        <NativeSelect size="sm" aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="bg-card">
+          <NativeSelectOption value="newest">Newest first</NativeSelectOption>
+          <NativeSelectOption value="oldest">Oldest first</NativeSelectOption>
+          <NativeSelectOption value="name">Name, A–Z</NativeSelectOption>
+        </NativeSelect>
+      </div>
+
       <div className="mt-4">
         {users.isPending && <Skeleton className="h-64 rounded-2xl" />}
         {users.isError && <ErrorText error={users.error} />}
-        {users.data && (
+        {all && (
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="pl-4">User</TableHead>
-                  <TableHead>Role</TableHead>
+                  <TableHead className="max-sm:hidden">Joined</TableHead>
+                  <TableHead className="max-sm:hidden">Role</TableHead>
                   <TableHead className="w-12 pr-4" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {shown.map((u) => (
+                {rows.map((u) => (
                   <TableRow key={u._id}>
-                    <TableCell className="pl-4">
+                    <TableCell className="max-w-0 pl-4">
                       <div className="flex items-center gap-3">
                         <GeneratedAvatar seed={u._id} size={30} />
                         <div className="min-w-0">
@@ -98,10 +158,18 @@ function AllUsers() {
                             {u.firstName} {u.lastName ?? ''}
                           </p>
                           <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                          {/* Phones: the Joined and Role columns are hidden, so show them here. */}
+                          <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground sm:hidden">
+                            <RoleBadge role={u.roles === 'admin' ? 'admin' : 'learner'} />
+                            {u.joinedAt !== null && <span>Joined {joinedFmt.format(u.joinedAt)}</span>}
+                          </p>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground max-sm:hidden">
+                      {u.joinedAt !== null ? <time dateTime={new Date(u.joinedAt).toISOString()} title={joinedFull.format(u.joinedAt)}>{joinedFmt.format(u.joinedAt)}</time> : '—'}
+                    </TableCell>
+                    <TableCell className="max-sm:hidden">
                       <RoleBadge role={u.roles === 'admin' ? 'admin' : 'learner'} />
                     </TableCell>
                     <TableCell className="pr-4 text-right">
@@ -122,13 +190,31 @@ function AllUsers() {
                 ))}
                 {shown.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
                       No users match.
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
+            {shown.length > 0 && (
+              <nav aria-label="Pages" className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-sm">
+                <p className="text-muted-foreground tabular-nums">
+                  {nf.format(current * PAGE_SIZE + 1)}–{nf.format(current * PAGE_SIZE + rows.length)} of {nf.format(shown.length)}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground tabular-nums max-sm:hidden">
+                    Page {nf.format(current + 1)} of {nf.format(pages)}
+                  </span>
+                  <Button variant="outline" size="sm" disabled={current === 0} onClick={() => setPage(current - 1)}>
+                    <ChevronLeftIcon aria-hidden /> Previous
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={current >= pages - 1} onClick={() => setPage(current + 1)}>
+                    Next <ChevronRightIcon aria-hidden />
+                  </Button>
+                </div>
+              </nav>
+            )}
           </div>
         )}
       </div>

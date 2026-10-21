@@ -345,22 +345,46 @@ export interface AdminUser {
   firstName: string;
   lastName?: string;
   roles: 'admin' | 'user';
+  /**
+   * When the account was created. Users have no createdAt field, but each _id
+   * is a MongoDB ObjectId made at sign-up (UserRepository.create), and its
+   * first 4 bytes are the creation time in seconds. Null if the id isn't one.
+   */
+  joinedAt: number | null;
+  /** Lowercased "first last email", for searching. */
+  searchText: string;
 }
 
-/** Every account (GET /users/, admins only). */
+/** Creation time (ms) encoded in a 24-hex MongoDB ObjectId, or null. */
+export function objectIdTime(id: string): number | null {
+  if (!/^[0-9a-f]{24}$/i.test(id)) return null;
+  const seconds = parseInt(id.slice(0, 8), 16);
+  return seconds > 0 ? seconds * 1000 : null;
+}
+
+/** Every account (GET /users/, admins only). The endpoint has no paging, so this is the whole list; it's cached for 5 minutes. */
 export function useAllUsers(enabled = true) {
   return useQuery({
     queryKey: ['admin', 'users'],
     enabled,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const raw = unwrap(await api.GET('/api/users/', {})) as unknown as { users: any[] };
-      return raw.users.map((u) => ({
-        _id: toId(u._id),
-        email: u.email,
-        firstName: u.firstName,
-        lastName: u.lastName,
-        roles: normalizeGlobalRole(u.roles),
-      })) as AdminUser[];
+      return raw.users.map((u): AdminUser => {
+        const _id = toId(u._id);
+        const email = typeof u.email === 'string' ? u.email : '';
+        const firstName = typeof u.firstName === 'string' ? u.firstName : '';
+        const lastName = typeof u.lastName === 'string' ? u.lastName : undefined;
+        return {
+          _id,
+          email,
+          firstName,
+          lastName,
+          roles: normalizeGlobalRole(u.roles),
+          joinedAt: objectIdTime(_id),
+          searchText: `${firstName} ${lastName ?? ''} ${email}`.toLowerCase(),
+        };
+      });
     },
   });
 }
