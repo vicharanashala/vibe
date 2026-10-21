@@ -146,8 +146,9 @@ export function SectionHeading({
   );
 }
 
-export function RoleBadge({ role }: { role: string }) {
-  const r = role.toUpperCase();
+export function RoleBadge({ role }: { role: unknown }) {
+  // Never trust the shape: roles have been seen as arrays and as null in production data.
+  const r = (Array.isArray(role) ? role.join(', ') : typeof role === 'string' ? role : '').toUpperCase() || 'USER';
   return (
     <span
       className={cn(

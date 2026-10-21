@@ -27,7 +27,7 @@ const ITEM_TYPES: Record<string, { label: string; icon: LucideIcon }> = {
 };
 
 export function itemTypeMeta(type: string) {
-  return ITEM_TYPES[type?.toUpperCase()] ?? { label: 'Lesson', icon: FileTextIcon };
+  return ITEM_TYPES[typeof type === 'string' ? type.toUpperCase() : ''] ?? { label: 'Lesson', icon: FileTextIcon };
 }
 
 export function percentOf(e: { percentCompleted?: number; completedItems?: number; contentCounts?: { totalItems?: number } }) {

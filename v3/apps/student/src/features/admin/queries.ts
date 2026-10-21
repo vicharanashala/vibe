@@ -15,10 +15,28 @@ export interface CurrentUserProfile {
   roles: 'admin' | 'user';
 }
 
+/**
+ * `roles` on a user is stored as a string in some accounts and as an array
+ * (e.g. ["admin"]) in others; normalise it the way the backend does
+ * (AbilityDecorator.normalizeGlobalRole) so it's always 'admin' or 'user'.
+ */
+export function normalizeGlobalRole(roles: unknown): 'admin' | 'user' {
+  const values = Array.isArray(roles) ? roles : [roles];
+  return values.some((r) => typeof r === 'string' && r.toLowerCase() === 'admin') ? 'admin' : 'user';
+}
+
+/** Course roles are stored inconsistently cased, and sometimes missing; uppercase them, defaulting to STUDENT. */
+export function normalizeCourseRole(role: unknown): string {
+  return typeof role === 'string' && role.trim() ? role.trim().toUpperCase() : 'STUDENT';
+}
+
 export function useCurrentUserProfile() {
   return useQuery({
     queryKey: ['current-user-profile'],
-    queryFn: async () => unwrap(await api.GET('/api/users/me', {})) as unknown as CurrentUserProfile,
+    queryFn: async () => {
+      const me = unwrap(await api.GET('/api/users/me', {})) as unknown as CurrentUserProfile;
+      return { ...me, roles: normalizeGlobalRole(me.roles) };
+    },
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -341,7 +359,7 @@ export function useAllUsers(enabled = true) {
         email: u.email,
         firstName: u.firstName,
         lastName: u.lastName,
-        roles: u.roles,
+        roles: normalizeGlobalRole(u.roles),
       })) as AdminUser[];
     },
   });
@@ -366,7 +384,7 @@ export function useCourseEnrollments(courseId: string, versionId: string) {
           params: { path: { courseId, versionId } },
         }),
       ) as unknown as { enrollments: CourseEnrollment[] };
-      return raw.enrollments;
+      return (raw.enrollments ?? []).map((e) => ({ ...e, role: normalizeCourseRole(e.role) as CourseEnrollment['role'] }));
     },
     enabled: !!courseId && !!versionId,
   });
