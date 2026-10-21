@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon, SearchIcon, ShieldCheckIcon } from 'lucide-react';
+import { MoreHorizontalIcon, SearchIcon, ShieldCheckIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { useAllUsers, useMakeAdmin, useStudioAccess, type AdminUser } from './queries';
-import { ConfirmDialog, ErrorText, PageHeader, RoleBadge, StudioPage } from './studio-ui';
+import { ConfirmDialog, ErrorText, pageOf, PageHeader, Pager, RoleBadge, sinceCutoff, SINCE_OPTIONS, StudioPage, type Since } from './studio-ui';
 
 type Filter = 'all' | 'admin' | 'user';
 
@@ -42,16 +42,6 @@ function AdminsOnly() {
 
 const PAGE_SIZE = 50;
 type Sort = 'newest' | 'oldest' | 'name';
-type Joined = 'any' | '1' | '7' | '30' | '90' | '365';
-const JOINED: { value: Joined; label: string }[] = [
-  { value: 'any', label: 'Joined any time' },
-  { value: '1', label: 'Joined in the last 24 hours' },
-  { value: '7', label: 'Joined in the last 7 days' },
-  { value: '30', label: 'Joined in the last 30 days' },
-  { value: '90', label: 'Joined in the last 90 days' },
-  { value: '365', label: 'Joined in the last year' },
-];
-const DAY = 24 * 60 * 60 * 1000;
 
 const joinedFmt = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 const joinedFull = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -63,7 +53,7 @@ function AllUsers() {
   const search = useDeferredValue(query.trim().toLowerCase());
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('newest');
-  const [joined, setJoined] = useState<Joined>('any');
+  const [joined, setJoined] = useState<Since>('any');
   const [page, setPage] = useState(0);
   const [promoting, setPromoting] = useState<AdminUser | null>(null);
 
@@ -78,7 +68,7 @@ function AllUsers() {
   }, [all]);
 
   const shown = useMemo(() => {
-    const since = joined === 'any' ? null : Date.now() - Number(joined) * DAY;
+    const since = sinceCutoff(joined);
     const list = (all ?? []).filter(
       (u) =>
         (filter === 'all' || u.roles === filter) &&
@@ -93,9 +83,7 @@ function AllUsers() {
     return list;
   }, [all, search, filter, sort, joined]);
 
-  const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
-  const current = Math.min(page, pages - 1);
-  const rows = shown.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
+  const { rows, current, pages } = pageOf(shown, page, PAGE_SIZE);
   const nf = new Intl.NumberFormat();
 
   return (
@@ -119,10 +107,10 @@ function AllUsers() {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <NativeSelect size="sm" aria-label="Joined" value={joined} onChange={(e) => setJoined(e.target.value as Joined)} className="bg-card">
-          {JOINED.map((j) => (
+        <NativeSelect size="sm" aria-label="Joined" value={joined} onChange={(e) => setJoined(e.target.value as Since)} className="bg-card">
+          {SINCE_OPTIONS.map((j) => (
             <NativeSelectOption key={j.value} value={j.value}>
-              {j.label}
+              Joined {j.label}
             </NativeSelectOption>
           ))}
         </NativeSelect>
@@ -197,24 +185,7 @@ function AllUsers() {
                 )}
               </TableBody>
             </Table>
-            {shown.length > 0 && (
-              <nav aria-label="Pages" className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-sm">
-                <p className="text-muted-foreground tabular-nums">
-                  {nf.format(current * PAGE_SIZE + 1)}–{nf.format(current * PAGE_SIZE + rows.length)} of {nf.format(shown.length)}
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground tabular-nums max-sm:hidden">
-                    Page {nf.format(current + 1)} of {nf.format(pages)}
-                  </span>
-                  <Button variant="outline" size="sm" disabled={current === 0} onClick={() => setPage(current - 1)}>
-                    <ChevronLeftIcon aria-hidden /> Previous
-                  </Button>
-                  <Button variant="outline" size="sm" disabled={current >= pages - 1} onClick={() => setPage(current + 1)}>
-                    Next <ChevronRightIcon aria-hidden />
-                  </Button>
-                </div>
-              </nav>
-            )}
+            <Pager current={current} pages={pages} pageSize={PAGE_SIZE} shownOnPage={rows.length} total={shown.length} onPage={setPage} className="border-t border-border" />
           </div>
         )}
       </div>

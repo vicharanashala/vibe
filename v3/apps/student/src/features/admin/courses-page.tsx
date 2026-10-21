@@ -1,20 +1,34 @@
 import { Link } from '@tanstack/react-router';
 import { ChevronRightIcon, PlusIcon, SearchIcon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 
 import { GeneratedCover } from '@/components/generated-art';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { NewCourseDialog } from './new-course-dialog';
-import { useStudioAccess, useStudioCourses, type AdminCourse } from './queries';
-import { ErrorText, formatDate, PageHeader, StudioPage } from './studio-ui';
+import { objectIdTime, useStudioAccess, useStudioCourses, type AdminCourse } from './queries';
+import { ErrorText, formatDate, pageOf, PageHeader, Pager, sinceCutoff, SINCE_OPTIONS, StudioPage, type Since } from './studio-ui';
 
-/** Newest first. */
-export function sortCourses(courses: AdminCourse[]) {
-  return [...courses].sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+const PAGE_SIZE = 20;
+type Sort = 'newest' | 'oldest' | 'name';
+
+/** When a course was created: its createdAt, else the time in its ObjectId, else null. */
+export function courseTime(c: AdminCourse): number | null {
+  const t = c.createdAt ? Date.parse(c.createdAt) : NaN;
+  return Number.isNaN(t) ? objectIdTime(c._id) : t;
+}
+
+/** Newest first (courses without a known time last). */
+export function sortCourses(courses: AdminCourse[], sort: Sort = 'newest') {
+  const list = [...courses];
+  if (sort === 'name') return list.sort((a, b) => a.name.localeCompare(b.name));
+  const missing = sort === 'newest' ? -Infinity : Infinity;
+  const at = (c: AdminCourse) => courseTime(c) ?? missing;
+  return list.sort((a, b) => (sort === 'newest' ? at(b) - at(a) : at(a) - at(b)));
 }
 
 /** Substack "Posts"-style course list: every course for admins, the ones you teach otherwise. */
@@ -23,13 +37,26 @@ export function CoursesPage() {
   // Only admins can create courses (backend rule); teachers are invited to theirs.
   const { isAdmin } = useStudioAccess();
   const [query, setQuery] = useState('');
+  const search = useDeferredValue(query.trim().toLowerCase());
+  const [sort, setSort] = useState<Sort>('newest');
+  const [created, setCreated] = useState<Since>('any');
+  const [page, setPage] = useState(0);
   const [newOpen, setNewOpen] = useState(false);
 
+  // Back to the first page whenever what's shown changes.
+  useEffect(() => setPage(0), [search, sort, created]);
+
   const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = sortCourses(courses.data ?? []);
-    return q ? list.filter((c) => c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q)) : list;
-  }, [courses.data, query]);
+    const since = sinceCutoff(created);
+    const list = (courses.data ?? []).filter((c) => {
+      if (search && !c.name.toLowerCase().includes(search) && !c.description?.toLowerCase().includes(search)) return false;
+      const t = courseTime(c);
+      return since === null || (t !== null && t >= since);
+    });
+    return sortCourses(list, sort);
+  }, [courses.data, search, sort, created]);
+  const { rows, current, pages } = pageOf(shown, page, PAGE_SIZE);
+  const filtered = !!search || created !== 'any';
 
   return (
     <StudioPage>
@@ -57,6 +84,21 @@ export function CoursesPage() {
         </InputGroup>
       </div>
 
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <NativeSelect size="sm" aria-label="Created" value={created} onChange={(e) => setCreated(e.target.value as Since)} className="bg-card">
+          {SINCE_OPTIONS.map((o) => (
+            <NativeSelectOption key={o.value} value={o.value}>
+              Created {o.label}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+        <NativeSelect size="sm" aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="bg-card">
+          <NativeSelectOption value="newest">Newest first</NativeSelectOption>
+          <NativeSelectOption value="oldest">Oldest first</NativeSelectOption>
+          <NativeSelectOption value="name">Name, A–Z</NativeSelectOption>
+        </NativeSelect>
+      </div>
+
       <div className="mt-3">
         {courses.isPending && <CourseListSkeleton />}
         {courses.isError && <ErrorText error={courses.error} />}
@@ -79,9 +121,16 @@ export function CoursesPage() {
           </Empty>
         )}
         {courses.data && courses.data.length > 0 && shown.length === 0 && (
-          <p className="rounded-2xl border border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground">No courses match “{query}”.</p>
+          <p className="rounded-2xl border border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground">
+            {search ? `No courses match “${query.trim()}”.` : 'No courses were created in that time.'}
+          </p>
         )}
-        {shown.length > 0 && <CourseList courses={shown} />}
+        {shown.length > 0 && (
+          <>
+            <CourseList courses={rows} />
+            {(pages > 1 || filtered) && <Pager current={current} pages={pages} pageSize={PAGE_SIZE} shownOnPage={rows.length} total={shown.length} onPage={setPage} className="px-1" />}
+          </>
+        )}
       </div>
 
       <NewCourseDialog open={newOpen} onOpenChange={setNewOpen} />
@@ -103,6 +152,7 @@ export function CourseList({ courses }: { courses: AdminCourse[] }) {
 
 function CourseRow({ course }: { course: AdminCourse }) {
   const versionId = course.versions[0] ?? '';
+  const created = courseTime(course);
   return (
     <Link
       to="/admin/courses/$courseId/$versionId"
@@ -122,7 +172,7 @@ function CourseRow({ course }: { course: AdminCourse }) {
         </div>
         <div>
           <dt className="text-[11px] text-muted-foreground">Created</dt>
-          <dd className="whitespace-nowrap">{formatDate(course.createdAt)}</dd>
+          <dd className="whitespace-nowrap">{created === null ? '—' : formatDate(new Date(created).toISOString())}</dd>
         </div>
       </dl>
       <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />

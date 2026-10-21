@@ -1,5 +1,5 @@
 import { ApiError } from '@vibe/api';
-import { MonitorIcon, XIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, MonitorIcon, XIcon } from 'lucide-react';
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 import {
@@ -321,5 +321,71 @@ export function ClampedText({ children, className }: { children: string; classNa
         </Button>
       )}
     </div>
+  );
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const count = new Intl.NumberFormat();
+
+/** "Joined / Created within" choices shared by the studio's lists. */
+export type Since = 'any' | '1' | '7' | '30' | '90' | '365';
+export const SINCE_OPTIONS: { value: Since; label: string }[] = [
+  { value: 'any', label: 'any time' },
+  { value: '1', label: 'in the last 24 hours' },
+  { value: '7', label: 'in the last 7 days' },
+  { value: '30', label: 'in the last 30 days' },
+  { value: '90', label: 'in the last 90 days' },
+  { value: '365', label: 'in the last year' },
+];
+
+/** Earliest timestamp (ms) a `since` choice allows, or null for any time. */
+export function sinceCutoff(since: Since): number | null {
+  return since === 'any' ? null : Date.now() - Number(since) * DAY_MS;
+}
+
+/** The slice of `items` for `page` (0-based, clamped to the last page). */
+export function pageOf<T>(items: T[], page: number, pageSize: number) {
+  const pages = Math.max(1, Math.ceil(items.length / pageSize));
+  const current = Math.min(page, pages - 1);
+  return { rows: items.slice(current * pageSize, (current + 1) * pageSize), current, pages };
+}
+
+/** "1–50 of 16,000 · Page 1 of 320 · Previous / Next" under a list. */
+export function Pager({
+  current,
+  pages,
+  pageSize,
+  shownOnPage,
+  total,
+  onPage,
+  className,
+}: {
+  current: number;
+  pages: number;
+  pageSize: number;
+  shownOnPage: number;
+  total: number;
+  onPage: (page: number) => void;
+  className?: string;
+}) {
+  if (total === 0) return null;
+  const first = current * pageSize + 1;
+  return (
+    <nav aria-label="Pages" className={cn('flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm', className)}>
+      <p className="text-muted-foreground tabular-nums">
+        {count.format(first)}–{count.format(first + shownOnPage - 1)} of {count.format(total)}
+      </p>
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground tabular-nums max-sm:hidden">
+          Page {count.format(current + 1)} of {count.format(pages)}
+        </span>
+        <Button variant="outline" size="sm" disabled={current === 0} onClick={() => onPage(current - 1)}>
+          <ChevronLeftIcon aria-hidden /> Previous
+        </Button>
+        <Button variant="outline" size="sm" disabled={current >= pages - 1} onClick={() => onPage(current + 1)}>
+          Next <ChevronRightIcon aria-hidden />
+        </Button>
+      </div>
+    </nav>
   );
 }
