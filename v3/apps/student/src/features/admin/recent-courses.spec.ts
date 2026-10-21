@@ -20,7 +20,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('recent-course history', () => {
   it('keeps the newest first', () => {
     for (const c of ['a', 'b', 'c']) recordCourseVisit('u1', c, `${c}-v1`);
-    expect(ids('u1')).toEqual(['a', 'b', 'c']); // DELIBERATELY WRONG: CI failure-path check, reverted next commit
+    expect(ids('u1')).toEqual(['c', 'b', 'a']);
     expect(readRecentCourses('u1')[0]).toMatchObject({ courseId: 'c', versionId: 'c-v1' });
   });
 
