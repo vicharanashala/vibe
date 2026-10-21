@@ -31,7 +31,7 @@
 
 ## 7. Require the checks (repository admin)
 
-- [ ] 7.1 Write the admin instructions into the PR description: the ruleset (target `main`, require status checks `backend-tests-result`, `backend-format-result`, `v3-checks-result`, `openspec-checks-result` from GitHub Actions, "require up to date" off), the matching `gh api` command, and how to confirm on a PR that a failing result shows "Merging is blocked"; verify the command's JSON against GitHub's rulesets API schema
+- [x] 7.1 Write the admin instructions into the PR description: the ruleset (target `main`, require status checks `backend-tests-result`, `backend-format-result`, `v3-checks-result`, `openspec-checks-result` from GitHub Actions, "require up to date" off), the matching `gh api` command, and how to confirm on a PR that a failing result shows "Merging is blocked"; verify the command's JSON against GitHub's rulesets API schema
 
 ## Workflow follow-up
 
