@@ -55,6 +55,13 @@ jobs:
             if [ "$status" != completed ]; then echo running > "$3/state"; return; fi
             echo "$conclusion" > "$3/state"
             gh run download "$id" -R "$REPO" -n "$2" -D "$3/files" || true
+            # The workflows run on every PR; when the PR doesn't touch the
+            # backend their check job is skipped, the run still succeeds, and
+            # nothing is uploaded. Report that as not run, not as a failure.
+            # A run that failed before uploading keeps its failure state.
+            if [ "$conclusion" = success ] && [ -z "$(ls -A "$3/files" 2>/dev/null)" ]; then
+              echo missing > "$3/state"
+            fi
           }
           collect backend-tests.yml backend-test-results tests
           collect backend-format.yml backend-format-results format

@@ -10,8 +10,8 @@ export default [
     rules: {},
   },
   {
-    // Web workers have no window; `self` is their global scope.
-    files: ['**/*-worker.ts', 'public/workers/**/*.js'],
+    // Web workers and the service worker have no window; `self` is their global scope.
+    files: ['**/*-worker.ts', 'public/workers/**/*.js', 'public/sw.js'],
     rules: { 'no-restricted-globals': 'off' },
   },
 ];
