@@ -20,6 +20,10 @@ import {
   TotalWatchTimeResponse,
   UpsertWatchTimeBody,
   UpsertWatchTimeResponse,
+  StartRewatchBody,
+  StartRewatchResponse,
+  RewatchHeartbeatBody,
+  RewatchHeartbeatResponse,
   ItemIdparams,
   GetLeaderboardQuery,
   GetNoAuthLeaderboardQuery,
@@ -800,6 +804,83 @@ It returns an empty body with a 200 status code.
     );
 
     return { watchItemId: result };
+  }
+
+  @OpenAPI({
+    summary: 'Start a rewatch of a completed item',
+    description: `Records that the user has started playing an item they have already completed.<br/>
+    Does not change progress or completion. Returns an empty rewatchId when the item is not completed.`,
+  })
+  @Authorized()
+  @Post('/progress/courses/:courseId/versions/:versionId/rewatch/start')
+  @HttpCode(200)
+  @ResponseSchema(StartRewatchResponse, {
+    description: 'Rewatch started successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid request body',
+    statusCode: 400,
+  })
+  async startRewatch(
+    @Params() params: StartItemParams,
+    @Body() body: StartRewatchBody,
+    @Ability(getProgressAbility) { ability, user },
+  ): Promise<StartRewatchResponse> {
+    const { courseId, versionId } = params;
+    const { itemId, cohortId, quizId, attemptId } = body;
+    const userId = user._id.toString();
+
+    const progressResource = subject('Progress', { userId, courseId, versionId });
+
+    if (!ability.can(ProgressActions.Modify, progressResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this progress',
+      );
+    }
+
+    const rewatchId = await this.progressService.startRewatch(
+      userId,
+      courseId,
+      versionId,
+      itemId,
+      cohortId,
+      quizId,
+      attemptId,
+    );
+
+    return new StartRewatchResponse({ rewatchId });
+  }
+
+  @OpenAPI({
+    summary: 'Rewatch heartbeat',
+    description: `Updates the last-seen time of a rewatch record while the video is playing.<br/>
+    Send ended: true as the closing call when playback ends or the user leaves.`,
+  })
+  @Authorized()
+  @Post('/rewatch/heartbeat')
+  @HttpCode(200)
+  @ResponseSchema(RewatchHeartbeatResponse, {
+    description: 'Rewatch record updated successfully',
+    statusCode: 200,
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Invalid request body',
+    statusCode: 400,
+  })
+  async rewatchHeartbeat(
+    @Body() body: RewatchHeartbeatBody,
+    @Ability(getProgressAbility) { user },
+  ): Promise<RewatchHeartbeatResponse> {
+    const userId = String(user._id);
+    const { rewatchId, ended } = body;
+
+    const result = await this.progressService.recordRewatchHeartbeat(
+      userId,
+      rewatchId,
+      ended,
+    );
+
+    return { rewatchId: result };
   }
   @OpenAPI({
     summary: 'Get Total Watch Time of User',

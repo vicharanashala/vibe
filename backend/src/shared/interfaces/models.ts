@@ -641,6 +641,34 @@ export interface IWatchTime {
 }
 
 /**
+ * One playback session of an item the learner has already completed.
+ *
+ * Kept apart from watchTime on purpose: completion is modelled as "a watchTime
+ * row with a non-null endTime", and view counts, watch hours and the orphan
+ * recovery job all read that collection, so a rewatch stored there would be
+ * mistaken for a first viewing.
+ */
+export interface IRewatchTime {
+  _id?: string | ObjectId | null;
+  userId: string | ObjectId;
+  courseId: string | ObjectId;
+  courseVersionId: string | ObjectId;
+  itemId: string | ObjectId;
+  cohortId?: ID;
+  startTime: Date;
+  lastSeenAt?: Date;
+  endTime?: Date;
+  // Incremented by each heartbeat. The player sends heartbeats only while the
+  // video is playing, so heartbeatCount x the heartbeat interval approximates
+  // played time with pauses left out.
+  heartbeatCount: number;
+  // Present when the learner arrived from a quiz screen, e.g. sent back to the
+  // video after a failed attempt.
+  quizId?: string | ObjectId;
+  attemptId?: string | ObjectId;
+}
+
+/**
  * Precomputed slice of a course version's enrollment statistics.
  *
  * Only average watch hours is stored. It is the one figure whose cost grows
