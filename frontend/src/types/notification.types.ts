@@ -95,7 +95,9 @@ export type SystemNotificationType =
   | 'policy_updated'
   | 'appeal_submitted'
   | 'appeal_approved'
-  | 'appeal_rejected';
+  | 'appeal_rejected'
+  // A student answered the same quiz question wrongly 3+ times in a row (#1109)
+  | 'student_struggling';
  
 export interface SystemNotification {
   _id: string;
@@ -117,6 +119,13 @@ export interface SystemNotification {
     studentId?: string;
     reason?: string;
     evidenceUrl?: string;
+    /** student_struggling only (#1109) */
+    studentName?: string;
+    questionTitle?: string;
+    failureCount?: number;
+    moduleName?: string;
+    sectionName?: string;
+    quizName?: string;
   };
 }
  
