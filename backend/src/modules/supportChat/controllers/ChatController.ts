@@ -24,6 +24,10 @@ import {
   RateQuestionBody,
   SupportQuestionPathParams,
 } from '../classes/validators/SupportChatValidators.js';
+import {
+  stringifyObjectIds,
+  WithStringIds,
+} from '../classes/transformers/index.js';
 
 // The app mounts routing-controllers with routePrefix '/api', so the prefix is
 // omitted here — declaring it would serve the routes at /api/api/support/chat.
@@ -38,13 +42,13 @@ export class ChatController {
     @CurrentUser() user: any,
     @Body() messageRequest: ChatMessageBody,
     @QueryParams() query: ChatMessageQuery
-  ): Promise<ChatMessageResponse> {
+  ): Promise<WithStringIds<ChatMessageResponse>> {
     const userId = new ObjectId(user.id);
     const courseId = query.courseId ? new ObjectId(query.courseId) : undefined;
     const courseVersionId = query.courseVersionId ? new ObjectId(query.courseVersionId) : undefined;
     const cohortId = query.cohortId ? new ObjectId(query.cohortId) : undefined;
 
-    return this.chatService.handleUserQuestion(
+    const response = await this.chatService.handleUserQuestion(
       userId,
       {
         question: messageRequest.question,
@@ -62,6 +66,9 @@ export class ChatController {
       courseVersionId,
       cohortId
     );
+
+    // The widget sends this questionId back to rate or escalate the answer.
+    return stringifyObjectIds(response);
   }
 
   @Get('/history')
@@ -76,7 +83,7 @@ export class ChatController {
     const questions = await this.chatService.getQuestionHistory(userId, limit);
 
     return {
-      questions,
+      questions: stringifyObjectIds(questions),
       total: questions.length,
     };
   }
@@ -109,7 +116,7 @@ export class ChatController {
       throw new ForbiddenError('Unauthorized');
     }
 
-    return question;
+    return stringifyObjectIds(question);
   }
 
   @Patch('/:questionId/rate')
@@ -122,7 +129,9 @@ export class ChatController {
     const qId2 = new ObjectId(params.questionId);
     await this.getOwnQuestion(qId2, user.id);
 
-    return await this.chatService.rateResolution(qId2, body.rating);
+    return stringifyObjectIds(
+      await this.chatService.rateResolution(qId2, body.rating),
+    );
   }
 
   /**
@@ -140,7 +149,9 @@ export class ChatController {
     const qId = new ObjectId(params.questionId);
     await this.getOwnQuestion(qId, user.id);
 
-    return await this.chatService.escalateQuestion(qId, body);
+    return stringifyObjectIds(
+      await this.chatService.escalateQuestion(qId, body),
+    );
   }
 
   /** Loads a question, refusing anything that is not the caller's own. */

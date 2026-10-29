@@ -34,6 +34,7 @@ import {
   SupportQuestionPathParams,
   UpdateFAQBody,
 } from '../classes/validators/SupportChatValidators.js';
+import {stringifyObjectIds} from '../classes/transformers/index.js';
 
 // '/api' comes from the app-level routePrefix; see ChatController.
 @JsonController('/admin/support')
@@ -106,7 +107,7 @@ export class AdminController {
 
     return {
       stats,
-      recentPending: openQuestions,
+      recentPending: stringifyObjectIds(openQuestions),
     };
   }
 
@@ -124,7 +125,7 @@ export class AdminController {
     });
 
     return {
-      questions,
+      questions: stringifyObjectIds(questions),
       total: questions.length,
     };
   }
@@ -141,7 +142,9 @@ export class AdminController {
     await this.authorizeQuestionAction(ability, qId, SupportChatActions.Respond);
 
     const adminUserId = new ObjectId(user.id);
-    return await this.adminService.respondToQuestion(qId, adminUserId, request);
+    return stringifyObjectIds(
+      await this.adminService.respondToQuestion(qId, adminUserId, request),
+    );
   }
 
   @Put('/questions/:questionId/resolve')
@@ -153,7 +156,9 @@ export class AdminController {
     const qId = new ObjectId(params.questionId);
     await this.authorizeQuestionAction(ability, qId, SupportChatActions.Respond);
 
-    return await this.adminService.markQuestionResolved(qId);
+    return stringifyObjectIds(
+      await this.adminService.markQuestionResolved(qId),
+    );
   }
 
   @Get('/faqs')
@@ -166,7 +171,7 @@ export class AdminController {
     const faqs = await this.adminService.getAllFAQs(query.category);
 
     return {
-      faqs,
+      faqs: stringifyObjectIds(faqs),
       total: faqs.length,
     };
   }
@@ -180,7 +185,7 @@ export class AdminController {
   ) {
     this.assertCanManageFAQs(ability);
     const adminUserId = new ObjectId(user.id);
-    return await this.adminService.createFAQ(
+    const created = await this.adminService.createFAQ(
       {
         ...faq,
         upvotes: 0,
@@ -190,6 +195,7 @@ export class AdminController {
       },
       adminUserId
     );
+    return stringifyObjectIds(created);
   }
 
   @Put('/faqs/:faqId')
@@ -201,7 +207,7 @@ export class AdminController {
   ) {
     this.assertCanManageFAQs(ability);
     const id = new ObjectId(params.faqId);
-    return await this.adminService.updateFAQ(id, updates);
+    return stringifyObjectIds(await this.adminService.updateFAQ(id, updates));
   }
 
   @Delete('/faqs/:faqId')
