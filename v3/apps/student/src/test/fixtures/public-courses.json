@@ -1,0 +1,37 @@
+{
+  "courses": [
+    {
+      "_id": {
+        "buffer": {
+          "type": "Buffer",
+          "data": [
+            106,
+            199,
+            106,
+            98,
+            229,
+            120,
+            186,
+            207,
+            160,
+            104,
+            139,
+            235
+          ]
+        }
+      },
+      "type": "COURSE",
+      "cohortId": null,
+      "cohortName": null,
+      "courseId": "6ac76a62e578bacfa0688be9",
+      "courseName": "Sample: Introduction to Algorithms",
+      "courseDescription": "Sorting, searching and the ideas behind efficient programs.",
+      "courseVersionId": "6ac76a62e578bacfa0688bea",
+      "versionName": "Version 1",
+      "versionDescription": "Local sample version"
+    }
+  ],
+  "currentPage": 1,
+  "totalPages": 1,
+  "totalDocuments": 1
+}

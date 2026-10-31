@@ -286,6 +286,30 @@ export class UserRepository implements IUserRepository {
    * @param session Optional MongoDB session
    * @returns Promise with array of user search results
    */
+  async getAllUsers(session?: ClientSession) {
+    await this.init();
+
+    const projection = {
+      _id: 1,
+      firstName: 1,
+      lastName: 1,
+      email: 1,
+      roles: 1,
+    };
+
+    const users = await this.usersCollection
+      .find({}, {session, projection})
+      .toArray();
+
+    return users.map(user => ({
+      _id: user._id as ObjectId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      roles: (user.roles ?? 'user') as 'admin' | 'user',
+    }));
+  }
+
   async searchUsers(searchTerm: string, session?: ClientSession) {
     await this.init();
 

@@ -677,6 +677,12 @@ export class ItemRepository implements IItemRepository {
         },
         { session },
       );
+    } else if (itemsGroup.items[itemIndex].type === ItemType.REFLECTION) {
+      await this.reflectionCollection.updateOne(
+        { _id: new ObjectId(itemId) },
+        { $set: { isDeleted: true, deletedAt: new Date() } },
+        { session },
+      );
     } else {
       throw new InternalServerError(
         `Unsupported item type: ${(itemsGroup.items[itemIndex] as any).type}`,

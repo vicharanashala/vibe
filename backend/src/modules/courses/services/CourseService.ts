@@ -140,6 +140,10 @@ class CourseService extends BaseService {
     });
   }
 
+  async listAllCourses(): Promise<Course[]> {
+    return (await this.courseRepo.getAllCourses()) as unknown as Course[];
+  }
+
   async readCourse(id: string): Promise<Course> {
     return this._withTransaction(async session => {
       const course = await this.courseRepo.read(id);

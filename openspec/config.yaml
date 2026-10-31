@@ -1,0 +1,45 @@
+schema: spec-driven
+
+context: |
+  Monorepo with three apps: backend/ (Express + routing-controllers API on MongoDB),
+  frontend/ (the current production web app), and v3/ (the new student app and
+  ViBe Studio: its own pnpm workspace with Nx, Vite, React 19, TanStack Router/Query
+  and shadcn). Organise capabilities by app, e.g. `v3/studio-users`, `backend/courses`.
+  v3 changes are frontend-only: they must not modify backend/. When a v3 change needs
+  backend behaviour that doesn't exist, say so in the proposal as a separate backend change.
+  v3 UI uses shadcn components only (toasts via sonner), never custom-built controls.
+
+rules:
+  tasks:
+    - For v3 work, each task group lands its Vitest + Testing Library tests; verify with `npx vitest run --root apps/student` and `npx tsc -b apps/student/tsconfig.app.json apps/student/tsconfig.spec.json` from v3/
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+# Example:
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing

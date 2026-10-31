@@ -1,0 +1,110 @@
+name: v3 and OpenSpec PR Checks Comment
+
+# Keeps one summary comment on each PR that touches v3 or OpenSpec, covering
+# the v3 Frontend Checks and OpenSpec Checks results for the PR's latest
+# commit, and updates it whenever either finishes. The author is mentioned
+# only when something needs fixing. The comment is built by
+# .github/scripts/pr-checks-comment.js.
+#
+# It runs from the default branch with write access, which fork PRs never
+# get, so it must never check out or execute PR code: it checks out only the
+# default branch's .github/scripts and reads the results the checks upload.
+
+on:
+  workflow_run:
+    workflows: ['v3 Frontend Checks', 'OpenSpec Checks']
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+# Both checks finish close together; one comment update at a time per commit
+# keeps them from each creating a comment.
+concurrency:
+  group: pr-checks-comment-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  comment:
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion != 'cancelled' &&
+      github.event.workflow_run.conclusion != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      # The default branch's comment builder, never the PR's.
+      - name: Checkout comment script (default branch)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Collect check results for this commit
+        run: |
+          collect() {  # <workflow file> <artifact name> <dir>
+            local info id status conclusion url
+            info=$(gh run list -R "$REPO" --workflow "$1" --commit "$HEAD_SHA" --event pull_request -L 1 \
+              --json databaseId,status,conclusion,url --jq '.[0] // empty | "\(.databaseId) \(.status) \(.conclusion) \(.url)"')
+            mkdir -p "$3"
+            if [ -z "$info" ]; then echo missing > "$3/state"; return; fi
+            read -r id status conclusion url <<< "$info"
+            echo "$url" > "$3/url"
+            if [ "$status" != completed ]; then echo running > "$3/state"; return; fi
+            echo "$conclusion" > "$3/state"
+            # Absent when the PR didn't touch this area (its checks job was skipped).
+            gh run download "$id" -R "$REPO" -n "$2" -D "$3/files" 2>/dev/null || true
+          }
+          collect v3-checks.yml v3-check-results "$RUNNER_TEMP/collected/v3"
+          collect openspec-checks.yml openspec-check-results "$RUNNER_TEMP/collected/openspec"
+          head -n1 "$RUNNER_TEMP"/collected/*/state
+
+      - name: Resolve PR
+        id: pr
+        run: |
+          PR=$(cat "$RUNNER_TEMP"/collected/*/files/pr-number 2>/dev/null | head -n1 || true)
+          if ! [[ "$PR" =~ ^[0-9]+$ ]]; then
+            echo "No PR number in the results (neither check ran); nothing to comment on."
+            exit 0
+          fi
+          # The artifacts are written by PR code, so confirm the number names
+          # the PR whose head is the commit these checks ran on.
+          read -r PR_SHA AUTHOR < <(gh api "repos/$REPO/pulls/$PR" --jq '"\(.head.sha) \(.user.login)"')
+          if [ "$PR_SHA" != "$HEAD_SHA" ]; then
+            echo "PR #$PR head is $PR_SHA, checks ran on $HEAD_SHA; skipping."
+            exit 0
+          fi
+          echo "number=$PR" >> "$GITHUB_OUTPUT"
+          echo "author=$AUTHOR" >> "$GITHUB_OUTPUT"
+
+      - name: Build comment
+        if: steps.pr.outputs.number
+        env:
+          AUTHOR: ${{ steps.pr.outputs.author }}
+        run: node .github/scripts/pr-checks-comment.js "$RUNNER_TEMP/collected" "$AUTHOR" "$RUNNER_TEMP/comment.md"
+
+      - name: Post or update comment
+        if: steps.pr.outputs.number
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          if [ ! -s "$RUNNER_TEMP/comment.md" ]; then
+            echo "Nothing to report for this commit."
+            exit 0
+          fi
+          EXISTING=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- pr-checks-report -->"))) | .id' | head -n1)
+          if [ -n "$EXISTING" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$EXISTING" -F body=@"$RUNNER_TEMP/comment.md" > /dev/null
+            echo "Updated comment $EXISTING on PR #$PR."
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@"$RUNNER_TEMP/comment.md" > /dev/null
+            echo "Commented on PR #$PR."
+          fi

@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/student-e2e"
+    },
+    {
+      "path": "./apps/student"
+    },
+    {
+      "path": "./packages/api"
+    },
+    {
+      "path": "./packages/proctoring"
+    }
+  ],
+  "compilerOptions": {}
+}

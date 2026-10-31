@@ -81,6 +81,7 @@ jobs:
             AI_SERVER_IP=${{ secrets.AI_SERVER_IP }}
             AI_SERVER_PORT=${{ secrets.AI_SERVER_PORT }}
             NODE_ENV=staging
+            FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}
             ENABLE_WATCHTIME_RECOVERY_JOB=${{ secrets.ENABLE_WATCHTIME_RECOVERY_JOB || 'false' }}
             APP_PORT=${{ secrets.APP_PORT }}
             APP_URL=${{ secrets.APP_URL }}
@@ -127,6 +128,7 @@ jobs:
             AI_SERVER_IP=${{ secrets.AI_SERVER_IP }}
             AI_SERVER_PORT=${{ secrets.AI_SERVER_PORT }}
             NODE_ENV=production
+            FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}
             ENABLE_WATCHTIME_RECOVERY_JOB=${{ secrets.ENABLE_WATCHTIME_RECOVERY_JOB || 'false' }}
             APP_PORT=${{ secrets.APP_PORT }}
             APP_URL=${{ secrets.APP_URL }}

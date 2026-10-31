@@ -3837,6 +3837,15 @@ function TeacherCourseContent() {
                             refetchItems();
                             refetchItem();
                           }}
+                          onDelete={() => {
+                            deleteItemAsync({
+                              params: { path: { courseId: courseId || "", itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                            }).then(() => {
+                              refetchVersion();
+                              refetchItems();
+                            });
+                            setSelectedEntity(null);
+                          }}
                         />
                       )}
 

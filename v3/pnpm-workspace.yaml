@@ -1,0 +1,12 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+allowBuilds:
+  nx: true
+  '@swc/core': true
+  esbuild: true
+  # Firebase's optional postinstall scripts aren't needed for a browser bundle.
+  '@firebase/util': false
+  protobufjs: false
+  # Its postinstall just prints a funding message — no build step needed for a browser bundle.
+  core-js: false

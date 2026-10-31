@@ -1,0 +1,127 @@
+{
+ "totalScore": 8,
+ "totalMaxScore": 10,
+ "gradingStatus": "PASSED",
+ "overallFeedback": [
+  {
+   "questionId": {
+    "buffer": {
+     "type": "Buffer",
+     "data": [
+      106,
+      198,
+      127,
+      180,
+      78,
+      199,
+      239,
+      23,
+      34,
+      138,
+      116,
+      49
+     ]
+    }
+   },
+   "status": "CORRECT",
+   "score": 2,
+   "answerFeedback": "Correct answer! Selected answer(s): O(1)."
+  },
+  {
+   "questionId": {
+    "buffer": {
+     "type": "Buffer",
+     "data": [
+      106,
+      198,
+      127,
+      181,
+      78,
+      199,
+      239,
+      23,
+      34,
+      138,
+      116,
+      55
+     ]
+    }
+   },
+   "status": "CORRECT",
+   "score": 2,
+   "answerFeedback": "Correct answer! Selected answer(s): A hash map."
+  },
+  {
+   "questionId": {
+    "buffer": {
+     "type": "Buffer",
+     "data": [
+      106,
+      198,
+      127,
+      183,
+      78,
+      199,
+      239,
+      23,
+      34,
+      138,
+      116,
+      65
+     ]
+    }
+   },
+   "status": "INCORRECT",
+   "score": 0,
+   "answerFeedback": "Incorrect. Expected a value between 7 and 7."
+  },
+  {
+   "questionId": {
+    "buffer": {
+     "type": "Buffer",
+     "data": [
+      106,
+      198,
+      127,
+      182,
+      78,
+      199,
+      239,
+      23,
+      34,
+      138,
+      116,
+      62
+     ]
+    }
+   },
+   "status": "CORRECT",
+   "score": 2,
+   "answerFeedback": "You got 2 out of 2 correct. Selected answer(s): Append to the end, Read by index."
+  },
+  {
+   "questionId": {
+    "buffer": {
+     "type": "Buffer",
+     "data": [
+      106,
+      198,
+      127,
+      183,
+      78,
+      199,
+      239,
+      23,
+      34,
+      138,
+      116,
+      71
+     ]
+    }
+   },
+   "status": "CORRECT",
+   "score": 2,
+   "answerFeedback": "Great job! You ordered all items correctly."
+  }
+ ]
+}
