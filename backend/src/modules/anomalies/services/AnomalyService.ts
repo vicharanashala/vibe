@@ -341,6 +341,12 @@ export class AnomalyService extends BaseService {
           case AnomalyType.PASTE_ATTEMPTED:
             stats.PASTE_ATTEMPTED++;
             break;
+          case AnomalyType.GAZE_AWAY:
+            stats.GAZE_AWAY++;
+            break;
+          case AnomalyType.FOREIGN_OBJECT:
+            stats.FOREIGN_OBJECT++;
+            break;
         }
       });
       return stats;

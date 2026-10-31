@@ -1,13 +1,17 @@
 // Types for AnomalyController
 
 export enum AnomalyType {
-  VOICE_DETECTION = 'voiceDetection',
-  NO_FACE = 'no_face',
-  MULTIPLE_FACES = 'multiple_faces',
+  // Values must match the backend AnomalyType enum exactly (the backend also
+  // tolerates the older camelCase spellings for already-deployed clients).
+  VOICE_DETECTION = 'VOICE_DETECTION',
+  NO_FACE = 'NO_FACE',
+  MULTIPLE_FACES = 'MULTIPLE_FACES',
   BLUR_DETECTION = 'BLUR_DETECTION',
-  FOCUS = 'focus',
-  HAND_GESTURE_DETECTION = 'handGestureDetection',
-  FACE_RECOGNITION = 'faceRecognition',
+  FOCUS = 'FOCUS',
+  HAND_GESTURE_DETECTION = 'HAND_GESTURE_DETECTION',
+  FACE_RECOGNITION = 'FACE_RECOGNITION',
+  GAZE_AWAY = 'GAZE_AWAY',
+  FOREIGN_OBJECT = 'FOREIGN_OBJECT',
 
   VIRTUAL_CAMERA = 'VIRTUAL_CAMERA',
 }

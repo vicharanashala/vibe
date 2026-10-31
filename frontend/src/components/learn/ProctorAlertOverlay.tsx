@@ -15,17 +15,29 @@ function copyFor(anomalies: string[]): { title: string; message: string } {
       message:
         "We detected a different or unrecognised face. Please make sure the registered learner is the one on camera — your lesson resumes automatically.",
     };
+  if (anomalies.includes("foreignObject"))
+    return {
+      title: "Foreign object detected",
+      message:
+        "A mobile phone was seen on camera. Please remove it from view. Your quiz/lesson has been restarted.",
+    };
   if (anomalies.includes("multipleFaces"))
     return {
       title: "Multiple people detected",
       message:
         "More than one person is visible. Please make sure you're alone in frame — your lesson resumes automatically.",
     };
+  if (anomalies.includes("gazeAway"))
+    return {
+      title: "Eyes off screen",
+      message:
+        "You looked away from the screen for too long, so the video restarted. Please keep your eyes on the lesson.",
+    };
   if (anomalies.includes("noFace") || anomalies.includes("faceCountDetection"))
     return {
       title: "Stay in frame",
       message:
-        "We can't see you. Please face the screen and stay in frame — your lesson resumes automatically.",
+        "We couldn't see you for more than 5 seconds, so the lesson restarted. Please face the screen and stay in frame — it resumes as soon as you're back.",
     };
   if (anomalies.includes("voiceDetection"))
     return {
