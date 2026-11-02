@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, ThumbsUp, ThumbsDown, Loader } from 'lucide-react';
-import MessageBubble from './MessageBubble';
+import MessageBubble, { type SupportChatMessage } from './MessageBubble';
 import EscalationForm from './EscalationForm';
 import useSupportChat from '@/hooks/useSupportChat';
 
@@ -11,19 +11,22 @@ interface ChatWindowProps {
   onNewMessage?: () => void;
 }
 
-interface Message {
-  id: string;
-  type: 'user' | 'bot';
-  text: string;
-  timestamp: Date;
-  faqId?: string;
-  isFromFAQ?: boolean;
-  confidence?: number;
-  isEscalated?: boolean;
-  source?: string;
-  canRate?: boolean;
-  questionId?: string;
-}
+/**
+ * One-tap starters for the most common issues. Each sends a question worded
+ * like its FAQ, so it is answered from the FAQ bank directly.
+ */
+const QUICK_TOPICS: Array<{ label: string; question: string }> = [
+  { label: 'Login & enrollment', question: 'How do I log in to ViBe?' },
+  { label: 'Video stuck or repeating', question: 'Why are videos stuck or repeating?' },
+  {
+    label: 'Camera & proctoring',
+    question: "Is the ViBe consent form compulsory? What if I don't want to grant camera access?",
+  },
+  {
+    label: 'Progress not 100%',
+    question: 'I have completed all videos and quizzes, but my progress is still showing less than 100%. What should I do?',
+  },
+];
 
 export default function ChatWindow({
   courseId,
@@ -31,10 +34,12 @@ export default function ChatWindow({
   cohortId,
   onNewMessage,
 }: ChatWindowProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<SupportChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [ratedQuestionIds, setRatedQuestionIds] = useState<Set<string>>(new Set());
+  // Answers the learner marked "Not helpful": they get the issue-report form.
+  const [reportQuestionIds, setReportQuestionIds] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { sendMessage, rateResolution } = useSupportChat();
 
@@ -44,25 +49,16 @@ export default function ChatWindow({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, loading]);
 
-  useEffect(() => {
-    // Load chat history on mount
-    const loadHistory = async () => {
-      // TODO: Implement history loading from API
-    };
-    loadHistory();
-  }, []);
+  const sendQuestion = async (rawQuestion: string) => {
+    const question = rawQuestion.trim();
+    if (!question || loading) return;
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!input.trim() || loading) return;
-
-    const userMessage: Message = {
+    const userMessage: SupportChatMessage = {
       id: `msg-${Date.now()}`,
       type: 'user',
-      text: input,
+      text: question,
       timestamp: new Date(),
     };
 
@@ -72,30 +68,27 @@ export default function ChatWindow({
     onNewMessage?.();
 
     try {
-      const response = await sendMessage(
-        input,
-        courseId,
-        courseVersionId,
-        cohortId
-      );
+      const response = await sendMessage(question, courseId, courseVersionId, cohortId);
 
-      const botMessage: Message = {
+      const botMessage: SupportChatMessage = {
         id: `msg-${Date.now()}-bot`,
         type: 'bot',
         text: response.response,
         timestamp: new Date(),
         faqId: response.faqId,
         isFromFAQ: response.isFromFAQ,
+        isAIGenerated: response.isAIGenerated,
         confidence: response.confidence,
         isEscalated: response.isEscalated,
         source: response.source,
-        canRate: response.isFromFAQ,
+        canRate: response.isFromFAQ || Boolean(response.isAIGenerated),
         questionId: response.questionId,
       };
 
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
-      const errorMessage: Message = {
+      console.error('Support chat request failed:', error);
+      const errorMessage: SupportChatMessage = {
         id: `msg-${Date.now()}-error`,
         type: 'bot',
         text: 'Sorry, something went wrong. Please try again.',
@@ -107,6 +100,11 @@ export default function ChatWindow({
     }
   };
 
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    void sendQuestion(input);
+  };
+
   const handleRate = async (
     questionId: string | undefined,
     rating: 'helpful' | 'not_helpful'
@@ -116,33 +114,43 @@ export default function ChatWindow({
     try {
       await rateResolution(questionId, rating);
       setRatedQuestionIds((prev) => new Set([...prev, questionId]));
+      if (rating === 'not_helpful') {
+        setReportQuestionIds((prev) => new Set([...prev, questionId]));
+      }
     } catch (error) {
       console.error('Failed to rate resolution:', error);
     }
   };
 
   return (
-    <div className='flex flex-col h-full'>
+    <div className='flex h-full flex-col'>
       {/* Header */}
-      <div className='bg-blue-600 text-white px-4 py-3 rounded-t-lg'>
-        <h3 className='font-semibold text-sm'>Support Assistant</h3>
-        <p className='text-xs opacity-90'>Ask about technical issues</p>
+      <div className='rounded-t-xl bg-primary px-4 py-3 text-primary-foreground'>
+        <h3 className='text-sm font-semibold'>Support Assistant</h3>
+        <p className='text-xs opacity-80'>Answers from ViBe's FAQs, with AI help</p>
       </div>
 
       {/* Messages Container */}
-      <div className='flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50'>
+      <div className='flex-1 space-y-3 overflow-y-auto bg-background p-4'>
         {messages.length === 0 && (
-          <div className='h-full flex items-center justify-center text-center'>
-            <div className='space-y-2'>
-              <p className='text-sm text-gray-600'>
-                👋 Welcome! Ask me anything about:
+          <div className='flex h-full flex-col items-center justify-center gap-4 text-center'>
+            <div className='space-y-1'>
+              <p className='text-sm font-medium text-foreground'>👋 Hi! How can I help?</p>
+              <p className='text-xs text-muted-foreground'>
+                Pick a common issue or type your own question, in English or Hinglish.
               </p>
-              <ul className='text-xs text-gray-500 space-y-1'>
-                <li>• Login & enrollment issues</li>
-                <li>• Video playback problems</li>
-                <li>• Proctoring requirements</li>
-                <li>• Course navigation</li>
-              </ul>
+            </div>
+            <div className='flex flex-wrap justify-center gap-2'>
+              {QUICK_TOPICS.map((topic) => (
+                <button
+                  key={topic.label}
+                  type='button'
+                  onClick={() => void sendQuestion(topic.question)}
+                  className='rounded-full border border-border bg-card px-3 py-1.5 text-xs text-card-foreground transition-colors hover:border-primary hover:text-primary'
+                >
+                  {topic.label}
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -152,36 +160,42 @@ export default function ChatWindow({
             <MessageBubble message={msg} />
 
             {msg.canRate && msg.questionId && !ratedQuestionIds.has(msg.questionId) && (
-              <div className='flex gap-2 ml-8 mt-2'>
+              <div className='ml-2 flex gap-2'>
                 <button
                   onClick={() => handleRate(msg.questionId, 'helpful')}
-                  className='inline-flex items-center gap-1 text-xs bg-white border border-gray-300 rounded px-2 py-1 hover:bg-green-50 hover:border-green-400 text-gray-600'
+                  className='inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-green-500 hover:text-green-600'
                 >
-                  <ThumbsUp className='w-3 h-3' />
+                  <ThumbsUp className='h-3 w-3' />
                   Helpful
                 </button>
                 <button
                   onClick={() => handleRate(msg.questionId, 'not_helpful')}
-                  className='inline-flex items-center gap-1 text-xs bg-white border border-gray-300 rounded px-2 py-1 hover:bg-red-50 hover:border-red-400 text-gray-600'
+                  className='inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-destructive hover:text-destructive'
                 >
-                  <ThumbsDown className='w-3 h-3' />
+                  <ThumbsDown className='h-3 w-3' />
                   Not helpful
                 </button>
               </div>
             )}
 
-            {msg.isEscalated && msg.questionId && (
-              <EscalationForm questionId={msg.questionId} page={window.location.pathname} />
+            {msg.questionId && (msg.isEscalated || reportQuestionIds.has(msg.questionId)) && (
+              <EscalationForm
+                questionId={msg.questionId}
+                page={window.location.pathname}
+                notice={
+                  msg.isEscalated
+                    ? undefined
+                    : "Sorry that didn't help. Tell the support team what's going on."
+                }
+              />
             )}
           </div>
         ))}
 
         {loading && (
-          <div className='flex gap-2'>
-            <div className='w-8 h-8 rounded-lg bg-gray-300 flex items-center justify-center'>
-              <Loader className='w-4 h-4 animate-spin text-gray-600' />
-            </div>
-            <div className='text-xs text-gray-500 self-center'>Searching for answer...</div>
+          <div className='flex items-center gap-2 text-xs text-muted-foreground'>
+            <Loader className='h-4 w-4 animate-spin text-primary' />
+            Looking for an answer…
           </div>
         )}
 
@@ -191,7 +205,7 @@ export default function ChatWindow({
       {/* Input Form */}
       <form
         onSubmit={handleSendMessage}
-        className='border-t border-gray-200 p-3 bg-white rounded-b-lg'
+        className='rounded-b-xl border-t border-border bg-card p-3'
       >
         <div className='flex gap-2'>
           <input
@@ -200,14 +214,16 @@ export default function ChatWindow({
             onChange={(e) => setInput(e.target.value)}
             placeholder='Type your question...'
             disabled={loading}
-            className='flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100'
+            maxLength={1000}
+            className='flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60'
           />
           <button
             type='submit'
             disabled={loading || !input.trim()}
-            className='px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+            aria-label='Send question'
+            className='rounded-md bg-primary px-3 py-2 text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
           >
-            <Send className='w-4 h-4' />
+            <Send className='h-4 w-4' />
           </button>
         </div>
       </form>

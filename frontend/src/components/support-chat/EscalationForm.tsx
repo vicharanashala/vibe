@@ -7,6 +7,8 @@ interface EscalationFormProps {
   questionId: string;
   /** The page the learner was on, shown so they know it travels with the report. */
   page?: string;
+  /** Replaces the default "a team member will review this" line, e.g. after a "Not helpful" rating. */
+  notice?: string;
   onSubmitted?: () => void;
 }
 
@@ -28,6 +30,7 @@ const MIN_DETAIL_LENGTH = 10;
 export default function EscalationForm({
   questionId,
   page,
+  notice,
   onSubmitted,
 }: EscalationFormProps) {
   const [open, setOpen] = useState(false);
@@ -65,7 +68,7 @@ export default function EscalationForm({
 
   if (submitted) {
     return (
-      <div className='ml-8 rounded border border-green-200 bg-green-50 p-3 text-xs text-green-800'>
+      <div className='ml-2 rounded-md border border-green-500/30 bg-green-500/10 p-3 text-xs text-green-700 dark:text-green-400'>
         <CheckCircle2 className='mr-1 inline h-3 w-3' />
         Reported. The support team can see your issue and will get back to you.
       </div>
@@ -74,15 +77,15 @@ export default function EscalationForm({
 
   if (!open) {
     return (
-      <div className='ml-8 space-y-2 rounded border-l-2 border-blue-400 bg-blue-50 p-2 text-xs text-blue-700'>
+      <div className='ml-2 space-y-2 rounded-md border-l-2 border-primary bg-primary/10 p-2 text-xs text-foreground'>
         <p>
           <AlertCircle className='mr-1 inline h-3 w-3' />
-          A support team member will review this shortly.
+          {notice ?? 'A support team member will review this shortly.'}
         </p>
         <button
           type='button'
           onClick={() => setOpen(true)}
-          className='rounded border border-blue-300 bg-white px-2 py-1 font-medium text-blue-700 transition-colors hover:bg-blue-100'
+          className='rounded-md border border-primary/50 bg-card px-2 py-1 font-medium text-primary transition-colors hover:bg-primary/10'
         >
           Report a technical issue
         </button>
@@ -93,11 +96,11 @@ export default function EscalationForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className='ml-8 space-y-3 rounded border border-gray-200 bg-white p-3'
+      className='ml-2 space-y-3 rounded-md border border-border bg-card p-3 text-card-foreground'
     >
       <div>
-        <p className='text-xs font-semibold text-gray-800'>Report a technical issue</p>
-        <p className='mt-0.5 text-[11px] text-gray-500'>
+        <p className='text-xs font-semibold'>Report a technical issue</p>
+        <p className='mt-0.5 text-[11px] text-muted-foreground'>
           {page ? `We'll include the page you're on (${page}).` : 'Tell us what went wrong.'}
         </p>
       </div>
@@ -105,7 +108,7 @@ export default function EscalationForm({
       <div>
         <label
           htmlFor='escalation-category'
-          className='mb-1 block text-[11px] font-medium text-gray-700'
+          className='mb-1 block text-[11px] font-medium text-muted-foreground'
         >
           What kind of issue is it?
         </label>
@@ -114,7 +117,7 @@ export default function EscalationForm({
           value={category}
           onChange={(e) => setCategory(e.target.value as FAQCategory)}
           disabled={submitting}
-          className='w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100'
+          className='w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60'
         >
           {CATEGORY_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -127,7 +130,7 @@ export default function EscalationForm({
       <div>
         <label
           htmlFor='escalation-details'
-          className='mb-1 block text-[11px] font-medium text-gray-700'
+          className='mb-1 block text-[11px] font-medium text-muted-foreground'
         >
           What happened?
         </label>
@@ -139,14 +142,14 @@ export default function EscalationForm({
           disabled={submitting}
           rows={3}
           maxLength={2000}
-          className='w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100'
+          className='w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60'
         />
       </div>
 
       <div>
         <label
           htmlFor='escalation-email'
-          className='mb-1 block text-[11px] font-medium text-gray-700'
+          className='mb-1 block text-[11px] font-medium text-muted-foreground'
         >
           Contact email (optional)
         </label>
@@ -157,17 +160,17 @@ export default function EscalationForm({
           onChange={(e) => setContactEmail(e.target.value)}
           placeholder='Only if it differs from your account email'
           disabled={submitting}
-          className='w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100'
+          className='w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60'
         />
       </div>
 
-      {error && <p className='text-[11px] text-red-600'>{error}</p>}
+      {error && <p className='text-[11px] text-destructive'>{error}</p>}
 
       <div className='flex gap-2'>
         <button
           type='submit'
           disabled={submitting || details.trim().length < MIN_DETAIL_LENGTH}
-          className='inline-flex items-center gap-1 rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50'
+          className='inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
         >
           {submitting ? (
             <Loader className='h-3 w-3 animate-spin' />
@@ -180,7 +183,7 @@ export default function EscalationForm({
           type='button'
           onClick={() => setOpen(false)}
           disabled={submitting}
-          className='rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-600 transition-colors hover:bg-gray-50'
+          className='rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted'
         >
           Cancel
         </button>
