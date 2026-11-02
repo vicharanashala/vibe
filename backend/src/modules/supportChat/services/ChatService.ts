@@ -7,17 +7,27 @@ import {
   SupportQuestionStatus,
   SUPPORT_CHAT_TYPES,
   ChatMessageRequest,
+  SUPPORT_CHAT_AI_CONFIG,
 } from '../types.js';
 import { FAQRetrievalService } from './FAQRetrievalService.js';
+import {SupportAnswerGenerator} from './SupportAnswerGenerator.js';
 import { FAQRepository } from '../repositories/providers/mongodb/index.js';
 import { SupportQuestionRepository } from '../repositories/providers/mongodb/index.js';
+
+const ESCALATION_MESSAGE =
+  "I'm not sure about that. Let me connect you with our support team. They'll review your question and get back to you soon.";
+
 @injectable()
 export class ChatService {
 
   constructor(
     @inject(SUPPORT_CHAT_TYPES.FAQRetrievalService) private faqRetrieval: FAQRetrievalService,
     @inject(SUPPORT_CHAT_TYPES.FAQRepo) private faqRepo: FAQRepository,
-    @inject(SUPPORT_CHAT_TYPES.SupportQuestionRepo) private questionRepo: SupportQuestionRepository
+    @inject(SUPPORT_CHAT_TYPES.SupportQuestionRepo)
+    private questionRepo: SupportQuestionRepository,
+    // Optional so the service still works, FAQ-only, where no generator is wired.
+    @inject(SUPPORT_CHAT_TYPES.SupportAnswerGenerator)
+    private answerGenerator?: SupportAnswerGenerator,
   ) {}
 
   async handleUserQuestion(
@@ -65,13 +75,38 @@ export class ChatService {
         };
       }
 
-      // No FAQ match - escalate to admin. The status has to be persisted, not
-      // just reported in the response, or the question is indistinguishable
-      // from an answered one in the admin queue.
+      // No confident FAQ match. Before escalating, let the model try to answer
+      // from the FAQs — most misses are the right FAQ asked in other words.
+      const aiAnswer = await this.tryAIAnswer(messageRequest.question);
+
+      if (aiAnswer) {
+        const primaryFaq = aiAnswer.faqs[0];
+        await this.questionRepo.setAIAnswer(
+          question._id!,
+          primaryFaq._id!,
+          aiAnswer.answer,
+        );
+        await this.faqRepo.incrementUsageCount(primaryFaq._id!);
+
+        return {
+          response: aiAnswer.answer,
+          confidence: 0,
+          faqId: primaryFaq._id,
+          isFromFAQ: false,
+          isAIGenerated: true,
+          isEscalated: false,
+          questionId: question._id!,
+          source: `AI answer based on our FAQ: "${primaryFaq.question}"`,
+        };
+      }
+
+      // Nothing to answer from - escalate to admin. The status has to be
+      // persisted, not just reported in the response, or the question is
+      // indistinguishable from an answered one in the admin queue.
       await this.questionRepo.updateStatus(question._id!, SupportQuestionStatus.ESCALATED);
 
       return {
-        response: "I'm not sure about that. Let me connect you with our support team. They'll review your question and get back to you soon.",
+        response: ESCALATION_MESSAGE,
         confidence: 0,
         isFromFAQ: false,
         isEscalated: true,
@@ -80,6 +115,24 @@ export class ChatService {
     } catch (error) {
       console.error('Error handling user question', error);
       throw error;
+    }
+  }
+
+  /** A grounded model answer, or null to escalate. Never throws. */
+  private async tryAIAnswer(question: string) {
+    if (!this.answerGenerator?.isAvailable()) return null;
+
+    try {
+      const {maxContextFaqs, maxContextChars} = SUPPORT_CHAT_AI_CONFIG;
+      const candidates = await this.faqRetrieval.rankForContext(
+        question,
+        maxContextFaqs,
+        maxContextChars,
+      );
+      return await this.answerGenerator.generate(question, candidates);
+    } catch (error) {
+      console.error('AI fallback failed, escalating', error);
+      return null;
     }
   }
 
