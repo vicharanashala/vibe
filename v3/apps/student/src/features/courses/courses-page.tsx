@@ -11,7 +11,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { CourseCover, ProgressBar, percentOf } from './course-ui';
+import { CourseCover, ProgressBar, StudyProgressSummary, percentOf } from './course-ui';
 import { useEnrollments } from './queries';
 
 type Tab = 'active' | 'archived';
@@ -102,6 +102,7 @@ export function CoursesPage() {
                               {total > 0 && <span>{total} lessons</span>}
                             </div>
                             <ProgressBar value={pct} label={`${e.course.name} progress`} />
+                            <StudyProgressSummary courseId={e.courseId} versionId={e.courseVersionId} variant="compact" className="mt-2" />
                           </div>
                         </CardContent>
                       </Card>

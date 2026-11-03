@@ -115,6 +115,7 @@ import { QuizRunner } from './quiz';
 import { useIncidentReporter } from './incident-reporter';
 import { useAfterQuizSubmit } from './quiz-api';
 import { YouTubePlayer } from './youtube-player';
+import { useStudyViewRecorder } from './use-study-view-recorder';
 
 const HEARTBEAT_MS = 30_000;
 const VIEWABLE = new Set(['VIDEO', 'BLOG', 'FEEDBACK']);
@@ -1072,6 +1073,8 @@ function BlueLesson({
   progress: number;
 }) {
   // Study mode runs no proctoring at all — not even a camera check.
+  // It does record study views (not strict progress) for study progress.
+  const onPlayingChange = useStudyViewRecorder(ref, item);
   const version = useCourseVersion(ref.versionId);
   const { items } = useFlatSyllabus(version.data);
   const index = items.findIndex((i) => i._id === ref.itemId);
@@ -1109,7 +1112,7 @@ function BlueLesson({
             <span />
           )}
           <p className="hidden text-xs text-muted-foreground sm:block">
-            Study mode · not saved to your progress
+            Study mode · doesn’t count towards your strict progress
           </p>
           {next ? (
             <Link {...linkTo(next)} className={buttonVariants({ size: 'lg' })}>
@@ -1127,7 +1130,7 @@ function BlueLesson({
         </>
       }
     >
-      <LessonContent item={item} allowSeekForward />
+      <LessonContent item={item} allowSeekForward onPlayingChange={onPlayingChange} />
     </LessonFrame>
   );
 }

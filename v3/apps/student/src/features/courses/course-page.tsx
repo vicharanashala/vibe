@@ -15,7 +15,8 @@ import { resolveStudyMode, type StudyModeNode } from '@/features/study-mode/stud
 import { TRACKS, useCourseTrack, type Track } from '@/features/learn/tracks';
 import { cn } from '@/lib/utils';
 
-import { CourseCover, ProgressBar, itemTypeMeta } from './course-ui';
+import { CourseCover, ProgressBar, StudyProgressSummary, itemTypeMeta } from './course-ui';
+import { useStudyProgress } from '@/features/learn/queries';
 import { CourseSwitcher } from './course-switcher';
 import {
   useCourseVersion,
@@ -37,6 +38,8 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
   const moduleProgress = useModuleProgress(courseId, versionId);
   const consent = useEthicsConsent(courseId, versionId);
   const [track, setTrack] = useCourseTrack(versionId);
+  const study = useStudyProgress(courseId, versionId);
+  const studied = new Set(study.data?.studiedItemIds ?? []);
   // The course name/description live on the enrolment, not the version.
   const enrollment = useEnrollments('active').data?.enrollments.find((e) => e.courseVersionId === versionId);
 
@@ -121,6 +124,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
               </span>
             </div>
             <ProgressBar value={pct} label="Course progress" />
+            <StudyProgressSummary courseId={courseId} versionId={versionId} className="mt-3" />
           </div>
         )}
 
@@ -161,6 +165,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
                 courseId={courseId}
                 versionId={versionId}
                 track={track}
+                studied={studied}
                 currentPath={path.data}
                 progress={moduleProgress.data?.find((p) => p.moduleId === m.moduleId)}
               />
@@ -179,6 +184,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
               {Math.round(pct)}% complete
               {percentage.data && ` · ${percentage.data.completedItems} of ${percentage.data.totalItems} lessons`}
             </p>
+            <StudyProgressSummary courseId={courseId} versionId={versionId} className="mt-4" />
           </CardContent>
         </Card>
         <Card size="sm">
@@ -207,6 +213,7 @@ function ModuleBlock({
   courseId,
   versionId,
   track,
+  studied,
   currentPath,
   progress,
 }: {
@@ -215,6 +222,7 @@ function ModuleBlock({
   courseId: string;
   versionId: string;
   track: Track;
+  studied: Set<string>;
   currentPath?: CurrentPath;
   progress?: { totalItems: number; completedItems: number };
 }) {
@@ -242,6 +250,7 @@ function ModuleBlock({
             courseId={courseId}
             versionId={versionId}
             track={track}
+            studied={studied}
             moduleId={m.moduleId}
             sectionId={s.sectionId}
             studyParents={{ module: m, section: s }}
@@ -259,6 +268,7 @@ function SectionBlock({
   courseId,
   versionId,
   track,
+  studied,
   moduleId,
   sectionId,
   studyParents,
@@ -269,6 +279,8 @@ function SectionBlock({
   courseId: string;
   versionId: string;
   track: Track;
+  /** Lessons that count towards study progress (studied, or completed in strict mode). */
+  studied: Set<string>;
   moduleId: string;
   sectionId: string;
   /** The section and module, for resolving each item's study-mode setting. */
@@ -322,6 +334,11 @@ function SectionBlock({
                   <span className="grid size-6 place-items-center rounded-full bg-emerald-600 text-white" title="Completed">
                     <CheckIcon className="size-3.5" aria-hidden />
                     <span className="sr-only">Completed</span>
+                  </span>
+                ) : track === 'blue' && studied.has(item._id) ? (
+                  <span className="grid size-6 place-items-center rounded-full bg-sky-500 text-white" title="Studied">
+                    <CheckIcon className="size-3.5" aria-hidden />
+                    <span className="sr-only">Studied</span>
                   </span>
                 ) : strictOnly ? (
                   <LockIcon className="size-4 text-muted-foreground/60" aria-label="Strict mode only" />

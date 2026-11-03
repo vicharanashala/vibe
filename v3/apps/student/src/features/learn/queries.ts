@@ -188,3 +188,42 @@ export function youtubeId(url?: string): string | null {
   const m = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
   return m?.[1] ?? null;
 }
+
+/** A student's study progress (spec backend/study-progress): covered ÷ study-allowed videos and articles. */
+export interface StudyProgress {
+  studiedItems: number;
+  totalItems: number;
+  percentStudied: number;
+  studiedItemIds: string[];
+}
+
+export const studyKeys = {
+  progress: (courseId: string, versionId: string) => ['study-progress', courseId, versionId] as const,
+};
+
+export function useStudyProgress(courseId: string, versionId: string, enabled = true) {
+  return useQuery({
+    queryKey: studyKeys.progress(courseId, versionId),
+    enabled: enabled && !!courseId && !!versionId,
+    staleTime: 60_000,
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/users/progress/courses/{courseId}/versions/{versionId}/study-progress', {
+          params: { path: { courseId, versionId } },
+        }),
+      ) as unknown as StudyProgress,
+  });
+}
+
+/**
+ * Marks a video or article as studied in study mode. Never touches strict
+ * progress; a repeat is harmless (the backend keeps the first time).
+ */
+export async function recordStudyView(r: LessonRef): Promise<void> {
+  unwrap(
+    await api.POST('/api/users/progress/courses/{courseId}/versions/{versionId}/study-views', {
+      params: { path: { courseId: r.courseId, versionId: r.versionId } },
+      body: { itemId: r.itemId, moduleId: r.moduleId, sectionId: r.sectionId },
+    }),
+  );
+}

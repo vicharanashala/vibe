@@ -158,6 +158,7 @@ export function CoursePeople({
                   <TableHead className="hidden md:table-cell">
                     Progress
                   </TableHead>
+                  <TableHead className="hidden md:table-cell">Study</TableHead>
                   <TableHead className="hidden sm:table-cell">Status</TableHead>
                   <TableHead className="hidden pr-4 text-right sm:table-cell">
                     Joined
@@ -195,6 +196,18 @@ export function CoursePeople({
                             {Math.round(e.progress ?? 0)}%
                           </span>
                         </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {e.role === 'STUDENT' && e.studyProgress ? (
+                        <span
+                          className="text-xs text-sky-700 tabular-nums dark:text-sky-300"
+                          title={`${e.studyProgress.studiedItems} of ${e.studyProgress.totalItems} videos & articles studied or completed`}
+                        >
+                          {e.studyProgress.percentStudied}%
+                        </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}

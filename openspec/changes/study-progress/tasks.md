@@ -37,15 +37,15 @@ Backend first (groups 1–2), then v3 (groups 3–4).
 
 ## 3. v3 student app
 
-- [ ] 3.1 Regenerate the API types against the backend from group 2.
-- [ ] 3.2 Add `useStudyProgress(courseId, versionId)` and `recordStudyView(ref)` in `features/learn/queries.ts`. A successful record invalidates the study-progress query.
-- [ ] 3.3 Add the `useStudyViewRecorder(ref, item)` hook (design decision 4), used by `BlueLesson`:
+- [x] 3.1 Regenerate the API types against the backend from group 2.
+- [x] 3.2 Add `useStudyProgress(courseId, versionId)` and `recordStudyView(ref)` in `features/learn/queries.ts`. A successful record invalidates the study-progress query.
+- [x] 3.3 Add the `useStudyViewRecorder(ref, item)` hook (design decision 4), used by `BlueLesson`:
   - articles record on mount;
   - videos record after `min(10, clipLength)` seconds of playing time, counted from `onPlayingChange`;
   - once per visit, failures silent.
 
   Test it with fake timers: an article records once; a video records after 10 s of playing in two pieces, not after 9 s or while paused, records a 6 s clip at 6 s, and makes no call in strict mode.
-- [ ] 3.4 Show study progress:
+- [x] 3.4 Show study progress:
   - the study line and bar on the course page;
   - sky-coloured "studied" checks in the study outline, from `studiedItemIds`;
   - "Study N%" on course cards, via `useStudyProgress` per card;
@@ -55,7 +55,7 @@ Backend first (groups 1–2), then v3 (groups 3–4).
 
 ## 4. v3 Studio
 
-- [ ] 4.1 Add a "Study" column to the People table in `features/admin/course-people.tsx`, from `studyProgress.percentStudied` ("—" for non-students), hidden on small screens like the existing Progress column. Test that a student row shows the percentage and an instructor row shows "—". Run the full v3 checks (`nx run-many -t lint typecheck --projects=student,api,proctoring` plus vitest) and confirm they pass.
+- [x] 4.1 Add a "Study" column to the People table in `features/admin/course-people.tsx`, from `studyProgress.percentStudied` ("—" for non-students), hidden on small screens like the existing Progress column. Test that a student row shows the percentage and an instructor row shows "—". Run the full v3 checks (`nx run-many -t lint typecheck --projects=student,api,proctoring` plus vitest) and confirm they pass.
 
 ## 5. End-to-end check
 
