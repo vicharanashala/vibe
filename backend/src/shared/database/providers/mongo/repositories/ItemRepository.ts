@@ -123,6 +123,18 @@ export class ItemRepository implements IItemRepository {
     );
   }
 
+  async readItemsGroupsByIds(
+    itemsGroupIds: string[],
+    session?: ClientSession,
+  ): Promise<ItemsGroup[]> {
+    await this.init();
+    const ids = itemsGroupIds.filter(id => ObjectId.isValid(id));
+    if (ids.length === 0) return [];
+    return (await this.itemsGroupCollection
+      .find({_id: {$in: ids.map(id => new ObjectId(id))}} as any, {session})
+      .toArray()) as ItemsGroup[];
+  }
+
   async readItemsGroup(
     itemsGroupId: string | any,
     session?: ClientSession,

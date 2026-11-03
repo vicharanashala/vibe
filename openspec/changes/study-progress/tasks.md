@@ -6,13 +6,13 @@ Backend first (groups 1–2), then v3 (groups 3–4).
 
 ## 1. Backend: study views and study progress
 
-- [ ] 1.1 Add the `studyViews` repository:
+- [x] 1.1 Add the `studyViews` repository:
   - model `{ userId, courseId, courseVersionId, itemId, firstStudiedAt }` with a unique index on `{ userId, courseVersionId, itemId }`, created in `init`;
   - `recordView` (upsert with `$setOnInsert`) and `findViews(courseVersionId, userIds, itemIds)`;
   - `ItemRepository.readItemsGroupsByIds`, a raw `$in` find that keeps `studyModeEnabled` on the refs.
 
   Verify with repository tests: recording twice keeps one document and the first time; `findViews` filters by users and items.
-- [ ] 1.2 Add the study-progress calculation (`forUsers(courseId, versionId, users)`, design decision 2):
+- [x] 1.2 Add the study-progress calculation (`forUsers(courseId, versionId, users)`, design decision 2):
   - eligible = visible `VIDEO`/`BLOG` refs where `resolveStudyMode` allows;
   - covered = eligible ∩ (study views ∪ `getCompletedItems` with the enrollment's cohort);
   - rounded percentage, and 0 of 0 gives 0%.
@@ -21,13 +21,13 @@ Backend first (groups 1–2), then v3 (groups 3–4).
 
 ## 2. Backend: endpoints and teacher list
 
-- [ ] 2.1 Add the two endpoints to `ProgressController` with their validators and OpenAPI schemas:
+- [x] 2.1 Add the two endpoints to `ProgressController` with their validators and OpenAPI schemas:
   - `POST /users/progress/courses/:courseId/versions/:versionId/study-views` (body `{itemId, moduleId, sectionId}`);
   - `GET /users/progress/courses/:courseId/versions/:versionId/study-progress`.
 
   Rules (design decision 3): only the caller's own enrollment; the item must be in that section of the version; 400 for non-video/article items; 403 `STUDY_MODE_DISABLED`; instructors get `{recorded: false}`.
-- [ ] 2.2 Add `studyProgress` to STUDENT entries of `GET /users/enrollments/courses/:courseId/versions/:versionId` (`null` for other roles), computed with one `forUsers` call per page. Leave `progress` unchanged.
-- [ ] 2.3 Add integration tests in a new `backend/src/modules/users/tests/StudyProgress.test.ts`, using the authenticated harness of `courses/tests/StudyMode.test.ts`, covering every scenario in `specs/backend/study-progress`:
+- [x] 2.2 Add `studyProgress` to STUDENT entries of `GET /users/enrollments/courses/:courseId/versions/:versionId` (`null` for other roles), computed with one `forUsers` call per page. Leave `progress` unchanged.
+- [x] 2.3 Add integration tests in a new `backend/src/modules/users/tests/StudyProgress.test.ts`, using the authenticated harness of `courses/tests/StudyMode.test.ts`, covering every scenario in `specs/backend/study-progress`:
   - record and re-record;
   - quiz → 400, disabled → 403, not enrolled, other version → 404, instructor not stored;
   - the progress read, with strict progress unchanged;

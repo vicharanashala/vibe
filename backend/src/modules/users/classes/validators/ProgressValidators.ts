@@ -829,7 +829,70 @@ export class UpsertWatchTimeResponse {
   watchItemId: string;
 }
 
+export class StudyViewBody {
+  @JSONSchema({description: 'The video or article studied', type: 'string'})
+  @IsMongoId()
+  @IsNotEmpty()
+  itemId: string;
+
+  @JSONSchema({description: 'Module containing the item', type: 'string'})
+  @IsMongoId()
+  @IsNotEmpty()
+  moduleId: string;
+
+  @JSONSchema({description: 'Section containing the item', type: 'string'})
+  @IsMongoId()
+  @IsNotEmpty()
+  sectionId: string;
+}
+
+export class StudyViewResponse {
+  @JSONSchema({
+    description:
+      "Whether a study view was stored. False for non-students (instructors, TAs), whose study isn't tracked.",
+    type: 'boolean',
+    readOnly: true,
+  })
+  recorded: boolean;
+}
+
+export class StudyProgressResponse {
+  @JSONSchema({
+    description:
+      'Study-allowed videos and articles studied or completed in strict mode',
+    type: 'integer',
+    readOnly: true,
+  })
+  studiedItems: number;
+
+  @JSONSchema({
+    description: 'Visible videos and articles where study mode is allowed',
+    type: 'integer',
+    readOnly: true,
+  })
+  totalItems: number;
+
+  @JSONSchema({
+    description:
+      'round(100 × studiedItems / totalItems); 0 when totalItems is 0',
+    type: 'integer',
+    readOnly: true,
+  })
+  percentStudied: number;
+
+  @JSONSchema({
+    description: 'Ids of the lessons that count as covered',
+    type: 'array',
+    items: {type: 'string'},
+    readOnly: true,
+  })
+  studiedItemIds: string[];
+}
+
 export const PROGRESS_VALIDATORS = [
+  StudyViewBody,
+  StudyViewResponse,
+  StudyProgressResponse,
   GetUserProgressParams,
   StartItemBody,
   StartItemParams,
