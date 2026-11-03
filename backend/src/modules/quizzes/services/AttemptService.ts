@@ -72,6 +72,12 @@ import { STUDENT_QUESTION_TYPES } from '#root/modules/studentQuestions/types.js'
 
 const PEER_QUESTION_DEFAULT_POINTS = 0;
 const PEER_QUESTION_DEFAULT_TIME_LIMIT_SECONDS = 60;
+// Guru Setu's feedback-only progress override (EnrollmentService.ts) is
+// still identified by these two hardcoded ids on this branch rather than
+// the GURU_SETU_PROGRESS_COURSES allowlist -- matching that file's own
+// pattern here rather than introducing a second mechanism.
+const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
+const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
 
 @injectable()
 class AttemptService extends BaseService {
@@ -870,8 +876,15 @@ class AttemptService extends BaseService {
       const previousItemId = previousItem._id.toString();
       const previousItemType = previousItem.type;
 
-      // 4. Check if previous video has been watched
-      if (previousItemType === 'VIDEO') {
+      // 4. Check if previous video has been watched -- skipped for Guru Setu,
+      // whose feedback-only progress override (EnrollmentService.ts) never
+      // requires this video to be marked watched, so gating feedback
+      // submission on it blocks students by design-mismatch, not by
+      // anything they actually did wrong.
+      const isGuruSetuCourse =
+        courseId === GURU_SETU_COURSE_ID &&
+        courseVersionId === GURU_SETU_VERSION_ID;
+      if (previousItemType === 'VIDEO' && !isGuruSetuCourse) {
         const isPreviousWatched = await this.progressRepository.isItemCompleted(
           userId,
           courseId,
