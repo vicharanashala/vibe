@@ -63,7 +63,7 @@ Three PRs, in order: backend (groups 1–3), then v3 (groups 4–5) and the prod
 
 ## 7. End-to-end check
 
-- [ ] 7.1 Against a local backend with the group-3 build and a test course (linear on, one module disallowing study mode, one item inside it allowed, one quiz):
+- [x] 7.1 Against a local backend with the group-3 build and a test course (linear on, one module disallowing study mode, one item inside it allowed, one quiz):
   - v3 at phone size and desktop, and the production app at phone width and desktop, behave as the specs say;
   - the student's progress document is unchanged after every study-mode visit.
 

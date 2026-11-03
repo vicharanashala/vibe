@@ -90,13 +90,6 @@ export function PhoneStudyLesson({
     staleTime: 60_000,
   });
 
-  if (item.isPending)
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Loading lesson" />
-      </div>
-    );
-
   const refusal = item.isError ? studyModeRefusal((item.error as StudyReadError).body) : undefined;
   const mode = item.isSuccess ? phoneLessonMode(item.data, true, false) : 'fallback';
   const reason =
@@ -110,7 +103,13 @@ export function PhoneStudyLesson({
 
   return (
     <div className="flex min-h-screen flex-col">
-      {mode === 'study' && item.isSuccess ? (
+      {/* Only the lesson area changes while a picked lesson loads; the outline
+          below stays mounted so its open sections don't collapse. */}
+      {item.isPending ? (
+        <div className="flex h-[60vh] items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Loading lesson" />
+        </div>
+      ) : mode === 'study' && item.isSuccess ? (
         <div className="space-y-3 p-4">
           <div className="rounded-md border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100">
             Study mode: this doesn’t count towards your progress. Use a computer for strict mode, quizzes and progress.

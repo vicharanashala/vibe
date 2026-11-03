@@ -478,10 +478,11 @@ function StudyModeSubmenu({ target, node, parents }: StudyModeMenuProps) {
   const inherited = inheritedStudyMode(parents).allowed ? 'on' : 'off';
   const choose = (value: string) => {
     if (value === current || !(value in STUDY_VALUE)) return;
-    setStudyMode.mutate(
-      { target, value: STUDY_VALUE[value as keyof typeof STUDY_VALUE] },
-      { onError: (e) => toast.error(`Study mode wasn’t saved: ${e.message}`) },
-    );
+    // mutateAsync, not mutate's onError: picking an option closes (unmounts)
+    // this menu, and TanStack Query skips per-call callbacks after unmount.
+    setStudyMode
+      .mutateAsync({ target, value: STUDY_VALUE[value as keyof typeof STUDY_VALUE] })
+      .catch((e: Error) => toast.error(`Study mode wasn’t saved: ${e.message}`));
   };
   return (
     <DropdownMenuSub>
@@ -490,9 +491,9 @@ function StudyModeSubmenu({ target, node, parents }: StudyModeMenuProps) {
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent className="w-56">
         <DropdownMenuRadioGroup value={current} onValueChange={choose}>
-          <DropdownMenuRadioItem value="inherit">Inherit ({inherited})</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="on">On: students may study it on any device</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="off">Off: strict mode only</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem closeOnClick value="inherit">Inherit ({inherited})</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem closeOnClick value="on">On: students may study it on any device</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem closeOnClick value="off">Off: strict mode only</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuSubContent>
     </DropdownMenuSub>
