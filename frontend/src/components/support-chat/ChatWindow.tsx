@@ -47,9 +47,11 @@ export default function ChatWindow({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Also on reportQuestionIds, so the issue form that "Not helpful" opens is
+  // scrolled into view instead of appearing below the fold.
   useEffect(() => {
     scrollToBottom();
-  }, [messages, loading]);
+  }, [messages, loading, reportQuestionIds]);
 
   const sendQuestion = async (rawQuestion: string) => {
     const question = rawQuestion.trim();
@@ -119,6 +121,15 @@ export default function ChatWindow({
       }
     } catch (error) {
       console.error('Failed to rate resolution:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}-rate-error`,
+          type: 'bot',
+          text: "Sorry, I couldn't save your feedback. Please try again.",
+          timestamp: new Date(),
+        },
+      ]);
     }
   };
 

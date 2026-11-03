@@ -25,6 +25,29 @@ import {
   SupportQuestionPathParams,
 } from '../classes/validators/SupportChatValidators.js';
 
+/** A chat reply as sent to the browser: ids as hex strings. */
+export type ChatMessageJson = Omit<
+  ChatMessageResponse,
+  'questionId' | 'faqId'
+> & {
+  questionId: string;
+  faqId?: string;
+};
+
+/**
+ * routing-controllers runs replies through class-transformer, which turns an
+ * ObjectId into a plain object. The widget then built `/[object Object]/rate`
+ * and `/[object Object]/escalate`, so rating and issue reports always failed
+ * with 400. Sending strings fixes both.
+ */
+export function toChatMessageJson(reply: ChatMessageResponse): ChatMessageJson {
+  return {
+    ...reply,
+    questionId: reply.questionId.toString(),
+    faqId: reply.faqId?.toString(),
+  };
+}
+
 // The app mounts routing-controllers with routePrefix '/api', so the prefix is
 // omitted here — declaring it would serve the routes at /api/api/support/chat.
 @JsonController('/support/chat')
@@ -38,13 +61,13 @@ export class ChatController {
     @CurrentUser() user: any,
     @Body() messageRequest: ChatMessageBody,
     @QueryParams() query: ChatMessageQuery
-  ): Promise<ChatMessageResponse> {
+  ): Promise<ChatMessageJson> {
     const userId = new ObjectId(user.id);
     const courseId = query.courseId ? new ObjectId(query.courseId) : undefined;
     const courseVersionId = query.courseVersionId ? new ObjectId(query.courseVersionId) : undefined;
     const cohortId = query.cohortId ? new ObjectId(query.cohortId) : undefined;
 
-    return this.chatService.handleUserQuestion(
+    const reply = await this.chatService.handleUserQuestion(
       userId,
       {
         question: messageRequest.question,
@@ -62,6 +85,8 @@ export class ChatController {
       courseVersionId,
       cohortId
     );
+
+    return toChatMessageJson(reply);
   }
 
   @Get('/history')
