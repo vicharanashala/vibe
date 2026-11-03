@@ -15,6 +15,7 @@ import {
 import { ObjectId } from 'mongodb';
 import { ChatMessageResponse, SUPPORT_CHAT_TYPES } from '../types.js';
 import { ChatService } from '../services/index.js';
+import {currentUserId} from './currentUserId.js';
 import {
   ChatHistoryQuery,
   ChatMessageBody,
@@ -62,7 +63,7 @@ export class ChatController {
     @Body() messageRequest: ChatMessageBody,
     @QueryParams() query: ChatMessageQuery
   ): Promise<ChatMessageJson> {
-    const userId = new ObjectId(user.id);
+    const userId = new ObjectId(currentUserId(user));
     const courseId = query.courseId ? new ObjectId(query.courseId) : undefined;
     const courseVersionId = query.courseVersionId ? new ObjectId(query.courseVersionId) : undefined;
     const cohortId = query.cohortId ? new ObjectId(query.cohortId) : undefined;
@@ -95,7 +96,7 @@ export class ChatController {
     @CurrentUser() user: any,
     @QueryParams() query: ChatHistoryQuery
   ) {
-    const userId = new ObjectId(user.id);
+    const userId = new ObjectId(currentUserId(user));
     const limit = query.limit ?? 50;
 
     const questions = await this.chatService.getQuestionHistory(userId, limit);
@@ -130,7 +131,7 @@ export class ChatController {
     }
 
     // Verify ownership
-    if (question.userId.toString() !== user.id) {
+    if (question.userId.toString() !== currentUserId(user)) {
       throw new ForbiddenError('Unauthorized');
     }
 
@@ -145,7 +146,7 @@ export class ChatController {
     @Body() body: RateQuestionBody
   ) {
     const qId2 = new ObjectId(params.questionId);
-    await this.getOwnQuestion(qId2, user.id);
+    await this.getOwnQuestion(qId2, currentUserId(user));
 
     return await this.chatService.rateResolution(qId2, body.rating);
   }
@@ -163,7 +164,7 @@ export class ChatController {
     @Body() body: EscalateQuestionBody
   ) {
     const qId = new ObjectId(params.questionId);
-    await this.getOwnQuestion(qId, user.id);
+    await this.getOwnQuestion(qId, currentUserId(user));
 
     return await this.chatService.escalateQuestion(qId, body);
   }

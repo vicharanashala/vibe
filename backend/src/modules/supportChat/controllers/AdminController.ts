@@ -17,6 +17,7 @@ import {
 import { ObjectId } from 'mongodb';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { AuthenticatedUser } from '#root/shared/interfaces/models.js';
+import {currentUserId} from './currentUserId.js';
 import { ISupportQuestion, SupportQuestionStatus, SUPPORT_CHAT_TYPES } from '../types.js';
 import { AdminService, SupportQueueScope } from '../services/index.js';
 import {
@@ -140,7 +141,7 @@ export class AdminController {
     const qId = new ObjectId(params.questionId);
     await this.authorizeQuestionAction(ability, qId, SupportChatActions.Respond);
 
-    const adminUserId = new ObjectId(user.id);
+    const adminUserId = new ObjectId(currentUserId(user));
     return await this.adminService.respondToQuestion(qId, adminUserId, request);
   }
 
@@ -179,7 +180,7 @@ export class AdminController {
     @Ability(getSupportChatAbility) { ability },
   ) {
     this.assertCanManageFAQs(ability);
-    const adminUserId = new ObjectId(user.id);
+    const adminUserId = new ObjectId(currentUserId(user));
     return await this.adminService.createFAQ(
       {
         ...faq,
