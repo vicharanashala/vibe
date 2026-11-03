@@ -9,6 +9,7 @@ import {
   HandIcon,
   InfoIcon,
   LockIcon,
+  MonitorIcon,
   ShieldAlertIcon,
   XIcon,
 } from 'lucide-react';
@@ -104,6 +105,12 @@ import {
   type LessonRef,
 } from './queries';
 import { TRACKS, useCourseTrack, useFlatSyllabus, type Track } from './tracks';
+import { usePrimaryTouch } from '@/hooks/use-primary-touch';
+import {
+  studyModeLevel,
+  studyModeRefusal,
+  type StudyModeSource,
+} from '@/features/study-mode/study-mode';
 import { QuizRunner } from './quiz';
 import { useIncidentReporter } from './incident-reporter';
 import { useAfterQuizSubmit } from './quiz-api';
@@ -117,10 +124,15 @@ const OUT_OF_ORDER = /do not match current progress/i;
 type LessonProps = LessonRef & { track: Track };
 
 export function LessonPage({ track, ...ref }: LessonProps) {
-  const lesson = useLesson(ref);
+  // Strict mode is PC-only. On a touch device it never makes a strict read
+  // (which can move the progress pointer); a study read only tells us whether
+  // study mode can be offered instead.
+  const touch = usePrimaryTouch();
+  const strictOnTouch = track === 'green' && touch;
+  const lesson = useLesson(ref, track === 'blue' || strictOnTouch ? 'study' : undefined);
   const consent = useEthicsConsent(ref.courseId, ref.versionId);
   const percentage = useProgressPercentage(ref.courseId, ref.versionId);
-  // The green track saves certified progress, which only exists for STUDENT
+  // The green track saves progress, which only exists for STUDENT
   // enrollments (the backend never creates a Progress record for any other
   // role) — an instructor opening a green lesson hit a raw "Progress not
   // found" 404 the moment it tried to start the item.
@@ -151,7 +163,19 @@ export function LessonPage({ track, ...ref }: LessonProps) {
       </div>,
     );
   }
-  // In linear courses the backend refuses lessons the student hasn't reached (403).
+  if (strictOnTouch) {
+    return frame(
+      <ContinueOnComputer
+        lessonRef={ref}
+        studyAllowed={lesson.isSuccess && lesson.data.type !== 'QUIZ' && lesson.data.studyMode?.allowed !== false}
+      />,
+    );
+  }
+  const refusal = lesson.isError ? studyModeRefusal(lesson.error) : undefined;
+  if (refusal?.kind === 'disabled')
+    return frame(<StudyModeDisabled lessonRef={ref} source={refusal.source} />);
+  if (refusal?.kind === 'quiz') return frame(<StrictOnlyQuiz lessonRef={ref} />);
+  // In linear courses the backend refuses strict reads of lessons the student hasn't reached (403).
   if (lesson.isError) {
     return frame(
       lesson.error instanceof ApiError && lesson.error.status === 403 ? (
@@ -169,6 +193,9 @@ export function LessonPage({ track, ...ref }: LessonProps) {
     );
 
   const item = lesson.data;
+  // Students get STUDY_MODE_QUIZ from the backend; instructors' study reads
+  // aren't refused, so the quiz case is caught here too.
+  if (track === 'blue' && item.type === 'QUIZ') return frame(<StrictOnlyQuiz lessonRef={ref} />);
   const greenQuiz = track === 'green' && item.type === 'QUIZ';
   if (!VIEWABLE.has(item.type) && !greenQuiz) {
     return frame(
@@ -177,7 +204,7 @@ export function LessonPage({ track, ...ref }: LessonProps) {
         lessonRef={ref}
       >
         {track === 'blue'
-          ? 'Study mode is for watching and reading. Assessments count only in certified mode.'
+          ? 'Study mode is for watching and reading. Assessments are taken in strict mode on a computer.'
           : 'This version of the app can open videos and readings so far.'}
       </Notice>,
     );
@@ -193,13 +220,13 @@ export function LessonPage({ track, ...ref }: LessonProps) {
       />
     );
 
-  // Green track tracks certified progress, which doesn't exist for a non-student
+  // Green track saves progress, which doesn't exist for a non-student
   // enrollment (e.g. an instructor) — only the blue track (no progress saved) works for them.
   if (enrollmentRole && enrollmentRole !== 'STUDENT') {
     return frame(
-      <Notice title="Certified progress isn’t available here" lessonRef={ref}>
+      <Notice title="Strict-mode progress isn’t available here" lessonRef={ref}>
         You’re enrolled on this course as {enrollmentRole.toLowerCase()}, not a
-        student, so certified mode’s progress tracking doesn’t apply to you.
+        student, so strict mode’s progress tracking doesn’t apply to you.
         Switch to study mode to study this lesson.
       </Notice>,
     );
@@ -1044,13 +1071,12 @@ function BlueLesson({
   item: LessonItem;
   progress: number;
 }) {
-  const camera = useCameraPresence();
+  // Study mode runs no proctoring at all — not even a camera check.
   const version = useCourseVersion(ref.versionId);
   const { items } = useFlatSyllabus(version.data);
   const index = items.findIndex((i) => i._id === ref.itemId);
   const prev = index > 0 ? items[index - 1] : undefined;
   const next = index >= 0 ? items[index + 1] : undefined;
-  const blocked = camera.state !== 'on';
 
   const linkTo = (target: (typeof items)[number]) => ({
     to: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId' as const,
@@ -1101,18 +1127,7 @@ function BlueLesson({
         </>
       }
     >
-      <div
-        className={cn(blocked && 'pointer-events-none select-none blur-sm')}
-        aria-hidden={blocked}
-      >
-        <LessonContent item={item} allowSeekForward paused={blocked} />
-      </div>
-      <CameraBubble stream={camera.stream} />
-      <CameraRequired
-        state={camera.state}
-        onRetry={camera.retry}
-        idleHint="Study mode only needs your camera on. Nothing is recorded or analysed."
-      />
+      <LessonContent item={item} allowSeekForward />
     </LessonFrame>
   );
 }
@@ -1169,7 +1184,7 @@ function LessonContent({
               <InfoIcon />
               <AlertDescription>
                 This is the feedback form for the previous lesson. Answers are
-                sent only in certified mode.
+                sent only in strict mode.
               </AlertDescription>
             </Alert>
             <FeedbackFormFields
@@ -1284,7 +1299,7 @@ function LessonFrame({
           <ProgressBar
             value={progress}
             className="flex-1 [&_[data-slot=progress-track]]:h-2"
-            label="Certified progress"
+            label="Your progress"
           />
           <span className="hidden max-w-52 truncate text-sm text-muted-foreground md:inline">
             {title}
@@ -1446,8 +1461,110 @@ function LockedLesson({
       }
     >
       {track === 'blue'
-        ? 'This course unlocks lessons as you complete them in certified mode. Lessons you’ve already reached are open for study.'
-        : 'Certified mode goes one lesson at a time, in order.'}
+        ? 'This lesson isn’t open yet.'
+        : 'Strict mode goes one lesson at a time, in order.'}
+    </LessonEmpty>
+  );
+}
+
+/** Links to this same lesson in the other mode. */
+function SwitchModeLink({
+  lessonRef: ref,
+  track,
+  variant = 'default',
+  children,
+}: {
+  lessonRef: LessonRef;
+  track: Track;
+  variant?: 'default' | 'outline';
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
+      params={ref}
+      search={{ track }}
+      className={cn(buttonVariants({ variant }), 'h-auto min-h-9 whitespace-normal')}
+    >
+      {children}
+    </Link>
+  );
+}
+
+/** Study mode refused by the backend: the instructor disabled it for this lesson's module, section or item. */
+function StudyModeDisabled({
+  lessonRef: ref,
+  source,
+}: {
+  lessonRef: LessonRef;
+  source: StudyModeSource;
+}) {
+  return (
+    <LessonEmpty
+      icon={<LockIcon />}
+      title="Study mode is off here"
+      action={
+        <SwitchModeLink lessonRef={ref} track="green">
+          Switch to strict mode
+        </SwitchModeLink>
+      }
+    >
+      The instructor has disabled study mode for {studyModeLevel(source)}. Open it in
+      strict mode on a computer.
+    </LessonEmpty>
+  );
+}
+
+/** Quizzes are strict-mode only: proctored, on a computer. */
+function StrictOnlyQuiz({ lessonRef: ref }: { lessonRef: LessonRef }) {
+  return (
+    <LessonEmpty
+      icon={<MonitorIcon />}
+      title="Quizzes are taken in strict mode"
+      action={
+        <SwitchModeLink lessonRef={ref} track="green">
+          Switch to strict mode
+        </SwitchModeLink>
+      }
+    >
+      Take this quiz in strict mode on a computer. Study mode is for watching and
+      reading.
+    </LessonEmpty>
+  );
+}
+
+/** Strict mode on a phone or tablet: it only runs on a computer. */
+function ContinueOnComputer({
+  lessonRef: ref,
+  studyAllowed,
+}: {
+  lessonRef: LessonRef;
+  studyAllowed: boolean;
+}) {
+  return (
+    <LessonEmpty
+      icon={<MonitorIcon />}
+      title="Continue on a computer"
+      action={
+        studyAllowed ? (
+          <SwitchModeLink lessonRef={ref} track="blue">
+            Open in study mode
+          </SwitchModeLink>
+        ) : (
+          <Link
+            to="/courses/$courseId/$versionId"
+            params={{ courseId: ref.courseId, versionId: ref.versionId }}
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            Back to the course
+          </Link>
+        )
+      }
+    >
+      Strict mode, where your progress counts, works only on a computer.
+      {studyAllowed
+        ? ' You can still watch this lesson here in study mode; it won’t count towards your progress.'
+        : ''}
     </LessonEmpty>
   );
 }

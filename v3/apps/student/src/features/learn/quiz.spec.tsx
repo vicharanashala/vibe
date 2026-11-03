@@ -125,7 +125,9 @@ describe('green-track quiz', () => {
 
   it('is not available in study mode', async () => {
     renderApp(url.replace('track=green', 'track=blue'));
-    expect(await screen.findByText(/Assessments count only in certified mode/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Quizzes are taken in strict mode' })).toBeInTheDocument();
+    for (const link of screen.getAllByRole('link', { name: 'Switch to strict mode' }))
+      expect(link.getAttribute('href')).toContain('track=green');
     expect(api.POST.mock.calls.some(([p]) => p === '/api/quizzes/{quizId}/attempt')).toBe(false);
   });
 });

@@ -3,6 +3,7 @@ import { unwrap } from '@vibe/api';
 
 import { courseKeys } from '@/features/courses/queries';
 import { api } from '@/lib/api';
+import type { ResolvedStudyMode } from '@/features/study-mode/study-mode';
 
 export interface DetectorSetting {
   detectorName: string;
@@ -18,6 +19,8 @@ export interface LessonItem {
   isAlreadyWatched?: boolean;
   /** Resolved server-side: item > module > course setting. */
   proctoringDetectors?: DetectorSetting[];
+  /** Whether study mode is allowed for this item, resolved server-side (item > section > module). */
+  studyMode?: ResolvedStudyMode;
   details: {
     // VIDEO
     URL?: string;
@@ -54,7 +57,7 @@ export interface LessonRef {
 }
 
 export const learnKeys = {
-  item: (r: LessonRef) => ['lesson', r.versionId, r.itemId] as const,
+  item: (r: LessonRef, mode?: 'study') => ['lesson', r.versionId, r.itemId, mode ?? 'strict'] as const,
   settings: (courseId: string, versionId: string) => ['course-settings', courseId, versionId] as const,
 };
 
@@ -82,14 +85,20 @@ export function isDetectorEnabled(detectors: DetectorSetting[] | undefined, name
   return (detectors ?? []).some((d) => d.detectorName === name && d.settings?.enabled);
 }
 
-export function useLesson(r: LessonRef) {
+/**
+ * The lesson as the student may open it. `mode: 'study'` asks for a study-mode
+ * read: the backend skips the linear-progression lock and never touches
+ * progress, and refuses quizzes and items where study mode is disabled (see
+ * `studyModeRefusal`).
+ */
+export function useLesson(r: LessonRef, mode?: 'study') {
   return useQuery({
-    queryKey: learnKeys.item(r),
+    queryKey: learnKeys.item(r, mode),
     queryFn: async () =>
       (
         unwrap(
           await api.GET('/api/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}', {
-            params: { path: r },
+            params: { path: r, query: mode ? { mode } : {} },
           }),
         ) as unknown as { item: LessonItem }
       ).item,

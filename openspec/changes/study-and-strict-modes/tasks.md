@@ -33,9 +33,9 @@ Three PRs, in order: backend (groups 1–3), then v3 (groups 4–5) and the prod
 
 ## 4. v3 student app: study and strict modes
 
-- [ ] 4.1 Regenerate v3 API types (`pnpm --filter @vibe/api generate` against the backend from group 3) and add `studyMode` to the lesson type in `features/learn/queries.ts`. Make blue-track reads send `mode=study`. Verify with `npx tsc -b apps/student/tsconfig.app.json apps/student/tsconfig.spec.json`.
-- [ ] 4.2 Relabel the tracks to "Study mode" / "Strict mode" in `tracks.ts`, keeping the `blue`/`green` ids, saved choices and `?track=`. Update copy that says "certified mode" (`lesson-page.tsx`, `course-page.tsx`, Studio's `course-proctoring.tsx:77`, `editor/quiz-results.tsx:132`). Test that a stored `green` choice opens as strict mode and the switcher shows both labels.
-- [ ] 4.3 Study mode:
+- [x] 4.1 Regenerate v3 API types (`pnpm --filter @vibe/api generate` against the backend from group 3) and add `studyMode` to the lesson type in `features/learn/queries.ts`. Make blue-track reads send `mode=study`. Verify with `npx tsc -b apps/student/tsconfig.app.json apps/student/tsconfig.spec.json`.
+- [x] 4.2 Relabel the tracks to "Study mode" / "Strict mode" in `tracks.ts`, keeping the `blue`/`green` ids, saved choices and `?track=`. Update copy that says "certified mode" (`lesson-page.tsx`, `course-page.tsx`, Studio's `course-proctoring.tsx:77`, `editor/quiz-results.tsx:132`). Test that a stored `green` choice opens as strict mode and the switcher shows both labels.
+- [x] 4.3 Study mode:
   - drop the linear lock from the blue outline (`course-page.tsx:312`) and its notice (`:393`);
   - remove the camera requirement from `BlueLesson`;
   - mark items whose `studyMode.allowed` is false as strict-mode only in the outline;
@@ -43,12 +43,12 @@ Three PRs, in order: backend (groups 1–3), then v3 (groups 4–5) and the prod
   - on a quiz, show the strict-on-a-computer notice.
 
   Add Vitest + Testing Library tests for each scenario in `specs/v3/study-mode` (linear course opens ahead, no progress call made, disabled notice per level, quiz notice, outline marks) and verify with `npx vitest run --root apps/student`.
-- [ ] 4.4 Strict mode is PC-only. Add a `usePrimaryTouch()` hook (`matchMedia('(pointer: coarse)')`, reacting to changes) and gate the green lesson and quiz pages behind a shadcn "Continue on a computer" screen, offering study mode when the item allows it. Tests cover a phone (blocked, no progress or attempt calls, study offered only when allowed), a mouse-primary device (normal flow), and the existing green-track tests still passing. Verify with `npx vitest run --root apps/student`.
+- [x] 4.4 Strict mode is PC-only. Add a `usePrimaryTouch()` hook (`matchMedia('(pointer: coarse)')`, reacting to changes) and gate the green lesson and quiz pages behind a shadcn "Continue on a computer" screen, offering study mode when the item allows it. Tests cover a phone (blocked, no progress or attempt calls, study offered only when allowed), a mouse-primary device (normal flow), and the existing green-track tests still passing. Verify with `npx vitest run --root apps/student`.
 
 ## 5. v3 Studio: study-mode switches and linear fix
 
-- [ ] 5.1 Add a study-mode `Select` (On / Off / Inherit) to the module, section and item menus in `features/admin/course-content.tsx`, using mutations against the group-2 endpoints, with "Study mode off" and "(inherited)" badges computed from the node's own value and its parents'. Revert the value and show a sonner error toast if a save fails. Tests cover disabling a module, overriding one item inside it, and a save failure. Verify with `npx vitest run --root apps/student`.
-- [ ] 5.2 Change `linearProgressionEnabled ?? false` to `?? true` in `course-proctoring.tsx:56-57` and `course-registration.tsx:182-183`. Add a test that saving settings for a course with an unset linear value sends `true`. Run `npx vitest run --root apps/student` and the `tsc -b` command from 4.1, and confirm they pass.
+- [x] 5.1 Add a study-mode `Select` (On / Off / Inherit) to the module, section and item menus in `features/admin/course-content.tsx`, using mutations against the group-2 endpoints, with "Study mode off" and "(inherited)" badges computed from the node's own value and its parents'. Revert the value and show a sonner error toast if a save fails. Tests cover disabling a module, overriding one item inside it, and a save failure. Verify with `npx vitest run --root apps/student`.
+- [x] 5.2 Change `linearProgressionEnabled ?? false` to `?? true` in `course-proctoring.tsx:56-57` and `course-registration.tsx:182-183`. Add a test that saving settings for a course with an unset linear value sends `true`. Run `npx vitest run --root apps/student` and the `tsc -b` command from 4.1, and confirm they pass.
 
 ## 6. Production frontend
 

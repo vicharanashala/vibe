@@ -53,7 +53,8 @@ export function CourseProctoring({ courseId, versionId }: { courseId: string; ve
     update.mutate(
       {
         ...rest,
-        linearProgressionEnabled: settings.data.settings.linearProgressionEnabled ?? false,
+        // Unset means on to the backend; never save it as off by default.
+        linearProgressionEnabled: settings.data.settings.linearProgressionEnabled ?? true,
         seekForwardEnabled: settings.data.settings.seekForwardEnabled ?? false,
         detectors: DETECTORS.map((d) => ({ detectorName: d.key, settings: { enabled: current[d.key] ?? false } })),
       },
@@ -74,7 +75,7 @@ export function CourseProctoring({ courseId, versionId }: { courseId: string; ve
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-secondary/60 px-5 py-4">
         <div>
           <p className="font-medium">{enabledCount === 0 ? 'Proctoring is off' : `${enabledCount} of ${DETECTORS.filter((d) => d.implemented).length} checks on`}</p>
-          <p className="text-sm text-muted-foreground">Checks run only in Certified mode, where progress counts towards the certificate.</p>
+          <p className="text-sm text-muted-foreground">Checks run only in strict mode, where progress counts towards the certificate. Study mode is never proctored.</p>
         </div>
       </div>
 

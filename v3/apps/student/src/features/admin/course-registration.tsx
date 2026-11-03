@@ -179,7 +179,8 @@ function CatalogueSwitch({
     update.mutate(
       {
         ...rest,
-        linearProgressionEnabled: rest.linearProgressionEnabled ?? false,
+        // Unset means on to the backend; never save it as off by default.
+        linearProgressionEnabled: rest.linearProgressionEnabled ?? true,
         seekForwardEnabled: rest.seekForwardEnabled ?? false,
         detectors: (proctors?.detectors ?? []).map((d) => ({
           detectorName: d.detectorName,
