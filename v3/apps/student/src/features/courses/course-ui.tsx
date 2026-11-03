@@ -1,7 +1,8 @@
-import { BookOpenTextIcon, ClipboardCheckIcon, FileTextIcon, FolderKanbanIcon, MessageSquareTextIcon, PlayCircleIcon, ScaleIcon, type LucideIcon } from 'lucide-react';
+import { BookOpenTextIcon, InfoIcon, ClipboardCheckIcon, FileTextIcon, FolderKanbanIcon, MessageSquareTextIcon, PlayCircleIcon, ScaleIcon, type LucideIcon } from 'lucide-react';
 
 import { GeneratedCover } from '@/components/generated-art';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useStudyProgress } from '@/features/learn/queries';
 
@@ -37,6 +38,88 @@ export function percentOf(e: { percentCompleted?: number; completedItems?: numbe
   return total ? ((e.completedItems ?? 0) / total) * 100 : 0;
 }
 
+const TONES = {
+  strict: {
+    dot: 'bg-emerald-500',
+    bar: '[&_[data-slot=progress-indicator]]:bg-emerald-500',
+    value: 'text-foreground',
+  },
+  study: {
+    dot: 'bg-sky-500',
+    bar: '[&_[data-slot=progress-indicator]]:bg-sky-500',
+    value: 'text-sky-700 dark:text-sky-300',
+  },
+} as const;
+
+export const STRICT_PROGRESS_HINT =
+  'Lessons completed in strict mode. This is your course progress: it counts towards completion and your certificate.';
+export const STUDY_PROGRESS_HINT =
+  'Videos and articles you’ve studied in study mode or completed in strict mode. It doesn’t count towards completion or your certificate.';
+
+/**
+ * One progress figure: a coloured dot and label, the percentage, a slim bar
+ * and an optional "N of M" caption. Strict (green) and study (blue) use the
+ * same colours as the mode switcher, so the two read as a pair.
+ */
+export function ProgressMeter({
+  tone,
+  label,
+  value,
+  caption,
+  hint,
+  ariaLabel,
+  size = 'md',
+  className,
+}: {
+  tone: keyof typeof TONES;
+  label: string;
+  value: number;
+  caption?: string;
+  /** Shown in a tooltip on an info icon next to the label. */
+  hint?: string;
+  ariaLabel?: string;
+  size?: 'md' | 'sm';
+  className?: string;
+}) {
+  const t = TONES[tone];
+  const pct = Math.max(0, Math.min(100, Math.round(value)));
+  return (
+    <div className={cn('min-w-0', className)}>
+      <div className="flex items-center justify-between gap-2">
+        <span className={cn('flex min-w-0 items-center gap-1.5 text-muted-foreground', size === 'sm' ? 'text-xs' : 'text-sm')}>
+          <span className={cn('size-2 shrink-0 rounded-full', t.dot)} aria-hidden />
+          <span className="truncate">{label}</span>
+          {hint && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    className="inline-flex shrink-0 rounded-full text-muted-foreground/70 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={`About ${label.toLowerCase()} progress`}
+                  />
+                }
+              >
+                <InfoIcon className="size-3.5" aria-hidden />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-64">{hint}</TooltipContent>
+            </Tooltip>
+          )}
+        </span>
+        <span className={cn('shrink-0 font-semibold tabular-nums', t.value, size === 'sm' ? 'text-xs' : 'text-lg leading-none')}>
+          {pct}%
+        </span>
+      </div>
+      <ProgressBar
+        value={pct}
+        label={ariaLabel ?? `${label} progress`}
+        className={cn(size === 'sm' ? 'mt-1.5 [&_[data-slot=progress-track]]:h-1' : 'mt-2', t.bar)}
+      />
+      {caption && <p className="mt-1.5 text-xs text-muted-foreground">{caption}</p>}
+    </div>
+  );
+}
+
 /**
  * The student's study progress (studied or completed videos and articles that
  * allow study mode), shown next to — never instead of — strict progress.
@@ -56,24 +139,16 @@ export function StudyProgressSummary({
   const study = useStudyProgress(courseId, versionId);
   if (!study.isSuccess || study.data.totalItems === 0) return null;
   const { studiedItems, totalItems, percentStudied } = study.data;
-  if (variant === 'compact') {
-    return (
-      <p className={cn('text-xs text-sky-700 dark:text-sky-300', className)}>Study {percentStudied}%</p>
-    );
-  }
   return (
-    <div className={className}>
-      <div className="mb-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>
-          <span className="font-medium text-sky-700 dark:text-sky-300">Study mode</span> · {studiedItems} of {totalItems} videos &amp; articles
-        </span>
-        <span>{percentStudied}%</span>
-      </div>
-      <ProgressBar
-        value={percentStudied}
-        label="Study progress"
-        className="[&_[data-slot=progress-indicator]]:bg-sky-500"
-      />
-    </div>
+    <ProgressMeter
+      tone="study"
+      label="Study"
+      value={percentStudied}
+      ariaLabel="Study progress"
+      size={variant === 'compact' ? 'sm' : 'md'}
+      caption={variant === 'compact' ? undefined : `${studiedItems} of ${totalItems} videos & articles`}
+      hint={variant === 'compact' ? undefined : STUDY_PROGRESS_HINT}
+      className={className}
+    />
   );
 }

@@ -42,7 +42,10 @@ describe('study progress', () => {
 
   it('shows the study percentage on course cards', async () => {
     renderApp('/courses');
-    expect(await screen.findByText(`Study ${fixtures.studyProgress.percentStudied}%`)).toBeInTheDocument();
+    const bar = await screen.findByRole('progressbar', { name: 'Study progress' });
+    const meter = bar.parentElement!;
+    expect(within(meter).getByText('Study')).toBeInTheDocument();
+    expect(within(meter).getByText(`${fixtures.studyProgress.percentStudied}%`)).toBeInTheDocument();
   });
 
   it('hides the study line when study progress can’t be loaded', async () => {

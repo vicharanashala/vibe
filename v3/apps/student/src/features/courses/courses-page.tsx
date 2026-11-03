@@ -11,7 +11,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { CourseCover, ProgressBar, StudyProgressSummary, percentOf } from './course-ui';
+import { CourseCover, ProgressMeter, StudyProgressSummary, percentOf } from './course-ui';
 import { useEnrollments } from './queries';
 
 type Tab = 'active' | 'archived';
@@ -89,20 +89,23 @@ export function CoursesPage() {
                       <Card size="sm" className="h-full transition-shadow group-hover:shadow-md">
                         <CardContent className="flex h-full flex-col">
                           <CourseCover name={e.course.name} seed={e.courseId} className="h-36 w-full" />
-                          <p className="mt-4 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                            Course{e.cohortName ? ` · ${e.cohortName}` : ''}
+                          <p className="mt-4 flex justify-between gap-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                            <span className="truncate">Course{e.cohortName ? ` · ${e.cohortName}` : ''}</span>
+                            {total > 0 && <span className="shrink-0">{total} lessons</span>}
                           </p>
                           <h2 className="mt-1 line-clamp-2 font-medium">{e.course.name}</h2>
                           {e.course.description && (
                             <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{e.course.description}</p>
                           )}
-                          <div className="mt-auto pt-4">
-                            <div className="mb-2 flex justify-between text-xs text-muted-foreground">
-                              <span>{pct >= 100 ? 'Completed' : `${Math.round(pct)}% complete`}</span>
-                              {total > 0 && <span>{total} lessons</span>}
-                            </div>
-                            <ProgressBar value={pct} label={`${e.course.name} progress`} />
-                            <StudyProgressSummary courseId={e.courseId} versionId={e.courseVersionId} variant="compact" className="mt-2" />
+                          <div className="mt-auto grid gap-2.5 pt-4">
+                            <ProgressMeter
+                              size="sm"
+                              tone="strict"
+                              label={pct >= 100 ? 'Completed' : 'Strict'}
+                              value={pct}
+                              ariaLabel={`${e.course.name} progress`}
+                            />
+                            <StudyProgressSummary courseId={e.courseId} versionId={e.courseVersionId} variant="compact" />
                           </div>
                         </CardContent>
                       </Card>

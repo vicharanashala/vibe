@@ -15,7 +15,7 @@ import { resolveStudyMode, type StudyModeNode } from '@/features/study-mode/stud
 import { TRACKS, useCourseTrack, type Track } from '@/features/learn/tracks';
 import { cn } from '@/lib/utils';
 
-import { CourseCover, ProgressBar, StudyProgressSummary, itemTypeMeta } from './course-ui';
+import { CourseCover, ProgressBar, ProgressMeter, STRICT_PROGRESS_HINT, StudyProgressSummary, itemTypeMeta } from './course-ui';
 import { useStudyProgress } from '@/features/learn/queries';
 import { CourseSwitcher } from './course-switcher';
 import {
@@ -116,15 +116,16 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
 
         {/* Progress sits up top below lg; the sidebar card shows it on wide screens. */}
         {percentage.data && (
-          <div className="mt-5 lg:hidden">
-            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-              <span>{Math.round(pct)}% complete</span>
-              <span>
-                {percentage.data.completedItems} of {percentage.data.totalItems} lessons
-              </span>
-            </div>
-            <ProgressBar value={pct} label="Course progress" />
-            <StudyProgressSummary courseId={courseId} versionId={versionId} className="mt-3" />
+          <div className="mt-5 grid gap-4 rounded-2xl border border-border bg-card p-4 sm:grid-cols-2 lg:hidden">
+            <ProgressMeter
+              tone="strict"
+              label="Strict"
+              value={pct}
+              ariaLabel="Course progress"
+              caption={`${percentage.data.completedItems} of ${percentage.data.totalItems} lessons`}
+              hint={STRICT_PROGRESS_HINT}
+            />
+            <StudyProgressSummary courseId={courseId} versionId={versionId} />
           </div>
         )}
 
@@ -179,12 +180,17 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
           <CardContent>
             <CourseCover name={name} seed={courseId} className="h-32 w-full" />
             <p className="mt-4 font-semibold">Your progress</p>
-            <ProgressBar value={pct} className="mt-3" label="Course progress" />
-            <p className="mt-2 text-sm text-muted-foreground">
-              {Math.round(pct)}% complete
-              {percentage.data && ` · ${percentage.data.completedItems} of ${percentage.data.totalItems} lessons`}
-            </p>
-            <StudyProgressSummary courseId={courseId} versionId={versionId} className="mt-4" />
+            <div className="mt-3 grid gap-4">
+              <ProgressMeter
+                tone="strict"
+                label="Strict"
+                value={pct}
+                ariaLabel="Course progress"
+                caption={percentage.data ? `${percentage.data.completedItems} of ${percentage.data.totalItems} lessons` : undefined}
+                hint={STRICT_PROGRESS_HINT}
+              />
+              <StudyProgressSummary courseId={courseId} versionId={versionId} className="border-t border-border pt-4" />
+            </div>
           </CardContent>
         </Card>
         <Card size="sm">
