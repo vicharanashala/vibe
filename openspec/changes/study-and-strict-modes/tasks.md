@@ -52,11 +52,12 @@ Three PRs, in order: backend (groups 1–3), then v3 (groups 4–5) and the prod
 
 ## 6. Production frontend
 
-- [ ] 6.1 Regenerate the API schema (`pnpm copy && pnpm gen-schema` in `frontend/`). Add `useUpdateModuleStudyMode`, `useUpdateSectionStudyMode` and `useUpdateItemStudyMode` to `hooks/hooks.ts`, modelled on `useUpdateItemProctoring`. Verify with `pnpm typecheck`.
-- [ ] 6.2 Add the On / Off / Inherit study-mode control to the module, section and item side panels in `app/pages/teacher/teacher-course-page.tsx`, next to the proctoring override panels (`:2966-3120`), showing the effective value and "(inherited)". Put the inherited-value calculation in a small pure helper and test it in a `*.test.ts` next to it, covering module off, item override and inherit reset.
-- [ ] 6.3 Phone study viewing in `app/pages/student/course-page.tsx`, at the `isMobile && !allProctorsDisabled` branch (`:1811`):
+- [x] 6.1 Add `useUpdateModuleStudyMode`, `useUpdateSectionStudyMode` and `useUpdateItemStudyMode` to `hooks/hooks.ts`. Don't regenerate the schema: `pnpm copy` runs a placeholder generator, and `src/types/schema.ts` already predates the proctoring endpoints. Pass the new paths untyped instead, the way those hooks already reach their endpoints. Verify with `pnpm typecheck`: `main` already has 1,188 errors, so the check is that no file gets a new one.
+- [x] 6.2 Add the On / Off / Inherit study-mode control to the module, section and item side panels in `app/pages/teacher/teacher-course-page.tsx`, next to the proctoring override panels (`:2966-3120`), showing the effective value and "(inherited)". Put the inherited-value calculation in a small pure helper and test it in a `*.test.ts` next to it, covering module off, item override and inherit reset.
+- [x] 6.3 Phone study viewing in `app/pages/student/course-page.tsx`, at the `isMobile && !allProctorsDisabled` branch (`:1811`):
   - for a video whose `studyMode.allowed` is true, re-read with `mode=study` and render the player in study mode: no proctoring components, no start/stop calls, seeking allowed, and a "Study mode: doesn't count towards progress" banner;
   - otherwise render `MobileFallbackScreen` with an optional instructor-disabled line naming the level.
+  - The phone view does its own study read and has a lesson outline. A normal read of a lesson the student hasn't reached is refused by the linear lock, and can move the progress pointer. Picking a lesson in this view never makes a normal read.
 
   Keep the all-detectors-off path unchanged. Put the decision in a pure function (`phoneLessonMode(item, isMobile, allProctorsDisabled)` returning `study`, `fallback` or `normal`) and test every scenario in `specs/frontend/study-mode`. Verify with `pnpm test && pnpm typecheck`.
 
