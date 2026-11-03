@@ -70,6 +70,7 @@ describe('studio study-mode switches', () => {
     withGet({ [VERSION]: versionWithModuleOff() });
     renderApp(content);
     expect(await screen.findByText('Study mode off')).toBeInTheDocument();
+    await setupUser().click(screen.getByRole('button', { name: 'Expand all' }));
     // The module's section, plus both lessons in it, inherit the setting.
     await waitFor(() => expect(screen.getAllByText('Study mode off (inherited)').length).toBeGreaterThanOrEqual(3));
   });
@@ -81,6 +82,7 @@ describe('studio study-mode switches', () => {
     });
     const user = setupUser();
     renderApp(content);
+    await user.click(await screen.findByRole('button', { name: 'Expand all' }));
     const firstRow = (await screen.findAllByRole('button', { name: firstItem.name }))[0].closest('li')!;
     expect(within(firstRow).getByText('Study mode on')).toBeInTheDocument();
     const secondRow = screen.getAllByRole('button', { name: secondItem.name })[0].closest('li')!;
@@ -127,5 +129,39 @@ describe('studio course settings', () => {
     );
     const body = api.PUT.mock.calls.find((c) => c[0] === '/api/setting/course-setting/{courseId}/{versionId}/proctoring')![1].body;
     expect(body.linearProgressionEnabled).toBe(true);
+  });
+});
+
+describe('studio outline collapsing', () => {
+  const [, secondModule] = fixtures.courseVersion.modules;
+  const itemRequests = () => api.GET.mock.calls.filter(([p]) => p === ITEMS).length;
+
+  it('starts with sections collapsed and loads no lessons until one is opened', async () => {
+    const user = setupUser();
+    renderApp(content);
+    const section = firstModule.sections[0];
+    expect(await screen.findByRole('button', { name: `Expand ${section.name}` })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: firstItem.name })).not.toBeInTheDocument();
+    expect(itemRequests()).toBe(0);
+
+    await user.click(screen.getByRole('button', { name: `Expand ${section.name}` }));
+    expect(await screen.findByRole('button', { name: firstItem.name })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: `Collapse ${section.name}` })).toBeInTheDocument();
+    // Only the opened section asked for its lessons.
+    expect(itemRequests()).toBe(1);
+  });
+
+  it('expands and collapses every module and section at once', async () => {
+    const user = setupUser();
+    renderApp(content);
+    await user.click(await screen.findByRole('button', { name: 'Expand all' }));
+    for (const m of fixtures.courseVersion.modules)
+      for (const sec of m.sections) expect(screen.getByRole('button', { name: `Collapse ${sec.name}` })).toBeInTheDocument();
+    expect((await screen.findAllByRole('button', { name: firstItem.name })).length).toBe(fixtures.courseVersion.modules.length);
+
+    await user.click(screen.getByRole('button', { name: 'Collapse all' }));
+    expect(screen.getByRole('button', { name: `Expand ${firstModule.name}` })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: `Expand ${secondModule.name}` })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('button', { name: firstItem.name })).not.toBeInTheDocument());
   });
 });

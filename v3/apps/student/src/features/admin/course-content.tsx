@@ -2,6 +2,8 @@ import {
   BookOpenTextIcon,
   GraduationCapIcon,
   ChevronDownIcon,
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
   ClipboardCheckIcon,
   FileTextIcon,
   FolderKanbanIcon,
@@ -78,10 +80,27 @@ function ordered<T extends { order: string; isDeleted?: boolean }>(list: T[]) {
 
 type Ids = { courseId: string; versionId: string };
 
+/**
+ * Which modules and sections are open. Modules start open and sections start
+ * collapsed (a section loads its lessons only when opened); "Expand all" and
+ * "Collapse all" set every module and section at once.
+ */
+type Outline = { isOpen: (id: string, byDefault: boolean) => boolean; setOpen: (id: string, open: boolean) => void };
+
+function useOutline(): Outline & { setAll: (ids: string[], open: boolean) => void } {
+  const [open, setOpenMap] = useState<Record<string, boolean>>({});
+  return {
+    isOpen: (id, byDefault) => open[id] ?? byDefault,
+    setOpen: (id, value) => setOpenMap((prev) => ({ ...prev, [id]: value })),
+    setAll: (ids, value) => setOpenMap(Object.fromEntries(ids.map((id) => [id, value]))),
+  };
+}
+
 /** Uxcel-style course outline: numbered modules, their sections, and each section's lessons. */
 export function CourseContent({ courseId, versionId }: Ids) {
   const version = useCourseVersion(versionId);
   const [moduleDialog, setModuleDialog] = useState(false);
+  const outline = useOutline();
 
   if (version.isPending) {
     return (
@@ -95,6 +114,7 @@ export function CourseContent({ courseId, versionId }: Ids) {
 
   const modules = ordered(version.data.modules);
   const counts = Object.entries(version.data.itemCounts ?? {}).filter(([, n]) => (n ?? 0) > 0);
+  const allIds = modules.flatMap((m) => [m.moduleId, ...ordered(m.sections).map((s) => s.sectionId)]);
 
   return (
     <div>
@@ -112,9 +132,21 @@ export function CourseContent({ courseId, versionId }: Ids) {
             );
           })}
         </div>
-        <Button onClick={() => setModuleDialog(true)}>
-          <PlusIcon aria-hidden /> Add module
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {modules.length > 0 && (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => outline.setAll(allIds, true)}>
+                <ChevronsUpDownIcon aria-hidden /> Expand all
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => outline.setAll(allIds, false)}>
+                <ChevronsDownUpIcon aria-hidden /> Collapse all
+              </Button>
+            </>
+          )}
+          <Button onClick={() => setModuleDialog(true)}>
+            <PlusIcon aria-hidden /> Add module
+          </Button>
+        </div>
       </div>
 
       {modules.length === 0 ? (
@@ -134,7 +166,7 @@ export function CourseContent({ courseId, versionId }: Ids) {
         <ol className="mt-4 grid gap-4 [&>*]:min-w-0">
           {modules.map((m, i) => (
             <li key={m.moduleId}>
-              <ModuleBlock courseId={courseId} versionId={versionId} module={m} index={i} />
+              <ModuleBlock courseId={courseId} versionId={versionId} module={m} index={i} outline={outline} />
             </li>
           ))}
         </ol>
@@ -156,8 +188,9 @@ export function CourseContent({ courseId, versionId }: Ids) {
 // Module / section blocks
 // ---------------------------------------------------------------------------
 
-function ModuleBlock({ courseId, versionId, module, index }: Ids & { module: CourseModule; index: number }) {
-  const [open, setOpen] = useState(true);
+function ModuleBlock({ courseId, versionId, module, index, outline }: Ids & { module: CourseModule; index: number; outline: Outline }) {
+  const open = outline.isOpen(module.moduleId, true);
+  const setOpen = (value: boolean) => outline.setOpen(module.moduleId, value);
   const [editing, setEditing] = useState(false);
   const [addingSection, setAddingSection] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -196,7 +229,15 @@ function ModuleBlock({ courseId, versionId, module, index }: Ids & { module: Cou
         <div className="grid gap-3 border-t border-border bg-background/60 p-3 sm:p-4 [&>*]:min-w-0">
           {sections.length === 0 && <p className="px-1 text-sm text-muted-foreground">No sections yet.</p>}
           {sections.map((s, si) => (
-            <SectionBlock key={s.sectionId} courseId={courseId} versionId={versionId} module={module} section={s} label={`${index + 1}.${si + 1}`} />
+            <SectionBlock
+              key={s.sectionId}
+              courseId={courseId}
+              versionId={versionId}
+              module={module}
+              section={s}
+              label={`${index + 1}.${si + 1}`}
+              outline={outline}
+            />
           ))}
           <Button variant="ghost" size="sm" className="w-fit text-muted-foreground" onClick={() => setAddingSection(true)}>
             <PlusIcon aria-hidden /> Add section
@@ -232,16 +273,34 @@ function ModuleBlock({ courseId, versionId, module, index }: Ids & { module: Cou
   );
 }
 
-function SectionBlock({ courseId, versionId, module, section, label }: Ids & { module: CourseModule; section: CourseSection; label: string }) {
+function SectionBlock({
+  courseId,
+  versionId,
+  module,
+  section,
+  label,
+  outline,
+}: Ids & { module: CourseModule; section: CourseSection; label: string; outline: Outline }) {
   const moduleId = module.moduleId;
+  const open = outline.isOpen(section.sectionId, false);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const deleteSection = useDeleteSection();
   const itemsGroupId = (section as unknown as { itemsGroupId?: string }).itemsGroupId ?? '';
 
   return (
-    <div className="rounded-xl border border-border bg-card">
-      <div className="flex items-center gap-3 px-3.5 py-2.5">
+    <Collapsible
+      open={open}
+      onOpenChange={(value) => outline.setOpen(section.sectionId, value)}
+      className="rounded-xl border border-border bg-card"
+    >
+      <div className="flex items-center gap-2 px-2.5 py-2.5">
+        <CollapsibleTrigger
+          className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label={open ? `Collapse ${section.name}` : `Expand ${section.name}`}
+        >
+          <ChevronDownIcon className={cn('size-4 transition-transform', !open && '-rotate-90')} aria-hidden />
+        </CollapsibleTrigger>
         <span className="w-8 shrink-0 text-xs font-medium text-muted-foreground tabular-nums">{label}</span>
         <p className="min-w-0 flex-1 truncate text-sm font-medium">
           {section.name}
@@ -255,10 +314,13 @@ function SectionBlock({ courseId, versionId, module, section, label }: Ids & { m
           studyMode={{ target: { level: 'section', versionId, moduleId, sectionId: section.sectionId }, node: section, parents: [module] }}
         />
       </div>
-      <ItemRows courseId={courseId} versionId={versionId} module={module} section={section} itemsGroupId={itemsGroupId} />
-      <div className="border-t border-border px-2 py-1.5">
-        <AddLessonMenu courseId={courseId} versionId={versionId} moduleId={moduleId} sectionId={section.sectionId} />
-      </div>
+      {/* Collapsed sections don't mount ItemRows, so their lessons load only when opened. */}
+      <CollapsibleContent>
+        <ItemRows courseId={courseId} versionId={versionId} module={module} section={section} itemsGroupId={itemsGroupId} />
+        <div className="border-t border-border px-2 py-1.5">
+          <AddLessonMenu courseId={courseId} versionId={versionId} moduleId={moduleId} sectionId={section.sectionId} />
+        </div>
+      </CollapsibleContent>
 
       <NameDialog
         open={editing}
@@ -276,7 +338,7 @@ function SectionBlock({ courseId, versionId, module, section, label }: Ids & { m
         confirmLabel="Delete section"
         onConfirm={() => deleteSection.mutateAsync({ versionId, moduleId, sectionId: section.sectionId })}
       />
-    </div>
+    </Collapsible>
   );
 }
 
