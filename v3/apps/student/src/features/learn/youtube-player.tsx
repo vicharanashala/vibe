@@ -1,4 +1,6 @@
 import {
+  CaptionsIcon,
+  CaptionsOffIcon,
   MaximizeIcon,
   MinimizeIcon,
   PauseIcon,
@@ -32,6 +34,9 @@ interface YTPlayer {
   mute(): void;
   unMute(): void;
   destroy(): void;
+  /** Captions are a player module: loaded = shown, unloaded = hidden. */
+  loadModule?(name: 'captions'): void;
+  unloadModule?(name: 'captions'): void;
 }
 interface YTNamespace {
   Player: new (
@@ -80,7 +85,18 @@ export const PLAYER_VARS = {
   iv_load_policy: 3,
   modestbranding: 1,
   playsinline: 1,
+  // Captions start off whatever the viewer's YouTube settings say; the CC
+  // button turns them on.
+  cc_load_policy: 0,
 } as const;
+
+/**
+ * The embed is taller than the visible frame by this much at the top and the
+ * bottom. YouTube fits the video to the visible part and draws its title row
+ * (title, share, watch later) and its logo in the cropped strips, so they
+ * never show, even for the few seconds after playback starts.
+ */
+export const CROP_PX = 72;
 
 export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 const SKIP_SECONDS = 10;
@@ -166,6 +182,9 @@ export function YouTubePlayer({
   const [rate, setRate] = useState(1);
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [captions, setCaptions] = useState(false);
+  const captionsRef = useRef(false);
+  captionsRef.current = captions;
   const [problem, setProblem] = useState<string | null>(null);
   const startTimer = useRef(0);
 
@@ -199,6 +218,8 @@ export function YouTubePlayer({
             if (isPlaying) {
               window.clearTimeout(startTimer.current);
               setProblem(null);
+              // YouTube may switch captions on by itself when playback starts.
+              if (!captionsRef.current) player?.unloadModule?.('captions');
             }
             setPlaying(isPlaying);
             callbacks.current.onPlayingChange?.(isPlaying);
@@ -278,6 +299,14 @@ export function YouTubePlayer({
     );
   }, [ready, playing, clipEnd, start, current]);
 
+  const toggleCaptions = () => {
+    const player = playerRef.current;
+    if (!player) return;
+    if (captions) player.unloadModule?.('captions');
+    else player.loadModule?.('captions');
+    setCaptions(!captions);
+  };
+
   const toggleMute = () => {
     const player = playerRef.current;
     if (!player) return;
@@ -302,6 +331,7 @@ export function YouTubePlayer({
     else if (e.key === 'ArrowLeft') seek(current - 5);
     else if (e.key === 'ArrowRight') seek(current + 5);
     else if (e.key === 'm') toggleMute();
+    else if (e.key === 'c') toggleCaptions();
     else if (e.key === 'f') toggleFullscreen();
     else return;
     e.preventDefault();
@@ -321,8 +351,12 @@ export function YouTubePlayer({
         fullscreen && 'flex flex-col justify-center rounded-none',
       )}
     >
-      <div className="relative aspect-video w-full">
-        <div ref={hostRef} className="absolute inset-0 [&_iframe]:size-full" />
+      <div className="relative aspect-video w-full overflow-hidden">
+        <div
+          ref={hostRef}
+          className="absolute inset-x-0 [&_iframe]:size-full"
+          style={{ top: -CROP_PX, bottom: -CROP_PX }}
+        />
         {/* Covers the embed so nothing inside YouTube (title, channel, "Watch on
             YouTube", related videos) can be hovered or clicked. */}
         <div
@@ -412,6 +446,16 @@ export function YouTubePlayer({
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleCaptions}
+            disabled={!ready}
+            aria-label={captions ? 'Turn subtitles off' : 'Turn subtitles on'}
+            aria-pressed={captions}
+          >
+            {captions ? <CaptionsIcon aria-hidden /> : <CaptionsOffIcon aria-hidden />}
+          </Button>
           <Button variant="ghost" size="icon" onClick={toggleMute} disabled={!ready} aria-label={muted ? 'Unmute' : 'Mute'}>
             {muted ? <VolumeXIcon aria-hidden /> : <Volume2Icon aria-hidden />}
           </Button>

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { clampSeek, formatTime, PLAYER_VARS, YouTubePlayer, youTubeErrorMessage } from './youtube-player';
+import { clampSeek, CROP_PX, formatTime, PLAYER_VARS, YouTubePlayer, youTubeErrorMessage } from './youtube-player';
 
 /** A stand-in for the YouTube IFrame API that records what the app asks of it. */
 function installFakeYouTube() {
@@ -18,6 +18,8 @@ function installFakeYouTube() {
     mute: vi.fn(),
     unMute: vi.fn(),
     destroy: vi.fn(),
+    loadModule: vi.fn(),
+    unloadModule: vi.fn(),
   };
   let events: { onReady?: () => void; onStateChange?: (e: { data: number }) => void; onError?: (e: { data: number }) => void } = {};
   let playerVars: Record<string, unknown> = {};
@@ -179,5 +181,34 @@ describe('YouTubePlayer', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('keeps subtitles off by default and toggles them with the CC button', async () => {
+    const yt = installFakeYouTube();
+    const user = userEvent.setup();
+    render(<YouTubePlayer videoId="QJNwK2uJyGs" start={0} end={300} allowSeekForward />);
+    await yt.ready();
+    expect(yt.vars()).toMatchObject({ cc_load_policy: 0 });
+    await yt.playing();
+    expect(yt.player.unloadModule).toHaveBeenCalledWith('captions');
+    await user.click(screen.getByRole('button', { name: 'Turn subtitles on' }));
+    expect(yt.player.loadModule).toHaveBeenCalledWith('captions');
+    // Starting playback again doesn't switch them back off.
+    yt.player.unloadModule.mockClear();
+    await yt.pausedEvent();
+    await yt.playing();
+    expect(yt.player.unloadModule).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Turn subtitles off' }));
+    expect(yt.player.unloadModule).toHaveBeenCalledWith('captions');
+  });
+
+  it('crops YouTube’s title row and logo off the top and bottom of the embed', async () => {
+    const yt = installFakeYouTube();
+    const { container } = render(<YouTubePlayer videoId="QJNwK2uJyGs" start={0} end={300} allowSeekForward />);
+    await yt.ready();
+    const host = container.querySelector('[style*="top"]') as HTMLElement;
+    expect(host.style.top).toBe(`-${CROP_PX}px`);
+    expect(host.style.bottom).toBe(`-${CROP_PX}px`);
+    expect(host.parentElement).toHaveClass('overflow-hidden');
   });
 });
