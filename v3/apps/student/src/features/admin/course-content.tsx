@@ -1,5 +1,6 @@
 import {
   BookOpenTextIcon,
+  GraduationCapIcon,
   ChevronDownIcon,
   ClipboardCheckIcon,
   FileTextIcon,
@@ -16,18 +17,32 @@ import {
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { useCourseVersion, useSectionItems, type CourseModule, type CourseSection } from '@/features/courses/queries';
+import { resolveStudyMode, type StudyModeNode } from '@/features/study-mode/study-mode';
 import { cn } from '@/lib/utils';
 
 import {
@@ -36,8 +51,10 @@ import {
   useDeleteItem,
   useDeleteModule,
   useDeleteSection,
+  useSetStudyMode,
   useUpdateModule,
   useUpdateSection,
+  type StudyModeTarget,
 } from './queries';
 import { ClampedText, ConfirmDialog, ErrorText } from './studio-ui';
 
@@ -160,6 +177,7 @@ function ModuleBlock({ courseId, versionId, module, index }: Ids & { module: Cou
           <p className="text-[11px] font-semibold tracking-wider text-primary uppercase">
             Module {String(index + 1).padStart(2, '0')}
             {module.isHidden && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-muted-foreground normal-case">Hidden</span>}
+            <StudyModeBadge node={module} parents={[]} className="ml-2 normal-case" />
           </p>
           <h3 className="mt-0.5 font-aleo text-lg leading-snug break-words">{module.name}</h3>
           {/* Two lines, then "Show more" (tap, so it works on phones). */}
@@ -170,6 +188,7 @@ function ModuleBlock({ courseId, versionId, module, index }: Ids & { module: Cou
           onEdit={() => setEditing(true)}
           onAdd={{ label: 'Add section', run: () => setAddingSection(true) }}
           onDelete={() => setDeleting(true)}
+          studyMode={{ target: { level: 'module', versionId, moduleId: module.moduleId }, node: module, parents: [] }}
         />
       </div>
 
@@ -177,7 +196,7 @@ function ModuleBlock({ courseId, versionId, module, index }: Ids & { module: Cou
         <div className="grid gap-3 border-t border-border bg-background/60 p-3 sm:p-4 [&>*]:min-w-0">
           {sections.length === 0 && <p className="px-1 text-sm text-muted-foreground">No sections yet.</p>}
           {sections.map((s, si) => (
-            <SectionBlock key={s.sectionId} courseId={courseId} versionId={versionId} moduleId={module.moduleId} section={s} label={`${index + 1}.${si + 1}`} />
+            <SectionBlock key={s.sectionId} courseId={courseId} versionId={versionId} module={module} section={s} label={`${index + 1}.${si + 1}`} />
           ))}
           <Button variant="ghost" size="sm" className="w-fit text-muted-foreground" onClick={() => setAddingSection(true)}>
             <PlusIcon aria-hidden /> Add section
@@ -213,7 +232,8 @@ function ModuleBlock({ courseId, versionId, module, index }: Ids & { module: Cou
   );
 }
 
-function SectionBlock({ courseId, versionId, moduleId, section, label }: Ids & { moduleId: string; section: CourseSection; label: string }) {
+function SectionBlock({ courseId, versionId, module, section, label }: Ids & { module: CourseModule; section: CourseSection; label: string }) {
+  const moduleId = module.moduleId;
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const deleteSection = useDeleteSection();
@@ -226,10 +246,16 @@ function SectionBlock({ courseId, versionId, moduleId, section, label }: Ids & {
         <p className="min-w-0 flex-1 truncate text-sm font-medium">
           {section.name}
           {section.isHidden && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">Hidden</span>}
+          <StudyModeBadge node={section} parents={[module]} className="ml-2" />
         </p>
-        <RowMenu label={`Section ${section.name}`} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} />
+        <RowMenu
+          label={`Section ${section.name}`}
+          onEdit={() => setEditing(true)}
+          onDelete={() => setDeleting(true)}
+          studyMode={{ target: { level: 'section', versionId, moduleId, sectionId: section.sectionId }, node: section, parents: [module] }}
+        />
       </div>
-      <ItemRows courseId={courseId} versionId={versionId} moduleId={moduleId} sectionId={section.sectionId} itemsGroupId={itemsGroupId} />
+      <ItemRows courseId={courseId} versionId={versionId} module={module} section={section} itemsGroupId={itemsGroupId} />
       <div className="border-t border-border px-2 py-1.5">
         <AddLessonMenu courseId={courseId} versionId={versionId} moduleId={moduleId} sectionId={section.sectionId} />
       </div>
@@ -254,7 +280,9 @@ function SectionBlock({ courseId, versionId, moduleId, section, label }: Ids & {
   );
 }
 
-function ItemRows({ courseId, versionId, moduleId, sectionId, itemsGroupId }: Ids & { moduleId: string; sectionId: string; itemsGroupId: string }) {
+function ItemRows({ courseId, versionId, module, section, itemsGroupId }: Ids & { module: CourseModule; section: CourseSection; itemsGroupId: string }) {
+  const moduleId = module.moduleId;
+  const sectionId = section.sectionId;
   const items = useSectionItems(versionId, moduleId, sectionId);
   const deleteItem = useDeleteItem();
   const navigate = useNavigate();
@@ -286,10 +314,16 @@ function ItemRows({ courseId, versionId, moduleId, sectionId, itemsGroupId }: Id
               )}
               <span className="hidden text-xs text-muted-foreground sm:inline">{t.label}</span>
               {item.isOptional && <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">Optional</span>}
+              <StudyModeBadge node={item} parents={[section, module]} />
               <RowMenu
                 label={`Lesson ${item.name}`}
                 onEdit={editable ? open : undefined}
                 onDelete={itemsGroupId ? () => setDeleting({ id: item._id, name: item.name }) : undefined}
+                studyMode={{
+                  target: { level: 'item', versionId, moduleId, sectionId, itemId: item._id },
+                  node: item,
+                  parents: [section, module],
+                }}
               />
             </li>
           );
@@ -351,11 +385,13 @@ function RowMenu({
   onEdit,
   onAdd,
   onDelete,
+  studyMode,
 }: {
   label: string;
   onEdit?: () => void;
   onAdd?: { label: string; run: () => void };
   onDelete?: () => void;
+  studyMode?: StudyModeMenuProps;
 }) {
   return (
     <DropdownMenu>
@@ -373,9 +409,10 @@ function RowMenu({
             <PlusIcon /> {onAdd.label}
           </DropdownMenuItem>
         )}
+        {studyMode && <StudyModeSubmenu {...studyMode} />}
         {onDelete && (
           <>
-            {(onEdit || onAdd) && <DropdownMenuSeparator />}
+            {(onEdit || onAdd || studyMode) && <DropdownMenuSeparator />}
             <DropdownMenuItem variant="destructive" onClick={onDelete}>
               <TrashIcon /> Delete
             </DropdownMenuItem>
@@ -383,6 +420,83 @@ function RowMenu({
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Study mode
+// ---------------------------------------------------------------------------
+
+/**
+ * What a node inherits when it has no setting of its own: its parents
+ * (nearest first — section then module for an item), or allowed at the top.
+ */
+function inheritedStudyMode(parents: StudyModeNode[]) {
+  const [nearest, outer] = parents;
+  if (parents.length === 2) return resolveStudyMode(undefined, nearest, outer);
+  if (parents.length === 1) return resolveStudyMode(undefined, undefined, nearest);
+  return resolveStudyMode(undefined, undefined, undefined);
+}
+
+/**
+ * "Study mode off" when off here or inherited off ("(inherited)"), and "Study
+ * mode on" only where a node turns it back on inside something that's off.
+ * Nothing when study mode is simply allowed by default.
+ */
+function StudyModeBadge({ node, parents, className }: { node: StudyModeNode; parents: StudyModeNode[]; className?: string }) {
+  const own = node.studyModeEnabled ?? null;
+  const inherited = inheritedStudyMode(parents);
+  if (own === false)
+    return (
+      <Badge variant="secondary" className={className}>
+        Study mode off
+      </Badge>
+    );
+  if (own === true && !inherited.allowed)
+    return (
+      <Badge variant="outline" className={className}>
+        Study mode on
+      </Badge>
+    );
+  if (own === null && !inherited.allowed)
+    return (
+      <Badge variant="outline" className={cn('text-muted-foreground', className)}>
+        Study mode off (inherited)
+      </Badge>
+    );
+  return null;
+}
+
+type StudyModeMenuProps = { target: StudyModeTarget; node: StudyModeNode; parents: StudyModeNode[] };
+const STUDY_VALUE = { inherit: null, on: true, off: false } as const;
+
+/** Inherit / On / Off for a module's, section's or lesson's study mode. Shows the saved value only. */
+function StudyModeSubmenu({ target, node, parents }: StudyModeMenuProps) {
+  const setStudyMode = useSetStudyMode();
+  const own = node.studyModeEnabled ?? null;
+  const current = own === null ? 'inherit' : own ? 'on' : 'off';
+  const inherited = inheritedStudyMode(parents).allowed ? 'on' : 'off';
+  const choose = (value: string) => {
+    if (value === current || !(value in STUDY_VALUE)) return;
+    // mutateAsync, not mutate's onError: picking an option closes (unmounts)
+    // this menu, and TanStack Query skips per-call callbacks after unmount.
+    setStudyMode
+      .mutateAsync({ target, value: STUDY_VALUE[value as keyof typeof STUDY_VALUE] })
+      .catch((e: Error) => toast.error(`Study mode wasn’t saved: ${e.message}`));
+  };
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <GraduationCapIcon /> Study mode
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="w-56">
+        <DropdownMenuRadioGroup value={current} onValueChange={choose}>
+          <DropdownMenuRadioItem closeOnClick value="inherit">Inherit ({inherited})</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem closeOnClick value="on">On: students may study it on any device</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem closeOnClick value="off">Off: strict mode only</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
   );
 }
 

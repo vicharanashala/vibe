@@ -11,7 +11,7 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle }
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrackBadge } from '@/features/learn/lesson-page';
-import { useCourseSettings } from '@/features/learn/queries';
+import { resolveStudyMode, type StudyModeNode } from '@/features/study-mode/study-mode';
 import { TRACKS, useCourseTrack, type Track } from '@/features/learn/tracks';
 import { cn } from '@/lib/utils';
 
@@ -36,10 +36,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
   const path = useCurrentPath(courseId, versionId);
   const moduleProgress = useModuleProgress(courseId, versionId);
   const consent = useEthicsConsent(courseId, versionId);
-  const settings = useCourseSettings(courseId, versionId);
   const [track, setTrack] = useCourseTrack(versionId);
-  // In linear courses the backend serves only lessons already reached (blue can't skip ahead).
-  const linear = settings.data?.settings.linearProgressionEnabled ?? true;
   // The course name/description live on the enrolment, not the version.
   const enrollment = useEnrollments('active').data?.enrollments.find((e) => e.courseVersionId === versionId);
 
@@ -146,7 +143,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
           percentage.data?.completed && <p className="mt-6 text-sm font-medium text-emerald-700 dark:text-emerald-400">Course completed</p>
         )}
 
-        <TrackSwitcher track={track} onChange={setTrack} linear={linear} />
+        <TrackSwitcher track={track} onChange={setTrack} />
 
         <section aria-labelledby="syllabus-title" className="mt-10 border-t border-border pt-8">
           <h2 id="syllabus-title" className="text-xl font-semibold">
@@ -164,7 +161,6 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
                 courseId={courseId}
                 versionId={versionId}
                 track={track}
-                linear={linear}
                 currentPath={path.data}
                 progress={moduleProgress.data?.find((p) => p.moduleId === m.moduleId)}
               />
@@ -211,7 +207,6 @@ function ModuleBlock({
   courseId,
   versionId,
   track,
-  linear,
   currentPath,
   progress,
 }: {
@@ -220,7 +215,6 @@ function ModuleBlock({
   courseId: string;
   versionId: string;
   track: Track;
-  linear: boolean;
   currentPath?: CurrentPath;
   progress?: { totalItems: number; completedItems: number };
 }) {
@@ -248,9 +242,9 @@ function ModuleBlock({
             courseId={courseId}
             versionId={versionId}
             track={track}
-            linear={linear}
             moduleId={m.moduleId}
             sectionId={s.sectionId}
+            studyParents={{ module: m, section: s }}
             name={s.name}
             defaultOpen={containsCurrent ? currentPath?.section?.id === s.sectionId : index === 0}
             currentItemId={currentPath?.item?.id}
@@ -265,9 +259,9 @@ function SectionBlock({
   courseId,
   versionId,
   track,
-  linear,
   moduleId,
   sectionId,
+  studyParents,
   name,
   defaultOpen,
   currentItemId,
@@ -275,9 +269,10 @@ function SectionBlock({
   courseId: string;
   versionId: string;
   track: Track;
-  linear: boolean;
   moduleId: string;
   sectionId: string;
+  /** The section and module, for resolving each item's study-mode setting. */
+  studyParents: { module: StudyModeNode; section: StudyModeNode };
   name: string;
   defaultOpen: boolean;
   currentItemId?: string;
@@ -308,8 +303,11 @@ function SectionBlock({
             const meta = itemTypeMeta(item.type);
             const Icon = meta.icon;
             const isCurrent = item._id === currentItemId;
-            // Linear courses only serve lessons already reached; blue can't open the rest.
-            const locked = track === 'blue' && linear && !item.isCompleted && !isCurrent;
+            // Study mode ignores linear order, but can't open quizzes or content
+            // the instructor has made strict-only; those link to strict mode.
+            const strictOnly =
+              track === 'blue' &&
+              (item.type === 'QUIZ' || !resolveStudyMode(item, studyParents.section, studyParents.module).allowed);
             const row = (
               <>
                 <ItemMedia variant="icon">
@@ -317,7 +315,7 @@ function SectionBlock({
                 </ItemMedia>
                 <ItemContent className="min-w-0">
                   <ItemTitle className="w-full truncate">{item.name}</ItemTitle>
-                  <ItemDescription>{locked ? 'Unlocks in certified mode' : meta.label}</ItemDescription>
+                  <ItemDescription>{strictOnly ? `${meta.label} · Strict mode only` : meta.label}</ItemDescription>
                 </ItemContent>
                 <ItemActions>
                 {item.isCompleted ? (
@@ -325,8 +323,8 @@ function SectionBlock({
                     <CheckIcon className="size-3.5" aria-hidden />
                     <span className="sr-only">Completed</span>
                   </span>
-                ) : locked ? (
-                  <LockIcon className="size-4 text-muted-foreground/60" aria-label="Locked" />
+                ) : strictOnly ? (
+                  <LockIcon className="size-4 text-muted-foreground/60" aria-label="Strict mode only" />
                 ) : !isCurrent ? (
                   <CircleIcon className="size-5 text-muted-foreground/50" aria-label="Not started" />
                 ) : null}
@@ -340,26 +338,20 @@ function SectionBlock({
             return (
               <li key={item._id} id={isCurrent ? 'up-next' : undefined} className="relative scroll-mt-28">
                 {isCurrent && <Badge className="absolute -top-2.5 left-1/2 z-10 -translate-x-1/2 shadow-sm">Up next</Badge>}
-                {locked ? (
-                  <Item variant="outline" size="sm" className={cn(rowClass, 'opacity-60')}>
-                    {row}
-                  </Item>
-                ) : (
-                  <Item
-                    variant="outline"
-                    size="sm"
-                    className={rowClass}
-                    render={
-                      <Link
-                        to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
-                        params={{ courseId, versionId, moduleId, sectionId, itemId: item._id }}
-                        search={{ track }}
-                      />
-                    }
-                  >
-                    {row}
-                  </Item>
-                )}
+                <Item
+                  variant="outline"
+                  size="sm"
+                  className={cn(rowClass, strictOnly && 'opacity-70')}
+                  render={
+                    <Link
+                      to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
+                      params={{ courseId, versionId, moduleId, sectionId, itemId: item._id }}
+                      search={{ track: strictOnly ? 'green' : track }}
+                    />
+                  }
+                >
+                  {row}
+                </Item>
               </li>
             );
           })}
@@ -369,8 +361,8 @@ function SectionBlock({
   );
 }
 
-/** Segmented switch between the two ways through a course (Certified / Study mode). */
-function TrackSwitcher({ track, onChange, linear }: { track: Track; onChange: (t: Track) => void; linear: boolean }) {
+/** Segmented switch between the two ways through a course (Strict / Study mode). */
+function TrackSwitcher({ track, onChange }: { track: Track; onChange: (t: Track) => void }) {
   return (
     <Card size="sm" role="region" aria-labelledby="track-title" className="mt-8">
       <CardHeader className="gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -390,9 +382,6 @@ function TrackSwitcher({ track, onChange, linear }: { track: Track; onChange: (t
         <TrackBadge track={track} className="shrink-0" />
         <p className="text-sm text-muted-foreground">
           {TRACKS[track].description}
-          {track === 'blue' && linear && (
-            <> This course opens lessons in order, so study mode covers the lessons you’ve reached in certified mode.</>
-          )}
         </p>
       </CardContent>
     </Card>

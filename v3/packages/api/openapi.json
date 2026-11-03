@@ -5196,6 +5196,10 @@
      "isOptional": {
       "type": "boolean"
      },
+     "studyModeEnabled": {
+      "type": "boolean",
+      "description": "Study-mode setting: true allows, false disallows; absent or null inherits from the level above."
+     },
      "details": {
       "type": "object",
       "description": "Type-specific payload (video URL and offsets, blog content, quiz settings, ...). For QUIZ items questionBankRefs is lifted out into the sibling field below."
@@ -5228,6 +5232,10 @@
      "isHidden": {
       "type": "boolean"
      },
+     "studyModeEnabled": {
+      "type": "boolean",
+      "description": "Study-mode setting: true allows, false disallows; absent or null inherits from the level above."
+     },
      "items": {
       "items": {
        "$ref": "#/components/schemas/BundleItem"
@@ -5255,6 +5263,10 @@
      },
      "isHidden": {
       "type": "boolean"
+     },
+     "studyModeEnabled": {
+      "type": "boolean",
+      "description": "Study-mode setting: true allows, false disallows; absent or null inherits from the level above."
      },
      "sections": {
       "items": {
@@ -5403,6 +5415,17 @@
      "name",
      "message"
     ]
+   },
+   "StudyModeBody": {
+    "properties": {
+     "studyModeEnabled": {
+      "type": "boolean",
+      "title": "Study mode setting",
+      "description": "true allows study mode here, false disallows it (students must use strict mode), null clears the setting so it inherits from the level above (item → section → module; allowed when nothing is set).",
+      "nullable": true
+     }
+    },
+    "type": "object"
    },
    "InviteIdParams": {
     "properties": {
@@ -25495,6 +25518,14 @@
       "schema": {
        "type": "string"
       }
+     },
+     {
+      "in": "query",
+      "name": "mode",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
      }
     ],
     "responses": {
@@ -25825,6 +25856,85 @@
      "Course Items"
     ],
     "description": "Sets or clears this item's proctoring override, taking precedence over the module and course-wide (universal) proctoring settings.\nAccessible to:\n- Instructors, managers, and teaching assistants of the course."
+   }
+  },
+  "/api/courses/versions/{versionId}/items/{itemId}/study-mode": {
+   "put": {
+    "operationId": "ItemController.updateStudyMode",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Version ID",
+       "description": "ID of the course version"
+      }
+     },
+     {
+      "in": "path",
+      "name": "itemId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Item ID",
+       "description": "ID of the item"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StudyModeBody"
+       }
+      }
+     },
+     "description": "StudyModeBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "description": "Unresolved backend $ref: #/components/schemas/ItemStudyModeResponse"
+        }
+       }
+      },
+      "description": "Item study-mode setting updated successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ItemNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "Item not found"
+     }
+    },
+    "summary": "Set this item's study-mode setting",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Allows or disallows study mode for this item, overriding its section and module, or clears the setting (null) so it inherits again.<br/>\nAccessible to:\n- Instructors, managers, and teaching assistants of the course."
    }
   },
   "/api/courses/{courseId}/versions/{versionId}/items/{itemId}/toggle-visibility": {
@@ -26300,6 +26410,83 @@
     "description": "Sets or clears this module's proctoring override, taking precedence over the course-wide (universal) proctoring setting for every item in the module that does not have its own item-level override.<br/>\nAccessible to:\n- Instructors or managers of the course."
    }
   },
+  "/api/courses/versions/{versionId}/modules/{moduleId}/study-mode": {
+   "put": {
+    "operationId": "ModuleController.updateStudyMode",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Version ID",
+       "description": "ID of the course version containing the module"
+      }
+     },
+     {
+      "in": "path",
+      "name": "moduleId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Module ID",
+       "description": "ID of the module to be updated"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StudyModeBody"
+       }
+      }
+     },
+     "description": "StudyModeBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ModuleDataResponse"
+        }
+       }
+      },
+      "description": "Module study-mode setting updated successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ModuleNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "Module not found"
+     }
+    },
+    "summary": "Set this module's study-mode setting",
+    "tags": [
+     "Course Modules"
+    ],
+    "description": "Allows or disallows study mode for every section and item in the module that has no setting of its own, or clears the setting (null) so the module is open to study mode again.<br/>\nAccessible to:\n- Instructors or managers of the course."
+   }
+  },
   "/api/courses/versions/{versionId}/modules/{moduleId}/toggle-visibility": {
    "put": {
     "operationId": "ModuleController.toggleVisibility",
@@ -26529,6 +26716,97 @@
      "Course Sections"
     ],
     "description": "Creates a new section within a module of a specific course version.<br/>\nAccessible to:\n- Instructors or managers of the course."
+   }
+  },
+  "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/study-mode": {
+   "put": {
+    "operationId": "SectionController.updateStudyMode",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Version ID",
+       "description": "ID of the course version containing the module"
+      }
+     },
+     {
+      "in": "path",
+      "name": "moduleId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Module ID",
+       "description": "ID of the module containing the section"
+      }
+     },
+     {
+      "in": "path",
+      "name": "sectionId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Section ID",
+       "description": "ID of the section"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StudyModeBody"
+       }
+      }
+     },
+     "description": "StudyModeBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SectionDataResponse"
+        }
+       }
+      },
+      "description": "Section study-mode setting updated successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SectionNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "Section not found"
+     }
+    },
+    "summary": "Set this section's study-mode setting",
+    "tags": [
+     "Course Sections"
+    ],
+    "description": "Allows or disallows study mode for every item in the section that has no setting of its own (overriding the module), or clears the setting (null) so the section inherits from its module again.<br/>\nAccessible to:\n- Instructors or managers of the course."
    }
   },
   "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}": {
@@ -36566,8 +36844,22 @@
  ],
  "servers": [
   {
+   "url": "http://{host}:{port}",
+   "description": "Local Development Server",
+   "variables": {
+    "host": {
+     "default": "localhost",
+     "description": "Localhost for API server"
+    },
+    "port": {
+     "default": "4002",
+     "description": "Port for the API server"
+    }
+   }
+  },
+  {
    "url": "https://localhost",
-   "description": "Staging Server"
+   "description": "Dev Server (Remote)"
   }
  ],
  "security": [

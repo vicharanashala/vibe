@@ -192,6 +192,50 @@ function invalidateVersion(queryClient: ReturnType<typeof useQueryClient>, versi
   void queryClient.invalidateQueries({ queryKey: courseKeys.version(versionId) });
 }
 
+// ---- Study mode ----
+
+/** Where a study-mode setting is written; `value: null` clears it back to "inherit". */
+export type StudyModeTarget =
+  | { level: 'module'; versionId: string; moduleId: string }
+  | { level: 'section'; versionId: string; moduleId: string; sectionId: string }
+  | { level: 'item'; versionId: string; moduleId: string; sectionId: string; itemId: string };
+
+export function useSetStudyMode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ target, value }: { target: StudyModeTarget; value: boolean | null }) => {
+      const body = { studyModeEnabled: value };
+      if (target.level === 'module')
+        return unwrap(
+          await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/study-mode', {
+            params: { path: { versionId: target.versionId, moduleId: target.moduleId } },
+            body,
+          }),
+        );
+      if (target.level === 'section')
+        return unwrap(
+          await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/study-mode', {
+            params: { path: { versionId: target.versionId, moduleId: target.moduleId, sectionId: target.sectionId } },
+            body,
+          }),
+        );
+      return unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/items/{itemId}/study-mode', {
+          params: { path: { versionId: target.versionId, itemId: target.itemId } },
+          body,
+        }),
+      );
+    },
+    onSuccess: (_data, { target }) => {
+      if (target.level === 'item')
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.sectionItems(target.versionId, target.moduleId, target.sectionId),
+        });
+      else invalidateVersion(queryClient, target.versionId);
+    },
+  });
+}
+
 // ---- Modules ----
 
 export function useCreateModule() {

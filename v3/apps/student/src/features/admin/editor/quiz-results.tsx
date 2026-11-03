@@ -129,7 +129,7 @@ export function QuizResults({
           </EmptyMedia>
           <EmptyTitle>No attempts yet</EmptyTitle>
           <EmptyDescription>
-            Results appear here once students submit this quiz in certified
+            Results appear here once students submit this quiz in strict
             mode.
           </EmptyDescription>
         </EmptyHeader>

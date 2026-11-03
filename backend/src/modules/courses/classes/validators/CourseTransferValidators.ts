@@ -112,6 +112,14 @@ class BundleItem {
   isOptional?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description:
+      'Study-mode setting: true allows, false disallows; absent or null inherits from the level above.',
+  })
+  studyModeEnabled?: boolean | null;
+
+  @IsOptional()
   @IsObject()
   @JSONSchema({
     description:
@@ -141,6 +149,14 @@ class BundleSection {
   @IsBoolean()
   isHidden?: boolean;
 
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description:
+      'Study-mode setting: true allows, false disallows; absent or null inherits from the level above.',
+  })
+  studyModeEnabled?: boolean | null;
+
   @IsArray()
   @ValidateNested({each: true})
   @Type(() => BundleItem)
@@ -161,6 +177,14 @@ class BundleModule {
   @IsOptional()
   @IsBoolean()
   isHidden?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description:
+      'Study-mode setting: true allows, false disallows; absent or null inherits from the level above.',
+  })
+  studyModeEnabled?: boolean | null;
 
   @IsArray()
   @ValidateNested({each: true})

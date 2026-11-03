@@ -198,6 +198,10 @@ export class CourseTransferService extends BaseService {
             order: ref.order,
             isHidden: item.isHidden ?? false,
             isOptional: item.isOptional ?? false,
+            // The item's study-mode setting lives on its ItemsGroup ref.
+            ...(ref.studyModeEnabled != null
+              ? {studyModeEnabled: ref.studyModeEnabled}
+              : {}),
             details: item.details ? {...(item.details as object)} : undefined,
           };
 
@@ -224,6 +228,9 @@ export class CourseTransferService extends BaseService {
           description: section.description,
           order: section.order,
           isHidden: section.isHidden ?? false,
+          ...(section.studyModeEnabled != null
+            ? {studyModeEnabled: section.studyModeEnabled}
+            : {}),
           items,
         });
       }
@@ -233,6 +240,9 @@ export class CourseTransferService extends BaseService {
         description: module.description,
         order: module.order,
         isHidden: module.isHidden ?? false,
+        ...(module.studyModeEnabled != null
+          ? {studyModeEnabled: module.studyModeEnabled}
+          : {}),
         sections,
       });
     }
@@ -498,6 +508,12 @@ export class CourseTransferService extends BaseService {
               order: bundleSection.items[index].order,
               name: bundleSection.items[index].name,
               isHidden: bundleSection.items[index].isHidden ?? false,
+              ...(bundleSection.items[index].studyModeEnabled != null
+                ? {
+                    studyModeEnabled:
+                      bundleSection.items[index].studyModeEnabled,
+                  }
+                : {}),
             })),
           } as any,
           session,
@@ -509,6 +525,9 @@ export class CourseTransferService extends BaseService {
           description: bundleSection.description ?? '',
           order: bundleSection.order,
           isHidden: bundleSection.isHidden ?? false,
+          ...(bundleSection.studyModeEnabled != null
+            ? {studyModeEnabled: bundleSection.studyModeEnabled}
+            : {}),
           itemsGroupId: new ObjectId(itemsGroup._id.toString()),
           isDeleted: false,
           createdAt: new Date(),
@@ -522,6 +541,9 @@ export class CourseTransferService extends BaseService {
         description: bundleModule.description ?? '',
         order: bundleModule.order,
         isHidden: bundleModule.isHidden ?? false,
+        ...(bundleModule.studyModeEnabled != null
+          ? {studyModeEnabled: bundleModule.studyModeEnabled}
+          : {}),
         sections,
         isDeleted: false,
         createdAt: new Date(),

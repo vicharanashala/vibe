@@ -38,6 +38,7 @@ import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileFallbackScreen from "@/components/MobileFallbackScreen";
+import { PhoneStudyLesson } from "@/components/PhoneStudyLesson";
 import { EmotionType } from "@/components/EmotionSelector";
 import { useSubmitEmotion } from "@/hooks/use-emotion";
 
@@ -1808,8 +1809,23 @@ const handleGoToNextItem = async () => {
     );
   }
 
-  if (isMobile && !allProctorsDisabled)
-    return <MobileFallbackScreen />
+  // Phones: study mode for videos where the instructor allows it (no
+  // proctoring, nothing saved), the existing "use a computer" screen otherwise.
+  // Items whose proctoring is all off keep opening here as before.
+  if (isMobile && !allProctorsDisabled) {
+    const outline = (courseVersionData as any)?.modules || [];
+    return selectedItemId && selectedModuleId && selectedSectionId && COURSE_ID && VERSION_ID ? (
+      <PhoneStudyLesson
+        courseId={COURSE_ID}
+        versionId={VERSION_ID}
+        cohortId={COHORT_ID || undefined}
+        modules={outline}
+        initial={{ moduleId: selectedModuleId, sectionId: selectedSectionId, itemId: selectedItemId }}
+      />
+    ) : (
+      <MobileFallbackScreen />
+    );
+  }
 
   const modules = (courseVersionData as any)?.modules || [];
 

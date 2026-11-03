@@ -51,6 +51,10 @@ import {VersionModuleSectionParams} from '../classes/index.js';
 import {ItemActions, getItemAbility} from '../abilities/itemAbilities.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
+import {
+  ItemStudyModeResponse,
+  StudyModeBody,
+} from '../classes/validators/StudyModeValidators.js';
 import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {ItemType, IUser, IDetectorSettings} from '#shared/interfaces/models.js';
@@ -721,6 +725,9 @@ Access control logic:
     @Params() params: GetItemParams,
     @CurrentUser() user: { _id: string },
     @QueryParam('cohortId') cohortId?: string,
+    // 'study' asks for a study-mode read (no linear lock, no progress
+    // change); anything else is an ordinary read.
+    @QueryParam('mode') mode?: string,
   ) {
     const {versionId, itemId, courseId, moduleId, sectionId} = params;
     const {_id: userId} = user;
@@ -734,7 +741,16 @@ Access control logic:
     // }
 
     return {
-      item: await this.itemService.readItem(userId?.toString(), versionId, itemId, courseId, moduleId, sectionId, cohortId),
+      item: await this.itemService.readItem(
+        userId?.toString(),
+        versionId,
+        itemId,
+        courseId,
+        moduleId,
+        sectionId,
+        cohortId,
+        mode === 'study' ? 'study' : undefined,
+      ),
     };
   }
 
@@ -964,6 +980,71 @@ Accessible to:
       itemId,
       body.detectors,
     );
+  }
+
+  @OpenAPI({
+    summary: "Set this item's study-mode setting",
+    description: `Allows or disallows study mode for this item, overriding its section and module, or clears the setting (null) so it inherits again.<br/>
+Accessible to:
+- Instructors, managers, and teaching assistants of the course.`,
+  })
+  @Authorized()
+  @HttpCode(200)
+  @Put('/versions/:versionId/items/:itemId/study-mode')
+  @UseInterceptor(AuditTrailsHandler)
+  @ResponseSchema(ItemStudyModeResponse, {
+    description: 'Item study-mode setting updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ItemNotFoundErrorResponse, {
+    description: 'Item not found',
+    statusCode: 404,
+  })
+  async updateStudyMode(
+    @Params() params: ItemProctoringParams,
+    @Body() body: StudyModeBody,
+    @Ability(getItemAbility) {ability, user},
+    @Req() req: Request,
+  ) {
+    const {versionId, itemId} = params;
+    const itemResource = subject('Item', {versionId: versionId});
+    if (!ability.can(ItemActions.Modify, itemResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this item',
+      );
+    }
+
+    const result = await this.itemService.updateItemStudyMode(
+      versionId,
+      itemId,
+      body.studyModeEnabled,
+    );
+
+    setAuditTrail(req, {
+      category: AuditCategory.ITEM,
+      action: AuditAction.ITEM_UPDATE_STUDY_MODE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        itemId: ObjectId.createFromHexString(itemId),
+      },
+      changes: {
+        after: {studyModeEnabled: body.studyModeEnabled},
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
+
+    return result;
   }
 
   @OpenAPI({
