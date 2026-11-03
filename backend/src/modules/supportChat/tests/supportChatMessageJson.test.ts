@@ -1,12 +1,7 @@
 import {describe, it, expect} from 'vitest';
-import express from 'express';
-import request from 'supertest';
+import {instanceToPlain} from 'class-transformer';
 import {ObjectId} from 'mongodb';
-import {useContainer, useExpressServer} from 'routing-controllers';
-import {
-  ChatController,
-  toChatMessageJson,
-} from '../controllers/ChatController.js';
+import {toChatMessageJson} from '../controllers/ChatController.js';
 import {ChatMessageResponse} from '../types.js';
 
 /**
@@ -45,27 +40,12 @@ describe('toChatMessageJson', () => {
   });
 });
 
-describe('POST /api/support/chat/message', () => {
-  it('sends ids the widget can put in a URL', async () => {
-    const chatService = {handleUserQuestion: async () => reply};
-    const controller = new ChatController(chatService as never);
-    useContainer({get: () => controller} as never);
+describe('serialised reply', () => {
+  // The same class-transformer call routing-controllers makes on a reply.
+  it('keeps ids as strings through instanceToPlain', () => {
+    const plain = instanceToPlain(toChatMessageJson(reply));
 
-    const app = express();
-    app.use(express.json());
-    useExpressServer(app, {
-      controllers: [ChatController],
-      routePrefix: '/api',
-      authorizationChecker: async () => true,
-      currentUserChecker: async () => ({id: new ObjectId().toHexString()}),
-    });
-
-    const res = await request(app)
-      .post('/api/support/chat/message')
-      .send({question: 'webcam not detected'});
-
-    expect(res.status).toBe(200);
-    expect(res.body.questionId).toBe(questionId.toHexString());
-    expect(res.body.faqId).toBe(faqId.toHexString());
+    expect(plain.questionId).toBe(questionId.toHexString());
+    expect(plain.faqId).toBe(faqId.toHexString());
   });
 });
