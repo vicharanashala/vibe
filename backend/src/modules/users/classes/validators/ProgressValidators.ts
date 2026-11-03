@@ -829,6 +829,97 @@ export class UpsertWatchTimeResponse {
   watchItemId: string;
 }
 
+export class StartRewatchBody {
+  @JSONSchema({
+    description: 'ID of the completed course item being rewatched',
+    example: '60d5ec49b3f1c8e4a8f8b8c4',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  itemId: string;
+
+  @JSONSchema({
+    description: 'ID of the cohort if applicable',
+    example: '60d5ec49b3f1c8e4a8f8b8c8',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  cohortId?: string;
+
+  @JSONSchema({
+    description:
+      'ID of the quiz the learner came from, when the rewatch follows a quiz',
+    example: '60d5ec49b3f1c8e4a8f8b8c9',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  quizId?: string;
+
+  @JSONSchema({
+    description:
+      'ID of the quiz attempt the learner came from, when the rewatch follows a quiz',
+    example: '60d5ec49b3f1c8e4a8f8b8c7',
+    type: 'string',
+  })
+  @IsOptional()
+  @IsString()
+  @IsMongoId()
+  attemptId?: string;
+}
+
+export class StartRewatchResponse {
+  @Expose()
+  @JSONSchema({
+    description:
+      'ID of the rewatch record, or an empty string when the item is not completed and nothing was recorded',
+    example: '60d5ec49b3f1c8e4a8f8b8c7',
+    type: 'string',
+  })
+  @IsString()
+  rewatchId: string;
+
+  constructor(data: Partial<StartRewatchResponse>) {
+    Object.assign(this, data);
+  }
+}
+
+export class RewatchHeartbeatBody {
+  @JSONSchema({
+    description: 'ID of the rewatch record returned by the rewatch start call',
+    example: '60d5ec49b3f1c8e4a8f8b8c7',
+    type: 'string',
+  })
+  @IsNotEmpty()
+  @IsString()
+  @IsMongoId()
+  rewatchId: string;
+
+  @JSONSchema({
+    description:
+      'True on the closing call, sent when playback ends or the learner leaves',
+    type: 'boolean',
+  })
+  @IsOptional()
+  @IsBoolean()
+  ended?: boolean;
+}
+
+export class RewatchHeartbeatResponse {
+  @JSONSchema({
+    description: 'ID of the updated rewatch record',
+    example: '60d5ec49b3f1c8e4a8f8b8c7',
+    type: 'string',
+  })
+  @IsString()
+  rewatchId: string;
+}
+
 export const PROGRESS_VALIDATORS = [
   GetUserProgressParams,
   StartItemBody,
@@ -847,4 +938,8 @@ export const PROGRESS_VALIDATORS = [
   WatchTimeResponse,
   UpsertWatchTimeBody,
   UpsertWatchTimeResponse,
+  StartRewatchBody,
+  StartRewatchResponse,
+  RewatchHeartbeatBody,
+  RewatchHeartbeatResponse,
 ];

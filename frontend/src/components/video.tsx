@@ -4,7 +4,8 @@ import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward, ChevronRight } from 'lucide-react';
-import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, useUpsertWatchTime } from '../hooks/hooks';
+import { useRewatchHeartbeat, useSkipOptionalItem, useStartItem, useStartRewatch, useStopItem, useStoreWatchTimeTrack, useUpsertWatchTime } from '../hooks/hooks';
+import { resolveRewatchQuizLink } from '@/utils/rewatch';
 import { fetchClient } from '@/lib/openapi';
 
 
@@ -59,7 +60,7 @@ function parseTimeToSeconds(timeStr: string): number {
   }
 }
 
-const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, assetId, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, pauseSignal, awayPaused = false }: VideoProps, ref) {
+const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, assetId, startTime, nextItemId, endTime, points, anomalies, readyToDetect, rewindVid, pauseVid, doGesture = false, onNext, isProgressUpdating, onDurationChange, keyboardLockEnabled = true, focusMode = false, linearProgressionEnabled, seekForwardEnabled, isCompleted, isAlreadyWatched, completedItemIdsRef, rewatchQuizContextRef, pauseSignal, awayPaused = false }: VideoProps, ref) {
   /**
    * An uploaded lesson streams HLS instead of embedding YouTube. Everything else
    * in this component — proctoring, seek gating, watch-time, overlays, keyboard
@@ -101,6 +102,8 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
   const startItem = useStartItem();
   const stopItem = useStopItem();
   const upsertWatchTime = useUpsertWatchTime();
+  const startRewatch = useStartRewatch();
+  const rewatchHeartbeat = useRewatchHeartbeat();
   const isStopping = stopItem.isPending;
   const stopError = stopItem.error;
   const { mutateAsync: storeWatchTimeTrack } = useStoreWatchTimeTrack();
@@ -886,6 +889,108 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
     }, 15000); // every 15 seconds
     return () => clearInterval(interval); // cleanup on unmount
   }, [startItem.data?.watchItemId, playing, currentCourse?.watchItemId]);
+
+  /**
+   * Rewatch tracking.
+   *
+   * start/stop and the heartbeat above are skipped once an item is completed,
+   * so replaying a completed video would otherwise leave no record. This block
+   * records it separately, through its own endpoints and its own collection.
+   * It never reads or changes progress, and any failure here is swallowed so
+   * it cannot affect playback or navigation.
+   *
+   * One record per visit: this component is keyed by item id, so it lives for
+   * exactly one visit to one video.
+   */
+  const [rewatchId, setRewatchId] = useState<string | null>(null);
+  const rewatchIdRef = useRef<string | null>(null);
+  const rewatchStartRequestedRef = useRef(false);
+  // True while there has been playback since the last closing call.
+  const rewatchOpenRef = useRef(false);
+  const rewatchUnmountedRef = useRef(false);
+
+  const sendRewatchEnded = () => {
+    const id = rewatchIdRef.current;
+    if (!id || !rewatchOpenRef.current) return;
+    rewatchOpenRef.current = false;
+    try {
+      rewatchHeartbeat.mutate({ body: { rewatchId: id, ended: true } });
+    } catch {
+      // Best-effort.
+    }
+  };
+  const sendRewatchEndedRef = useRef(sendRewatchEnded);
+  sendRewatchEndedRef.current = sendRewatchEnded;
+
+  // Open a rewatch record the first time a completed video starts playing.
+  useEffect(() => {
+    if (!playing || rewatchStartRequestedRef.current) return;
+    const itemId = currentCourse?.itemId;
+    if (!currentCourse || !itemId) return;
+    const completed = isAlreadyWatched || isCompleted || completedItemIdsRef.current.has(itemId);
+    if (!completed) return;
+
+    rewatchStartRequestedRef.current = true;
+
+    // Link to the quiz attempt only when the learner was sent back to this
+    // very video. Consumed either way so a later visit is not linked to it.
+    const fromQuiz = resolveRewatchQuizLink(rewatchQuizContextRef?.current, itemId);
+    if (rewatchQuizContextRef) rewatchQuizContextRef.current = null;
+
+    startRewatch
+      .mutateAsync({
+        params: {
+          path: {
+            courseId: currentCourse.courseId,
+            courseVersionId: currentCourse.versionId ?? '',
+          },
+        },
+        body: {
+          itemId,
+          cohortId: currentCourse.cohortId || undefined,
+          quizId: fromQuiz?.quizId,
+          attemptId: fromQuiz?.attemptId,
+        },
+      })
+      .then((response) => {
+        if (!response?.rewatchId) return;
+        rewatchIdRef.current = response.rewatchId;
+        rewatchOpenRef.current = true;
+        if (rewatchUnmountedRef.current) {
+          // The learner left before the record came back: close it now.
+          sendRewatchEndedRef.current();
+          return;
+        }
+        setRewatchId(response.rewatchId);
+      })
+      .catch(() => {
+        // Rewatch tracking must never get in the way of the video.
+      });
+  }, [playing]);
+
+  // Heartbeat every 15 seconds while a rewatch is playing.
+  useEffect(() => {
+    if (!rewatchId || !playing) return;
+    rewatchOpenRef.current = true;
+    const interval = setInterval(() => {
+      rewatchHeartbeat.mutate({ body: { rewatchId } });
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [rewatchId, playing]);
+
+  // Close the record when the video plays to the end...
+  useEffect(() => {
+    if (videoEnded) sendRewatchEndedRef.current();
+  }, [videoEnded]);
+
+  // ...and when the learner leaves it.
+  useEffect(() => {
+    rewatchUnmountedRef.current = false;
+    return () => {
+      rewatchUnmountedRef.current = true;
+      sendRewatchEndedRef.current();
+    };
+  }, []);
 
   const stopIfInProgressRef = useRef(stopIfInProgress);
   stopIfInProgressRef.current = stopIfInProgress;

@@ -1,6 +1,7 @@
 import type { questionBankRef } from './quiz.types';
 import type { PendingStudentQuestionContext } from './student-question.types';
 import type { VideoSource } from './media.types';
+import type { RewatchQuizContext } from './video.types';
 
 export interface Item {
   _id: string;
@@ -84,6 +85,7 @@ export interface ItemContainerProps {
   courseId: string;
   versionId: string;
   completedItemIdsRef: React.RefObject<Set<string>>;
+  rewatchQuizContextRef?: React.RefObject<RewatchQuizContext | null>;
   nextItem: {itemId:string};
   cohortId?: string;
   cohortname?: string;

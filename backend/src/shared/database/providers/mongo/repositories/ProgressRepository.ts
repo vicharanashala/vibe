@@ -1,4 +1,4 @@
-import { IAdminSkip, IProgress, IWatchTime } from '#shared/interfaces/models.js';
+import { IAdminSkip, IProgress, IRewatchTime, IWatchTime } from '#shared/interfaces/models.js';
 import { IAttempt } from '#quizzes/interfaces/grading.js';
 import { injectable, inject } from 'inversify';
 import { Collection, ObjectId, ClientSession } from 'mongodb';
@@ -16,6 +16,7 @@ type CurrentProgress = Pick<
 class ProgressRepository {
   private progressCollection!: Collection<IProgress>;
   private watchTimeCollection!: Collection<IWatchTime>;
+  private rewatchTimeCollection!: Collection<IRewatchTime>;
   private attemptCollection: Collection<IAttempt>;
   private courseCollection: Collection<Course>;
   private courseVersionCollection: Collection<CourseVersion>;
@@ -40,6 +41,9 @@ class ProgressRepository {
     );
     this.watchTimeCollection = await this.db.getCollection<IWatchTime>(
       'watchTime',
+    );
+    this.rewatchTimeCollection = await this.db.getCollection<IRewatchTime>(
+      'rewatchTime',
     );
     this.attemptCollection = await this.db.getCollection<IAttempt>(
       'quiz_attempts',
@@ -130,6 +134,22 @@ class ProgressRepository {
           background: true,
           partialFilterExpression: { endTime: { $exists: false } },
         },
+      );
+    } catch (e) {
+      // Index already exists
+    }
+
+    try {
+      // Rewatches are read per learner and item, ordered by when they started.
+      await this.rewatchTimeCollection.createIndex(
+        {
+          userId: 1,
+          courseId: 1,
+          courseVersionId: 1,
+          itemId: 1,
+          startTime: 1,
+        },
+        { background: true },
       );
     } catch (e) {
       // Index already exists
@@ -937,6 +957,93 @@ class ProgressRepository {
     );
 
     return result;
+  }
+
+  /**
+   * Opens a rewatch record. Deliberately writes to rewatchTime, never to
+   * watchTime, so nothing that derives completion, progress or watch hours
+   * from watchTime can see it.
+   */
+  async startRewatchTracking(
+    userId: string | ObjectId,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    cohortId?: string,
+    quizId?: string,
+    attemptId?: string,
+  ): Promise<string | null> {
+    await this.init();
+    const rewatchTime: IRewatchTime = {
+      userId: new ObjectId(userId),
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      itemId: new ObjectId(itemId),
+      startTime: new Date(),
+      heartbeatCount: 0,
+    };
+    if (cohortId) {
+      rewatchTime.cohortId = new ObjectId(cohortId);
+    }
+    if (quizId) {
+      rewatchTime.quizId = new ObjectId(quizId);
+    }
+    if (attemptId) {
+      rewatchTime.attemptId = new ObjectId(attemptId);
+    }
+    const result = await this.rewatchTimeCollection.insertOne(rewatchTime);
+    if (result.acknowledged === false) {
+      return null;
+    }
+    return result.insertedId.toString();
+  }
+
+  /**
+   * Whether this attempt was made by this learner on this quiz. Attempts have
+   * been written with both string and ObjectId ids, so both are matched.
+   */
+  async isAttemptOfUserForQuiz(
+    attemptId: string,
+    userId: string | ObjectId,
+    quizId: string,
+  ): Promise<boolean> {
+    await this.init();
+    const result = await this.attemptCollection.findOne(
+      {
+        _id: new ObjectId(attemptId),
+        userId: { $in: [userId.toString(), new ObjectId(userId)] },
+        quizId: { $in: [quizId, new ObjectId(quizId)] },
+      },
+      { projection: { _id: 1 } },
+    );
+    return result !== null;
+  }
+
+  /**
+   * Heartbeat for a rewatch record. Matches on userId as well as _id so a
+   * learner can only touch their own record. A plain heartbeat counts towards
+   * played time; the closing call (ended) only stamps endTime, so lastSeenAt
+   * keeps meaning "last seen playing", as it does on watchTime.
+   *
+   * Returns false when no record matched.
+   */
+  async updateRewatchLastSeen(
+    rewatchId: string,
+    userId: string | ObjectId,
+    ended = false,
+  ): Promise<boolean> {
+    await this.init();
+    const now = new Date();
+    const result = await this.rewatchTimeCollection.updateOne(
+      {
+        _id: new ObjectId(rewatchId),
+        userId: new ObjectId(userId),
+      },
+      ended
+        ? { $set: { endTime: now } }
+        : { $set: { lastSeenAt: now }, $inc: { heartbeatCount: 1 } },
+    );
+    return result.matchedCount > 0;
   }
 
   async findAndReplaceProgress(
