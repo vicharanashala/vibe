@@ -1,3 +1,4 @@
+import {StudyModeError} from '#courses/errors/StudyModeError.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, ObjectId } from 'mongodb';
 import {
@@ -46,6 +47,9 @@ import {
   ProgressRepository,
   QuestionType,
   resolveProctoringDetectors,
+  resolveStudyMode,
+  IResolvedStudyMode,
+  IModule,
 } from '#root/shared/index.js';
 import { USERS_TYPES } from '#root/modules/users/types.js';
 import { ProgressService } from '#root/modules/users/services/ProgressService.js';
@@ -557,6 +561,38 @@ export class ItemService extends BaseService {
     return previousItemCompleted;
   }
 
+  /**
+   * Effective study-mode value for an item: its own ItemsGroup-ref setting,
+   * then its section's, then its module's (see resolveStudyMode). Allowed
+   * when the item can't be placed in the version, as with nothing set.
+   */
+  private async _resolveItemStudyMode(
+    courseVersion: {modules?: Module[] | IModule[]} | null | undefined,
+    moduleId: string | undefined,
+    sectionId: string | undefined,
+    itemId: string,
+  ): Promise<IResolvedStudyMode> {
+    const module = courseVersion?.modules?.find(
+      m => m.moduleId?.toString() === moduleId,
+    );
+    const section = module?.sections?.find(
+      sec => sec.sectionId?.toString() === sectionId,
+    );
+    const itemsGroup = section?.itemsGroupId
+      ? await this.itemRepo.readItemsGroup(section.itemsGroupId.toString())
+      : null;
+    const ref = itemsGroup?.items?.find(i => i._id?.toString() === itemId);
+    return resolveStudyMode(ref, section, module);
+  }
+
+  /**
+   * `mode: 'study'` is a study-mode read (spec backend/study-mode): for a
+   * student it refuses quizzes and items whose study mode resolves to
+   * disallowed, and otherwise returns the item without the linear-progression
+   * check and without moving the student's progress pointer. Without it the
+   * read behaves exactly as before. Either way the response carries the
+   * item's effective `studyMode`.
+   */
   public async readItem(
     userId: string,
     versionId: string,
@@ -564,7 +600,8 @@ export class ItemService extends BaseService {
     courseId?: string,
     moduleId?: string,
     sectionId?: string,
-    cohortId?: string
+    cohortId?: string,
+    mode?: 'study',
   ) {
     
 
@@ -602,9 +639,16 @@ export class ItemService extends BaseService {
 
     // Non-students do not require progress checks
     if (enrollment.role !== 'STUDENT') {
+      const studyMode = await this._resolveItemStudyMode(
+        await this.courseRepo.readVersion(versionId),
+        moduleId,
+        sectionId,
+        itemId,
+      );
       return {
         ...item,
         _id: item._id.toString(),
+        studyMode,
       };
     }
 
@@ -679,12 +723,40 @@ export class ItemService extends BaseService {
 
     // If linear progression is NOT enabled, allow normally
 
+    const studyMode = await this._resolveItemStudyMode(
+      courseVersion,
+      moduleId,
+      sectionId,
+      itemId,
+    );
+
     const response = (isAlreadyWatched = isItemAlreadyCompleted) => ({
       ...item,
       _id: item._id.toString(),
       isAlreadyWatched,
       proctoringDetectors: resolvedProctoringDetectors,
+      studyMode,
     });
+
+    // Study mode: free viewing that never touches progress. Checked before
+    // the linear-progression block, which a study read skips entirely --
+    // including its progress-pointer update below.
+    if (mode === 'study') {
+      if (item.type === ItemType.QUIZ) {
+        throw new StudyModeError(
+          'STUDY_MODE_QUIZ',
+          'Quizzes can only be taken in strict mode on a computer.',
+        );
+      }
+      if (!studyMode.allowed) {
+        throw new StudyModeError(
+          'STUDY_MODE_DISABLED',
+          `The instructor has disabled study mode for this ${studyMode.source}.`,
+          studyMode.source,
+        );
+      }
+      return response();
+    }
 
     // If linear progression is disabled, allow immediately
     if (!linearProgressionEnabled) return response();
@@ -1145,6 +1217,63 @@ export class ItemService extends BaseService {
         page,
         limit,
       );
+    });
+  }
+
+  /**
+   * Sets or clears this item's own study-mode setting (`null` = inherit from
+   * its section/module). Stored on the item's ItemsGroup ref, like isHidden,
+   * so section item lists carry it without loading every item document.
+   */
+  public async updateItemStudyMode(
+    versionId: string,
+    itemId: string,
+    studyModeEnabled: boolean | null,
+  ): Promise<{itemId: string; studyModeEnabled: boolean | null}> {
+    return this._withTransaction(async session => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        versionId,
+        session,
+      );
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is archived and cannot be updated.',
+        );
+      }
+      const itemsGroup = await this.itemRepo.findItemsGroupByItemId(
+        itemId,
+        session,
+      );
+      const version = itemsGroup
+        ? await this.courseRepo.readVersion(versionId, session)
+        : null;
+      // The item's group must belong to a section of this version, so an id
+      // from another course can't be edited through this one's permissions.
+      const inVersion = version?.modules?.some(m =>
+        m.sections?.some(
+          s => s.itemsGroupId?.toString() === itemsGroup._id?.toString(),
+        ),
+      );
+      const ref = inVersion
+        ? itemsGroup.items.find(i => i._id?.toString() === itemId)
+        : undefined;
+      if (!ref) {
+        throw new NotFoundError(
+          `Item ${itemId} not found in version ${versionId}.`,
+        );
+      }
+
+      if (studyModeEnabled === null) {
+        delete ref.studyModeEnabled;
+      } else {
+        ref.studyModeEnabled = studyModeEnabled;
+      }
+      await this.itemRepo.updateItemsGroup(
+        itemsGroup._id.toString(),
+        itemsGroup,
+        session,
+      );
+      return {itemId, studyModeEnabled};
     });
   }
 

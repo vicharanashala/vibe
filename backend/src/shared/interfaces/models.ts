@@ -90,6 +90,8 @@ export interface IModule {
   // Absent/null means "inherit the course's universal proctoring detector
   // list" — see resolveProctoringDetectors below.
   proctoringDetectors?: IDetectorSettings[] | null;
+  // Absent/null means "inherit" — see resolveStudyMode below.
+  studyModeEnabled?: boolean | null;
   sections: ISection[];
   isDeleted?: boolean;
   deletedAt?: Date;
@@ -103,6 +105,8 @@ export interface ISection {
   description: string;
   order: string;
   isHidden: boolean;
+  // Absent/null means "inherit from the module" — see resolveStudyMode below.
+  studyModeEnabled?: boolean | null;
   itemsGroupId?: ID;
   isDeleted?: boolean;
   deletedAt?: Date;
@@ -396,6 +400,45 @@ export function resolveProctoringDetectors(
     return courseModule.proctoringDetectors;
   }
   return courseSettings?.settings?.proctors?.detectors ?? [];
+}
+
+/** Which level of the course an item's effective study-mode value came from. */
+export type StudyModeSource = 'item' | 'section' | 'module' | 'default';
+
+export interface IResolvedStudyMode {
+  allowed: boolean;
+  source: StudyModeSource;
+}
+
+type StudyModeNode = {studyModeEnabled?: boolean | null} | undefined | null;
+
+/**
+ * Resolve whether study mode is allowed for an item, given the item's own
+ * setting (stored on its ItemsGroup ref, like isHidden), its section's and
+ * its module's.
+ *
+ * Most specific wins: item > section > module. With nothing set anywhere,
+ * study mode is allowed (`source: 'default'`), so every course created before
+ * this setting existed stays fully open to study mode.
+ *
+ * Uses `!= null` for the same reason as resolveProctoringDetectors: a field
+ * that was never set reads back from MongoDB as `null`.
+ */
+export function resolveStudyMode(
+  item: StudyModeNode,
+  section: StudyModeNode,
+  courseModule: StudyModeNode,
+): IResolvedStudyMode {
+  if (item?.studyModeEnabled != null) {
+    return {allowed: item.studyModeEnabled, source: 'item'};
+  }
+  if (section?.studyModeEnabled != null) {
+    return {allowed: section.studyModeEnabled, source: 'section'};
+  }
+  if (courseModule?.studyModeEnabled != null) {
+    return {allowed: courseModule.studyModeEnabled, source: 'module'};
+  }
+  return {allowed: true, source: 'default'};
 }
 
 /**

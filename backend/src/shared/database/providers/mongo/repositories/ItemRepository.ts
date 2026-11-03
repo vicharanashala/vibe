@@ -205,6 +205,12 @@ export class ItemRepository implements IItemRepository {
           type: item.type,
           order: item.order,
           isHidden: item.isHidden,
+          // Rebuilt from an allowlist, and callers write the whole items
+          // array back (updateItemsGroup), so a field missing here is erased
+          // on the next hide/reorder of any item in the section.
+          ...(item.studyModeEnabled != null
+            ? {studyModeEnabled: item.studyModeEnabled}
+            : {}),
           name: existingItem.name || 'Untitled',
         };
         // console.log(`[ItemRepository] Item ${item._id} (${item.type}): name="${itemRef.name}"`);

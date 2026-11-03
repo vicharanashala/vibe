@@ -4,26 +4,26 @@ Three PRs, in order: backend (groups 1–3), then v3 (groups 4–5) and the prod
 
 ## 1. Backend: study-mode setting and inheritance
 
-- [ ] 1.1 Add `studyModeEnabled?: boolean | null` to `IModule`, `ISection` and the item interfaces in `backend/src/shared/interfaces/models.ts`, and to the Module, Section and Item transformers (including their OpenAPI schemas). Verify with `pnpm tsc --noEmit` from `backend/`.
-- [ ] 1.2 Add `resolveStudyMode(item, section, module)` next to `resolveProctoringDetectors`, returning `{ allowed, source }` with the `!= null` check. Unit-test every inheritance scenario in `specs/backend/study-mode` (nothing set, module off, item overrides module, section overrides module, `null` from Mongo means inherit) in a new `backend/src/shared/interfaces/tests/resolveStudyMode.test.ts`.
-- [ ] 1.3 Make version copy/transfer carry the field: check `CourseVersionService` and `CourseTransferService` item-copy code and add `studyModeEnabled` where items are rebuilt. Verify with a case in `CourseTransferService.test.ts` where a disallowed module, section and item survive the copy.
+- [x] 1.1 Add `studyModeEnabled?: boolean | null` to `IModule`, `ISection` and the item interfaces in `backend/src/shared/interfaces/models.ts`, and to the Module, Section and Item transformers (including their OpenAPI schemas). Verify with `pnpm tsc --noEmit` from `backend/`.
+- [x] 1.2 Add `resolveStudyMode(item, section, module)` next to `resolveProctoringDetectors`, returning `{ allowed, source }` with the `!= null` check. Unit-test every inheritance scenario in `specs/backend/study-mode` (nothing set, module off, item overrides module, section overrides module, `null` from Mongo means inherit) in a new `backend/src/shared/interfaces/tests/resolveStudyMode.test.ts`.
+- [x] 1.3 Make version copy/transfer carry the field: check `CourseVersionService` and `CourseTransferService` item-copy code and add `studyModeEnabled` where items are rebuilt. Verify with a case in `CourseTransferService.test.ts` where a disallowed module, section and item survive the copy.
 
 ## 2. Backend: teacher endpoints
 
-- [ ] 2.1 Add `PUT /courses/versions/:versionId/modules/:moduleId/study-mode`, `…/sections/:sectionId/study-mode` and `PUT /courses/versions/:versionId/items/:itemId/study-mode`, taking `{ studyModeEnabled: boolean | null }`. Model them on the proctoring override endpoints (`ModuleController.ts:218`, `ItemController.ts:890`), with the same `CourseVersionActions.Modify` check, validators and repository updates.
-- [ ] 2.2 Return each node's own `studyModeEnabled` in the teacher-facing version-structure and item responses. Add integration tests in a new `backend/src/modules/courses/tests/StudyMode.test.ts` (set up like `SelectiveProctoring.test.ts`): instructor sets/clears each level (200), a student gets 403, an unknown id gets 404, and the stored value reads back. Verify with `pnpm vitest run src/modules/courses/tests/StudyMode.test.ts`.
+- [x] 2.1 Add `PUT /courses/versions/:versionId/modules/:moduleId/study-mode`, `…/sections/:sectionId/study-mode` and `PUT /courses/versions/:versionId/items/:itemId/study-mode`, taking `{ studyModeEnabled: boolean | null }`. Model them on the proctoring override endpoints (`ModuleController.ts:218`, `ItemController.ts:890`), with the same `CourseVersionActions.Modify` check, validators and repository updates.
+- [x] 2.2 Return each node's own `studyModeEnabled` in the teacher-facing version-structure and item responses. Add integration tests in a new `backend/src/modules/courses/tests/StudyMode.test.ts` (set up like `SelectiveProctoring.test.ts`): instructor sets/clears each level (200), a student gets 403, an unknown id gets 404, and the stored value reads back. Verify with `pnpm vitest run src/modules/courses/tests/StudyMode.test.ts`.
 
 ## 3. Backend: study-mode lesson read
 
-- [ ] 3.1 Add `StudyModeError` (an `HttpError` 403 whose `name` is `STUDY_MODE_DISABLED` / `STUDY_MODE_QUIZ`, with `details: { source }`), and pass `details` through in `HttpErrorHandler`'s plain-`HttpError` branch only when present. Test that the new error body carries `name` and `details`, and that an existing `HttpError` body is byte-for-byte unchanged.
-- [ ] 3.2 Accept `?mode=study` on the lesson read route (`ItemController.ts:705-737`) and handle it in `ItemService.readItem`:
+- [x] 3.1 Add `StudyModeError` (an `HttpError` 403 whose `name` is `STUDY_MODE_DISABLED` / `STUDY_MODE_QUIZ`, with `details: { source }`), and pass `details` through in `HttpErrorHandler`'s plain-`HttpError` branch only when present. Test that the new error body carries `name` and `details`, and that an existing `HttpError` body is byte-for-byte unchanged.
+- [x] 3.2 Accept `?mode=study` on the lesson read route (`ItemController.ts:705-737`) and handle it in `ItemService.readItem`:
   - enrollment is checked as now;
   - a quiz is rejected with `STUDY_MODE_QUIZ`;
   - an item with study mode disallowed is rejected with `STUDY_MODE_DISABLED` and its source;
   - otherwise the item is returned, skipping the linear check and the progress-pointer update.
 
   Every lesson response gains `studyMode: { allowed, source }`.
-- [ ] 3.3 Add `StudyMode.test.ts` cases for every read scenario in `specs/backend/study-mode`:
+- [x] 3.3 Add `StudyMode.test.ts` cases for every read scenario in `specs/backend/study-mode`:
   - reading ahead in a linear course returns the item, and the progress document is unchanged before and after;
   - disallowed and quiz reads return 403 with the right `name`;
   - a non-enrolled read is rejected;

@@ -13,10 +13,18 @@ import {
   ModuleController,
   SectionController,
 } from './controllers/index.js';
-import { usersContainerModule } from '../users/container.js';
-import { quizzesContainerModule } from '../quizzes/container.js';
-import { COURSE_TRANSFER_VALIDATORS, COURSE_VALIDATORS, COURSEVERSION_VALIDATORS, ITEM_VALIDATORS, MODULE_VALIDATORS, SECTION_VALIDATORS } from './classes/validators/index.js';
-import { notificationsContainerModule } from '../notifications/container.js';
+import {usersContainerModule} from '../users/container.js';
+import {quizzesContainerModule} from '../quizzes/container.js';
+import {
+  COURSE_TRANSFER_VALIDATORS,
+  COURSE_VALIDATORS,
+  COURSEVERSION_VALIDATORS,
+  ITEM_VALIDATORS,
+  MODULE_VALIDATORS,
+  SECTION_VALIDATORS,
+  STUDY_MODE_VALIDATORS,
+} from './classes/validators/index.js';
+import {notificationsContainerModule} from '../notifications/container.js';
 
 export const coursesContainerModules: ContainerModule[] = [
   coursesContainerModule,
@@ -57,5 +65,6 @@ export const coursesModuleValidators: Function[] = [
   ...ITEM_VALIDATORS,
   ...MODULE_VALIDATORS,
   ...SECTION_VALIDATORS,
+  ...STUDY_MODE_VALIDATORS,
   ...COURSE_TRANSFER_VALIDATORS
 ]

@@ -54,7 +54,12 @@ See proposal.md for the why, and the three specs for the behaviour. What exists 
 - `false` means disallowed;
 - `null` or absent means inherit.
 
-It's stored on the module and section subdocuments in the course version, and on the item documents.
+It's stored on the module and section subdocuments in the course version. For items, it goes on the item's ref in its section's ItemsGroup, the same place `isHidden` lives, not on the item document. Section item lists then carry it, so outlines and Studio show it without loading every item.
+
+Three places rebuild these objects from a fixed list of fields, so each must list the new field or it is silently dropped:
+- `ItemRepository.readItemsGroup`, whose output is written back whole on every hide or reorder;
+- the module projections in `CourseRepository`;
+- the course export bundle.
 
 A new `resolveStudyMode(item, section, module)` sits next to `resolveProctoringDetectors`. It returns `{ allowed, source: 'item' | 'section' | 'module' | 'default' }`. The `source` lets the apps name the level that disabled it. The check is `!= null`, for the same Mongo `null` reason documented on the detector resolver.
 
