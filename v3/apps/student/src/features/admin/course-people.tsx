@@ -1,4 +1,4 @@
-import { MailPlusIcon, SearchIcon, UsersIcon, XIcon } from 'lucide-react';
+import { InfoIcon, MailPlusIcon, SearchIcon, UsersIcon, XIcon } from 'lucide-react';
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { toast } from 'sonner';
 
@@ -28,6 +28,8 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group';
 import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import {
@@ -156,7 +158,10 @@ export function CoursePeople({
                   <TableHead className="pl-4">Person</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead className="hidden md:table-cell">
-                    Progress
+                    <HeadWithHint label="Progress" dot="bg-emerald-500" hint="Lessons completed in strict mode. This is the course progress used for completion and certificates." />
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    <HeadWithHint label="Study" dot="bg-sky-500" hint="Videos and articles the student studied in study mode or completed in strict mode. Doesn’t count towards completion." />
                   </TableHead>
                   <TableHead className="hidden sm:table-cell">Status</TableHead>
                   <TableHead className="hidden pr-4 text-right sm:table-cell">
@@ -188,11 +193,30 @@ export function CoursePeople({
                         <div className="flex w-36 items-center gap-2">
                           <Progress
                             value={e.progress ?? 0}
-                            className="h-1.5 flex-1"
+                            className="h-1.5 flex-1 [&_[data-slot=progress-indicator]]:bg-emerald-500"
                             aria-label={`${e.user.firstName}'s progress`}
                           />
                           <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">
                             {Math.round(e.progress ?? 0)}%
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {e.role === 'STUDENT' && e.studyProgress ? (
+                        <div
+                          className="flex w-36 items-center gap-2"
+                          title={`${e.studyProgress.studiedItems} of ${e.studyProgress.totalItems} videos & articles`}
+                        >
+                          <Progress
+                            value={e.studyProgress.percentStudied}
+                            className="h-1.5 flex-1 [&_[data-slot=progress-indicator]]:bg-sky-500"
+                            aria-label={`${e.user.firstName}'s study progress`}
+                          />
+                          <span className="w-9 text-right text-xs text-sky-700 tabular-nums dark:text-sky-300">
+                            {e.studyProgress.percentStudied}%
                           </span>
                         </div>
                       ) : (
@@ -402,5 +426,21 @@ export function InviteDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** A table header with a colour dot (matching its bar) and an explanation in a tooltip. */
+function HeadWithHint({ label, dot, hint }: { label: string; dot: string; hint: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={<span className="inline-flex cursor-default items-center gap-1.5" />}
+      >
+        <span className={cn('size-2 rounded-full', dot)} aria-hidden />
+        {label}
+        <InfoIcon className="size-3.5 text-muted-foreground/70" aria-hidden />
+      </TooltipTrigger>
+      <TooltipContent className="max-w-64">{hint}</TooltipContent>
+    </Tooltip>
   );
 }

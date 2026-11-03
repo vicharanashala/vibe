@@ -25,7 +25,7 @@ export const TRACKS: Record<Track, { label: string; short: string; description: 
   blue: {
     label: 'Study mode',
     short: 'Study',
-    description: 'Watch and read freely, on any device. Nothing counts towards your progress, and quizzes are taken in strict mode.',
+    description: 'Watch and read freely, on any device. Doesn’t count towards your strict progress, and quizzes are taken in strict mode.',
   },
   green: {
     label: 'Strict mode',

@@ -34,6 +34,7 @@ import registrationSubmit from './fixtures/registration-submit.json';
 import modulesProgress from './fixtures/modules-progress.json';
 import percentage from './fixtures/percentage.json';
 import sectionItems from './fixtures/section-items.json';
+import studyProgress from './fixtures/study-progress.json';
 
 export const fixtures = {
   publicCourses,
@@ -59,6 +60,7 @@ export const fixtures = {
   registrationRejectedEmpty,
   registrationSubmit,
   sectionItems,
+  studyProgress,
   userMe,
 };
 
@@ -175,6 +177,8 @@ export function respond(path: string) {
       return ok(fixtures.registrationPendingEmpty);
     case '/api/course/registration/rejected/student':
       return ok(fixtures.registrationRejectedEmpty);
+    case '/api/users/progress/courses/{courseId}/versions/{versionId}/study-progress':
+      return ok(fixtures.studyProgress);
     default:
       throw new Error(`No test fixture for GET ${path}`);
   }

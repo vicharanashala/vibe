@@ -1207,6 +1207,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/study-views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that the caller studied a lesson in study mode
+         * @description Marks a video or article as studied by the calling student (study mode). Idempotent: a repeat keeps the first time. Never changes strict progress.<br/>
+         *     Rejected for quizzes and other lesson types (400), lessons outside the course version (404) and lessons where study mode is disabled (403 STUDY_MODE_DISABLED). Instructors get recorded: false.
+         */
+        post: operations["ProgressController.recordStudyView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/study-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the caller's study progress in a course version
+         * @description Study-allowed videos and articles the caller studied in study mode or completed in strict mode, over all study-allowed videos and articles. Separate from (and never part of) strict progress.
+         */
+        get: operations["ProgressController.getStudyProgress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/progress/courses/{courseId}/versions/{versionId}/": {
         parameters: {
             query?: never;
@@ -11118,6 +11159,14 @@ export interface components {
              */
             watchItemId: string;
         };
+        StudyViewBody: {
+            /** @description The video or article studied */
+            itemId: string;
+            /** @description Module containing the item */
+            moduleId: string;
+            /** @description Section containing the item */
+            sectionId: string;
+        };
         ContentCountsValidator: {
             /**
              * @description Total number of items in the course
@@ -16467,6 +16516,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuthErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.recordStudyView": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description StudyViewBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StudyViewBody"];
+            };
+        };
+        responses: {
+            /** @description Study view recorded (or not tracked for this role) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not a video or article */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.getStudyProgress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Study progress */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

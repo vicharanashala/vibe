@@ -15,6 +15,7 @@ const path = fixtures.currentPath;
 const base = `/learn/${enrollment.courseId}/${enrollment.courseVersionId}/${path.module.id}/${path.section.id}`;
 const CONSENT = '/api/users/enrollments/courses/{courseId}/versions/{versionId}/ethics-consent';
 const PROGRESS_WRITES = /\/(start|stop)$|watchtime\/upsert/;
+const STUDY_VIEWS = '/api/users/progress/courses/{courseId}/versions/{versionId}/study-views';
 
 function withGet(overrides: Record<string, unknown>) {
   const fallback = api.GET.getMockImplementation()!;
@@ -51,6 +52,11 @@ describe('study mode (blue)', () => {
     expect(screen.queryByLabelText('Your camera')).not.toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 50));
     expect(api.POST.mock.calls.filter(([p]) => PROGRESS_WRITES.test(p))).toEqual([]);
+    // It does record a study view (not strict progress) for the article.
+    expect(api.POST).toHaveBeenCalledWith(STUDY_VIEWS, {
+      params: { path: { courseId: enrollment.courseId, versionId: enrollment.courseVersionId } },
+      body: { itemId: path.item.id, moduleId: path.module.id, sectionId: path.section.id },
+    });
   });
 
   it('moves freely with Previous/Next through the syllabus', async () => {
@@ -82,6 +88,7 @@ describe('strict mode (green)', () => {
     renderApp(`${base}/${path.item.id}`);
     expect(await screen.findByText('Strict mode')).toBeInTheDocument();
     expect(lessonQueries()).toContainEqual({});
+    expect(api.POST.mock.calls.some(([p]) => p === STUDY_VIEWS)).toBe(false);
     await waitFor(() => expect(api.POST.mock.calls.some(([p]) => /\/start$/.test(p))).toBe(true));
   });
 });
@@ -94,7 +101,7 @@ describe('course page', () => {
     expect(within(switcher).getByRole('tab', { name: 'Strict mode' })).toHaveAttribute('aria-selected', 'true');
 
     await user.click(within(switcher).getByRole('tab', { name: 'Study mode' }));
-    expect(screen.getByText(/Nothing counts towards your progress/)).toBeInTheDocument();
+    expect(screen.getByText(/Doesn’t count towards your strict progress/)).toBeInTheDocument();
     const current = await screen.findByRole('link', { name: new RegExp(path.item.name) });
     expect(current.getAttribute('href')).toContain('track=blue');
     // The course is linear, but study mode doesn't lock unreached lessons.

@@ -4,11 +4,13 @@
   ProgressService: Symbol.for('ProgressService'),
   UserService: Symbol.for('UserService'),
   UserActivityEventService: Symbol.for('UserActivityEventService'),
+  StudyProgressService: Symbol.for('StudyProgressService'),
 
   //Repositories
   ProgressRepo: Symbol.for('ProgressRepo'),
   EnrollmentRepo: Symbol.for('EnrollmentRepo'),
   ItemRepo: Symbol.for('ItemRepo'),
+  StudyViewRepo: Symbol.for('StudyViewRepo'),
 };
 
 export {TYPES as USERS_TYPES};

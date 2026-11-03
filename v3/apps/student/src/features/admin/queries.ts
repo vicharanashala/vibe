@@ -379,6 +379,8 @@ export interface CourseEnrollment {
   enrollmentDate: string;
   /** Percent complete, 0-100. */
   progress?: number;
+  /** Study progress (students only; null for other roles, absent on older backends). */
+  studyProgress?: { studiedItems: number; totalItems: number; percentStudied: number } | null;
   completedItemsCount?: number;
   user: { _id: string; email: string; firstName: string; lastName?: string };
 }
