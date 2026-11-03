@@ -59,7 +59,7 @@ Backend first (groups 1–2), then v3 (groups 3–4).
 
 ## 5. End-to-end check
 
-- [ ] 5.1 Against the local stack (backend :4002, v3 :4310, test course "E2E: Study mode"):
+- [x] 5.1 Against the local stack (backend :4002, v3 :4310, test course "E2E: Study mode"):
   - open an article in study mode and play a video for over 10 s (or confirm the recorder's request fires, since YouTube playback is blocked on the server);
   - check the course page, outline and card update, Studio People shows the student's study %, and strict progress in the progress document is unchanged.
 
