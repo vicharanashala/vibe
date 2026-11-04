@@ -6,7 +6,7 @@ import {
   SearchIcon,
   XIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { GeneratedAvatar } from '@/components/generated-art';
@@ -54,7 +54,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
 import { FeedbackFormFields } from '@/features/feedback/feedback-form';
 import { FormBuilder } from '@/features/feedback/form-builder';
 import { useCourseSettings } from '@/features/learn/queries';
@@ -68,6 +67,8 @@ import {
   type FormValues,
 } from '@/features/feedback/form-schema';
 
+import { listFitsInOneSave } from './auto-approval-entries';
+import { AutoApprovalList, useAutoApprovalEntries } from './auto-approval-list';
 import { useAllUsers, useStudioAccess, useUpdateCourseSettings } from './queries';
 import {
   useBulkApproveRegistrations,
@@ -243,18 +244,25 @@ function RegistrationSettingsPanel({
   const saveAuto = useSaveAutoApproval(versionId);
   const [auto, setAuto] = useState(settings.registrationsAutoApproved);
   const [mode, setMode] = useState(settings.autoApprovalMode);
-  const savedPatterns = settings.autoapproval_emails.join('\n');
-  const [patterns, setPatterns] = useState(savedPatterns);
-  // The backend tidies what it saves (case, duplicates); show what it kept.
-  useEffect(() => setPatterns(savedPatterns), [savedPatterns]);
-  const parsed = patterns
-    .split(/[\n,]+/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const list = useAutoApprovalEntries(settings.autoapproval_emails);
   const dirty =
     auto !== settings.registrationsAutoApproved ||
     mode !== settings.autoApprovalMode ||
-    parsed.join('\n') !== savedPatterns;
+    (mode === 'LIST' && list.isChanged);
+  const saveBody = (emails: string[]) => ({
+    registrationsAutoApproved: auto,
+    autoApprovalMode: mode,
+    autoapproval_emails: mode === 'LIST' ? emails : [],
+  });
+  const tooLong = mode === 'LIST' && !listFitsInOneSave(list.withDraft);
+
+  function save() {
+    const emails = mode === 'LIST' ? list.commitDraft() : [];
+    if (!emails) return;
+    saveAuto.mutate(saveBody(emails), {
+      onSuccess: () => toast.success('Approval settings saved.'),
+    });
+  }
 
   return (
     <div className="grid gap-4">
@@ -334,58 +342,35 @@ function RegistrationSettingsPanel({
             </Field>
           )}
           {auto && mode === 'LIST' && (
-            <Field>
-              <FieldLabel htmlFor="reg-patterns">Emails and domains</FieldLabel>
-              <Textarea
-                id="reg-patterns"
-                rows={3}
-                value={patterns}
-                onChange={(e) => setPatterns(e.target.value)}
-                placeholder={'iitrpr.ac.in\nstudent@example.com'}
-              />
-              <FieldDescription>
-                One per line. A full address matches only that address. A domain
-                such as iitrpr.ac.in matches only that domain, not its
-                subdomains. Anyone else waits for you.
-              </FieldDescription>
-              {parsed.length === 0 && (
-                <FieldDescription>
-                  Nobody will be approved automatically until you add an email or
-                  domain.
-                </FieldDescription>
-              )}
-            </Field>
+            <AutoApprovalList list={list} />
           )}
           {(dirty || saveAuto.isError) && (
             <div className="flex flex-wrap items-center justify-end gap-2">
-              {saveAuto.isError && (
+              {tooLong ? (
+                <p role="alert" className="mr-auto text-sm text-destructive">
+                  This list is too long to save. The limit is about 3,500
+                  emails. Use a domain for large groups, or remove some emails.
+                </p>
+              ) : saveAuto.isError ? (
                 <ErrorText error={saveAuto.error} className="mr-auto" />
+              ) : (
+                <p className="mr-auto text-sm text-muted-foreground">
+                  Not saved yet.
+                </p>
               )}
               <Button
                 variant="outline"
                 onClick={() => {
                   setAuto(settings.registrationsAutoApproved);
                   setMode(settings.autoApprovalMode);
-                  setPatterns(savedPatterns);
+                  list.reset();
                 }}
               >
                 Discard
               </Button>
               <Button
-                disabled={saveAuto.isPending}
-                onClick={() =>
-                  saveAuto.mutate(
-                    {
-                      registrationsAutoApproved: auto,
-                      autoApprovalMode: mode,
-                      autoapproval_emails: mode === 'LIST' ? parsed : [],
-                    },
-                    {
-                      onSuccess: () =>
-                        toast.success('Approval settings saved.'),
-                    },
-                  )
-                }
+                disabled={saveAuto.isPending || tooLong}
+                onClick={save}
               >
                 {saveAuto.isPending && <Spinner className="size-4" />}
                 Save
