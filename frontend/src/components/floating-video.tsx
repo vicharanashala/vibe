@@ -19,6 +19,7 @@ import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { FaceRegistrationModal } from './ai/FaceRegistrationModal';
+import { FacePresenceStabilizer } from "@/utils/proctoring/facePresenceStabilizer";
 
 // let flag = 0;
 function FloatingVideo({
@@ -77,6 +78,8 @@ function FloatingVideo({
   const [penaltyPoints, setPenaltyPoints] = useState(0);
   const [penaltyType, setPenaltyType] = useState("");
   const [contiguousAnomalyPoints, setContiguousAnomalyPoints] = useState(0);
+  // Require several consecutive zero-face samples before treating a detector dropout as a real absence.
+  const facePresenceStabilizerRef = useRef(new FacePresenceStabilizer({ missingSamplesThreshold: 5 }));
 
   // Thumbs-up challenge states
   const [isThumbsUpChallenge, setIsThumbsUpChallenge] = useState(false);
@@ -559,6 +562,7 @@ const lastCalledRef = useRef<number>(0);
     // Update penalty score every second when anomalies are detected
     useEffect(() => {
     if (!readyToDetect || !videoRef.current || !isVideoActive) {
+      facePresenceStabilizerRef.current.reset();
       if (contiguousAnomalyPoints > 0) {
         setContiguousAnomalyPoints(0); // Reset when video is not active
       }
@@ -593,30 +597,32 @@ const lastCalledRef = useRef<number>(0);
         newPenaltyPoints += 1;
       }
 
-      // Condition 2: Handle different face count scenarios separately (only if face count detection is enabled)
+      // Condition 2: Handle different face count scenarios separately (only if face count detection is enabled).
+      // A face detector can briefly return zero faces because of a transient inference
+      // miss. Require five consecutive zero-face samples (~500 ms at this loop rate)
+      // before reporting a no-face anomaly. Multiple-face detection remains immediate.
       let hasMultipleFaces = false;
       if (isFaceCountDetectionEnabled && modelReady) {
-        if (facesCount === 0) {
-          // No faces detected - this might be normal during initialization
-          // Only penalize if we're sure the camera is active and should see a face
+        const facePresenceState = facePresenceStabilizerRef.current.update(facesCount);
+        const noFaceConfirmed = facePresenceState === "confirmed-missing";
+
+        if (noFaceConfirmed) {
           if (isVideoActive && readyToDetect) {
-            // Tag with "noFace" so the alert can say "Please stay in frame"
             activeAnomalies.push("faceCountDetection", "noFace");
             newPenaltyType = "No Face Detected";
             newPenaltyPoints += 1;
-            // Surface the live camera frame so the learner can reposition
+            // Surface the live camera frame so the learner can reposition.
             setIsCollapsed(false);
           }
         } else if (facesCount > 1) {
-          // Multiple faces detected - this is an anomaly
-          // Tag with "multipleFaces" for alert messaging; pause/rewind is driven
-          // by the hasMultipleFaces flag below (immediatePause + immediateRewind).
+          // Multiple faces are handled immediately because they are not a transient
+          // single-face detection dropout.
           hasMultipleFaces = true;
           activeAnomalies.push("faceCountDetection", "multipleFaces");
           newPenaltyType = "Multiple Faces";
-          newPenaltyPoints += 2; // More severe penalty for multiple faces
+          newPenaltyPoints += 2;
         }
-        // facesCount === 1 is normal, no penalty
+        // A single detected face, or a short-lived zero-face dropout, is treated as normal.
       }
 
       // Condition 3: If the screen is blurred (only if blur detection is enabled)
