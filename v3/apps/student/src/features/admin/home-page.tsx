@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 
 import { CourseList, CourseListSkeleton, sortCourses } from './courses-page';
 import { NewCourseDialog } from './new-course-dialog';
-import { useAllUsers, useCourseEnrollments, useStudioAccess, useStudioCourses, type AdminCourse, type AdminUser } from './queries';
+import { useAllUsers, useCourseEnrollmentStats, useStudioAccess, useStudioCourses, type AdminCourse, type AdminUser } from './queries';
 import { ErrorText, formatDate, RoleBadge, SectionHeading, StatStrip, StudioPage } from './studio-ui';
 
 type CourseTab = 'overview' | 'content' | 'people' | 'proctoring';
@@ -114,7 +114,7 @@ function newestUsers(users?: AdminUser[]) {
 function GettingStarted({ latest }: { latest?: AdminCourse }) {
   const versionId = latest?.versions[0] ?? '';
   const version = useCourseVersion(versionId);
-  const enrollments = useCourseEnrollments(latest?._id ?? '', versionId);
+  const stats = useCourseEnrollmentStats(latest?._id ?? '', versionId);
   const settings = useCourseSettings(latest?._id ?? '', versionId);
   const [newOpen, setNewOpen] = useState(false);
 
@@ -123,10 +123,10 @@ function GettingStarted({ latest }: { latest?: AdminCourse }) {
     { label: 'Create your first course', done: !!latest, onClick: () => setNewOpen(true) },
     { label: 'Add a module', done: modules.length > 0, tab: 'content' },
     { label: 'Add a lesson', done: (version.data?.totalItems ?? 0) > 0, tab: 'content' },
-    { label: 'Invite a student', done: (enrollments.data ?? []).some((e) => e.role === 'STUDENT'), tab: 'people' },
+    { label: 'Invite a student', done: (stats.data?.totalEnrollments ?? 0) > 0, tab: 'people' },
     { label: 'Turn on proctoring', done: (settings.data?.settings.proctors?.detectors ?? []).some((d) => d.settings.enabled), tab: 'proctoring' },
   ];
-  const loading = !!latest && (version.isPending || enrollments.isPending || settings.isPending);
+  const loading = !!latest && (version.isPending || stats.isPending || settings.isPending);
   const doneCount = steps.filter((s) => s.done).length;
   if (loading || doneCount === steps.length) return null;
 
@@ -179,15 +179,14 @@ function GettingStarted({ latest }: { latest?: AdminCourse }) {
 function LatestCourseCard({ course }: { course: AdminCourse }) {
   const versionId = course.versions[0] ?? '';
   const version = useCourseVersion(versionId);
-  const enrollments = useCourseEnrollments(course._id, versionId);
+  const stats = useCourseEnrollmentStats(course._id, versionId);
   const modules = version.data?.modules.filter((m) => !m.isDeleted) ?? [];
-  const students = (enrollments.data ?? []).filter((e) => e.role === 'STUDENT');
-  const avg = students.length ? Math.round(students.reduce((sum, e) => sum + (e.progress ?? 0), 0) / students.length) : null;
+  const avg = stats.data?.totalEnrollments ? Math.round(stats.data.averageProgressPercent) : null;
 
   const rows = [
     { label: 'Modules', value: version.data ? modules.length : '–' },
     { label: 'Lessons', value: version.data ? (version.data.totalItems ?? 0) : '–' },
-    { label: 'Students', value: enrollments.data ? students.length : '–' },
+    { label: 'Students', value: stats.data ? stats.data.totalEnrollments : '–' },
     { label: 'Average progress', value: avg === null ? '–' : `${avg}%` },
   ];
 
