@@ -139,32 +139,42 @@ export class CourseVersionService extends BaseService {
       newVersion = instanceToPlain(
         Object.assign(new CourseVersion(), createdVersion),
       ) as CourseVersion;
-      // const defaultSettingsPayload: CreateCourseSettingBody = {
-      //   courseId,
-      //   courseVersionId: createdVersion._id as string,
-      //   settings: {
-      //     proctors: {
-      //       detectors: Object.values(ProctoringComponent).map(detector => ({
-      //         detectorName: detector,
-      //         settings: {enabled: false, options: {}},
-      //       })),
-      //     },
-      //     linearProgressionEnabled: false,
-      //     seekForwardEnabled: false,
-      //   },
-      // };
-      // const courseSettings = new CourseSetting(defaultSettingsPayload);
+      const defaultSettingsPayload: CreateCourseSettingBody = {
+        courseId,
+        courseVersionId: createdVersion._id.toString(),
+        settings: {
+          proctors: {
+            detectors: Object.values(ProctoringComponent).map(detector => ({
+              detectorName: detector,
+              settings: {enabled: false, options: {}},
+            })),
+          },
+          linearProgressionEnabled: true,
+          seekForwardEnabled: false,
+        },
+      };
+      const courseSettings = new CourseSetting(defaultSettingsPayload);
       course.versions.push(new ObjectId(createdVersion._id));
       course.updatedAt = new Date();
-      // const settingsPromise = this.settingsRepo.createCourseSettings(
-      //   courseSettings,
-      //   txnSession,
-      // );
-      const updatedPromise = await this.courseRepo.update(
+      const createdSettings = await this.settingsRepo.createCourseSettings(
+        courseSettings,
+        txnSession,
+      );
+      if (!createdSettings) {
+        throw new InternalServerError(
+          'Failed to create settings for the new course version.',
+        );
+      }
+      const updatedCourse = await this.courseRepo.update(
         courseId,
         course,
         txnSession,
       );
+      if (!updatedCourse) {
+        throw new InternalServerError(
+          'Failed to update course with new version.',
+        );
+      }
       return newVersion;
     };
 
