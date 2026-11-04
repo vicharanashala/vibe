@@ -113,6 +113,7 @@ describe('registration form', () => {
       ...studio.registration.settings,
       isActive: false,
       registrationsAutoApproved: true,
+      autoApprovalMode: 'LIST',
       autoapproval_emails: ['@vibe.local'],
     };
     const base = api.GET.getMockImplementation()!;
@@ -139,6 +140,7 @@ describe('registration form', () => {
     expect(body).toMatchObject({
       isActive: false,
       registrationsAutoApproved: true,
+      autoApprovalMode: 'LIST',
       autoapproval_emails: ['@vibe.local'],
     });
     expect(Object.keys(body.jsonSchema.properties)).toEqual(
@@ -190,6 +192,22 @@ describe('registration settings', () => {
     );
   });
 
+  const AUTO_APPROVAL =
+    '/api/course/registration/auto-approval/version/{versionId}';
+
+  function withSettings(overrides: Record<string, unknown>) {
+    const base = api.GET.getMockImplementation()!;
+    api.GET.mockImplementation(async (path: string, opts: never) =>
+      path === BUILD_FORM
+        ? {
+            data: { ...studio.registration.settings, ...overrides },
+            error: undefined,
+            response: new Response(),
+          }
+        : base(path, opts),
+    );
+  }
+
   it('saves auto-approval for matching emails only', async () => {
     const user = userEvent.setup();
     renderApp(url);
@@ -197,22 +215,117 @@ describe('registration settings', () => {
     await user.click(
       await screen.findByRole('switch', { name: 'Approve automatically' }),
     );
+    await user.click(screen.getByRole('radio', { name: 'Only these emails' }));
     await user.type(
-      screen.getByLabelText('Only for these emails (optional)'),
-      '@iitrpr.ac.in{Enter}someone@example.com',
+      screen.getByLabelText('Emails and domains'),
+      'iitrpr.ac.in{Enter}someone@example.com',
     );
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() =>
-      expect(api.PUT).toHaveBeenCalledWith(
-        '/api/course/registration/auto-approval/version/{versionId}',
-        {
-          params: { path: { versionId: REGISTRATION.versionId } },
-          body: {
-            registrationsAutoApproved: true,
-            autoapproval_emails: ['@iitrpr.ac.in', 'someone@example.com'],
-          },
+      expect(api.PUT).toHaveBeenCalledWith(AUTO_APPROVAL, {
+        params: { path: { versionId: REGISTRATION.versionId } },
+        body: {
+          registrationsAutoApproved: true,
+          autoApprovalMode: 'LIST',
+          autoapproval_emails: ['iitrpr.ac.in', 'someone@example.com'],
         },
-      ),
+      }),
     );
+  });
+
+  it('shows no list for a course that approves everyone', async () => {
+    const user = userEvent.setup();
+    withSettings({ registrationsAutoApproved: true });
+    renderApp(url);
+    await user.click(await screen.findByRole('tab', { name: 'Settings' }));
+
+    expect(
+      await screen.findByRole('radio', { name: 'Everyone' }),
+    ).toBeChecked();
+    expect(screen.queryByLabelText('Emails and domains')).toBeNull();
+  });
+
+  it('saves everyone without needing any entries', async () => {
+    const user = userEvent.setup();
+    withSettings({
+      registrationsAutoApproved: true,
+      autoApprovalMode: 'LIST',
+      autoapproval_emails: ['bob@gmail.com'],
+    });
+    renderApp(url);
+    await user.click(await screen.findByRole('tab', { name: 'Settings' }));
+    await user.click(await screen.findByRole('radio', { name: 'Everyone' }));
+    expect(screen.queryByLabelText('Emails and domains')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(api.PUT).toHaveBeenCalledWith(AUTO_APPROVAL, {
+        params: { path: { versionId: REGISTRATION.versionId } },
+        body: {
+          registrationsAutoApproved: true,
+          autoApprovalMode: 'EVERYONE',
+          autoapproval_emails: [],
+        },
+      }),
+    );
+  });
+
+  it('shows the saved list, with the exact-matching rules', async () => {
+    const user = userEvent.setup();
+    withSettings({
+      registrationsAutoApproved: true,
+      autoApprovalMode: 'LIST',
+      autoapproval_emails: ['bob@gmail.com'],
+    });
+    renderApp(url);
+    await user.click(await screen.findByRole('tab', { name: 'Settings' }));
+
+    expect(
+      await screen.findByRole('radio', { name: 'Only these emails' }),
+    ).toBeChecked();
+    expect(screen.getByLabelText('Emails and domains')).toHaveValue(
+      'bob@gmail.com',
+    );
+    expect(
+      screen.getByText(/A full address matches only that address/),
+    ).toHaveTextContent('not its subdomains');
+    expect(screen.queryByText(/contains any/)).toBeNull();
+    expect(screen.queryByText(/Nobody will be approved/)).toBeNull();
+  });
+
+  it('warns that an empty list approves nobody', async () => {
+    const user = userEvent.setup();
+    withSettings({
+      registrationsAutoApproved: true,
+      autoApprovalMode: 'LIST',
+      autoapproval_emails: [],
+    });
+    renderApp(url);
+    await user.click(await screen.findByRole('tab', { name: 'Settings' }));
+
+    expect(
+      await screen.findByText(/Nobody will be approved automatically/),
+    ).toBeInTheDocument();
+  });
+
+  it('shows a rejected entry and keeps what was typed', async () => {
+    const user = userEvent.setup();
+    withSettings({
+      registrationsAutoApproved: true,
+      autoApprovalMode: 'LIST',
+      autoapproval_emails: [],
+    });
+    api.PUT.mockResolvedValueOnce({
+      data: undefined,
+      error: { message: "These aren't an email address or a domain: iitm" },
+      response: new Response(null, { status: 400 }),
+    });
+    renderApp(url);
+    await user.click(await screen.findByRole('tab', { name: 'Settings' }));
+    await user.type(await screen.findByLabelText('Emails and domains'), 'iitm');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText(/domain: iitm/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Emails and domains')).toHaveValue('iitm');
   });
 });

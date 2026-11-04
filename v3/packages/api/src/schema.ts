@@ -12258,6 +12258,15 @@ export interface components {
             jsonSchema: Record<string, never>;
             /** @description Dynamic UI Schema for the form */
             uiSchema: Record<string, never>;
+            /** @description Auto-approval on or off. Kept as stored when not sent. */
+            registrationsAutoApproved?: boolean;
+            /** @description Auto-approval list. Kept as stored when not sent. */
+            autoapproval_emails?: string[];
+            /**
+             * @description Auto-approval mode. Kept as stored when not sent.
+             * @enum {string}
+             */
+            autoApprovalMode?: "EVERYONE" | "LIST";
         };
         ToggleRegistrationBody: {
             /**
@@ -12273,13 +12282,19 @@ export interface components {
              */
             registrationsAutoApproved: boolean;
             /**
-             * @description Email patterns to auto-approve (if empty, all emails are approved)
+             * @description Full addresses, which match exactly, and domains, which match only that domain and not its subdomains. Ignored when the mode is EVERYONE.
              * @example [
              *       "iitm.ac.in",
-             *       "gmail.com"
+             *       "bob@gmail.com"
              *     ]
              */
             autoapproval_emails: string[];
+            /**
+             * @description EVERYONE approves every registration; LIST approves only matching emails, so an empty list approves nobody. When not sent: EVERYONE for an empty list, otherwise LIST.
+             * @example LIST
+             * @enum {string}
+             */
+            autoApprovalMode?: "EVERYONE" | "LIST";
             /**
              * @description Cohort ID for which the auto-approval settings apply (required if course version has cohorts)
              * @example cohortId123
