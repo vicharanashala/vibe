@@ -32,6 +32,16 @@ export interface IUser {
    * signed up, so they are excluded from the course's own analytics.
    */
   isShareLinkGuest?: boolean;
+  /**
+   * SR teacher control (2026-08-09): when true, the student has been
+   * opted out of spaced repetition entirely by an admin/teacher.
+   * Distinct from per-item `notification_opt_out` (which only suppresses
+   * notifications): when `sr_disabled=true`, the student receives no
+   * review reminders and review endpoints still surface the data but
+   * the UI gates the write paths behind an admin override. Bulk toggle
+   * via `PATCH /api/spaced-repetition/bulk/sr-disabled`.
+   */
+  sr_disabled?: boolean;
 }
 
 export type Versions = {
@@ -54,6 +64,14 @@ export interface ICourse {
    * it is never shown as a course of theirs.
    */
   isQuickShareContainer?: boolean;
+  /**
+   * SR mentor control (2026-08-09): list of user IDs (typically teachers
+   * or TAs) who are explicitly granted access to view this course's
+   * spaced-repetition dashboards even if they are not an admin. Read by
+   * `CourseRepository.isMentorOnCourse()` and the auth gate on the
+   * `GET /api/spaced-repetition/courses/:courseId/students-rich` endpoint.
+   */
+  mentorIds?: string[];
 }
 
 export type ID = string | ObjectId | null;
