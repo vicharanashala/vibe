@@ -1,6 +1,7 @@
 import * as dotenv from 'dotenv';
 dotenv.config(); // { path: `.env.${process.env.NODE_ENV}` }
 
+// Reads an environment variable, falling back to defaultValue when unset.
 export function env(key: string, defaultValue: null | string = null): string {
   return process.env[key] ?? (defaultValue as string);
 }
