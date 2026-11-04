@@ -1,10 +1,11 @@
-import { Item, ItemsGroup } from '#courses/classes/transformers/Item.js';
-import { COURSES_TYPES } from '#courses/types.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {ContentLockService} from '#courses/services/ContentLockService.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   ICourseVersion,
   IWatchTime,
@@ -148,6 +149,9 @@ class ProgressService extends BaseService {
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase, // inject the database provider
+
+    @inject(COURSES_TYPES.ContentLockService)
+    private readonly contentLockService: ContentLockService,
   ) {
     super(database);
   }
@@ -1861,6 +1865,8 @@ class ProgressService extends BaseService {
     itemId: string,
     cohortId?: string,
   ): Promise<string> {
+    await this.contentLockService.assertOpenForUser(userId, itemId);
+
     // Guru Setu Progress Override
     if (isGuruSetuProgressCourse(courseId, courseVersionId)) {
       await this.updateEnrollmentProgressPercent(userId, courseId, courseVersionId, undefined, false, undefined, undefined, cohortId);
@@ -2464,6 +2470,17 @@ class ProgressService extends BaseService {
       throw new ForbiddenError(
         "This course version is inactive, you can't stop item",
       );
+    }
+
+    // A video locked mid-watch doesn't complete. Finishing a quiz that was
+    // already submitted is the exception: an attempt started before the lock
+    // may finish, and the production app stops the lesson after submitting.
+    const finishingSubmittedQuiz =
+      item.type === 'QUIZ' &&
+      !!attemptId &&
+      !!(await this.submissionRepository.get(itemId, userId, attemptId));
+    if (!finishingSubmittedQuiz) {
+      await this.contentLockService.assertOpenForUser(userId, itemId);
     }
 
     /**
@@ -4501,6 +4518,8 @@ class ProgressService extends BaseService {
     cohortId?: string,
     session?: ClientSession,
   ): Promise<{ message: String; alreadyCompleted: Boolean }> {
+    await this.contentLockService.assertOpenForUser(userId, itemId);
+
     const item = await this.itemRepo.readItem(courseVersionId, itemId);
     if (!item) {
       throw new NotFoundError(`Item ${itemId} not found`);

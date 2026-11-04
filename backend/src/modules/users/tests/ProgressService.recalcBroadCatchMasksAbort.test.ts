@@ -48,6 +48,7 @@ describe('stopItem non-fatal recalculation vs. a genuine MongoDB-level error', (
 
   function makeService() {
     const service: any = Object.create(ProgressService.prototype);
+    service.contentLockService = {assertOpenForUser: async () => {}};
     // Real BaseService.db, so the REAL (unstubbed) _withTransaction opens a
     // genuine MongoDB session/transaction, exactly like production.
     service.db = db;

@@ -561,6 +561,11 @@ class ItemRef {
   @Expose()
   studyModeEnabled?: boolean | null;
 
+  // The item's own lock setting, on the ref for the same reason. Absent/null
+  // means "inherit" — see resolveContentLock in shared/interfaces/models.ts.
+  @Expose()
+  isLocked?: boolean | null;
+
   @Expose()
   name: string;
 

@@ -46,6 +46,10 @@ class Module implements IModule {
   @Expose()
   studyModeEnabled?: boolean | null;
 
+  // Absent/null means "inherit" (open) — see resolveContentLock.
+  @Expose()
+  isLocked?: boolean | null;
+
   @Expose()
   @Type(() => Section)
   sections: Section[];

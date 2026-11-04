@@ -65,6 +65,9 @@ class AttemptController {
   })
   @Authorized()
   @Post('/:quizId/attempt')
+  // This controller isn't a JsonController, so without this the app's default
+  // error handler answers with text, and clients can't read a refusal's `name`.
+  @ContentType('application/json')
   @HttpCode(200)
   @ResponseSchema(CreateAttemptResponse, {
     description: 'Attempt created successfully',

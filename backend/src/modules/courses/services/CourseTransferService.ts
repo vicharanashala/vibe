@@ -202,6 +202,7 @@ export class CourseTransferService extends BaseService {
             ...(ref.studyModeEnabled != null
               ? {studyModeEnabled: ref.studyModeEnabled}
               : {}),
+            ...(ref.isLocked != null ? {isLocked: ref.isLocked} : {}),
             details: item.details ? {...(item.details as object)} : undefined,
           };
 
@@ -231,6 +232,7 @@ export class CourseTransferService extends BaseService {
           ...(section.studyModeEnabled != null
             ? {studyModeEnabled: section.studyModeEnabled}
             : {}),
+          ...(section.isLocked != null ? {isLocked: section.isLocked} : {}),
           items,
         });
       }
@@ -243,6 +245,7 @@ export class CourseTransferService extends BaseService {
         ...(module.studyModeEnabled != null
           ? {studyModeEnabled: module.studyModeEnabled}
           : {}),
+        ...(module.isLocked != null ? {isLocked: module.isLocked} : {}),
         sections,
       });
     }
@@ -514,6 +517,9 @@ export class CourseTransferService extends BaseService {
                       bundleSection.items[index].studyModeEnabled,
                   }
                 : {}),
+              ...(bundleSection.items[index].isLocked != null
+                ? {isLocked: bundleSection.items[index].isLocked}
+                : {}),
             })),
           } as any,
           session,
@@ -527,6 +533,9 @@ export class CourseTransferService extends BaseService {
           isHidden: bundleSection.isHidden ?? false,
           ...(bundleSection.studyModeEnabled != null
             ? {studyModeEnabled: bundleSection.studyModeEnabled}
+            : {}),
+          ...(bundleSection.isLocked != null
+            ? {isLocked: bundleSection.isLocked}
             : {}),
           itemsGroupId: new ObjectId(itemsGroup._id.toString()),
           isDeleted: false,
@@ -543,6 +552,9 @@ export class CourseTransferService extends BaseService {
         isHidden: bundleModule.isHidden ?? false,
         ...(bundleModule.studyModeEnabled != null
           ? {studyModeEnabled: bundleModule.studyModeEnabled}
+          : {}),
+        ...(bundleModule.isLocked != null
+          ? {isLocked: bundleModule.isLocked}
           : {}),
         sections,
         isDeleted: false,

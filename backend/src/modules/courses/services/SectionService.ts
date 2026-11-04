@@ -382,6 +382,51 @@ export class SectionService extends BaseService {
     });
   }
 
+  /**
+   * Sets or clears this section's lock setting. `null` clears it back to
+   * "inherit from the module". Not cascaded onto items: resolveContentLock
+   * resolves the effective value at read time.
+   */
+  async updateSectionLock(
+    versionId: string,
+    moduleId: string,
+    sectionId: string,
+    isLocked: boolean | null,
+  ): Promise<ICourseVersion> {
+    return this._withTransaction(async session => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        versionId,
+        session,
+      );
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is archived and cannot be modified.',
+        );
+      }
+      const version = await this.courseRepo.readVersion(versionId, session);
+      if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
+      const module = version.modules.find(
+        m => m.moduleId?.toString() === moduleId,
+      );
+      if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
+      const section = module.sections.find(
+        s => s.sectionId?.toString() === sectionId,
+      );
+      if (!section) throw new NotFoundError(`Section ${sectionId} not found.`);
+
+      if (isLocked === null) {
+        delete section.isLocked;
+      } else {
+        section.isLocked = isLocked;
+      }
+      section.updatedAt = new Date();
+      module.updatedAt = new Date();
+      version.updatedAt = new Date();
+
+      return this.courseRepo.updateVersion(versionId, version, session);
+    });
+  }
+
   async toggleSectionVisibility(
     versionId: string,
     moduleId: string,

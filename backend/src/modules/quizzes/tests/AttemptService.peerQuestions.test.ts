@@ -52,6 +52,7 @@ function makeService(overrides: {
     studentQuestionRepo,
     studentQuestionService,
     {} as any, // database
+    {} as any, // contentLockService
   );
 
   return {service, studentQuestionRepo, recordPeerResponse};
