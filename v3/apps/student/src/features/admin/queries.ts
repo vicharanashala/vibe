@@ -473,17 +473,51 @@ export function useMakeAdmin() {
   });
 }
 
-export function useCourseEnrollments(courseId: string, versionId: string) {
+const PEOPLE_PAGE_SIZE = 50;
+
+/**
+ * One page of a course version's people, searched and filtered by the backend.
+ * Always pass a limit: the backend's default of 10 looks like the whole course.
+ * `OTHER` means everyone who isn't a student.
+ */
+export function useCourseEnrollmentsPage(
+  courseId: string,
+  versionId: string,
+  opts: { page?: number; limit?: number; search?: string; filter?: 'STUDENT' | 'OTHER' } = {},
+) {
+  const { page = 1, limit = PEOPLE_PAGE_SIZE, search = '', filter } = opts;
   return useQuery({
-    queryKey: ['admin', 'enrollments', courseId, versionId],
+    queryKey: ['admin', 'enrollments', courseId, versionId, 'page', { page, limit, search, filter }],
     queryFn: async () => {
       const raw = unwrap(
         await api.GET('/api/users/enrollments/courses/{courseId}/versions/{versionId}', {
+          params: {
+            path: { courseId, versionId },
+            query: { page, limit, ...(search && { search }), ...(filter && { filter }) } as never,
+          },
+        }),
+      ) as unknown as { enrollments?: CourseEnrollment[]; totalDocuments?: number; totalPages?: number };
+      return {
+        enrollments: (raw.enrollments ?? []).map((e) => ({ ...e, role: normalizeCourseRole(e.role) as CourseEnrollment['role'] })),
+        total: raw.totalDocuments ?? 0,
+        totalPages: raw.totalPages ?? 1,
+      };
+    },
+    placeholderData: (prev) => prev,
+    enabled: !!courseId && !!versionId,
+  });
+}
+
+/** Whole-course numbers for active students, worked out by the backend. */
+export function useCourseEnrollmentStats(courseId: string, versionId: string) {
+  return useQuery({
+    queryKey: ['admin', 'enrollments', courseId, versionId, 'stats'],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/users/enrollments/courses/{courseId}/versions/{versionId}/statistics', {
           params: { path: { courseId, versionId } },
         }),
-      ) as unknown as { enrollments: CourseEnrollment[] };
-      return (raw.enrollments ?? []).map((e) => ({ ...e, role: normalizeCourseRole(e.role) as CourseEnrollment['role'] }));
-    },
+      ) as unknown as { totalEnrollments: number; completedCount: number; averageProgressPercent: number },
     enabled: !!courseId && !!versionId,
   });
 }
