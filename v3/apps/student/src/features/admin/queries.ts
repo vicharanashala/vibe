@@ -362,6 +362,34 @@ export function useDeleteItem() {
   });
 }
 
+/** Moves a lesson within its section: right before or right after another lesson. */
+export function useMoveItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      versionId,
+      moduleId,
+      sectionId,
+      itemId,
+      to,
+    }: {
+      versionId: string;
+      moduleId: string;
+      sectionId: string;
+      itemId: string;
+      to: { beforeItemId: string } | { afterItemId: string };
+    }) =>
+      unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}/move', {
+          params: { path: { versionId, moduleId, sectionId, itemId } },
+          body: to,
+        }),
+      ),
+    onSuccess: (_data, { versionId, moduleId, sectionId }) =>
+      queryClient.invalidateQueries({ queryKey: courseKeys.sectionItems(versionId, moduleId, sectionId) }),
+  });
+}
+
 export function useCourse(courseId: string) {
   return useQuery({
     queryKey: ['admin', 'course', courseId],

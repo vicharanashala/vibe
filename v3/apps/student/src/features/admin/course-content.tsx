@@ -1,4 +1,6 @@
 import {
+  ArrowDownIcon,
+  ArrowUpIcon,
   BookOpenTextIcon,
   GraduationCapIcon,
   ChevronDownIcon,
@@ -51,6 +53,7 @@ import {
   useCreateModule,
   useCreateSection,
   useDeleteItem,
+  useMoveItem,
   useDeleteModule,
   useDeleteSection,
   useSetStudyMode,
@@ -347,6 +350,7 @@ function ItemRows({ courseId, versionId, module, section, itemsGroupId }: Ids & 
   const sectionId = section.sectionId;
   const items = useSectionItems(versionId, moduleId, sectionId);
   const deleteItem = useDeleteItem();
+  const moveItem = useMoveItem();
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
 
@@ -354,16 +358,50 @@ function ItemRows({ courseId, versionId, module, section, itemsGroupId }: Ids & 
   if (items.isError) return <ErrorText error={items.error} className="border-t border-border px-3.5 py-3" />;
   if (items.data.length === 0) return <p className="border-t border-border px-3.5 py-3 text-sm text-muted-foreground">No lessons yet.</p>;
 
+  const ordered = [...items.data].sort((a, b) => a.order.localeCompare(b.order));
+  const move = (itemId: string, to: { beforeItemId: string } | { afterItemId: string }) => {
+    // Ignored, not disabled, while a move is saving: disabling would drop keyboard focus.
+    if (moveItem.isPending) return;
+    moveItem.mutate(
+      { versionId, moduleId, sectionId, itemId, to },
+      { onError: (e) => toast.error(`The lesson wasn’t moved: ${e.message}`) },
+    );
+  };
+
   return (
     <>
       <ul className="divide-y divide-border border-t border-border">
-        {[...items.data].sort((a, b) => a.order.localeCompare(b.order)).map((item) => {
+        {ordered.map((item, index) => {
           const t = itemType(item.type);
+          const previous = ordered[index - 1];
+          const next = ordered[index + 1];
           const editable = EDITABLE.includes(item.type);
           const open = () =>
             void navigate({ to: '/admin/courses/$courseId/$versionId/lesson', params: { courseId, versionId }, search: { module: moduleId, section: sectionId, item: item._id } });
           return (
             <li key={item._id} className="group flex items-center gap-3 px-3.5 py-2 transition-colors hover:bg-muted/40">
+              {ordered.length > 1 && (
+                <span className="flex shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Move ${item.name} up`}
+                    disabled={!previous}
+                    onClick={() => move(item._id, { beforeItemId: previous._id })}
+                  >
+                    <ArrowUpIcon aria-hidden />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Move ${item.name} down`}
+                    disabled={!next}
+                    onClick={() => move(item._id, { afterItemId: next._id })}
+                  >
+                    <ArrowDownIcon aria-hidden />
+                  </Button>
+                </span>
+              )}
               <span className={cn('grid size-7 shrink-0 place-items-center rounded-md', t.tone)}>
                 <t.icon className="size-3.5" aria-hidden />
               </span>
