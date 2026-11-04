@@ -11,6 +11,7 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle }
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrackBadge } from '@/features/learn/lesson-page';
+import { resolveContentLock, type ContentLockNode } from '@/features/content-lock/content-lock';
 import { resolveStudyMode, type StudyModeNode } from '@/features/study-mode/study-mode';
 import { TRACKS, useCourseTrack, type Track } from '@/features/learn/tracks';
 import { cn } from '@/lib/utils';
@@ -240,7 +241,12 @@ function ModuleBlock({
     <li>
       <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Module {index + 1}</p>
       <div className="mt-1 flex items-start justify-between gap-4">
-        <h3 className="text-lg font-semibold">{m.name}</h3>
+        <h3 className="flex items-center gap-2 text-lg font-semibold">
+          {m.name}
+          {resolveContentLock(undefined, undefined, m).locked && (
+            <LockIcon className="size-4 shrink-0 text-muted-foreground" aria-label="Locked by your instructor" />
+          )}
+        </h3>
         {progress && (
           <span className="flex shrink-0 items-center gap-2 pt-1 text-xs text-muted-foreground">
             <ProgressBar value={pct} className="w-16" label={`${m.name} progress`} />
@@ -290,7 +296,7 @@ function SectionBlock({
   moduleId: string;
   sectionId: string;
   /** The section and module, for resolving each item's study-mode setting. */
-  studyParents: { module: StudyModeNode; section: StudyModeNode };
+  studyParents: { module: StudyModeNode & ContentLockNode; section: StudyModeNode & ContentLockNode };
   name: string;
   defaultOpen: boolean;
   currentItemId?: string;
@@ -305,7 +311,12 @@ function SectionBlock({
       <CollapsibleTrigger
         render={<Button variant="ghost" className="h-auto w-full justify-between gap-3 rounded-xl px-4 py-3 text-left whitespace-normal" />}
       >
-        {name}
+        <span className="flex min-w-0 items-center gap-2">
+          {name}
+          {resolveContentLock(undefined, studyParents.section, studyParents.module).locked && (
+            <LockIcon className="size-4 shrink-0 text-muted-foreground" aria-label="Locked by your instructor" />
+          )}
+        </span>
         <ChevronDownIcon className={cn('text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -326,6 +337,7 @@ function SectionBlock({
             const strictOnly =
               track === 'blue' &&
               (item.type === 'QUIZ' || !resolveStudyMode(item, studyParents.section, studyParents.module).allowed);
+            const locked = resolveContentLock(item, studyParents.section, studyParents.module).locked;
             const row = (
               <>
                 <ItemMedia variant="icon">
@@ -333,9 +345,16 @@ function SectionBlock({
                 </ItemMedia>
                 <ItemContent className="min-w-0">
                   <ItemTitle className="w-full truncate">{item.name}</ItemTitle>
-                  <ItemDescription>{strictOnly ? `${meta.label} · Strict mode only` : meta.label}</ItemDescription>
+                  <ItemDescription>
+                    {locked
+                      ? `${meta.label} · Locked by your instructor`
+                      : strictOnly
+                        ? `${meta.label} · Strict mode only`
+                        : meta.label}
+                  </ItemDescription>
                 </ItemContent>
                 <ItemActions>
+                {locked && <LockIcon className="size-4 text-muted-foreground" aria-label="Locked by your instructor" />}
                 {item.isCompleted ? (
                   <span className="grid size-6 place-items-center rounded-full bg-emerald-600 text-white" title="Completed">
                     <CheckIcon className="size-3.5" aria-hidden />
@@ -346,7 +365,7 @@ function SectionBlock({
                     <CheckIcon className="size-3.5" aria-hidden />
                     <span className="sr-only">Studied</span>
                   </span>
-                ) : strictOnly ? (
+                ) : locked ? null : strictOnly ? (
                   <LockIcon className="size-4 text-muted-foreground/60" aria-label="Strict mode only" />
                 ) : !isCurrent ? (
                   <CircleIcon className="size-5 text-muted-foreground/50" aria-label="Not started" />

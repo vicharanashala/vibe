@@ -2742,6 +2742,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/courses/versions/{versionId}/items/{itemId}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set this item's lock setting
+         * @description Locks this item for students or keeps it open, overriding its section and module, or clears the setting (null) so it inherits again.<br/>
+         *     Accessible to:
+         *     - Instructors, managers, and teaching assistants of the course.
+         */
+        put: operations["ItemController.updateLock"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses/{courseId}/versions/{versionId}/items/{itemId}/toggle-visibility": {
         parameters: {
             query?: never;
@@ -2880,6 +2902,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set this module's lock setting
+         * @description Locks every section and item in the module that has no setting of its own for students, keeps them open, or clears the setting (null).<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        put: operations["ModuleController.updateLock"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses/versions/{versionId}/modules/{moduleId}/toggle-visibility": {
         parameters: {
             query?: never;
@@ -2961,6 +3005,28 @@ export interface paths {
          *     - Instructors or managers of the course.
          */
         put: operations["SectionController.updateStudyMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set this section's lock setting
+         * @description Locks every item in the section that has no setting of its own for students, keeps them open (overriding the module), or clears the setting (null) so the section inherits again.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        put: operations["SectionController.updateLock"];
         post?: never;
         delete?: never;
         options?: never;
@@ -9047,6 +9113,8 @@ export interface components {
             isOptional?: boolean;
             /** @description Study-mode setting: true allows, false disallows; absent or null inherits from the level above. */
             studyModeEnabled?: boolean;
+            /** @description Lock setting: true locks, false keeps open; absent or null inherits from the level above. */
+            isLocked?: boolean;
             /** @description Type-specific payload (video URL and offsets, blog content, quiz settings, ...). For QUIZ items questionBankRefs is lifted out into the sibling field below. */
             details?: Record<string, never>;
             questionBankRefs?: components["schemas"]["BundleQuestionBankRef"][];
@@ -9058,6 +9126,8 @@ export interface components {
             isHidden?: boolean;
             /** @description Study-mode setting: true allows, false disallows; absent or null inherits from the level above. */
             studyModeEnabled?: boolean;
+            /** @description Lock setting: true locks, false keeps open; absent or null inherits from the level above. */
+            isLocked?: boolean;
             items: components["schemas"]["BundleItem"][];
         };
         BundleModule: {
@@ -9067,6 +9137,8 @@ export interface components {
             isHidden?: boolean;
             /** @description Study-mode setting: true allows, false disallows; absent or null inherits from the level above. */
             studyModeEnabled?: boolean;
+            /** @description Lock setting: true locks, false keeps open; absent or null inherits from the level above. */
+            isLocked?: boolean;
             sections: components["schemas"]["BundleSection"][];
         };
         BundleCourse: {
@@ -9118,6 +9190,13 @@ export interface components {
              * @description true allows study mode here, false disallows it (students must use strict mode), null clears the setting so it inherits from the level above (item → section → module; allowed when nothing is set).
              */
             studyModeEnabled?: boolean | null;
+        };
+        ContentLockBody: {
+            /**
+             * Lock setting
+             * @description true locks this for students, false keeps it open inside something locked, null clears the setting so it inherits.
+             */
+            isLocked?: boolean | null;
         };
         InviteIdParams: {
             /** @description Unique identifier for the invite */
@@ -19450,6 +19529,54 @@ export interface operations {
             };
         };
     };
+    "ItemController.updateLock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ContentLockBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ContentLockBody"];
+            };
+        };
+        responses: {
+            /** @description Item lock setting updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
     "ItemController.toggleItemVisibility": {
         parameters: {
             query?: never;
@@ -19771,6 +19898,52 @@ export interface operations {
             };
         };
     };
+    "ModuleController.updateLock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                moduleId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ContentLockBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ContentLockBody"];
+            };
+        };
+        responses: {
+            /** @description Module lock setting updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Module not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
     "ModuleController.toggleVisibility": {
         parameters: {
             query?: never;
@@ -19928,6 +20101,53 @@ export interface operations {
         };
         responses: {
             /** @description Section study-mode setting updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Section not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "SectionController.updateLock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                moduleId: string;
+                sectionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ContentLockBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ContentLockBody"];
+            };
+        };
+        responses: {
+            /** @description Section lock setting updated successfully */
             200: {
                 headers: {
                     [name: string]: unknown;

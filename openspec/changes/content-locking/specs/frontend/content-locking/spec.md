@@ -31,8 +31,8 @@ The student course drawer SHALL show lessons locked by the instructor as locked,
 ### Requirement: Locked message instead of the lesson
 When the backend refuses a lesson with `CONTENT_LOCKED`, the course page SHALL say the instructor locked it, not that lessons unlock in order. With no earlier lesson to go back to, the lesson area SHALL show that message.
 
-#### Scenario: Opening a locked lesson from another lesson
-- **WHEN** a student on an open lesson picks a locked one
+#### Scenario: Moved onto a locked lesson from another lesson
+- **WHEN** a student on an open lesson goes to one that the backend refuses as locked, such as one locked after the drawer loaded
 - **THEN** a message says the instructor locked it, and the student stays on the open lesson
 
 #### Scenario: Course opens on a locked lesson

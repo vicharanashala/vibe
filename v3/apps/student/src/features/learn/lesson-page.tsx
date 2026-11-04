@@ -96,6 +96,7 @@ import {
   startItem,
   toSeconds,
   unsupportedDetectors,
+  learnKeys,
   useCompleteItem,
   useCourseSettings,
   useLesson,
@@ -106,6 +107,11 @@ import {
 } from './queries';
 import { TRACKS, useCourseTrack, useFlatSyllabus, type Track } from './tracks';
 import { usePrimaryTouch } from '@/hooks/use-primary-touch';
+import {
+  contentLockRefusal,
+  lockedLevelName,
+  type LockedLevel,
+} from '@/features/content-lock/content-lock';
 import {
   studyModeLevel,
   studyModeRefusal,
@@ -145,12 +151,13 @@ export function LessonPage({ track, ...ref }: LessonProps) {
   useEffect(() => rememberTrack(track), [track, rememberTrack]);
 
   const progress = percentage.data?.percentCompleted ?? 0;
-  const frame = (body: ReactNode) => (
+  const frame = (body: ReactNode, hideTrackSwitch = false) => (
     <LessonFrame
       lessonRef={ref}
       track={track}
       title={lesson.data?.name}
       progress={progress}
+      hideTrackSwitch={hideTrackSwitch}
     >
       {body}
     </LessonFrame>
@@ -164,6 +171,15 @@ export function LessonPage({ track, ...ref }: LessonProps) {
       </div>,
     );
   }
+  // A lock comes before everything else, on any device. A quiz already on screen
+  // keeps running when its refetch is refused, so an attempt started before the
+  // lock can finish; it can't start a new one (QuizRunner handles that refusal).
+  const lockRefusal = lesson.isError ? contentLockRefusal(lesson.error) : undefined;
+  const quizOnScreen = !!lockRefusal && lesson.data?.type === 'QUIZ';
+  if (lockRefusal && !quizOnScreen) {
+    // Locked in both modes, so switching wouldn't help.
+    return frame(<ContentLockedLesson lessonRef={ref} source={lockRefusal.source} />, true);
+  }
   if (strictOnTouch) {
     return frame(
       <ContinueOnComputer
@@ -172,12 +188,12 @@ export function LessonPage({ track, ...ref }: LessonProps) {
       />,
     );
   }
-  const refusal = lesson.isError ? studyModeRefusal(lesson.error) : undefined;
+  const refusal = lesson.isError && !quizOnScreen ? studyModeRefusal(lesson.error) : undefined;
   if (refusal?.kind === 'disabled')
     return frame(<StudyModeDisabled lessonRef={ref} source={refusal.source} />);
   if (refusal?.kind === 'quiz') return frame(<StrictOnlyQuiz lessonRef={ref} />);
   // In linear courses the backend refuses strict reads of lessons the student hasn't reached (403).
-  if (lesson.isError) {
+  if (lesson.isError && !quizOnScreen) {
     return frame(
       lesson.error instanceof ApiError && lesson.error.status === 403 ? (
         <LockedLesson lessonRef={ref} track={track} />
@@ -193,7 +209,7 @@ export function LessonPage({ track, ...ref }: LessonProps) {
       <ConsentGate courseId={ref.courseId} versionId={ref.versionId} />,
     );
 
-  const item = lesson.data;
+  const item = lesson.data!;
   // Students get STUDY_MODE_QUIZ from the backend; instructors' study reads
   // aren't refused, so the quiz case is caught here too.
   if (track === 'blue' && item.type === 'QUIZ') return frame(<StrictOnlyQuiz lessonRef={ref} />);
@@ -656,6 +672,7 @@ function GreenQuiz({
   const refresh = useAfterQuizSubmit();
   const watchItem = useRef<Promise<string> | null>(null);
   const [answering, setAnswering] = useState(false);
+  const [lockedBy, setLockedBy] = useState<LockedLevel | null>(null);
 
   // Already-passed quizzes can be retaken for practice without touching progress.
   const ensureWatchItem = useCallback(async () => {
@@ -663,6 +680,14 @@ function GreenQuiz({
     watchItem.current ??= startItem(ref);
     return watchItem.current;
   }, [item.isAlreadyWatched, ref]);
+
+  if (lockedBy) {
+    return (
+      <LessonFrame lessonRef={ref} track="green" title={item.name} progress={progress} hideTrackSwitch>
+        <ContentLockedLesson lessonRef={ref} source={lockedBy} />
+      </LessonFrame>
+    );
+  }
 
   return (
     <LessonFrame
@@ -681,6 +706,7 @@ function GreenQuiz({
         lessonRef={ref}
         item={item}
         ensureWatchItem={ensureWatchItem}
+        onLocked={setLockedBy}
         onPassed={async () => {
           await refresh();
           await goToNext();
@@ -723,9 +749,13 @@ function GreenFeedback({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canSkip = !fields.some((f) => f.required);
+  const showLockIfLocked = useShowLockIfLocked(ref);
 
   useEffect(() => {
-    if (!alreadyDone) watchItem.current ??= startItem(ref);
+    if (!alreadyDone) {
+      watchItem.current ??= startItem(ref);
+      watchItem.current.catch(showLockIfLocked);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref.itemId, alreadyDone]);
 
@@ -773,6 +803,7 @@ function GreenFeedback({
       if (sent.current) toast.success('Thanks for your feedback.');
       await goToNext();
     } catch (e) {
+      showLockIfLocked(e);
       setError(
         sent.current
           ? 'Your feedback was sent, but we couldn’t save your progress. Press Continue to try again.'
@@ -901,6 +932,7 @@ function GreenLesson({
   const [playing, setPlaying] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const alreadyDone = Boolean(item.isAlreadyWatched);
+  const showLockIfLocked = useShowLockIfLocked(ref);
 
   // Open a watch-time record for items not completed yet.
   useEffect(() => {
@@ -910,7 +942,10 @@ function GreenLesson({
       .then((id) => {
         if (!cancelled) watchItemId.current = id;
       })
-      .catch((e: Error) => !cancelled && setStartError(e.message));
+      .catch((e: Error) => {
+        showLockIfLocked(e);
+        if (!cancelled) setStartError(e.message);
+      });
     return () => {
       cancelled = true;
     };
@@ -978,6 +1013,7 @@ function GreenLesson({
         });
       }
     } catch (e) {
+      showLockIfLocked(e);
       toast.error(
         (e as Error).message ||
           'Couldn’t save your progress. Please try again.',
@@ -1252,6 +1288,7 @@ function LessonFrame({
   footerTone = 'neutral',
   footerLayout = 'row',
   exitWarning,
+  hideTrackSwitch = false,
 }: {
   lessonRef: LessonRef;
   track: Track;
@@ -1263,6 +1300,7 @@ function LessonFrame({
   footerLayout?: 'row' | 'stack';
   /** When set, closing the lesson asks first (Uxcel's "Hold it right there!"). */
   exitWarning?: string;
+  hideTrackSwitch?: boolean;
 }) {
   const other: Track = track === 'blue' ? 'green' : 'blue';
   const navigate = useNavigate();
@@ -1308,14 +1346,16 @@ function LessonFrame({
             {title}
           </span>
           <TrackBadge track={track} />
-          <Link
-            to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
-            params={ref}
-            search={{ track: other }}
-            className="hidden text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline"
-          >
-            Switch to {TRACKS[other].label.toLowerCase()}
-          </Link>
+          {!hideTrackSwitch && (
+            <Link
+              to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
+              params={ref}
+              search={{ track: other }}
+              className="hidden text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:inline"
+            >
+              Switch to {TRACKS[other].label.toLowerCase()}
+            </Link>
+          )}
         </div>
       </header>
       <main
@@ -1416,6 +1456,46 @@ function LessonEmpty({
       </EmptyHeader>
       <EmptyContent>{action}</EmptyContent>
     </Empty>
+  );
+}
+
+/**
+ * A lesson locked after it opened: start or stop was refused. Refetching the
+ * lesson gets the same refusal, and the page then shows the locked screen.
+ */
+function useShowLockIfLocked(ref: LessonRef) {
+  const queryClient = useQueryClient();
+  return (error: unknown) => {
+    if (contentLockRefusal(error))
+      void queryClient.invalidateQueries({ queryKey: learnKeys.item(ref) });
+  };
+}
+
+/** The instructor locked this lesson, or the section or module it's in. */
+function ContentLockedLesson({
+  lessonRef: ref,
+  source,
+}: {
+  lessonRef: LessonRef;
+  source: LockedLevel;
+}) {
+  return (
+    <LessonEmpty
+      icon={<LockIcon />}
+      title="Locked by your instructor"
+      action={
+        <Link
+          to="/courses/$courseId/$versionId"
+          params={{ courseId: ref.courseId, versionId: ref.versionId }}
+          className={buttonVariants({ variant: 'outline' })}
+        >
+          Back to the course
+        </Link>
+      }
+    >
+      Your instructor has locked {lockedLevelName(source)}. You can open it again once
+      they unlock it. Your progress isn’t affected.
+    </LessonEmpty>
   );
 }
 

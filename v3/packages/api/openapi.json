@@ -5200,6 +5200,10 @@
       "type": "boolean",
       "description": "Study-mode setting: true allows, false disallows; absent or null inherits from the level above."
      },
+     "isLocked": {
+      "type": "boolean",
+      "description": "Lock setting: true locks, false keeps open; absent or null inherits from the level above."
+     },
      "details": {
       "type": "object",
       "description": "Type-specific payload (video URL and offsets, blog content, quiz settings, ...). For QUIZ items questionBankRefs is lifted out into the sibling field below."
@@ -5236,6 +5240,10 @@
       "type": "boolean",
       "description": "Study-mode setting: true allows, false disallows; absent or null inherits from the level above."
      },
+     "isLocked": {
+      "type": "boolean",
+      "description": "Lock setting: true locks, false keeps open; absent or null inherits from the level above."
+     },
      "items": {
       "items": {
        "$ref": "#/components/schemas/BundleItem"
@@ -5267,6 +5275,10 @@
      "studyModeEnabled": {
       "type": "boolean",
       "description": "Study-mode setting: true allows, false disallows; absent or null inherits from the level above."
+     },
+     "isLocked": {
+      "type": "boolean",
+      "description": "Lock setting: true locks, false keeps open; absent or null inherits from the level above."
      },
      "sections": {
       "items": {
@@ -5422,6 +5434,17 @@
       "type": "boolean",
       "title": "Study mode setting",
       "description": "true allows study mode here, false disallows it (students must use strict mode), null clears the setting so it inherits from the level above (item → section → module; allowed when nothing is set).",
+      "nullable": true
+     }
+    },
+    "type": "object"
+   },
+   "ContentLockBody": {
+    "properties": {
+     "isLocked": {
+      "type": "boolean",
+      "title": "Lock setting",
+      "description": "true locks this for students, false keeps it open inside something locked, null clears the setting so it inherits.",
       "nullable": true
      }
     },
@@ -26109,6 +26132,85 @@
     "description": "Allows or disallows study mode for this item, overriding its section and module, or clears the setting (null) so it inherits again.<br/>\nAccessible to:\n- Instructors, managers, and teaching assistants of the course."
    }
   },
+  "/api/courses/versions/{versionId}/items/{itemId}/lock": {
+   "put": {
+    "operationId": "ItemController.updateLock",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Version ID",
+       "description": "ID of the course version"
+      }
+     },
+     {
+      "in": "path",
+      "name": "itemId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Item ID",
+       "description": "ID of the item"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContentLockBody"
+       }
+      }
+     },
+     "description": "ContentLockBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "description": "Unresolved backend $ref: #/components/schemas/ItemContentLockResponse"
+        }
+       }
+      },
+      "description": "Item lock setting updated successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ItemNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "Item not found"
+     }
+    },
+    "summary": "Set this item's lock setting",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Locks this item for students or keeps it open, overriding its section and module, or clears the setting (null) so it inherits again.<br/>\nAccessible to:\n- Instructors, managers, and teaching assistants of the course."
+   }
+  },
   "/api/courses/{courseId}/versions/{versionId}/items/{itemId}/toggle-visibility": {
    "put": {
     "operationId": "ItemController.toggleItemVisibility",
@@ -26659,6 +26761,83 @@
     "description": "Allows or disallows study mode for every section and item in the module that has no setting of its own, or clears the setting (null) so the module is open to study mode again.<br/>\nAccessible to:\n- Instructors or managers of the course."
    }
   },
+  "/api/courses/versions/{versionId}/modules/{moduleId}/lock": {
+   "put": {
+    "operationId": "ModuleController.updateLock",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Version ID",
+       "description": "ID of the course version containing the module"
+      }
+     },
+     {
+      "in": "path",
+      "name": "moduleId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Module ID",
+       "description": "ID of the module to be updated"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContentLockBody"
+       }
+      }
+     },
+     "description": "ContentLockBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ModuleDataResponse"
+        }
+       }
+      },
+      "description": "Module lock setting updated successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ModuleNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "Module not found"
+     }
+    },
+    "summary": "Set this module's lock setting",
+    "tags": [
+     "Course Modules"
+    ],
+    "description": "Locks every section and item in the module that has no setting of its own for students, keeps them open, or clears the setting (null).<br/>\nAccessible to:\n- Instructors or managers of the course."
+   }
+  },
   "/api/courses/versions/{versionId}/modules/{moduleId}/toggle-visibility": {
    "put": {
     "operationId": "ModuleController.toggleVisibility",
@@ -26979,6 +27158,97 @@
      "Course Sections"
     ],
     "description": "Allows or disallows study mode for every item in the section that has no setting of its own (overriding the module), or clears the setting (null) so the section inherits from its module again.<br/>\nAccessible to:\n- Instructors or managers of the course."
+   }
+  },
+  "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/lock": {
+   "put": {
+    "operationId": "SectionController.updateLock",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Version ID",
+       "description": "ID of the course version containing the module"
+      }
+     },
+     {
+      "in": "path",
+      "name": "moduleId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Module ID",
+       "description": "ID of the module containing the section"
+      }
+     },
+     {
+      "in": "path",
+      "name": "sectionId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Section ID",
+       "description": "ID of the section"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContentLockBody"
+       }
+      }
+     },
+     "description": "ContentLockBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SectionDataResponse"
+        }
+       }
+      },
+      "description": "Section lock setting updated successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SectionNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "Section not found"
+     }
+    },
+    "summary": "Set this section's lock setting",
+    "tags": [
+     "Course Sections"
+    ],
+    "description": "Locks every item in the section that has no setting of its own for students, keeps them open (overriding the module), or clears the setting (null) so the section inherits again.<br/>\nAccessible to:\n- Instructors or managers of the course."
    }
   },
   "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}": {

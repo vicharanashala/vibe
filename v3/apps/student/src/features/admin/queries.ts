@@ -192,6 +192,45 @@ function invalidateVersion(queryClient: ReturnType<typeof useQueryClient>, versi
   void queryClient.invalidateQueries({ queryKey: courseKeys.version(versionId) });
 }
 
+// ---- Content lock ----
+
+/** Set, or with `value: null` clear back to "inherit", a module's, section's or lesson's lock. */
+export function useSetContentLock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ target, value }: { target: StudyModeTarget; value: boolean | null }) => {
+      const body = { isLocked: value };
+      if (target.level === 'module')
+        return unwrap(
+          await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/lock', {
+            params: { path: { versionId: target.versionId, moduleId: target.moduleId } },
+            body,
+          }),
+        );
+      if (target.level === 'section')
+        return unwrap(
+          await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/lock', {
+            params: { path: { versionId: target.versionId, moduleId: target.moduleId, sectionId: target.sectionId } },
+            body,
+          }),
+        );
+      return unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/items/{itemId}/lock', {
+          params: { path: { versionId: target.versionId, itemId: target.itemId } },
+          body,
+        }),
+      );
+    },
+    onSuccess: (_data, { target }) => {
+      if (target.level === 'item')
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.sectionItems(target.versionId, target.moduleId, target.sectionId),
+        });
+      else invalidateVersion(queryClient, target.versionId);
+    },
+  });
+}
+
 // ---- Study mode ----
 
 /** Where a study-mode setting is written; `value: null` clears it back to "inherit". */

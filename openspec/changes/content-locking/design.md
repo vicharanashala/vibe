@@ -70,7 +70,7 @@ A 403 with `name: 'CONTENT_LOCKED'` and `details.source`, like `StudyModeError`.
 | `ProgressService.stopItem` | After the completed no-op, so retries of finished lessons stay safe; see decision 6 |
 | `ProgressService.skipItem` | Start of the method |
 | `StudyProgressService.recordStudyView` | With its other checks, using the lock resolved in `lessonsOf`, for students |
-| `AttemptService.attempt` | Before its transaction, so no metrics document is created or attempt used |
+| `AttemptService.attempt` | Before its transaction, so no metrics document is created or attempt used | The route also gets `@ContentType('application/json')`: `AttemptController` isn't a `JsonController`, so the app's default error handler otherwise answers in text, and clients can't read the refusal's `name` |
 | `AttemptService.submitFeedBackForm` | Before its transaction |
 | `ProjectService.submitProject` | Before its transaction |
 
@@ -94,6 +94,7 @@ The lesson response doesn't carry the lock. A student who can read a lesson does
 - **Teacher page:** `ContentLockPanel` next to `StudyModePanel` in the selected-entity panel, with `contentLockState` and new hooks using `putLock` and the same invalidation.
 - **Course page:** `isItemLocked` returns true first for resolved locks, before its linear-only early return, so `CourseDrawer` shows them in non-linear courses too.
 - **Lesson errors:** `CONTENT_LOCKED` has its own name, so it skips the `ForbiddenError` branch and its "lessons unlock in order" text. A new branch follows the same revert-to-previous behaviour, with its own message. With no previous lesson, the lesson area shows the message.
+- **Fullscreen:** the "Fullscreen required" overlay isn't shown over the locked message, because no lesson is running.
 - **Phone:** `PhoneStudyLesson` shows the instructor message instead of the use-a-computer fallback.
 
 ## Risks / Trade-offs
