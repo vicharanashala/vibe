@@ -58,6 +58,11 @@ import { ObjectId } from 'mongodb';
 import { query } from 'winston';
 import { COURSES_TYPES } from '#root/modules/courses/types.js';
 import { CourseVersionService } from '#root/modules/courses/services/index.js';
+import {
+  normalizeEntries,
+  resolveMode,
+  shouldAutoApprove,
+} from '../utils/autoApproval.js';
 
 @OpenAPI({
   tags: ['CourseRegistration'],
@@ -192,68 +197,29 @@ class CourseRegistrationController {
       registrationData,
     );
 
-    if(version?.cohorts?.length > 0){
-      if(registrationSettings?.cohortSettings?.length > 0 && registrationSettings?.cohortSettingDetails?.some(c => c.cohortId === cohortId)){
-        const cohortSetting = registrationSettings.cohortSettingDetails.find(
-          c => c.cohortId === cohortId
-        );
-        if(cohortSetting?.registrationsAutoApproved){
-          if (!cohortSetting.autoapproval_emails || cohortSetting.autoapproval_emails.length === 0) {
-            await this.courseRegistrationService.updateStatus(result, "APPROVED", cohortId);
-            // Return with APPROVED status when auto-approved
-            return {
-              registrationId: result,
-              status: "APPROVED"
-            };
-          } else {
-            const userDetails = await this.userRepository.findById(userId);
-            if (userDetails?.email) {
-              const userEmail = userDetails.email.toLowerCase();
-              const shouldAutoApprove = cohortSetting.autoapproval_emails.some(pattern =>
-                userEmail.includes(pattern.toLowerCase())
-              );
-              if (shouldAutoApprove) {
-                await this.courseRegistrationService.updateStatus(result, "APPROVED", cohortId);
-                // Return with APPROVED status when auto-approved
-                return {
-                  registrationId: result,
-                  status: "APPROVED"
-                };
-              }
-            }
-          }
-        }
-      }
-    } else if (registrationSettings.registrationsAutoApproved) {
-      // Auto-approval is enabled
-      if (!registrationSettings.autoapproval_emails || registrationSettings.autoapproval_emails.length === 0) {
-        // No specific emails set - auto-approve all
-        await this.courseRegistrationService.updateStatus(result, "APPROVED");
-        // Return with APPROVED status when auto-approved
-        return {
-          registrationId: result,
-          status: "APPROVED"
-        };
-      } else {
-        // Check if user email matches any of the specified patterns
-        const userDetails = await this.userRepository.findById(userId);
+    const hasCohorts = version?.cohorts?.length > 0;
+    const approvalSettings = hasCohorts
+      ? registrationSettings?.cohortSettingDetails?.find(
+          c => c.cohortId === cohortId,
+        )
+      : registrationSettings;
+    // The account's email, never one typed into the form.
+    const accountEmail =
+      approvalSettings?.registrationsAutoApproved &&
+      resolveMode(approvalSettings) === 'LIST'
+        ? (await this.userRepository.findById(userId))?.email
+        : undefined;
 
-        if (userDetails && userDetails.email) {
-          const userEmail = userDetails.email.toLowerCase();
-          const shouldAutoApprove = registrationSettings.autoapproval_emails.some(pattern =>
-            userEmail.includes(pattern.toLowerCase())
-          );
-
-          if (shouldAutoApprove) {
-            await this.courseRegistrationService.updateStatus(result, "APPROVED");
-            // Return with APPROVED status when auto-approved
-            return {
-              registrationId: result,
-              status: "APPROVED"
-            };
-          }
-        }
-      }
+    if (shouldAutoApprove(approvalSettings, accountEmail)) {
+      await this.courseRegistrationService.updateStatus(
+        result,
+        'APPROVED',
+        hasCohorts ? cohortId : undefined,
+      );
+      return {
+        registrationId: result,
+        status: 'APPROVED',
+      };
     }
 
     // Return with PENDING status when not auto-approved
@@ -458,7 +424,16 @@ class CourseRegistrationController {
     ) {
       throw new ForbiddenError('You do not have permission to modify settings');
     }
-    return this.courseRegistrationService.updateSettings(versionId, body);
+    // A form save that doesn't mention auto-approval must not wipe it.
+    const current = await this.courseRegistrationService.getSettings(versionId);
+    return this.courseRegistrationService.updateSettings(versionId, {
+      ...body,
+      registrationsAutoApproved:
+        body.registrationsAutoApproved ?? current.registrationsAutoApproved,
+      autoapproval_emails:
+        body.autoapproval_emails ?? current.autoapproval_emails,
+      autoApprovalMode: body.autoApprovalMode ?? current.autoApprovalMode,
+    });
   }
 
   @OpenAPI({
@@ -491,6 +466,24 @@ class CourseRegistrationController {
       throw new ForbiddenError('You do not have permission to modify auto-approval settings');
     }
 
+    // Checked here because the service turns any error it throws into a 500.
+    const emails = body.autoapproval_emails ?? [];
+    const autoApprovalMode = resolveMode({
+      autoApprovalMode: body.autoApprovalMode,
+      autoapproval_emails: emails,
+    });
+    const {entries, invalid} = normalizeEntries(emails);
+    // Turning auto-approval off is never blocked by an old entry.
+    if (
+      body.registrationsAutoApproved &&
+      autoApprovalMode === 'LIST' &&
+      invalid.length > 0
+    ) {
+      throw new BadRequestError(
+        `These aren't an email address or a domain: ${invalid.join(', ')}`,
+      );
+    }
+
     // Get current settings to preserve existing schema and isActive
     const currentSettings = await this.courseRegistrationService.getSettings(versionId);
 
@@ -501,7 +494,9 @@ class CourseRegistrationController {
         uiSchema: currentSettings.uiSchema,
         isActive: currentSettings.isActive,
         registrationsAutoApproved: body.registrationsAutoApproved,
-        autoapproval_emails: body.autoapproval_emails,
+        autoapproval_emails:
+          autoApprovalMode === 'EVERYONE' ? [] : [...entries, ...invalid],
+        autoApprovalMode,
         cohortSettings: currentSettings.cohortSettings,
       },
       body.cohortId
