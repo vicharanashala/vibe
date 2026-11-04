@@ -12,7 +12,10 @@ export type NotificationType =
   | 'mcq_submission_approved'
   | 'mcq_submission_rejected'
   | 'case_response_weak_streak'
-  | 'case_response_withdrawn';
+  | 'case_response_withdrawn'
+  // A student answered the same quiz question wrongly several times in a row
+  // (#1109). Sent to the course's instructors.
+  | 'student_struggling';
 
 export interface INotification {
   _id?: ObjectId | string;

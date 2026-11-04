@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { SystemNotification } from "@/types/notification.types";
 import { AppealDetailsModal } from "./AppealDetailsModal";
-import { Bell, CheckCircle, Shield, UserCheck, UserX, XCircle } from "lucide-react";
+import { Bell, CheckCircle, LifeBuoy, Shield, UserCheck, UserX, XCircle } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { useCourseStore } from "@/store/course-store";
+import { Button } from "@/components/ui/button";
 import { AppealStatusBadge } from "./AppealStatusBadge";
 type Props = {
   notification: SystemNotification;
@@ -22,6 +25,8 @@ const getSystemNotificationIcon = (type:any) => {
       return <CheckCircle className="h-3 w-3 text-green-600" />;
     case "appeal_rejected":
       return <XCircle className="h-3 w-3 text-red-600" />;
+    case "student_struggling":
+      return <LifeBuoy className="h-3 w-3 text-amber-600" />;
     default:
       return <Bell className="h-3 w-3 text-muted-foreground" />;
   }
@@ -33,6 +38,36 @@ export default function SystemNotificationItem({
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const navigate = useNavigate();
+  const setCurrentCourse = useCourseStore((state) => state.setCurrentCourse);
+
+  // Struggling-student alerts (#1109): open this student's progress on the
+  // course's enrollments page.
+  const canViewProgress =
+    notification.type === "student_struggling" &&
+    !!notification.extra?.studentId &&
+    !!notification.courseId &&
+    !!notification.courseVersionId;
+
+  const handleViewProgress = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!canViewProgress) return;
+    if (!notification.read) {
+      onMarkRead(notification._id);
+    }
+    setCurrentCourse({
+      courseId: notification.courseId!,
+      versionId: notification.courseVersionId!,
+      moduleId: null,
+      sectionId: null,
+      itemId: null,
+      watchItemId: null,
+    });
+    navigate({
+      to: "/teacher/courses/enrollments",
+      search: { student: notification.extra!.studentId },
+    });
+  };
 
 
   const handleToggle = () => {
@@ -99,6 +134,17 @@ export default function SystemNotificationItem({
             onReview={() => setShowModal(true)}
           />
         ) : null}
+
+        {canViewProgress && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 px-2 text-[11px]"
+            onClick={handleViewProgress}
+          >
+            View progress
+          </Button>
+        )}
       </div>
     </div>
   </div>

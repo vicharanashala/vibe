@@ -1619,6 +1619,17 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                 </Badge>
               )}
 
+              {/* Supportive nudge after repeated wrong answers (#1109) */}
+              {submissionResults?.supportNudge && (
+                <div
+                  role="status"
+                  className="mx-auto mt-4 flex max-w-xl items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4 text-left"
+                >
+                  <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <p className="text-sm text-foreground">{submissionResults.supportNudge.message}</p>
+                </div>
+              )}
+
               {/* Action Buttons - side by side */}
               <div className="pt-4 flex flex-col items-center gap-3">
                 <div className="flex flex-wrap justify-center gap-3">
