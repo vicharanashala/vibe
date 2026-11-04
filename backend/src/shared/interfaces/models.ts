@@ -723,6 +723,7 @@ export interface ICohortSettings {
   cohortId: string | ObjectId;
   registrationsAutoApproved: boolean;
   autoapproval_emails: string[];
+  autoApprovalMode?: 'EVERYONE' | 'LIST' | null;
 }
 
 export interface IUserActivityEvent {
@@ -943,6 +944,7 @@ export interface ISettings {
     isActive?: boolean;
     registrationsAutoApproved?: boolean;
     autoapproval_emails?: string[];
+    autoApprovalMode?: 'EVERYONE' | 'LIST' | null;
     cohortSettings?: ObjectId[];
   };
   timeslots?: {

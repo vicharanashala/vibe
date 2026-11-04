@@ -6,7 +6,7 @@ import {
   SearchIcon,
   XIcon,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { GeneratedAvatar } from '@/components/generated-art';
@@ -41,6 +41,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
@@ -76,6 +77,7 @@ import {
   useSaveRegistrationForm,
   useSetRegistrationStatus,
   useToggleRegistration,
+  type AutoApprovalMode,
   type RegistrationRequest,
   type RegistrationSettings,
   type RegistrationStatus,
@@ -240,16 +242,19 @@ function RegistrationSettingsPanel({
   const toggle = useToggleRegistration(versionId);
   const saveAuto = useSaveAutoApproval(versionId);
   const [auto, setAuto] = useState(settings.registrationsAutoApproved);
-  const [patterns, setPatterns] = useState(
-    settings.autoapproval_emails.join('\n'),
-  );
+  const [mode, setMode] = useState(settings.autoApprovalMode);
+  const savedPatterns = settings.autoapproval_emails.join('\n');
+  const [patterns, setPatterns] = useState(savedPatterns);
+  // The backend tidies what it saves (case, duplicates); show what it kept.
+  useEffect(() => setPatterns(savedPatterns), [savedPatterns]);
   const parsed = patterns
     .split(/[\n,]+/)
     .map((p) => p.trim())
     .filter(Boolean);
   const dirty =
     auto !== settings.registrationsAutoApproved ||
-    parsed.join('\n') !== settings.autoapproval_emails.join('\n');
+    mode !== settings.autoApprovalMode ||
+    parsed.join('\n') !== savedPatterns;
 
   return (
     <div className="grid gap-4">
@@ -304,21 +309,51 @@ function RegistrationSettingsPanel({
           </Field>
           {auto && (
             <Field>
-              <FieldLabel htmlFor="reg-patterns">
-                Only for these emails (optional)
-              </FieldLabel>
+              <FieldLabel id="reg-mode">Who is approved</FieldLabel>
+              <RadioGroup
+                aria-labelledby="reg-mode"
+                value={mode}
+                onValueChange={(v) => setMode(v as AutoApprovalMode)}
+              >
+                <Field orientation="horizontal">
+                  <RadioGroupItem value="EVERYONE" id="reg-mode-everyone" />
+                  <FieldLabel
+                    htmlFor="reg-mode-everyone"
+                    className="font-normal"
+                  >
+                    Everyone
+                  </FieldLabel>
+                </Field>
+                <Field orientation="horizontal">
+                  <RadioGroupItem value="LIST" id="reg-mode-list" />
+                  <FieldLabel htmlFor="reg-mode-list" className="font-normal">
+                    Only these emails
+                  </FieldLabel>
+                </Field>
+              </RadioGroup>
+            </Field>
+          )}
+          {auto && mode === 'LIST' && (
+            <Field>
+              <FieldLabel htmlFor="reg-patterns">Emails and domains</FieldLabel>
               <Textarea
                 id="reg-patterns"
                 rows={3}
                 value={patterns}
                 onChange={(e) => setPatterns(e.target.value)}
-                placeholder={'@iitrpr.ac.in\nstudent@example.com'}
+                placeholder={'iitrpr.ac.in\nstudent@example.com'}
               />
               <FieldDescription>
-                One per line. An address is approved if it contains any of
-                these, so “@iitrpr.ac.in” covers a whole domain. Leave empty to
-                approve everyone; anyone else waits for you.
+                One per line. A full address matches only that address. A domain
+                such as iitrpr.ac.in matches only that domain, not its
+                subdomains. Anyone else waits for you.
               </FieldDescription>
+              {parsed.length === 0 && (
+                <FieldDescription>
+                  Nobody will be approved automatically until you add an email or
+                  domain.
+                </FieldDescription>
+              )}
             </Field>
           )}
           {(dirty || saveAuto.isError) && (
@@ -330,7 +365,8 @@ function RegistrationSettingsPanel({
                 variant="outline"
                 onClick={() => {
                   setAuto(settings.registrationsAutoApproved);
-                  setPatterns(settings.autoapproval_emails.join('\n'));
+                  setMode(settings.autoApprovalMode);
+                  setPatterns(savedPatterns);
                 }}
               >
                 Discard
@@ -341,7 +377,8 @@ function RegistrationSettingsPanel({
                   saveAuto.mutate(
                     {
                       registrationsAutoApproved: auto,
-                      autoapproval_emails: auto ? parsed : [],
+                      autoApprovalMode: mode,
+                      autoapproval_emails: mode === 'LIST' ? parsed : [],
                     },
                     {
                       onSuccess: () =>

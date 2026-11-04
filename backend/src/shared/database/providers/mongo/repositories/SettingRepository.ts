@@ -441,6 +441,7 @@ export class SettingRepository implements ISettingRepository {
       isActive: boolean;
       registrationsAutoApproved?: boolean;
       autoapproval_emails?: string[];
+      autoApprovalMode?: 'EVERYONE' | 'LIST';
     },
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
@@ -460,6 +461,7 @@ export class SettingRepository implements ISettingRepository {
             schemas.registrationsAutoApproved,
           'settings.registration.autoapproval_emails':
             schemas.autoapproval_emails,
+          'settings.registration.autoApprovalMode': schemas.autoApprovalMode,
         },
       },
       {session},
