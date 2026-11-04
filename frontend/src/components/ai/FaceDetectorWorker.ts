@@ -93,6 +93,8 @@ async function detectFaces(imageBitmap: ImageBitmap) {
   }
 
   ctx.drawImage(imageBitmap, 0, 0);
+  // Transferred bitmaps are owned by the worker; release GPU/CPU memory per frame.
+  imageBitmap.close();
 
   try {
     const faces = await detector.estimateFaces(
