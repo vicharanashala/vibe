@@ -1,9 +1,15 @@
-import rateLimit, { RateLimitRequestHandler } from 'express-rate-limit';
+import rateLimit, { RateLimitRequestHandler, Options } from 'express-rate-limit';
+import { Request } from 'express';
 
 interface LimiterOptions {
   windowMs?: number;        // Time window in milliseconds
   max?: number;             // Max requests per window per IP
   message?: object | string;
+  // Defaults to per-IP (express-rate-limit's own default). Pass this to key
+  // by something else instead — e.g. the bearer token, for a route where
+  // many legitimate users can share one IP (school/campus NAT) and a raw
+  // per-IP cap would collectively lock all of them out together.
+  keyGenerator?: Options['keyGenerator'];
 }
 
 /**
@@ -20,5 +26,6 @@ export const createRateLimiter = (options?: LimiterOptions): RateLimitRequestHan
       status: 429,
       error: 'Too many requests, please try again later.',
     },
+    ...(options?.keyGenerator ? { keyGenerator: options.keyGenerator } : {}),
   });
 };
