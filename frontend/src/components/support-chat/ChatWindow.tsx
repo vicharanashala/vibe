@@ -4,6 +4,9 @@ import MessageBubble from './MessageBubble';
 import EscalationForm from './EscalationForm';
 import useSupportChat from '@/hooks/useSupportChat';
 
+const CHAT_HISTORY_KEY = 'support_chat_history';
+const MAX_STORED_MESSAGES = 100;
+
 interface ChatWindowProps {
   courseId?: string;
   courseVersionId?: string;
@@ -46,13 +49,36 @@ export default function ChatWindow({
     scrollToBottom();
   }, [messages]);
 
+  // Load chat history from localStorage on mount
   useEffect(() => {
-    // Load chat history on mount
-    const loadHistory = async () => {
-      // TODO: Implement history loading from API
-    };
-    loadHistory();
+    try {
+      const stored = localStorage.getItem(CHAT_HISTORY_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Message[];
+        // Revive timestamp strings back to Date objects
+        const revived = parsed.map((m) => ({ ...m, timestamp: new Date(m.timestamp) }));
+        if (revived.length > 0) {
+          setMessages(revived);
+          return;
+        }
+      }
+    } catch {
+      // ignore corrupt storage
+    }
+    // No history — show welcome screen (empty messages)
+    setMessages([]);
   }, []);
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    if (messages.length === 0) return;
+    try {
+      const toStore = messages.slice(-MAX_STORED_MESSAGES);
+      localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(toStore));
+    } catch {
+      // quota exceeded — ignore
+    }
+  }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,7 +226,7 @@ export default function ChatWindow({
             onChange={(e) => setInput(e.target.value)}
             placeholder='Type your question...'
             disabled={loading}
-            className='flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100'
+            className='flex-1 px-3 py-2 border border-gray-300 rounded text-sm text-black bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400'
           />
           <button
             type='submit'
