@@ -1,0 +1,231 @@
+import 'reflect-metadata';
+import {
+    JsonController,
+    Post,
+    Get,
+    HttpCode,
+    Params,
+    Body,
+    Authorized,
+    CurrentUser,
+    UseBefore,
+} from 'routing-controllers';
+import { injectable, inject } from 'inversify';
+import { OpenAPI } from 'routing-controllers-openapi';
+import { EXAMS_TYPES } from '../types.js';
+import { AttemptService } from '../services/AttemptService.js';
+import { createRateLimiter } from '#root/shared/index.js';
+import { ExamIdParams } from '../classes/validators/ExamValidators.js';
+import { AttemptIdParams, SubmitAttemptBody } from '../classes/validators/AttemptValidators.js';
+import { IUser } from '#root/shared/interfaces/models.js';
+
+// Neither route had any throttling before this — a script could hammer
+// either with no limit beyond the logic they already enforce (retake lock,
+// duration). Sized well above this module's own test suite's call volume
+// (AttemptController.duration.test.ts + AttemptController.security.test.ts
+// together already make 13+ calls to .../attempts/start and 12+ to
+// POST /:examId/attempts, sharing one bucket per file since these tests
+// never set an Authorization header, falling back to the shared req.ip key)
+// so real test/retry traffic doesn't trip it, while still bounding a
+// hammering script. Same bearer-token-keyed pattern as
+// ExamController's redeemGrantRateLimiter, for the same NAT reasoning.
+const startAttemptRateLimiter = createRateLimiter({
+    windowMs: 60_000,
+    max: 30,
+    message: { status: 429, error: 'Too many attempt-start requests, please wait a minute and try again.' },
+    keyGenerator: (req) => req.headers.authorization ?? req.ip ?? 'unknown',
+});
+
+const submitAttemptRateLimiter = createRateLimiter({
+    windowMs: 60_000,
+    max: 20,
+    message: { status: 429, error: 'Too many submission attempts, please wait a minute and try again.' },
+    keyGenerator: (req) => req.headers.authorization ?? req.ip ?? 'unknown',
+});
+
+// A real attempt pings this roughly every 20s (see ExamProctoring.tsx), so
+// even a long exam stays well under this per-minute budget; sized to match
+// startAttemptRateLimiter's reasoning otherwise.
+const heartbeatRateLimiter = createRateLimiter({
+    windowMs: 60_000,
+    max: 10,
+    message: { status: 429, error: 'Too many heartbeat requests, please wait a minute and try again.' },
+    keyGenerator: (req) => req.headers.authorization ?? req.ip ?? 'unknown',
+});
+
+/**
+ * Same `/exams` prefix as `ExamController`, since these routes are logically
+ * nested under an exam ("submit an attempt for this exam") or under the
+ * attempts sub-resource ("my attempts", "one attempt by id").
+ *
+ * Route-collision check (routing-controllers/Express matches literal path
+ * segments before params, in registration order, and never matches across
+ * differing segment counts or HTTP methods):
+ *   - `GET /exams/attempts/mine` and `GET /exams/attempts/:attemptId` are
+ *     both 2 segments after `/exams`, so `mine` WOULD be swallowed by
+ *     `:attemptId` if that route were registered first — hence `mine` is
+ *     declared before `:attemptId` below.
+ *   - `GET /exams/:examId` (ExamController, 1 segment) cannot match
+ *     `/exams/attempts/mine` or `/exams/attempts/:attemptId` (2 segments
+ *     each) — Express requires an exact segment-count match, so there is no
+ *     collision between the two controllers regardless of registration
+ *     order. `examsModuleControllers` still lists this controller first, as
+ *     a defensive convention (literal/nested routes before single-param
+ *     ones), even though it is not load-bearing here.
+ *   - `POST /exams/:examId/attempts` differs from every ExamController route
+ *     by method and/or literal suffix, so it cannot collide either.
+ *   - `GET /exams/:examId/attempts` (param at segment 1, literal `attempts`
+ *     at segment 2) is a different *shape* from `GET /exams/attempts/mine`
+ *     and `GET /exams/attempts/:attemptId` (both literal `attempts` at
+ *     segment 1). A concrete path can only match one of these three
+ *     patterns: `/exams/attempts/mine` has segment 1 `attempts`, which is
+ *     also literal-required by the other two `attempts/...` routes but NOT
+ *     by `:examId/attempts` unless `examId` happened to literally be the
+ *     string `attempts` AND segment 2 happened to literally be `attempts` —
+ *     impossible here since segment 2 of `/exams/attempts/mine` is `mine`,
+ *     not `attempts`. Conversely `/exams/abc123/attempts` has segment 1
+ *     `abc123`, which fails the literal-`attempts` requirement of the other
+ *     two routes outright, leaving only `:examId/attempts` to match. So all
+ *     three GET routes are mutually exclusive on any concrete path,
+ *     independent of registration order; it is still registered after
+ *     `submitAttempt` (grouped with the other `:examId/attempts`-shaped
+ *     route) and before `mine`/`:attemptId`, matching this file's existing
+ *     defensive convention.
+ *   - `GET /exams/:examId/attempts` (2 segments) also cannot collide with
+ *     `GET /exams/:examId` (ExamController, 1 segment) — different segment
+ *     counts.
+ */
+@OpenAPI({
+    tags: ['Exams'],
+})
+@JsonController('/exams', { transformResponse: true })
+@injectable()
+export class AttemptController {
+    constructor(
+        @inject(EXAMS_TYPES.AttemptService)
+        private readonly attemptService: AttemptService,
+    ) {}
+
+    // Server-stamped attempt start time — must be called before submitAttempt
+    // enforces the exam duration against it, since a client-reported
+    // startedAt can't be trusted (see AttemptService.startAttempt's doc).
+    // `/:examId/attempts/start` is a 3-segment path (examId literal-free,
+    // then literal `attempts`, then literal `start`), which cannot collide
+    // with any route in this class-level note: it differs from
+    // `/:examId/attempts` (2 segments) by segment count, and from
+    // `/attempts/mine` / `/attempts/:attemptId` (2 segments, literal
+    // `attempts` at segment 1) both by segment count and by not having a
+    // literal `attempts` at segment 1 itself (examId sits there instead).
+    @Authorized()
+    @Post('/:examId/attempts/start')
+    @UseBefore(startAttemptRateLimiter)
+    @HttpCode(200)
+    @OpenAPI({
+        summary: 'Start (or resume) a timed exam attempt',
+        description:
+            'Idempotent: the first call stamps the server-side start time for this ' +
+            'student/exam pair; every later call (e.g. after a page refresh) returns ' +
+            'that same original timestamp rather than resetting it. Required before ' +
+            'submitAttempt, which enforces the exam duration against this value.',
+    })
+    async startAttempt(@Params() params: ExamIdParams, @CurrentUser() user: IUser) {
+        return this.attemptService.startAttempt(params.examId, user);
+    }
+
+    // Proctoring liveness ping, sent periodically by ExamProctoring.tsx
+    // while it's actually mounted and running. `/:examId/attempts/heartbeat`
+    // is a 3-segment path (examId, literal `attempts`, literal `heartbeat`) —
+    // same shape as `/:examId/attempts/start` immediately above, so the same
+    // non-collision reasoning in this class's doc comment applies verbatim.
+    @Authorized()
+    @Post('/:examId/attempts/heartbeat')
+    @UseBefore(heartbeatRateLimiter)
+    @HttpCode(200)
+    @OpenAPI({
+        summary: 'Record a proctoring liveness ping for an in-progress attempt',
+        description:
+            'Best-effort: a no-op if this student never called /start for this exam. ' +
+            'submitAttempt uses the accumulated count, not any single call, to decide ' +
+            'whether a proctored exam\'s attempt looks like it actually ran.',
+    })
+    async heartbeatAttempt(@Params() params: ExamIdParams, @CurrentUser() user: IUser) {
+        await this.attemptService.recordHeartbeat(params.examId, user);
+        return { ok: true };
+    }
+
+    // Submit attempt -> authoritative score, persisted
+    @Authorized()
+    @Post('/:examId/attempts')
+    @UseBefore(submitAttemptRateLimiter)
+    @HttpCode(201)
+    @OpenAPI({
+        summary: 'Submit an exam attempt',
+        description:
+            'Recomputes score/correctCount server-side from the exam\'s stored ' +
+            'questions rather than trusting any client-submitted score. Rejected ' +
+            '(403) if the exam has a scheduling window (opensAt/closesAt) and the ' +
+            'submission falls outside it, if exam.duration (plus any extra-time ' +
+            'grants this student redeemed) has elapsed since the server-recorded ' +
+            'start time set by POST /:examId/attempts/start (which must be called ' +
+            'first), or if the exam has allowRetakes: false and the student ' +
+            'already has an attempt for this exam.',
+    })
+    async submitAttempt(
+        @Params() params: ExamIdParams,
+        // Raised from the framework default: an attempt can now carry several
+        // client-captured proctoring-violation screenshots (imageDataUrl), same
+        // rationale as UserController's face-reference upload.
+        @Body({ options: { limit: '20mb' } }) body: SubmitAttemptBody,
+        @CurrentUser() user: IUser,
+    ) {
+        return this.attemptService.submitAttempt(
+            params.examId,
+            user,
+            body.responses,
+            {
+                tabSwitches: body.tabSwitches,
+                startedAt: body.startedAt,
+                proctoringEvents: body.proctoringEvents,
+            },
+        );
+    }
+
+    // All attempts for an exam (teacher-facing; owner or admin only) — must be
+    // registered before GET /attempts/mine and /attempts/:attemptId per the
+    // class-level route-collision note above (defensive convention only; the
+    // three patterns are mutually exclusive regardless of order).
+    @Authorized()
+    @Get('/:examId/attempts')
+    @HttpCode(200)
+    @OpenAPI({
+        summary: 'Get all attempts for an exam',
+        description: 'Owner of the exam or an admin only.',
+    })
+    async getAttemptsForExam(@Params() params: ExamIdParams, @CurrentUser() user: IUser) {
+        return this.attemptService.listByExam(params.examId, user);
+    }
+
+    // Current student's attempt history (MyTestsPage) — must be registered
+    // before GET /attempts/:attemptId, see class-level note above.
+    @Authorized()
+    @Get('/attempts/mine')
+    @HttpCode(200)
+    @OpenAPI({
+        summary: "Get the current user's exam attempts",
+    })
+    async getMyAttempts(@CurrentUser() user: IUser) {
+        return this.attemptService.listByStudent(user._id!.toString());
+    }
+
+    // Single result (ResultPage; must be own attempt, the exam owner, or admin)
+    @Authorized()
+    @Get('/attempts/:attemptId')
+    @HttpCode(200)
+    @OpenAPI({
+        summary: 'Get a single exam attempt by id',
+        description: 'Must belong to the requester, or the requester must own the exam or be an admin.',
+    })
+    async getAttempt(@Params() params: AttemptIdParams, @CurrentUser() user: IUser) {
+        return this.attemptService.getById(params.attemptId, user);
+    }
+}
