@@ -69,8 +69,15 @@ type FakeUser = {
   email: string;
   displayName: string | null;
   providerData: { providerId: string }[];
+  metadata: { creationTime?: string; lastSignInTime?: string };
   getIdToken: () => Promise<string>;
   reload: () => Promise<void>;
+};
+
+/** Firebase's times on an account's first sign-in: seconds after it was created. */
+const FIRST_SIGN_IN = {
+  creationTime: 'Mon, 05 Oct 2026 10:00:00 GMT',
+  lastSignInTime: 'Mon, 05 Oct 2026 10:00:04 GMT',
 };
 
 export const STUDENT: FakeUser = {
@@ -78,6 +85,7 @@ export const STUDENT: FakeUser = {
   email: 'student@vibe.local',
   displayName: 'Asha Student',
   providerData: [{ providerId: 'password' }],
+  metadata: FIRST_SIGN_IN,
   getIdToken: async () => 'test-token',
   reload: async () => undefined,
 };
@@ -227,8 +235,16 @@ export function resetSession() {
 }
 
 /** Signs the test student in and marks onboarding as done, so /home etc. render directly. */
-export function signInStudent({ onboarded = true } = {}) {
-  fakeAuth.currentUser = STUDENT;
+export function signInStudent({ onboarded = true, returning = false } = {}) {
+  fakeAuth.currentUser = returning
+    ? {
+        ...STUDENT,
+        metadata: {
+          ...FIRST_SIGN_IN,
+          lastSignInTime: 'Wed, 04 Nov 2026 09:00:00 GMT',
+        },
+      }
+    : STUDENT;
   if (onboarded)
     localStorage.setItem(
       `vibe:onboarding:${STUDENT.uid}`,

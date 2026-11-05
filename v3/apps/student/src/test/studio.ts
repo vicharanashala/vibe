@@ -259,6 +259,10 @@ export const ADMIN: typeof STUDENT = {
   email: 'instructor@vibe.local',
   displayName: 'Ira Instructor',
   providerData: [{ providerId: 'password' }],
+  metadata: {
+    creationTime: 'Mon, 05 Oct 2026 10:00:00 GMT',
+    lastSignInTime: 'Mon, 05 Oct 2026 10:00:04 GMT',
+  },
   getIdToken: async () => 'test-token',
   reload: async () => undefined,
 };
@@ -280,6 +284,10 @@ export const TEACHER: typeof STUDENT = {
   email: 'teacher@vibe.local',
   displayName: 'Tara Teacher',
   providerData: [{ providerId: 'password' }],
+  metadata: {
+    creationTime: 'Mon, 05 Oct 2026 10:00:00 GMT',
+    lastSignInTime: 'Mon, 05 Oct 2026 10:00:04 GMT',
+  },
   getIdToken: async () => 'test-token',
   reload: async () => undefined,
 };
