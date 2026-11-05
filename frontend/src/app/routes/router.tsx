@@ -76,6 +76,7 @@ import StudentMyLedgerPage from '@/app/pages/student/hp-system/student-ledger'
 import StudentActivityDetail from '@/app/pages/student/hp-system/activity-detail'
 import { StudentHpGuard } from '@/components/hp-system/StudentHpGuard'
 import NotificationsPage from '@/app/pages/shared/NotificationsPage'
+import LearningCopilot from '@/app/pages/student/learning-copilot'
 import SupportDashboard from '@/app/pages/teacher/support-dashboard'
 
 // Root route with error and notFound handling
@@ -521,6 +522,13 @@ const studentCoursesRoute = new Route({
   component: StudentCourses,
 });
 
+// Student Learning Copilot route
+const studentLearningCopilotRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/learning-copilot',
+  component: LearningCopilot,
+});
+
 // Student learning analytics route
 const studentAnalyticsRoute = new Route({
   getParentRoute: () => studentLayoutRoute,
@@ -775,6 +783,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   studentLayoutRoute.addChildren([
     studentDashboardRoute,
+    studentLearningCopilotRoute,
     studentCoursesRoute,
     studentAnalyticsRoute,
     studentProfileRoute,
