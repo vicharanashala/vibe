@@ -69,6 +69,7 @@ import {
   IStudentSegmentQuestion,
 } from '#root/modules/studentQuestions/classes/transformers/StudentSegmentQuestion.js';
 import { STUDENT_QUESTION_TYPES } from '#root/modules/studentQuestions/types.js';
+import { isGuruSetuProgressCourse } from '#root/modules/users/constants.js';
 
 const PEER_QUESTION_DEFAULT_POINTS = 0;
 const PEER_QUESTION_DEFAULT_TIME_LIMIT_SECONDS = 60;
@@ -870,8 +871,17 @@ class AttemptService extends BaseService {
       const previousItemId = previousItem._id.toString();
       const previousItemType = previousItem.type;
 
-      // 4. Check if previous video has been watched
-      if (previousItemType === 'VIDEO') {
+      // 4. Check if previous video has been watched -- skipped for Guru Setu
+      // style feedback-only pilots, where completion is deliberately measured
+      // by feedback forms submitted, not video watch time (see
+      // isGuruSetuProgressCourse / GURU_SETU_PROGRESS_COURSES). Those courses'
+      // own progress formula never requires this video to be marked watched,
+      // so gating feedback submission on it blocks students by design-mismatch,
+      // not by anything they actually did wrong.
+      if (
+        previousItemType === 'VIDEO' &&
+        !isGuruSetuProgressCourse(courseId, courseVersionId)
+      ) {
         const isPreviousWatched = await this.progressRepository.isItemCompleted(
           userId,
           courseId,
