@@ -475,6 +475,7 @@ export interface IVideoDetails {
   startTime: string;
   endTime: string;
   points: number;
+  isLensEnabled?: boolean;
 }
 
 export interface IQuestionBankRef {
@@ -934,6 +935,7 @@ export interface ISettings {
   baseHp?: number;
   randomizeItems?: boolean;
   crowdsourcedQuestionSubmissionEnabled?: boolean;
+  isLensEnabled?: boolean;
   caseStudiesEnabled?: boolean;
   caseStudyStrictUnlockEnabled?: boolean;
   caseStudyWeakStreakThreshold?: number;

@@ -3,7 +3,8 @@ import { inject, injectable } from 'inversify';
 import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
 import { SETTING_TYPES } from '../types.js';
 import { CourseSettingService } from '../services/CourseSettingService.js';
-import { AddUserProctoringBody, AddUserProctoringParams, CreateUserSettingBody, ReadUserSettingParams, SettingNotFoundErrorResponse, UpdateCourseSettingResponse, UserSetting } from '../classes/index.js';
+import { AddUserProctoringBody, AddUserProctoringParams, CreateUserSettingBody, ReadUserSettingParams, SettingNotFoundErrorResponse, UpdateCourseSettingResponse } from '../classes/index.js';
+import { UserSetting } from '../classes/transformers/UserSetting.js';
 import { UserSettingService } from '../services/UserSettingService.js';
 import { BadRequestErrorResponse } from '#root/shared/index.js';
 

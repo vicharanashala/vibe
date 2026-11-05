@@ -63,8 +63,8 @@ const BLOCKING_ANOMALIES = ["noFace", "faceCountDetection", "multipleFaces", "fa
 // Helper function to sort items by order property
 const sortItemsByOrder = (items: any[]) => {
   return [...items].sort((a, b) => {
-    const orderA = a.order || '';
-    const orderB = b.order || '';
+    const orderA = a.order !== undefined && a.order !== null ? String(a.order) : '';
+    const orderB = b.order !== undefined && b.order !== null ? String(b.order) : '';
     return orderA.localeCompare(orderB);
   });
 };
@@ -79,7 +79,7 @@ export default function CoursePage() {
   }, []);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   // Dialog state for proctoring declaration
-  const [showProctorDialog, setShowProctorDialog] = useState(true);
+  const [showProctorDialog, setShowProctorDialog] = useState(false);
   const { user } = useAuthStore();
   const router = useRouter();
   const currentCourse = useCourseStore((state) => state.currentCourse);
@@ -105,7 +105,7 @@ export default function CoursePage() {
   const { mutateAsync: submitFlagAsyncMutate, isPending } = useSubmitFlag();
   const { mutateAsync: skipItemAsync, isPending: isSkipping } = useSkipOptionalItem();
   const { mutateAsync: recalculateStudentProgressAsync } = useRecalculateStudentProgress();
-  const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
+  const [allProctorsDisabled, setAllProctorsDisabled] = useState(true);
   const streamRef = useRef<MediaStream | null>(null);
 
   // Emotion tracking state
@@ -223,7 +223,7 @@ export default function CoursePage() {
   const [quizPassed, setQuizPassed] = useState(2);
   const [anomalies, setAnomalies] = useState<string[]>([]);
   const [isQuizSkipped, setIsQuizSkipped] = useState(false);
-  const [readyToDetect, setReadyToDetect] = useState(false);
+  const [readyToDetect, setReadyToDetect] = useState(true);
 
   // --- Focused learn-page UI state ---
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -520,63 +520,49 @@ export default function CoursePage() {
   useEffect(() => {
   }, [itemData]);
 
-  // Log proctoring settings when loaded (only logs once when data is available)
+  // Log proctoring settings when loaded (and refetch on window focus for instant sync)
   useEffect(() => {
     async function fetch() {
-      const data = await getSettings(COURSE_ID, VERSION_ID);
-      setProctoringData(data);
+      try {
+        const data = await getSettings(COURSE_ID, VERSION_ID);
+        if (!data) return;
+        setProctoringData(data);
 
-      // Selective proctoring: readItem resolves item > module > universal and
-      // returns the resolved detector list as itemData.item.proctoringDetectors
-      // -- ItemController wraps the service's response as { item: ... }, so
-      // this must go through .item, not itemData.proctoringDetectors directly
-      // (that's always undefined, silently falling back to the course-wide
-      // list below -- which is why item/module overrides never took effect).
-      // When present it's authoritative for this item, so it's what decides
-      // whether *anything* is active here -- not just the course-wide list.
-      // (The resolved list is also what actually gets passed to FloatingVideo
-      // below, so which specific detectors arm follows the item fully
-      // symmetrically already; this check only decides the outer gate.)
-      const resolvedDetectors =
-        (itemData as {item?: {proctoringDetectors?: {settings: {enabled: boolean}}[]}})
-          ?.item?.proctoringDetectors ?? data.settings.proctors.detectors;
-      const noDetectorsActive = resolvedDetectors.every(
-        (detector: any) => detector.settings.enabled === false,
-      );
+        // Selective proctoring: readItem resolves item > module > universal and
+        // returns the resolved detector list as itemData.item.proctoringDetectors
+        const resolvedDetectors =
+          (itemData as {item?: {proctoringDetectors?: {settings: {enabled: boolean}}[]}})
+            ?.item?.proctoringDetectors ?? data.settings?.proctors?.detectors ?? [];
+        const noDetectorsActive = resolvedDetectors.every(
+          (detector: any) => detector.settings.enabled === false,
+        );
 
-      // A guest who opened a PLAIN share link is watching a video someone sent
-      // them, not working through a proctored course — they take the same path
-      // as a course with every detector switched off. Enrolled learners never
-      // match this, so proctoring is unchanged for them.
-      const isPlainShareViewer = useShareLinkStore
-        .getState()
-        .isPlainViewerFor(COURSE_ID, VERSION_ID);
+        const isPlainShareViewer = useShareLinkStore
+          .getState()
+          .isPlainViewerFor(COURSE_ID, VERSION_ID);
 
-      // Bidirectional: an item with every detector off must disable the
-      // outer gate, and a later item with any detector back on must re-arm
-      // it -- otherwise the first all-off item a student visits permanently
-      // kills proctoring for the rest of the session regardless of what
-      // later items require. setShowProctorDialog is deliberately left
-      // alone here: that's the one-time-per-session notice dialog, not the
-      // detection status, and re-showing it on every item would be noise.
-      // Re-acquiring the camera/mic stream itself happens in the
-      // checkMediaPermissions effect above, which has allProctorsDisabled
-      // in its dependency array for exactly this transition.
-      if (noDetectorsActive || isPlainShareViewer) {
-        setShowProctorDialog(false);
-        setAllProctorsDisabled(true);
-        setReadyToDetect(true);
-      } else {
-        setAllProctorsDisabled(false);
-        // Stale true from a previous all-off item would let FloatingVideo's
-        // detection checks fire immediately on the freshly re-acquired
-        // stream, before its own models/warm-up actually catch up -- let it
-        // re-set this itself once ready, same as on first mount.
-        setReadyToDetect(false);
+        if (noDetectorsActive || isPlainShareViewer) {
+          setShowProctorDialog(false);
+          setAllProctorsDisabled(true);
+          setReadyToDetect(true);
+        } else {
+          setAllProctorsDisabled(false);
+          setReadyToDetect(false);
+        }
+      } catch (err) {
+        console.error("Failed to fetch settings:", err);
       }
     }
     fetch();
-  }, [itemData]);
+
+    const handleFocus = () => {
+      fetch();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [COURSE_ID, VERSION_ID, itemData]);
 
   // The detector list FloatingVideo actually arms. Swaps in this item's
   // resolved (item > module > universal) detector list when readItem
@@ -602,6 +588,7 @@ export default function CoursePage() {
       settings: { ...base.settings, proctors: { detectors: resolvedDetectors } },
     };
   }, [proctoringData, itemData]);
+>>>>>>> upstream/main
 
   // Update section items when data is loaded
   useEffect(() => {
@@ -2065,6 +2052,7 @@ return false;
                   keyboardLockEnabled={!isFlagModalOpen && !drawerOpen && !aiSheet}
                   linearProgressionEnabled={proctoringData?.settings.linearProgressionEnabled || true}
                   seekForwardEnabled={proctoringData?.settings.seekForwardEnabled || false}
+                  isLensEnabled={proctoringData?.settings?.isLensEnabled ?? true}
                   setIsQuizSkipped={setIsQuizSkipped}
                   courseId={COURSE_ID}
                   versionId={VERSION_ID}

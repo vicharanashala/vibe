@@ -1464,6 +1464,8 @@ export function useItemById(
     },
     {
       enabled: !!courseId && !!versionId && !!itemId,
+      refetchOnWindowFocus: true,
+      staleTime: 0,
     }
   );
 
@@ -2260,6 +2262,7 @@ export function useEditProctoringSettings() {
     baseHp: number,
     randomizeItems: boolean,
     crowdsourcedQuestionSubmissionEnabled: boolean = false,
+    isLensEnabled?: boolean,
     caseStudiesEnabled: boolean = false,
     caseStudyStrictUnlockEnabled: boolean = true,
     caseStudyWeakStreakThreshold: number = 3,
@@ -2285,6 +2288,7 @@ export function useEditProctoringSettings() {
         baseHp,
         randomizeItems,
         crowdsourcedQuestionSubmissionEnabled,
+        isLensEnabled,
         caseStudiesEnabled,
         caseStudyStrictUnlockEnabled,
         caseStudyWeakStreakThreshold,
