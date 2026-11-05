@@ -13,7 +13,7 @@ export abstract class BaseService {
     operation: (session: ClientSession) => Promise<T>,
   ): Promise<T> {
     const client = await this.db.getClient();
-    const MAX_RETRIES = 3;
+    const MAX_RETRIES = 5;
     const txOptions = {
       readPreference: ReadPreference.primary,
       readConcern: new ReadConcern('snapshot'),
@@ -35,6 +35,11 @@ export abstract class BaseService {
           Array.isArray(error?.errorLabels) &&
           error.errorLabels.includes('TransientTransactionError');
         if (isTransient && attempt < MAX_RETRIES - 1) {
+          // Retrying immediately makes competing writers collide again in
+          // lockstep under high contention. Exponential backoff with
+          // jitter spreads retries out so they stop re-colliding.
+          const backoffMs = 2 ** attempt * 15 + Math.random() * 30;
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
           continue;
         }
         throw error;
