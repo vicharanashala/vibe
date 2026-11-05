@@ -3,6 +3,7 @@ import { Sparkles, X, Copy, Check, Info, Code, Lightbulb, Play, Trash2, Camera, 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { formatLensTime } from '@/utils/vibeLensUtils';
 
 export interface SavedSnapshot {
   id: string;
@@ -46,12 +47,7 @@ export default function VibeLensPanel({
   const [insights, setInsights] = useState<string[]>([]);
   const [codeSnippet, setCodeSnippet] = useState('');
 
-  // Format seconds to MM:SS
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+  const formatTime = formatLensTime;
 
   const renderLineWithFormatting = (line: string) => {
     if (!line) return null;
