@@ -1,0 +1,212 @@
+frame_id,ground_truth_face_count,condition_tags,source_dataset,source_image,license
+mask_0001.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_1,see-source-dataset
+mask_0002.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_2,see-source-dataset
+mask_0003.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_9,see-source-dataset
+mask_0004.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_10,see-source-dataset
+mask_0005.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_13,see-source-dataset
+mask_0006.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_16,see-source-dataset
+mask_0007.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_17,see-source-dataset
+mask_0008.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_19,see-source-dataset
+mask_0009.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_25,see-source-dataset
+mask_0010.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_32,see-source-dataset
+mask_0011.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_33,see-source-dataset
+mask_0012.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_34,see-source-dataset
+mask_0013.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_38,see-source-dataset
+mask_0014.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_40,see-source-dataset
+mask_0015.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_43,see-source-dataset
+mask_0016.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_44,see-source-dataset
+mask_0017.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_45,see-source-dataset
+mask_0018.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_46,see-source-dataset
+mask_0019.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_47,see-source-dataset
+mask_0020.jpg,1,mask,DamarJati/Face-Mask-Detection (Kaggle face-mask-12k-images-dataset),row_48,see-source-dataset
+oep_subject9_00443s.jpg,0,absent,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject9_00443s
+oep_subject9_00448s.jpg,0,absent,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject9_00448s
+oep_subject9_00451s.jpg,0,absent,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject9_00451s
+oep_subject13_00605s.jpg,0,absent,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00605s
+oep_subject10_00054s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00054s
+oep_subject10_00064s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00064s
+oep_subject10_00076s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00076s
+oep_subject10_00089s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00089s
+oep_subject10_00099s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00099s
+oep_subject10_00104s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00104s
+oep_subject10_00146s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00146s
+oep_subject11_00034s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject11_00034s
+oep_subject11_00099s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject11_00099s
+oep_subject11_00203s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject11_00203s
+oep_subject11_00312s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject11_00312s
+oep_subject11_00401s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject11_00401s
+oep_subject11_00513s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject11_00513s
+oep_subject11_00570s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject11_00570s
+oep_subject11_00657s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject11_00657s
+oep_subject12_00166s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00166s
+oep_subject12_00188s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00188s
+oep_subject12_00195s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00195s
+oep_subject12_00213s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00213s
+oep_subject12_00215s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00215s
+oep_subject12_00305s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00305s
+oep_subject13_00188s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00188s
+oep_subject13_00307s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00307s
+oep_subject13_00317s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00317s
+oep_subject13_00347s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00347s
+oep_subject13_00518s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00518s
+oep_subject13_00840s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00840s
+oep_subject15_00798s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00798s
+oep_subject15_00843s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00843s
+oep_subject18_00461s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00461s
+oep_subject18_00766s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00766s
+oep_subject18_00771s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00771s
+oep_subject18_00808s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00808s
+oep_subject19_00317s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00317s
+oep_subject19_00404s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00404s
+oep_subject19_00409s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00409s
+oep_subject19_00429s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00429s
+oep_subject19_00481s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00481s
+oep_subject19_00734s.jpg,1,occlusion;angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00734s
+oep_subject11_00000s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject11_00000s
+oep_subject11_00002s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject11_00002s
+oep_subject11_00004s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject11_00004s
+oep_subject12_00000s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00000s
+oep_subject12_00002s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00002s
+oep_subject12_00004s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00004s
+oep_subject12_00734s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00734s
+oep_subject15_00000s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00000s
+oep_subject15_00004s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00004s
+oep_subject15_00007s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00007s
+oep_subject15_00002s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00002s
+oep_subject15_00855s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00855s
+oep_subject18_00166s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00166s
+oep_subject19_00208s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00208s
+oep_subject19_00243s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00243s
+oep_subject19_00292s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00292s
+oep_subject19_00312s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00312s
+oep_subject19_00352s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00352s
+oep_subject12_00252s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00252s
+oep_subject12_00714s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00714s
+oep_subject12_00788s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00788s
+oep_subject12_00892s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00892s
+oep_subject13_00007s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00007s
+oep_subject13_00213s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00213s
+oep_subject13_00391s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00391s
+oep_subject13_00468s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00468s
+oep_subject13_00582s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00582s
+oep_subject13_00689s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00689s
+oep_subject13_00758s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00758s
+oep_subject13_00825s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject13_00825s
+oep_subject14_00014s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject14_00014s
+oep_subject14_00047s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject14_00047s
+oep_subject14_00121s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject14_00121s
+oep_subject14_00220s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject14_00220s
+oep_subject14_00337s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject14_00337s
+oep_subject14_00461s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject14_00461s
+oep_subject14_00491s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject14_00491s
+oep_subject15_00101s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00101s
+oep_subject15_00190s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00190s
+oep_subject15_00312s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00312s
+oep_subject15_00441s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00441s
+oep_subject15_00548s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00548s
+oep_subject15_00644s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject15_00644s
+oep_subject16_00024s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject16_00024s
+oep_subject16_00104s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject16_00104s
+oep_subject16_00193s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject16_00193s
+oep_subject16_00312s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject16_00312s
+oep_subject16_00411s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject16_00411s
+oep_subject16_00508s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject16_00508s
+oep_subject16_00592s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject16_00592s
+oep_subject16_00716s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject16_00716s
+oep_subject19_00034s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00034s
+oep_subject19_00054s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00054s
+oep_subject19_00086s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00086s
+oep_subject19_00153s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00153s
+oep_subject19_00362s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00362s
+oep_subject19_00411s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00411s
+oep_subject19_00486s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00486s
+oep_subject19_00540s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00540s
+oep_subject19_00627s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00627s
+oep_subject19_00704s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject19_00704s
+oep_subject20_00047s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00047s
+oep_subject20_00121s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00121s
+oep_subject20_00195s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00195s
+oep_subject20_00372s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00372s
+oep_subject20_00545s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00545s
+oep_subject20_00674s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00674s
+oep_subject20_00798s.jpg,1,glasses,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00798s
+oep_subject10_00007s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00007s
+oep_subject10_00131s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00131s
+oep_subject10_00225s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00225s
+oep_subject10_00307s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00307s
+oep_subject10_00421s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00421s
+oep_subject10_00580s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00580s
+oep_subject10_00662s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00662s
+oep_subject10_00744s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00744s
+oep_subject10_00823s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject10_00823s
+oep_subject12_00012s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00012s
+oep_subject12_00071s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00071s
+oep_subject12_00205s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00205s
+oep_subject12_00334s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00334s
+oep_subject12_00453s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00453s
+oep_subject12_00572s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00572s
+oep_subject12_00691s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00691s
+oep_subject12_00818s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject12_00818s
+oep_subject18_00000s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00000s
+oep_subject18_00037s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00037s
+oep_subject18_00101s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00101s
+oep_subject18_00280s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00280s
+oep_subject18_00339s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00339s
+oep_subject18_00466s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00466s
+oep_subject18_00587s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00587s
+oep_subject18_00716s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00716s
+oep_subject18_00793s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00793s
+oep_subject18_00825s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject18_00825s
+oep_subject5_00002s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject5_00002s
+oep_subject5_00081s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject5_00081s
+oep_subject5_00240s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject5_00240s
+oep_subject5_00319s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject5_00319s
+oep_subject5_00399s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject5_00399s
+oep_subject5_00478s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject5_00478s
+oep_subject5_00637s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject5_00637s
+oep_subject5_00796s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject5_00796s
+oep_subject20_00002s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00002s
+oep_subject20_00267s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00267s
+oep_subject20_00396s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00396s
+oep_subject20_00473s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00473s
+oep_subject20_00570s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00570s
+oep_subject20_00624s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00624s
+oep_subject20_00756s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00756s
+oep_subject20_00890s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject20_00890s
+oep_subject1_00004s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00004s
+oep_subject1_00034s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00034s
+oep_subject1_00064s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00064s
+oep_subject1_00124s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00124s
+oep_subject1_00193s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00193s
+oep_subject1_00223s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00223s
+oep_subject1_00262s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00262s
+oep_subject1_00758s.jpg,1,normal,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00758s
+oep_subject1_00461s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00461s
+oep_subject1_00471s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00471s
+oep_subject1_00510s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00510s
+oep_subject1_00520s.jpg,1,angle,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00520s
+oep_subject1_00431s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00431s
+oep_subject1_00441s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00441s
+oep_subject1_00610s.jpg,1,occlusion,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00610s
+oep_subject1_00148s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00148s
+oep_subject1_00156s.jpg,2,peer_present,"""MSU_OEP (Atoum et al."," IEEE TMM 2017)""",subject1_00156s
+synthlight_dark_000.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject10_00017s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_bright_001.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject10_00027s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_dark_002.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject11_00012s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_bright_003.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject11_00022s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_dark_004.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject12_00022s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_bright_005.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject12_00032s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_dark_006.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject13_00000s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_bright_007.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject13_00012s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_dark_008.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject14_00000s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_bright_009.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject14_00009s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_dark_010.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject15_00014s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_bright_011.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject15_00029s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_dark_012.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject16_00007s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_bright_013.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject16_00017s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_dark_014.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject18_00012s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_bright_015.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject18_00022s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_dark_016.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject19_00014s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_bright_017.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject19_00024s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_dark_018.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject1_00014s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
+synthlight_bright_019.jpg,1,lighting,"MSU_OEP (Atoum et al., IEEE TMM 2017) + synthetic exposure adjustment",oep_subject1_00024s.jpg,research-use (Kaggle: raajanwankhade/oep-dataset)
