@@ -73,6 +73,9 @@ export interface ISupportQuestion {
   status: SupportQuestionStatus;
   matchedFaqId?: string;
   confidenceScore?: number;
+  /** 'ai' when the reply was model-written from FAQs; unset on older rows. */
+  answerSource?: 'faq' | 'ai';
+  aiResponse?: string;
   adminResponse?: {
     respondedBy: string;
     response: string;
@@ -96,6 +99,8 @@ export interface ChatMessageResponse {
   confidence: number;
   faqId?: string;
   isFromFAQ: boolean;
+  /** True when the reply was written by the model from FAQ content. */
+  isAIGenerated?: boolean;
   isEscalated: boolean;
   questionId: string;
   source?: string;

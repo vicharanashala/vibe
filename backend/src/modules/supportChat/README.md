@@ -12,7 +12,11 @@ ChatController (API endpoints)
 ChatService (Business logic)
     ↓
 FAQRetrievalService (Semantic search + scoring)
-    ↓
+    ↓ no confident match
+SupportAnswerGenerator (AI answer grounded in the closest FAQs)
+    ↓ model declines or fails
+Escalation to the support team
+
 FAQRepository ← MongoDB (supportFaqs collection)
 SupportQuestionRepository ← MongoDB (supportQuestions collection)
 
@@ -36,6 +40,7 @@ supportChat/
 ├── services/
 │   ├── ChatService.ts             # Main chat business logic
 │   ├── FAQRetrievalService.ts     # Semantic FAQ search & scoring
+│   ├── SupportAnswerGenerator.ts  # AI fallback answer grounded in FAQs
 │   ├── AdminService.ts            # Admin operations
 │   └── index.ts
 ├── repositories/
@@ -182,6 +187,39 @@ FAQ_CONFIDENCE_THRESHOLD=0.75                # bar when embeddings are available
 FAQ_LEXICAL_CONFIDENCE_THRESHOLD=0.45        # bar when they are not
 MONGODB_FAQ_COLLECTION=supportFaqs
 MONGODB_QUESTIONS_COLLECTION=supportQuestions
+```
+
+### AI fallback
+
+When no FAQ clears the confidence bar, `SupportAnswerGenerator` sends the
+question and the closest FAQs (all of them while the set is small) to a chat
+model. The model either answers **only from those FAQs** or declines; only a
+decline escalates. This catches the right FAQ asked in other words: synonyms
+("webcam" for "camera"), typos, Hindi or Hinglish.
+
+A model answer is shown to the learner only if it cites at least one FAQ it was
+given and every link in it appears in a cited FAQ; anything else escalates. Any
+provider error, timeout or unconfigured key also escalates, so with the
+fallback off the bot behaves exactly as before. The stored question records
+`answerSource: 'ai'` and the reply in `aiResponse`, for auditing.
+
+It uses any OpenAI-compatible chat-completions endpoint. With no extra
+configuration it reuses the MiniMax key and endpoint that screening and Smart
+Bloom already use:
+
+```env
+SUPPORT_CHAT_AI_ENABLED=true          # set to false to turn the fallback off
+# MINIMAX_API_KEY / MINIMAX_URL / MINIMAX_MODEL are used by default.
+
+# Or point it at another provider (all three required together):
+SUPPORT_CHAT_LLM_URL=https://api.groq.com/openai/v1/chat/completions
+SUPPORT_CHAT_LLM_API_KEY=your-key
+SUPPORT_CHAT_LLM_MODEL=openai/gpt-oss-120b
+
+SUPPORT_CHAT_LLM_TIMEOUT_MS=20000     # per-call deadline
+SUPPORT_CHAT_LLM_COOLDOWN_MS=120000   # pause after a provider failure
+SUPPORT_CHAT_LLM_MAX_FAQS=25          # FAQs sent per question, closest first
+SUPPORT_CHAT_LLM_MAX_CONTEXT_CHARS=16000
 ```
 
 ## Setup & Integration
