@@ -1,0 +1,60 @@
+substitutions:
+ 
+  _FIREBASE_TARGET: production
+
+steps:
+  - id: install-deps
+    name: node:22-alpine
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        corepack enable
+        corepack prepare pnpm@10.12.1 --activate
+        pnpm install --frozen-lockfile
+
+  - id: build-frontend
+    name: node:22-alpine
+    entrypoint: sh
+    env:
+      - 'NODE_OPTIONS=--max-old-space-size=6144'
+    args:
+      - -c
+      - |
+        corepack enable
+        pnpm --filter frontend run copy
+        pnpm --filter frontend run gen-schema
+
+        # in the client bundle.
+        export VITE_FIREBASE_API_KEY="${_API_KEY}"
+        export VITE_FIREBASE_AUTH_DOMAIN="${_AUTH_DOMAIN}"
+        export VITE_FIREBASE_PROJECT_ID="${PROJECT_ID}"
+        export VITE_FIREBASE_STORAGE_BUCKET="${_STORAGE_BUCKET}"
+        export VITE_FIREBASE_MESSAGING_SENDER_ID="${_SENDER_ID}"
+        export VITE_FIREBASE_APP_ID="${_FIREBASE_APP_ID}"
+
+        # TODO: update once backend is deployed and its real Cloud Run URL is known.
+        export VITE_BASE_URL="${_VITE_BASE_URL}"
+        export VITE_IS_RECAPTCHA_ENABLED="false"
+        pnpm --filter frontend build
+
+  - id: deploy-hosting
+    name: node:22-alpine
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        corepack enable
+        npx firebase-tools@latest deploy \
+          --only hosting:${_FIREBASE_TARGET} \
+          --project ${PROJECT_ID} \
+          --non-interactive
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  
+  
+  machineType: E2_HIGHCPU_8
+  diskSizeGb: 100
+
+timeout: 1800s

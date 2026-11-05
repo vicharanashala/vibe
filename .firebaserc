@@ -1,15 +1,12 @@
 {
   "projects": {
-    "default": "vibe-5b35a"
+    "default": "gcp-project-502409"
   },
   "targets": {
-    "vibe-5b35a": {
+    "gcp-project-502409": {
       "hosting": {
-        "staging": [
-          "vibe-staging-63abb"
-        ],
         "production": [
-          "vibe-5b35a"
+          "gcp-project-502409"
         ]
       }
     }
