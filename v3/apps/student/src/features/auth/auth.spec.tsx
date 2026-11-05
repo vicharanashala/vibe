@@ -28,7 +28,14 @@ describe('auth routing', () => {
     expect(router.state.location.pathname).toBe('/home');
   });
 
-  it('shows onboarding first to students who have not finished it', async () => {
+  it('does not show onboarding to a returning student on a browser that has no record of it', async () => {
+    signInStudent({ onboarded: false, returning: true });
+    const { router } = renderApp('/home');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/home'));
+    expect(screen.queryByRole('heading', { name: 'What should we call you?' })).toBeNull();
+  });
+
+  it('shows onboarding first to students on their first sign-in', async () => {
     signInStudent({ onboarded: false });
     const { router } = renderApp('/home');
     await screen.findByRole('heading', { name: 'What should we call you?' });

@@ -24,12 +24,15 @@ import { writeOnboarding } from './onboarding-state';
 const STEPS = ['name', 'look', 'media', 'done'] as const;
 type Step = (typeof STEPS)[number];
 
-/** Uxcel-style onboarding: progress bar on top, one question per screen, sticky action bar. */
-export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
+/**
+ * Uxcel-style onboarding: progress bar on top, one question per screen, sticky action bar.
+ * `mediaOnly` shows just the camera and microphone check, for finishing it later from home.
+ */
+export function OnboardingPage({ redirect, mediaOnly = false }: { redirect?: string; mediaOnly?: boolean } = {}) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<Step>('name');
+  const [step, setStep] = useState<Step>(mediaOnly ? 'media' : 'name');
   const [firstName, setFirstName] = useState(() => user?.displayName?.split(' ')[0] ?? '');
   const [lastName, setLastName] = useState(() => user?.displayName?.split(' ').slice(1).join(' ') ?? '');
   const [saving, setSaving] = useState(false);
@@ -68,6 +71,11 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
   }
 
   function next() {
+    if (mediaOnly) {
+      if (mediaStatus !== 'passed') return;
+      writeOnboarding(uid, { mediaCheckPassedAt: new Date().toISOString() });
+      return void finish();
+    }
     if (step === 'name') return void saveName();
     if (step === 'look') return setStep('media');
     if (step === 'media') {
@@ -94,13 +102,17 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
           variant="ghost"
           size="icon"
           aria-label="Back"
-          onClick={() => setStep(STEPS[Math.max(0, index - 1)])}
-          disabled={index === 0}
+          onClick={() => (mediaOnly ? void finish() : setStep(STEPS[Math.max(0, index - 1)]))}
+          disabled={!mediaOnly && index === 0}
           className="disabled:invisible"
         >
           <ArrowLeftIcon />
         </Button>
-        <ProgressBar value={progress} label="Onboarding progress" className="flex-1 [&_[data-slot=progress-track]]:h-2" />
+        {mediaOnly ? (
+          <span className="flex-1" />
+        ) : (
+          <ProgressBar value={progress} label="Onboarding progress" className="flex-1 [&_[data-slot=progress-track]]:h-2" />
+        )}
         <span className="grid size-8 place-items-center rounded-lg bg-primary font-aleo text-sm font-semibold text-primary-foreground" aria-hidden>
           V
         </span>
@@ -165,7 +177,7 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
       <footer className="fixed inset-x-0 bottom-0 border-t border-border bg-muted/60 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4">
           {step !== 'done' ? (
-            <Button type="button" variant="ghost" onClick={() => (step === 'look' ? setStep('media') : step === 'media' ? setStep('done') : finish())}>
+            <Button type="button" variant="ghost" onClick={() => (mediaOnly ? finish() : step === 'look' ? setStep('media') : step === 'media' ? setStep('done') : finish())}>
               Skip for now
             </Button>
           ) : (
@@ -179,10 +191,10 @@ export function OnboardingPage({ redirect }: { redirect?: string } = {}) {
               type="button"
               size="lg"
               onClick={next}
-              disabled={saving || (step === 'name' && !firstName.trim())}
+              disabled={saving || (step === 'name' && !firstName.trim()) || (mediaOnly && mediaStatus !== 'passed')}
             >
               {saving && <Spinner />}
-              {step === 'done' && !redirect ? 'Go to home' : 'Continue'}
+              {mediaOnly ? 'Done' : step === 'done' && !redirect ? 'Go to home' : 'Continue'}
             </Button>
           </div>
         </div>
