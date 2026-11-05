@@ -14,6 +14,7 @@ import {
   Min,
   Max,
   IsArray,
+  IsInt,
 } from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {WatchTime} from '../transformers/WatchTime.js';
@@ -67,6 +68,34 @@ export class GetLeaderboardQuery {
   cohortId?: string;
 }
 
+// Optional paging for the public leaderboard. Both absent → the full list,
+// which is what existing consumers of the endpoint expect.
+export class GetNoAuthLeaderboardQuery {
+  @JSONSchema({
+    description: 'Page number (starts from 1). Ignored unless limit is set.',
+    minimum: 1,
+    type: 'number',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @JSONSchema({
+    description: 'Number of records per page. Omit to get every student.',
+    minimum: 1,
+    maximum: 1000,
+    type: 'number',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  limit?: number;
+}
+
 export class LeaderboardNoAuthResponse {
   @JSONSchema({
     description: 'User ID',
@@ -83,11 +112,10 @@ export class LeaderboardNoAuthResponse {
   userName!: string;
 
   @JSONSchema({
-    description: 'User email address',
+    description: 'User email address, or "No email" if the user has none on file',
     type: 'string',
-    format: 'email',
   })
-  @IsEmail()
+  @IsString()
   email!: string;
 
   @JSONSchema({
@@ -107,6 +135,14 @@ export class LeaderboardNoAuthResponse {
   })
   @IsOptional()
   completedAt!: Date | string | null;
+
+  @JSONSchema({
+    description:
+      'Enrollment time in IST, e.g. "01/09/2026, 05:30:00 am", or "No enrollment date"',
+    type: 'string',
+  })
+  @IsString()
+  enrolledAt!: string;
 
   @JSONSchema({
     description: 'Rank in leaderboard',
@@ -142,6 +178,14 @@ export class GetLeaderboardResponse {
   @ValidateNested({each: true})
   @Type(() => LeaderboardNoAuthResponse)
   data!: LeaderboardNoAuthResponse[];
+
+  @JSONSchema({
+    description: 'Number of students on the whole leaderboard, before paging',
+    type: 'number',
+  })
+  @IsOptional()
+  @IsNumber()
+  total?: number;
 }
 
 export class StartItemBody {
@@ -785,7 +829,70 @@ export class UpsertWatchTimeResponse {
   watchItemId: string;
 }
 
+export class StudyViewBody {
+  @JSONSchema({description: 'The video or article studied', type: 'string'})
+  @IsMongoId()
+  @IsNotEmpty()
+  itemId: string;
+
+  @JSONSchema({description: 'Module containing the item', type: 'string'})
+  @IsMongoId()
+  @IsNotEmpty()
+  moduleId: string;
+
+  @JSONSchema({description: 'Section containing the item', type: 'string'})
+  @IsMongoId()
+  @IsNotEmpty()
+  sectionId: string;
+}
+
+export class StudyViewResponse {
+  @JSONSchema({
+    description:
+      "Whether a study view was stored. False for non-students (instructors, TAs), whose study isn't tracked.",
+    type: 'boolean',
+    readOnly: true,
+  })
+  recorded: boolean;
+}
+
+export class StudyProgressResponse {
+  @JSONSchema({
+    description:
+      'Study-allowed videos and articles studied or completed in strict mode',
+    type: 'integer',
+    readOnly: true,
+  })
+  studiedItems: number;
+
+  @JSONSchema({
+    description: 'Visible videos and articles where study mode is allowed',
+    type: 'integer',
+    readOnly: true,
+  })
+  totalItems: number;
+
+  @JSONSchema({
+    description:
+      'round(100 × studiedItems / totalItems); 0 when totalItems is 0',
+    type: 'integer',
+    readOnly: true,
+  })
+  percentStudied: number;
+
+  @JSONSchema({
+    description: 'Ids of the lessons that count as covered',
+    type: 'array',
+    items: {type: 'string'},
+    readOnly: true,
+  })
+  studiedItemIds: string[];
+}
+
 export const PROGRESS_VALIDATORS = [
+  StudyViewBody,
+  StudyViewResponse,
+  StudyProgressResponse,
   GetUserProgressParams,
   StartItemBody,
   StartItemParams,

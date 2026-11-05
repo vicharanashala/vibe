@@ -17,18 +17,38 @@ export const setTokenRefreshFunction = (refreshFn: () => Promise<void>) => {
 
 export const fetchClient = createFetchClient<paths>({
   baseUrl: `${import.meta.env.VITE_BASE_URL}`,
-  fetch: (url, options) => {
+  fetch: async (url, options) => {
     // openapi-fetch passes a Request object for some requests (like DELETE without body)
     // If we just pass `url` down, it drops the headers added by middleware.
     // Instead, clone it applying options.
-    if (url instanceof Request) {
-      const newReq = new Request(url, { ...options, credentials: "include" });
-      return fetch(newReq);
+    const response = url instanceof Request
+      ? await fetch(new Request(url, { ...options, credentials: "include" }))
+      : await fetch(url, { ...options, credentials: "include" });
+
+    /**
+     * Several backend endpoints (progress stop/skip/reset, etc.) intentionally
+     * send an empty 200 body (`@OnUndefined(200)`). openapi-fetch only skips
+     * JSON parsing when Content-Length is exactly "0", but Render's proxy
+     * doesn't always forward that header for an empty body -- so it falls
+     * through to response.json() on empty content and throws "Unexpected end
+     * of JSON input", surfacing as a raw parse error instead of a successful
+     * mutation. Scoped to non-GET requests since those are the only ones with
+     * intentionally-empty responses in this API; GET bodies are never re-read
+     * here, avoiding the double-buffering cost for the large ones.
+     */
+    const method = (options?.method ?? 'GET').toUpperCase();
+    if (response.ok && response.status !== 204 && method !== 'GET') {
+      const text = await response.clone().text();
+      if (text.length === 0) {
+        return new Response('{}', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+      }
     }
-    return fetch(url, {
-      ...options,
-      credentials: "include",
-    });
+
+    return response;
   },
 });
 

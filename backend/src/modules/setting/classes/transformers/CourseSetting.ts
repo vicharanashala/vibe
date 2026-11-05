@@ -388,6 +388,21 @@ class CourseSetting implements ICourseSetting {
       linearProgressionEnabled: {type: 'boolean'},
       seekForwardEnabled: {type: 'boolean'},
       isLensEnabled: {type: 'boolean'},
+      hpSystem: {type: 'boolean'},
+      caseStudiesEnabled: {
+        type: 'boolean',
+        description: 'Whether the Case Studies tab is enabled for this course version.',
+      },
+      caseStudyStrictUnlockEnabled: {
+        type: 'boolean',
+        description:
+          'Case-study unlock mode: true requires the previous case to reach the peer-review win threshold before the next unlocks; false unlocks the next case as soon as the previous one has any submitted response.',
+      },
+      caseStudyWeakStreakThreshold: {
+        type: 'integer',
+        description:
+          'Consecutive non-winning peer verdicts on a response before the author is notified it may need revising.',
+      },
       registration: {
         type: 'object',
         description: 'Registration configuration schemas',
@@ -431,6 +446,12 @@ class CourseSetting implements ICourseSetting {
     isPublic?: boolean;
     baseHp?: number;
     randomizeItems?: boolean;
+    /** Gates the Case Studies drawer tab. Default false — additive, no existing course is affected. */
+    caseStudiesEnabled?: boolean;
+    /** Case-study unlock mode. Default false (sequential: next case unlocks on submission, not on winning peer review). */
+    caseStudyStrictUnlockEnabled?: boolean;
+    /** Consecutive non-winning peer verdicts before the author is notified. Default 3. */
+    caseStudyWeakStreakThreshold?: number;
     registration?: {
       jsonSchema?: any;
       uiSchema?: any;
@@ -473,6 +494,12 @@ class CourseSetting implements ICourseSetting {
       baseHp: courseSettingsBody?.settings?.baseHp ?? 0,
       randomizeItems: courseSettingsBody?.settings?.randomizeItems ?? false,
       isLensEnabled: courseSettingsBody?.settings?.isLensEnabled ?? true,
+      caseStudiesEnabled:
+        courseSettingsBody?.settings?.caseStudiesEnabled ?? false,
+      caseStudyStrictUnlockEnabled:
+        courseSettingsBody?.settings?.caseStudyStrictUnlockEnabled ?? true,
+      caseStudyWeakStreakThreshold:
+        courseSettingsBody?.settings?.caseStudyWeakStreakThreshold ?? 3,
       registration: {
         jsonSchema: courseSettingsBody?.settings?.registration?.jsonSchema,
         uiSchema: courseSettingsBody?.settings?.registration?.uiSchema,

@@ -1,5 +1,10 @@
-export const GURU_SETU_PILOT_COURSE_ID = '6981df886e100cfe04f9c4ad';
-export const GURU_SETU_PILOT_VERSION_ID = '6981df886e100cfe04f9c4ae';
+// Course/version pairs allowed to use the Gurusetu feedback export. Each
+// entry must also be added to GURU_SETU_PILOT_COURSES in the backend's
+// EnrollmentService.ts, or the download will 400 even with the menu item visible.
+export const GURU_SETU_PILOT_COURSES: ReadonlyArray<{courseId: string; versionId: string}> = [
+  {courseId: '6981df886e100cfe04f9c4ad', versionId: '6981df886e100cfe04f9c4ae'}, // Gurusetu Pilot (FDP for Faculty)
+  {courseId: '6a9a7eb5de600629c9fb9405', versionId: '6a9a7eb5de600629c9fb9406'}, // GuruSetu Psychological Literacy Special Pilot
+];
 
 interface DownloadGuruSetuFeedbackParams {
   courseId: string;
@@ -12,9 +17,8 @@ export function isGuruSetuPilotCourse(
   courseId?: string | null,
   versionId?: string | null,
 ): boolean {
-  return (
-    courseId === GURU_SETU_PILOT_COURSE_ID &&
-    versionId === GURU_SETU_PILOT_VERSION_ID
+  return GURU_SETU_PILOT_COURSES.some(
+    pair => pair.courseId === courseId && pair.versionId === versionId,
   );
 }
 

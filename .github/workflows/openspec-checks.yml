@@ -1,0 +1,162 @@
+name: OpenSpec Checks
+
+# Validates every OpenSpec spec, active change and archived change strictly,
+# and checks that the generated OpenSpec workflow files under .claude/ match
+# what OPENSPEC_VERSION generates (so they aren't hand-edited or stale).
+#
+# Runs on every PR to main so `openspec-checks-result` always reports; when
+# the PR doesn't touch OpenSpec, `checks` is skipped and the result passes.
+# pr-checks-comment.yml turns the uploaded results into the PR comment.
+#
+# Upgrading OpenSpec: bump OPENSPEC_VERSION and commit the files that
+# `openspec update --force` regenerates with that version, in the same PR.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'openspec/**'
+      - '.claude/commands/opsx/**'
+      - '.claude/skills/openspec-*/**'
+      - '.github/workflows/openspec-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openspec-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  OPENSPEC_VERSION: 1.14.3
+  OPENSPEC_TELEMETRY: '0'
+  OPENSPEC_NO_UPDATE_CHECK: '1'
+
+jobs:
+  changes:
+    name: openspec-checks-changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Did this PR touch OpenSpec?
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != pull_request ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          changed=$(git diff --name-only "$BASE...$HEAD")
+          if grep -qE '^(openspec/|\.claude/commands/opsx/|\.claude/skills/openspec-|\.github/workflows/openspec-checks\.yml$)' <<< "$changed"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No OpenSpec changes; nothing to check."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  checks:
+    name: openspec-checks
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RESULTS: ${{ github.workspace }}/openspec-results
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install OpenSpec ${{ env.OPENSPEC_VERSION }}
+        run: |
+          npm install -g "@fission-ai/openspec@${OPENSPEC_VERSION}"
+          openspec --version
+          mkdir -p "$RESULTS"
+
+      # The checks run even when an earlier one fails, so the PR comment shows
+      # every problem at once; "Fail if any check failed" decides the job.
+      - name: Validate specs and active changes
+        id: validate
+        continue-on-error: true
+        run: |
+          openspec validate --all --strict --json > "$RESULTS/validate.json"
+
+      - name: Validate archived changes
+        id: archived
+        continue-on-error: true
+        run: |
+          openspec validate --archived --strict --json > "$RESULTS/archived.json"
+
+      - name: Workflow files match OpenSpec ${{ env.OPENSPEC_VERSION }}
+        id: drift
+        continue-on-error: true
+        run: |
+          openspec update --force > /dev/null
+          if ! git diff --exit-code --stat -- .claude/ > "$RESULTS/drift.txt"; then
+            cat "$RESULTS/drift.txt"
+            echo "::error::The OpenSpec workflow files under .claude/ differ from what OpenSpec ${OPENSPEC_VERSION} generates. Run 'openspec update --force' with that version and commit the result; don't edit them by hand."
+            exit 1
+          fi
+
+      - name: Record results
+        if: always()
+        env:
+          VALIDATE: ${{ steps.validate.outcome }}
+          ARCHIVED: ${{ steps.archived.outcome }}
+          DRIFT: ${{ steps.drift.outcome }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          printf 'validate=%s\narchived=%s\ndrift=%s\n' "$VALIDATE" "$ARCHIVED" "$DRIFT" > "$RESULTS/status.txt"
+          echo "$OPENSPEC_VERSION" > "$RESULTS/openspec-version"
+          if [ -n "$PR_NUMBER" ]; then echo "$PR_NUMBER" > "$RESULTS/pr-number"; fi
+
+      # Read by pr-checks-comment.yml, which posts the PR comment.
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openspec-check-results
+          path: openspec-results/
+          if-no-files-found: ignore
+
+      - name: Fail if any check failed
+        env:
+          VALIDATE: ${{ steps.validate.outcome }}
+          ARCHIVED: ${{ steps.archived.outcome }}
+          DRIFT: ${{ steps.drift.outcome }}
+        run: |
+          echo "validate: $VALIDATE, archived: $ARCHIVED, workflow files: $DRIFT"
+          [ "$VALIDATE" = success ] && [ "$ARCHIVED" = success ] && [ "$DRIFT" = success ]
+
+  # The required check. Passes when OpenSpec wasn't touched (checks skipped) or
+  # every check passed; fails otherwise, including when a job was cancelled.
+  result:
+    name: openspec-checks-result
+    needs: [changes, checks]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Report
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          CHECKS: ${{ needs.checks.result }}
+        run: |
+          echo "changes: $CHANGES, checks: $CHECKS"
+          [ "$CHANGES" = success ] && { [ "$CHECKS" = success ] || [ "$CHECKS" = skipped ]; }

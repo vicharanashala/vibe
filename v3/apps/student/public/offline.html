@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#e36a6a" />
+    <title>You’re offline · ViBe</title>
+    <link rel="icon" href="/favicon.ico" />
+    <style>
+      :root {
+        --bg: #fffbf1;
+        --fg: #2b2522;
+        --muted: #6f6660;
+        --primary: #e36a6a;
+        --card: #ffffff;
+        --border: #efe6d6;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          --bg: #1c1917;
+          --fg: #f5efe6;
+          --muted: #b3aaa1;
+          --card: #26211e;
+          --border: #3a332e;
+        }
+      }
+      :root[data-theme='dark'] {
+        --bg: #1c1917;
+        --fg: #f5efe6;
+        --muted: #b3aaa1;
+        --card: #26211e;
+        --border: #3a332e;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 24px 16px;
+        background: var(--bg);
+        color: var(--fg);
+        font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      main {
+        width: 100%;
+        max-width: 380px;
+        text-align: center;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 32px 24px;
+      }
+      img {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+      }
+      h1 {
+        margin: 16px 0 6px;
+        font-size: 22px;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+      button {
+        margin-top: 20px;
+        width: 100%;
+        height: 44px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--primary);
+        color: #fff;
+        font: inherit;
+        font-weight: 500;
+        cursor: pointer;
+      }
+    </style>
+    <script>
+      try {
+        if (localStorage.getItem('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
+      } catch (e) {}
+      // Back to where you were as soon as the connection returns. The 'online'
+      // event isn't reliable everywhere, so also check every few seconds with a
+      // tiny request the service worker never answers from its cache.
+      window.addEventListener('online', () => location.reload());
+      setInterval(() => {
+        fetch('/manifest.webmanifest', { method: 'HEAD', cache: 'no-store' })
+          .then((r) => r.ok && location.reload())
+          .catch(() => undefined);
+      }, 5000);
+    </script>
+  </head>
+  <body>
+    <main>
+      <!-- Inlined: the page must work with no network at all. -->
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAP90lEQVR4nOzdW2wc13kH8O/sDsklRUtyLJqyREp2LpYtJb4ltmPFSR760BYOjAa1UMBPaWIQIAW3VgHDTl24NAI3SdFCbgSJChOob0HTBHUiNU0fWkRxnDi2bPmSKJacxJa1pExKSnTjbcndOfm+EZehKC65+83MXub8fwBN7mp5M7//zDlnzpzjUR0Y2r79Rt/3N6eM6bREa621ncaYtcTv+fGlj4lWEDSScf47jhiiUTJmhD8e5Y9H+G856vPjFNGbXbt3v0U1ZqhGTvT13ckF/ln+H/JZfngTgYuOcjD+i3z/2Q1f//rLVANVC4Ddti09tGbNvXSp4P+C3zYSwB+9y2F4llKpZ7s7Op43/f0+VUHsATj7yCOrx6anH+OjfQ8X//sIYDnWnrLGfIMD8a8bBwbOUoxiC0B2x45WyuX+ltvwj/E3WU0AFeIAnOXa+SplMl/r3rlzkmIQeQBsf783fOrUF/j89SR/8XUEEBIfRE8aa5/q6uzcx02jPEUosgDwD2mGt2/fxqn9Ej+8kQCi9xYH4R/WDwx81wQlF14kATj9+c9fNdXS8i1u43+GAOJm7X9ncrkHO/btu0ghhQ6AjOFb39/Pxb+JAKrF2mMmlbo/7LWEFIUw1Nt7n2/tIRQ/VB3XnNSe1CCFoAqAtPezvb1P8fsDfApZSQA1ILUnNZjt6+u3ytZMxZ+E9j7UJWW/oKIAoL0PdU3RLyi7CSSnGC7+r6H4oW5xbXKNPlNJc6jsAHBn48v8Df6UAOqZMX8e1Gq5Ly/nRdzJ+AK/+yYBNAhjzF9xU+g/l33dci8Y7uvbWrD2IH/BJgJoHJNc3Fu79ux5bakXLRmAoYcf7rKFwmH+sIMAGo21WeN5W7t27Roq9ZKSfYB3Pve5DBf/AULxQ6Myptvm8/ullku9pGQAvLa2x/ndbQTQyIy5fbaWF//nxZ783cMPrxzP509wu38VATQ4HhY9157PX/++wcHzC/9t0TPARKHwdyh+SAq5IWvc83aU+LfLjT70UGeuqekYAgBJUuoscMUZYLq5+YsofkiaUmeBy84As0f/4xyADAEkjJwFuLBvvnbPnpHic5edAWaP/ih+SCQ5C+SIHl/w3CW2p6cp63lnML8fksxae767UOgwg4Mz8njuDDDkeX+C4oekk/6t1Hrx8VwA7KXV2gBc8GfFD7ziB2bekwCJZu1crQdngJM9PbI4LdbqBDcYs2m25i8FoOB5aP6AU4o1X+wDIADgmqDmzam+vrU5a09K95gAXMHjoZlCYb2XkynPKH5wDdf8lOfdmuLKX0sADpLa9ywCAI6S2pfrAAgAuGptivsCCAA4SWrfQx8AXBX0Abg3fD0BuImbQDgDgKOCTjCfBloIwEEyNTrUDjEAjQ4BAKchAOA0BACc5lGCrH7gAWq+4QaqhfGf/pTGf/YzqqZrH32UauXM3r3kXwy9TW/NJSoAXmcnNV9/PdXC1K9+RdVkMpma/a7B9/eSUTpoAoHTEABwGgIATkMAwGmJ6gTbXI5qxU5NUTVV+/st5E9OUhIk6gwwMzxMtZJ75x2qtpmTJ6kW8qdO1TyAUUlUAC788IeUHxmhapt48UWafvttqrbz+/eTnZmhajv//e9TUphsX5+lBDGtrbTizjupacMGat64kZrWraPI5fM0nc3S9Lvv0jQf+Sdefplqpamri1pvuYWa+feV3zm9Kvq9TfyxsUu/K79NvvEGzfDvnhSJC8BCcsEos2kTNX/gA9S6eTN5111HGv6FCzT2k59Q7re/pdyxY1SvvI4OarnxRmq9/XbK3HwzaUhfavLVVynHZzV5y7/3HiVVojrBi5G26uTrrwdvMl1h7ZNPkkZq5Uqa4KKo92LInz4dvLV99KOkNc5NunPf/ja5wKlh0PzoKOXeeou02j/xCWoExbOAirU09uMfkyucuw4w/sILpNXGfQtqgEX0VkhQlT+ndOZrMZBQK84FQDqs0qnTSLW3B23rehcEVWmsyjNaa829K8G+H7RxtVZ8/ONUz2REKL16NWnIgWHipZfIJU5OhRh77rmgrashIyupq66ietUWIqAThw4FBwiXOBmAwpkzNHX0KKmkUtT+qU9RPZJgtm7ZQip8QLh48CC5xtnJcGHu3lpx991Uj1bccw8PAelGtmV0TA4MrnE2AHKhp3D+PGmkr7lGfZEpTmE6v+OOdX6L3J0Ozaf8iZ//nLSCo20dkSvd2mkfciCYeOUVcpHT9wMEnWFlpy/Doy2ptjaqF+1bt5JWMPJjEz0jpiSnA1A4d46mjhwhDdPUFGrEJUrys7Tedhup8AFgzMHOb5Hzd4SF6gzfdRfVgzbulMukP42pN98MDgSucj4AMr238Pvfk0ZTd3fwVmthghhmakgS4J5gNh6iM9x+771USzK9u/n97ycN6fxOvvYauQwBYMHsx3yeNFrvuCNog9dKe4iJb0Hzz9HObxECQJfmwEz+8pekISNBbR/7GNUEF7567F/mRD3/PLkOAZglN8totdWoMyxnH5mhqjHFgXe581uEAMyStT1ltQONlg99KLgJpdrCTMkYCxH4JEEA5lGPiHBTZEWV7xaTiW/a6Rgy6jWlbPIlDQIwj9z0rl1mpNp3iwUzUlO6P5+r834WgwDMYycng5vnNeQmlNZbb6VqUTd/eLRLgg6XIAALhJkWUK1p0i3c9JEZqRpy4U97S2gSIQALyEJX2iUHM5s3V+VusTC3ZaLzezkEYBHqadKeF/vSKTLnR9vUklGunPZOuIRCABYxxheItCtNx31NQO5D0F55Ruf3SgjAIopLA2rIPmXqRanKoL3yK6NbY7jyewUEoISLP/oRacW1dEow8W3jRtKQSW82IWv6RwkBKGFmaIhmTpwgDWmja+fnL+WqT3+atFxa7rASCMAStNOkpfgjHxLli16tygVvJczTNdjAoxEgAEuQANRLZ1ja/tp7kMPc75B0CMASpPi1m1/IJtbavQgWoz2jyO+A0Z/SEIBlBCtHKLV/8pMUhfTVV6tHlmQ0q5abB9Y7BGAZYdrPwSYVqfD/i4OJb8qJdmFGs1yAAJRBO01ablYJs1NLkbY/IXt6SYChNASgDLKcunYMPew1gcxHPqJe7tz1FR/KgQCUI5+nceW6+S2bNgVteC1tgCSwCMDyEIAyqfcU4La7dukUGfZs/fCHSSNY61O50oVLEIAyyb5Zud/8hjS0SygGt1lqljuXtf7R+S0LAlABbZNC2vAZxZFc3fl1bKO7MBCACsgWQtq7qSptywfLLiqXO8eV3/IhAJXwffUmcq08mlPJVIZ25cQ3CSgCUD4EoEIXZValpjPMbflyl04Jll5XbscaTN1wbKO7MBCACsk+Wrljx0ij3Da9erlzdH4rhgAoaDeTljZ9Ocupa5c7z/36105udBcGAqAwefiweoO95dr2ssSidrlzzPqsHAKgIRvsKXebl7b9Uje1aye+Bbu8O7rRXRgIgJJ2mrS07ZfqC2jv+gquUaDzWzEEQKlw9qx6gdlS+wm03nILpVetoorxGQkrPuggACFo29wtH/wgpRYpdO3RP9joDp1fFQQgBFlIV7XBXip15S2O3O7XTnxD51cPAQhJe9VVmjvzZW66STX2j43uwkEAQtJusCcLXM2/0SWzZQtpTEjn1/GN7sJAAEJSb7An6/zcccfcQ9VN77LLO9b6DwUBiIB2g73WzZuD9zJJTjPzc+rIEWx0FxICEAHtBnvNPBpkmpuD+341F7/G0PkNDQGIiKYzLFeEpe0vu0xWKtjo7o03CMJBACIiV4Y1G+zJ6E/LDTdQpXDDezQQgIhoN9iTrU69tWsr+pxgoztc+Y0EAhAhzQUpzWZ3k7/4BfkXLhCEhwBESG6U0e42X4lxbHQXGQQgYuMxN00kYDL3B6KBAERMhia1u82XA53faCEAEQs6w4cPUxyCje5w5TdSCEAM4ipSGWXCRnfRQgBiEOw2n81S1MYOHiSIFgIQk6jb6jPDw9joLgYIQEzCbLBX6utB9BCAmAQb7EW0SkOw0R3G/mOBAMQoqs2psdFdfBCAGAUb7B0/TmFhucP4IAAxC9sZxkZ38UIAYhZ0hkOM3U+g8xsrBCBussHeoUOkIcHBXV/xQgCqYEy5pwA2uoufyfb1YU0NcBbOAOA0BACchgCA0xAAcBoCAE5DAMBpCAA4DQEApyEA4DQEAJyGAIDTEABwGgIATkMAwGkIADgNAQCnpay15wnAQVL7KUM0QgAOktqXJhACAK4aSVkEABwlte8ZYxAAcJLUvkc4A4CjjLXH0QkGZ/nWjnjoA4CrglGgTD7/ugyIEoBLuOYz09OvpDoGB9/j3sBLBOASrvmOffsuFqdCfI8A3BLUfBCAdD6PAIBTijUfBGDd4OBRbhMdIwAXcK0HNU/zZ4Ma878E4Ia5Fs/86dAIALjB2rlanwtAVz7//5gaDUnH4/0Xunx/bs/ZuQCYwcEZvjCwlwASzFg7ILVefHzZHWFtnvdPOAtAUsnRP5PLPT3/ucsCcM2uXReMMV8hgATiFs6X5eLX/OeuuCe4K53eiflBkDjWnpLaXvj0FQEwu3blUtY+RQAJwkf/f5TaXvj8oqtCrO/sHOS+wNsEkABcy8elphf7t0UDYPr7ff6sJwggCaz9YlDTiyi5LtCGvXv/gz/xWwTQyLiGg1ouYemFsTKZh/i/RwmgMR2dreGSDC1juLd3U4HoRR4eXUUADUKuZ6WJ7l4/MLDkJM9ll0aUL2BSqQf5Q58AGoMvNbtc8Yuy1gbt3r37f/jdlwigMTwxW7PLWrYJVMQXx8xQb+8BMuY+AqhX1v6ge2DgM+W+vOzVoTkpts3zpCmETjHUq6OzNVq2ipZHl7lCmampu7iD8X8EUEekJqU2pUYr+byym0CXfbNt29JDa9Y8zc2hxwig9v656/Tpvzff+U6BKqQKQFG2t/dB7hv8Ow+RNhNAlfFRf5oL+K+5za++YBsqAGJo+/Z7fGu/y19oHQFUCR94T6aMeaBr9+4XKITQARCne3qum0qnf8BNotsJIG7WvpopFO4LFnULKZIACO4XNGc7OuSy8xM4G0AcuMkjBf9095kz3+D2/jRFILIAFGV37Gi1U1O93C94nB92EEBY1p6xxnzFtLTs6d65c5IiFHkAik719bVPW/s3vjGP8jdZTQAV4nb+OX73Lxmif7t2z54xikFsASg6+8gjq8empx/jFD/EfYQ1BLAcPuJzrXyzvbn5q1c/88w5ilHsASiy/f2p4dHRu3yi+/mXu5+/8RYCmMVH+yNcEwe46bx/fUfHi6VuYIla1QKw0Mnt2zfmff8vjQSC6F4ORZrAGdyhneFif44/PJA25nvrdu9+l2qgZgGYz/b0NI2m090z1m7gH6jbT6U28NPdhh/zkaGbwyHPryRoGLIGD1f5Cf67ZbkDe4KfyqZ8/4SVx76f7SY6MX+Bqlr5AwAAAP//UvqOzgAAAAZJREFUAwDMUet8A75pZwAAAABJRU5ErkJggg==" alt="" />
+      <h1>You’re offline</h1>
+      <p>ViBe needs an internet connection for your courses and lessons. Check your connection and try again.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

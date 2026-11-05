@@ -8,6 +8,13 @@ type UserSearchResult = {
   email: string;
 };
 
+export type UserNameAndEmail = {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+};
+
 /**
  * Interface representing a repository for user-related operations.
  */
@@ -86,6 +93,19 @@ export interface IUserRepository {
    * @returns A promise that resolves to an array of users.
    */
   getUsersByIds(ids: string[]): Promise<IUser[]>;
+
+  /**
+   * Finds multiple users by their IDs, returning only name and email.
+   * @param ids - Array of user IDs to find.
+   */
+  getNamesAndEmailsByIds(ids: string[]): Promise<UserNameAndEmail[]>;
   searchUsers(searchTerm: string, session?: ClientSession,): Promise<UserSearchResult[]>;
-  deleteDuplicateUsers(): any
+
+  /**
+   * Lists every user in the system (admin use only - no pagination yet).
+   */
+  getAllUsers(
+    session?: ClientSession,
+  ): Promise<(UserSearchResult & {roles: 'admin' | 'user'})[]>;
+  deleteDuplicateUsers(): any;
 }

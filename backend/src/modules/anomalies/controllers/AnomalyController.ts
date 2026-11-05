@@ -23,7 +23,11 @@ import { AnomalyDataResponse, AnomalyStats, AnomalyType, FileType } from '../cla
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import { CourseSettingService } from '#root/modules/setting/services/CourseSettingService.js';
 import { ProctoringComponent } from '#root/shared/database/interfaces/ISettingRepository.js';
-import { PaginationQuery } from '#root/shared/index.js';
+import { PaginationQuery, resolveProctoringDetectors, isDetectorEnabled } from '#root/shared/index.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import type { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import type { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
 import { Ability } from '#root/shared/functions/AbilityDecorator.js';
 import { getAnomalyAbility } from '../abilities/anomalyAbilities.js';
 import { subject } from '@casl/ability';
@@ -40,6 +44,8 @@ export class AnomalyController {
   constructor(
     @inject(ANOMALIES_TYPES.AnomalyService) private anomalyService: AnomalyService,
     @inject(SETTING_TYPES.CourseSettingService) private courseSettingService: CourseSettingService,
+    @inject(GLOBAL_TYPES.CourseRepo) private courseRepo: ICourseRepository,
+    @inject(COURSES_TYPES.ItemRepo) private itemRepo: IItemRepository,
   ) {}
 
   @OpenAPI({
@@ -74,15 +80,37 @@ export class AnomalyController {
     // }
 
     if (body.type === AnomalyType.FACE_RECOGNITION) {
-      const courseSetting = await this.courseSettingService.readCourseSettings(
-        courseId.toString(),
-        versionId.toString(),
+      const { itemId, moduleId } = body;
+      const [courseSetting, item, courseVersion] = await Promise.all([
+        this.courseSettingService.readCourseSettings(
+          courseId.toString(),
+          versionId.toString(),
+        ),
+        this.itemRepo.readItemById(itemId.toString()),
+        // Only needed to resolve the module's own override — skip if the
+        // client didn't send moduleId (item-level + universal still resolve
+        // correctly without it, per resolveProctoringDetectors' precedence).
+        moduleId ? this.courseRepo.readVersion(versionId.toString()) : null,
+      ]);
+
+      const itemModule = moduleId
+        ? courseVersion?.modules?.find(
+            m => m.moduleId?.toString() === moduleId.toString(),
+          )
+        : undefined;
+      // Resolves the item's own/module's detector override before falling
+      // back to the course-wide list, so an item-level override can turn
+      // FACE_RECOGNITION off (or on) even if the course-level setting says
+      // otherwise -- unlike the old course-only check, this respects
+      // selective proctoring instead of ignoring it.
+      const resolvedDetectors = resolveProctoringDetectors(
+        item ?? undefined,
+        itemModule,
+        courseSetting,
       );
-      const detector = courseSetting?.settings?.proctors?.detectors?.find(
-        d => d.detectorName === ProctoringComponent.FACERECOGNITION,
-      );
-      if (!detector?.settings?.enabled) {
-        throw new ForbiddenError('Face recognition is disabled for this course');
+
+      if (!isDetectorEnabled(resolvedDetectors, ProctoringComponent.FACERECOGNITION)) {
+        throw new ForbiddenError('Face recognition is disabled for this item');
       }
     }
 

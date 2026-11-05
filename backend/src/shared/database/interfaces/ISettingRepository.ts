@@ -69,6 +69,9 @@ export interface ISettingRepository {
     session?: ClientSession,
     crowdsourcedQuestionSubmissionEnabled?: boolean,
     isLensEnabled?: boolean,
+    caseStudiesEnabled?: boolean,
+    caseStudyStrictUnlockEnabled?: boolean,
+    caseStudyWeakStreakThreshold?: number,
   ): Promise<UpdateResult | null>;
 
   updateRegistrationSchemas(
@@ -111,6 +114,7 @@ export interface ISettingRepository {
       isActive: boolean;
       registrationsAutoApproved?: boolean;
       autoapproval_emails?: string[];
+      autoApprovalMode?: 'EVERYONE' | 'LIST';
       cohortSettings?: ObjectId[];
     },
     session?: ClientSession,

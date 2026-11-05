@@ -194,9 +194,13 @@ export class CourseVersionService extends BaseService {
         throw new InternalServerError('Failed to read course version.');
       }
       if (readVersion.cohorts?.length) {
+        // getCohortsByIds defaults to limit: 10 for its paginated cohort-browser
+        // callers -- passing that default here silently dropped every cohort
+        // beyond the 10 most recently created from cohortDetails, which every
+        // cohort picker in the UI is populated from.
         const cohorts = await this.courseRepo.getCohortsByIds(
           readVersion.cohorts,
-          undefined,
+          {limit: readVersion.cohorts.length},
           session,
         );
 
@@ -900,9 +904,10 @@ export class CourseVersionService extends BaseService {
         throw new InternalServerError('Failed to read course version.');
       }
       if (readVersion.cohorts?.length) {
+        // See readCourseVersion's cohortDetails hydration above -- same default-limit trap.
         const cohorts = await this.courseRepo.getCohortsByIds(
           readVersion.cohorts,
-          undefined,
+          {limit: readVersion.cohorts.length},
           session,
         );
 

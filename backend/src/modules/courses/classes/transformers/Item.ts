@@ -15,6 +15,8 @@ import {
   IBlogDetails,
   IFeedBackFormDetails,
   IReflectionDetails,
+  ICaseStudyDetails,
+  IDetectorSettings,
 } from '#root/shared/interfaces/models.js';
 
 export type Item = QuizItem | VideoItem | BlogItem | ProjectItem;
@@ -30,6 +32,14 @@ class QuizItem {
 
   @Expose()
   isOptional?: boolean = false;
+
+  // Absent/null means "inherit the effective module/course proctoring
+  // detector list" — see resolveProctoringDetectors in
+  // shared/interfaces/models.ts. Deliberately no default value here, unlike
+  // isOptional: defaulting this to an empty array would make every existing
+  // item explicitly opt out of proctoring instead of inheriting.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
 
   @Expose()
   description: string;
@@ -77,6 +87,10 @@ class VideoItem {
   @Expose()
   isOptional?: boolean = false;
 
+  // See QuizItem.proctoringDetectors for why this has no default value.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
+
   @Expose()
   description: string;
 
@@ -122,6 +136,10 @@ class BlogItem {
 
   @Expose()
   isOptional?: boolean = false;
+
+  // See QuizItem.proctoringDetectors for why this has no default value.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
 
   @Expose()
   description: string;
@@ -177,6 +195,10 @@ class ReflectionItem {
   @Expose()
   isOptional: boolean;
 
+  // See QuizItem.proctoringDetectors for why this has no default value.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
+
   @Expose()
   type: ItemType = ItemType.REFLECTION;
 
@@ -199,6 +221,53 @@ class ReflectionItem {
   }
 }
 
+/**
+ * A peer-reviewed case study placed in a section like any other item, so it
+ * inherits progression, completion and navigation. Holds the case body and the
+ * per-item review-rule knobs; responses and comparisons live in the
+ * caseStudies module.
+ */
+class CaseStudyItem {
+  @Expose()
+  @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
+  @Transform(StringToObjectId.transformer, { toClassOnly: true })
+  _id?: ID;
+
+  @Expose()
+  name: string;
+
+  @Expose()
+  description: string;
+
+  @Expose()
+  isOptional: boolean;
+
+  // See QuizItem.proctoringDetectors for why this has no default value.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
+
+  @Expose()
+  type: ItemType = ItemType.CASE_STUDY;
+
+  @Expose()
+  details: ICaseStudyDetails;
+
+  constructor(
+    name: string,
+    description: string,
+    _id: ID,
+    details?: ICaseStudyDetails,
+    isOptional: boolean = false,
+  ) {
+    this._id = _id;
+    this.type = ItemType.CASE_STUDY;
+    this.name = name;
+    this.isOptional = isOptional;
+    this.description = description;
+    this.details = details ?? {};
+  }
+}
+
 class FeedBackFormItem {
   @Expose()
   @Transform(ObjectIdToString.transformer, { toPlainOnly: true })
@@ -213,6 +282,10 @@ class FeedBackFormItem {
 
   @Expose()
   isOptional: boolean;
+
+  // See QuizItem.proctoringDetectors for why this has no default value.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
 
   @Expose()
   type: ItemType = ItemType.FEEDBACK;
@@ -317,6 +390,10 @@ class ProjectItem {
 
   @Expose()
   isOptional?: boolean = false;
+
+  // See QuizItem.proctoringDetectors for why this has no default value.
+  @Expose()
+  proctoringDetectors?: IDetectorSettings[] | null;
 
   @Expose()
   description: string;
@@ -436,6 +513,14 @@ class ItemBase {
             itemBody.reflectionDetails,
           );
           break;
+        case ItemType.CASE_STUDY:
+          this.itemDetails = new CaseStudyItem(
+            itemBody.name,
+            itemBody.description,
+            this.itemId,
+            itemBody.caseStudyDetails,
+          );
+          break;
         default:
           break;
       }
@@ -469,6 +554,12 @@ class ItemRef {
 
   @Expose()
   isHidden?: boolean;
+
+  // The item's own study-mode setting. Lives on the ref (like isHidden) so
+  // section item lists carry it. Absent/null means "inherit" — see
+  // resolveStudyMode in shared/interfaces/models.ts.
+  @Expose()
+  studyModeEnabled?: boolean | null;
 
   @Expose()
   name: string;
@@ -534,4 +625,5 @@ export {
   FeedBackFormItem,
   FeedbackSubmissionItem,
   ReflectionItem,
+  CaseStudyItem,
 };

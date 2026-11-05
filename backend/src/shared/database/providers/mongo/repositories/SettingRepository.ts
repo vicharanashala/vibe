@@ -320,6 +320,9 @@ export class SettingRepository implements ISettingRepository {
     session?: ClientSession,
     crowdsourcedQuestionSubmissionEnabled: boolean = false,
     isLensEnabled?: boolean,
+    caseStudiesEnabled: boolean = false,
+    caseStudyStrictUnlockEnabled: boolean = true,
+    caseStudyWeakStreakThreshold: number = 3,
   ): Promise<UpdateResult | null> {
     await this.init();
 
@@ -380,6 +383,9 @@ export class SettingRepository implements ISettingRepository {
           'settings.crowdsourcedQuestionSubmissionEnabled':
             crowdsourcedQuestionSubmissionEnabled,
           ...(isLensEnabled !== undefined && { 'settings.isLensEnabled': isLensEnabled }),
+          'settings.caseStudiesEnabled': caseStudiesEnabled,
+          'settings.caseStudyStrictUnlockEnabled': caseStudyStrictUnlockEnabled,
+          'settings.caseStudyWeakStreakThreshold': caseStudyWeakStreakThreshold,
         },
         $push: {
           'settings.audit': audit,
@@ -454,6 +460,7 @@ export class SettingRepository implements ISettingRepository {
       isActive: boolean;
       registrationsAutoApproved?: boolean;
       autoapproval_emails?: string[];
+      autoApprovalMode?: 'EVERYONE' | 'LIST';
     },
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
@@ -473,6 +480,7 @@ export class SettingRepository implements ISettingRepository {
             schemas.registrationsAutoApproved,
           'settings.registration.autoapproval_emails':
             schemas.autoapproval_emails,
+          'settings.registration.autoApprovalMode': schemas.autoApprovalMode,
         },
       },
       {session},

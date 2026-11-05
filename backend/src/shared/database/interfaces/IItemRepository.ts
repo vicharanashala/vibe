@@ -1,6 +1,6 @@
 import {Item, ItemRef, ItemsGroup} from '#courses/classes/transformers/Item.js';
 import {UpdateItemBody} from '#root/modules/courses/classes/index.js';
-import {IQuizItem} from '#root/shared/interfaces/models.js';
+import {IQuizItem, IDetectorSettings} from '#root/shared/interfaces/models.js';
 import {ClientSession, ObjectId} from 'mongodb';
 
 export interface IItemRepository {
@@ -33,6 +33,16 @@ export interface IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup>;
 
+  /**
+   * Several ItemsGroups in one query, raw: unlike readItemsGroup it doesn't
+   * rebuild the refs, so every stored ref field (e.g. studyModeEnabled) is
+   * kept. Missing ids are simply absent from the result.
+   */
+  readItemsGroupsByIds(
+    itemsGroupIds: string[],
+    session?: ClientSession,
+  ): Promise<ItemsGroup[]>;
+
   updateItemsGroup(
     itemsGroupId: string,
     itemsGroup: ItemsGroup,
@@ -42,6 +52,22 @@ export interface IItemRepository {
   updateItem(
     itemId: string,
     item: UpdateItemBody,
+    session?: ClientSession,
+  ): Promise<Item>;
+
+  /**
+   * Sets or clears this item's proctoring override. `null` clears it back to
+   * "inherit the module/course setting" (an explicit $unset, not a $set of
+   * undefined -- the Mongo driver silently strips undefined values from
+   * $set, so that would leave whatever was there before untouched).
+   * Deliberately a dedicated method rather than routed through updateItem's
+   * generic field whitelist, so a plain rename never has to worry about
+   * accidentally clearing this via an absent field.
+   */
+  updateItemProctoringOverride(
+    itemId: string,
+    itemType: string,
+    detectors: IDetectorSettings[] | null,
     session?: ClientSession,
   ): Promise<Item>;
 

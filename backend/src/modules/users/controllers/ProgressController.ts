@@ -2,6 +2,9 @@ import { Progress } from '#users/classes/transformers/Progress.js';
 import { ICurrentProgressPath } from '#shared/interfaces/models.js';
 import {
   GetUserProgressParams,
+  StudyViewBody,
+  StudyViewResponse,
+  StudyProgressResponse,
   StartItemParams,
   StartItemBody,
   StartItemResponse,
@@ -22,6 +25,7 @@ import {
   UpsertWatchTimeResponse,
   ItemIdparams,
   GetLeaderboardQuery,
+  GetNoAuthLeaderboardQuery,
   LeaderboardNoAuthResponse,
   GetLeaderboardResponse,
 } from '#users/classes/validators/ProgressValidators.js';
@@ -76,7 +80,8 @@ import {
   AuditCategory,
   OutComeStatus,
 } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
-import { ObjectId } from 'mongodb';
+import {ObjectId} from 'mongodb';
+import {StudyProgressService} from '../services/StudyProgressService.js';
 
 @OpenAPI({
   tags: ['Progress'],
@@ -93,7 +98,58 @@ class ProgressController {
 
     @inject(COURSES_TYPES.ItemService)
     private readonly itemService: ItemService,
+
+    @inject(USERS_TYPES.StudyProgressService)
+    private readonly studyProgressService: StudyProgressService,
   ) { }
+
+  @OpenAPI({
+    summary: 'Record that the caller studied a lesson in study mode',
+    description: `Marks a video or article as studied by the calling student (study mode). Idempotent: a repeat keeps the first time. Never changes strict progress.<br/>
+Rejected for quizzes and other lesson types (400), lessons outside the course version (404) and lessons where study mode is disabled (403 STUDY_MODE_DISABLED). Instructors get recorded: false.`,
+  })
+  @Authorized()
+  @Post('/progress/courses/:courseId/versions/:versionId/study-views')
+  @HttpCode(200)
+  @ResponseSchema(StudyViewResponse, {
+    description: 'Study view recorded (or not tracked for this role)',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Not a video or article',
+    statusCode: 400,
+  })
+  async recordStudyView(
+    @Params() params: GetUserProgressParams,
+    @Body() body: StudyViewBody,
+    @Ability(getProgressAbility) {user},
+  ): Promise<StudyViewResponse> {
+    return this.studyProgressService.recordStudyView(
+      user._id.toString(),
+      params.courseId,
+      params.versionId,
+      body,
+    );
+  }
+
+  @OpenAPI({
+    summary: "Get the caller's study progress in a course version",
+    description:
+      'Study-allowed videos and articles the caller studied in study mode or completed in strict mode, over all study-allowed videos and articles. Separate from (and never part of) strict progress.',
+  })
+  @Authorized()
+  @Get('/progress/courses/:courseId/versions/:versionId/study-progress')
+  @HttpCode(200)
+  @ResponseSchema(StudyProgressResponse, {description: 'Study progress'})
+  async getStudyProgress(
+    @Params() params: GetUserProgressParams,
+    @Ability(getProgressAbility) {user},
+  ): Promise<StudyProgressResponse> {
+    return this.studyProgressService.studyProgressFor(
+      user._id.toString(),
+      params.courseId,
+      params.versionId,
+    );
+  }
 
   @OpenAPI({
     summary: 'Get user progress in a course version',
@@ -1114,12 +1170,15 @@ It returns an empty body with a 200 status code.
   })
   async getNoAuthLeaderboard(
     @Params() params: GetUserProgressParams,
+    @QueryParams() query: GetNoAuthLeaderboardQuery,
   ): Promise<GetLeaderboardResponse> {
     const { courseId, versionId } = params;
 
     return await this.progressService.getLeaderboardNoAuth(
       courseId,
       versionId,
+      query?.page,
+      query?.limit,
     );
   }
 }

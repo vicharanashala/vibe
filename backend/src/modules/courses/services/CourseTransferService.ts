@@ -26,6 +26,7 @@ import {
 } from '#root/modules/quizzes/repositories/index.js';
 import {QuestionBank} from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
 import {BaseQuestion} from '#root/modules/quizzes/classes/transformers/Question.js';
+import {isPendingReview} from '#root/modules/quizzes/utils/index.js';
 import {Module, Section} from '../classes/index.js';
 import {
   BUNDLE_FORMAT_VERSION,
@@ -142,7 +143,11 @@ export class CourseTransferService extends BaseService {
           const question = await this.questionRepo.getById(
             questionId.toString(),
           );
-          return question ? this.stripQuestionIds(question) : null;
+          // Questions still awaiting review never leave the server: on the
+          // other side they would land in a graded bank with no review path.
+          return question && !isPendingReview(question)
+            ? this.stripQuestionIds(question)
+            : null;
         }),
       );
 
@@ -193,6 +198,10 @@ export class CourseTransferService extends BaseService {
             order: ref.order,
             isHidden: item.isHidden ?? false,
             isOptional: item.isOptional ?? false,
+            // The item's study-mode setting lives on its ItemsGroup ref.
+            ...(ref.studyModeEnabled != null
+              ? {studyModeEnabled: ref.studyModeEnabled}
+              : {}),
             details: item.details ? {...(item.details as object)} : undefined,
           };
 
@@ -219,6 +228,9 @@ export class CourseTransferService extends BaseService {
           description: section.description,
           order: section.order,
           isHidden: section.isHidden ?? false,
+          ...(section.studyModeEnabled != null
+            ? {studyModeEnabled: section.studyModeEnabled}
+            : {}),
           items,
         });
       }
@@ -228,6 +240,9 @@ export class CourseTransferService extends BaseService {
         description: module.description,
         order: module.order,
         isHidden: module.isHidden ?? false,
+        ...(module.studyModeEnabled != null
+          ? {studyModeEnabled: module.studyModeEnabled}
+          : {}),
         sections,
       });
     }
@@ -432,6 +447,9 @@ export class CourseTransferService extends BaseService {
 
       const questionIds: string[] = [];
       for (const question of bank.questions || []) {
+        // Bundles exported before pending questions were filtered out can
+        // still carry them; drop them here too.
+        if (isPendingReview(question)) continue;
         const created = await this.questionRepo.create(
           this.reviveQuestion(question, userId) as BaseQuestion,
           session,
@@ -490,6 +508,12 @@ export class CourseTransferService extends BaseService {
               order: bundleSection.items[index].order,
               name: bundleSection.items[index].name,
               isHidden: bundleSection.items[index].isHidden ?? false,
+              ...(bundleSection.items[index].studyModeEnabled != null
+                ? {
+                    studyModeEnabled:
+                      bundleSection.items[index].studyModeEnabled,
+                  }
+                : {}),
             })),
           } as any,
           session,
@@ -501,6 +525,9 @@ export class CourseTransferService extends BaseService {
           description: bundleSection.description ?? '',
           order: bundleSection.order,
           isHidden: bundleSection.isHidden ?? false,
+          ...(bundleSection.studyModeEnabled != null
+            ? {studyModeEnabled: bundleSection.studyModeEnabled}
+            : {}),
           itemsGroupId: new ObjectId(itemsGroup._id.toString()),
           isDeleted: false,
           createdAt: new Date(),
@@ -514,6 +541,9 @@ export class CourseTransferService extends BaseService {
         description: bundleModule.description ?? '',
         order: bundleModule.order,
         isHidden: bundleModule.isHidden ?? false,
+        ...(bundleModule.studyModeEnabled != null
+          ? {studyModeEnabled: bundleModule.studyModeEnabled}
+          : {}),
         sections,
         isDeleted: false,
         createdAt: new Date(),

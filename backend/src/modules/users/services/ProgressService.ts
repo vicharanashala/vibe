@@ -51,7 +51,32 @@ import { getContainer } from '#root/bootstrap/loadModules.js';
 import { NOTIFICATIONS_TYPES } from '#root/modules/notifications/types.js';
 import type { InviteService } from '#root/modules/notifications/services/InviteService.js';
 import type { InviteRepository } from '#shared/database/providers/mongo/repositories/InviteRepository.js';
+import {
+  NoAuthLeaderboard,
+  NoAuthLeaderboardCache,
+  NoAuthLeaderboardRow,
+} from './NoAuthLeaderboardCache.js';
+import { isGuruSetuProgressCourse } from '#root/modules/users/constants.js';
 
+// Public-leaderboard timestamps, e.g. "11/09/2026, 03:35:09 pm". One shared
+// formatter: identical output to Date#toLocaleString with these options, but
+// creating a formatter per call cost about a second per 20,000 dates.
+const IST_DATE_TIME = new Intl.DateTimeFormat('en-IN', {
+  timeZone: 'Asia/Kolkata',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: true,
+});
+
+// Kept distinct from isGuruSetuProgressCourse: this is specifically about the
+// Gurusetu FDP course's own linearProgressionEnabled=false setting (see the
+// startItem usage below), not about which courses use the feedback-only
+// progress formula. Does not need to extend to other Guru-Setu-progress
+// courses that have linear progression enabled.
 const GURU_SETU_COURSE_ID = '6981df886e100cfe04f9c4ad';
 const GURU_SETU_VERSION_ID = '6981df886e100cfe04f9c4ae';
 
@@ -128,10 +153,7 @@ class ProgressService extends BaseService {
   }
 
   private isGuruSetu(courseId: string, versionId: string): boolean {
-    return (
-      courseId?.toString() === GURU_SETU_COURSE_ID &&
-      versionId?.toString() === GURU_SETU_VERSION_ID
-    );
+    return isGuruSetuProgressCourse(courseId, versionId);
   }
 
   /**
@@ -143,11 +165,11 @@ class ProgressService extends BaseService {
   private guruSetuProgressFrom(
     feedbackFormIds: string[],
     submittedFormIds: Set<string>,
-  ): { percentCompleted: number; completedItemsCount: number } {
+  ): { percentCompleted: number; completedItemsCount: number; totalFeedbackItems: number } {
     const totalFeedbackItems = feedbackFormIds.length;
 
     if (totalFeedbackItems === 0) {
-      return { percentCompleted: 0, completedItemsCount: 0 };
+      return { percentCompleted: 0, completedItemsCount: 0, totalFeedbackItems: 0 };
     }
 
     const completedCount = feedbackFormIds.filter(id =>
@@ -161,17 +183,18 @@ class ProgressService extends BaseService {
     return {
       percentCompleted,
       completedItemsCount: completedCount,
+      totalFeedbackItems,
     };
   }
 
   public async calculateGuruSetuProgress(
     userId: string,
     courseVersionId: string,
-  ): Promise<{ percentCompleted: number; completedItemsCount: number }> {
+  ): Promise<{ percentCompleted: number; completedItemsCount: number; totalFeedbackItems: number }> {
     const feedbackItems = await this.itemRepo.getFeedbackItems(courseVersionId);
 
     if (feedbackItems.length === 0) {
-      return { percentCompleted: 0, completedItemsCount: 0 };
+      return { percentCompleted: 0, completedItemsCount: 0, totalFeedbackItems: 0 };
     }
 
     const feedbackSubmissions = await this.feedbackRepository.getAllByUserAndVersionId(
@@ -524,7 +547,7 @@ class ProgressService extends BaseService {
     let totalCompletedItemsCount = 0;
 
     // Guru Setu Progress Override
-    if (courseId?.toString() === GURU_SETU_COURSE_ID && courseVersionId?.toString() === GURU_SETU_VERSION_ID) {
+    if (isGuruSetuProgressCourse(courseId, courseVersionId)) {
       const guruProgress = await this.calculateGuruSetuProgress(userId, courseVersionId);
       percentCompleted = guruProgress.percentCompleted;
       totalCompletedItemsCount = guruProgress.completedItemsCount;
@@ -569,16 +592,17 @@ class ProgressService extends BaseService {
         ),
       ]);
 
+      totalCompletedItemsCount = completedItemCount || completedItems;
       percentCompleted = this._calculateProgress(
         totalItems,
-        completedItemCount || completedItems,
+        totalCompletedItemsCount,
       );
     }
 
     await this.enrollmentRepo.updateProgressPercentById(
       enrollment._id.toString(),
       percentCompleted,
-      completedItemCount,
+      isReset ? completedItemCount : totalCompletedItemsCount,
       cohort,
       session,
     );
@@ -738,14 +762,37 @@ class ProgressService extends BaseService {
       return;
     }
 
-    if (
-      progress.currentModule.toString() !== moduleId ||
-      progress.currentSection.toString() !== sectionId ||
-      progress.currentItem.toString() !== itemId
-    ) {
-      throw new BadRequestError(
-        'ModuleId, sectionId and itemId do not match current progress',
+    // Accept the same conditions readItem accepts. readItem returns early on
+    // isItemAlreadyAttempted (ItemService.readItem) WITHOUT advancing the
+    // pointer, so any item carrying an unfinished watchTime row leaves
+    // currentItem behind. A strict triple-match here then rejected startItem
+    // forever: the student could open the lesson but tracking never started,
+    // so it could never be completed and no recovery sweep could rescue them
+    // -- only a manual pointer edit. Falling back to "is the previous item
+    // completed" mirrors readItem's own step 5 exactly, so this opens no new
+    // bypass beyond what already governs access to the item.
+    if (progress.currentItem.toString() !== itemId) {
+      const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+      const previousItem = await this.getPreviousItemInSequence(
+        courseVersion,
+        moduleId,
+        sectionId,
+        itemId,
       );
+      const previousCompleted = previousItem
+        ? await this.progressRepository.isItemCompleted(
+            userId,
+            courseId,
+            courseVersionId,
+            previousItem.itemId,
+            cohort,
+          )
+        : true; // first item in sequence
+      if (!previousCompleted) {
+        throw new BadRequestError(
+          'ModuleId, sectionId and itemId do not match current progress',
+        );
+      }
     }
   }
 
@@ -977,8 +1024,16 @@ class ProgressService extends BaseService {
     let isFirstSection = false;
     let isFirstModule = false;
 
+    // order is missing on some legacy/partially-migrated documents (#1402
+    // hit the same thing for a different sort in this file) -- `|| ''`
+    // matches CourseVersionService.sortItemsByOrder's canonical guard, so an
+    // undefined order sorts first instead of crashing
+    // ("Cannot read properties of undefined (reading 'localeCompare')").
+    // getPreviousItemInSequence is now reachable from startItem's hot path
+    // (#1393's whole point is unsticking deadlocked students), so a legacy
+    // course crashing here would 500 the exact students this fix exists for.
     const sortedModules = [...courseVersion.modules].sort((a, b) =>
-      String(a.order).localeCompare(String(b.order)),
+      (a.order || '').localeCompare(b.order || ''),
     );
     const firstModule = sortedModules[0].moduleId;
     if (firstModule?.toString() === moduleId) {
@@ -987,8 +1042,14 @@ class ProgressService extends BaseService {
 
     const sortedSections = courseVersion.modules
       .find(module => module.moduleId?.toString() === moduleId)
-      ?.sections.sort((a, b) => String(a.order).localeCompare(String(b.order)));
-    const firstSection = sortedSections?.[0].sectionId;
+      ?.sections.sort((a, b) => (a.order || '').localeCompare(b.order || ''));
+    // A module can genuinely have zero sections (right after creation, before
+    // its first section is added -- ModuleService.createModule's own "previous
+    // module has no sections" guard confirms this is a real authoring-time
+    // state). sortedSections?.[0] is then undefined (a valid array index, not
+    // a nullish base), so the `?.` on sortedSections alone doesn't protect the
+    // .sectionId access after it -- needs its own `?.` too.
+    const firstSection = sortedSections?.[0]?.sectionId;
     if (firstSection?.toString() === sectionId) {
       isFirstSection = true;
     }
@@ -1005,7 +1066,7 @@ class ProgressService extends BaseService {
       itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
     }
     const sortedItems = (itemsGroup?.items ?? []).sort((a, b) =>
-      String(a.order).localeCompare(String(b.order)),
+      (a.order || '').localeCompare(b.order || ''),
     );
     const firstItem = sortedItems.length ? sortedItems[0]._id : undefined;
     if (!sortedItems.length || firstItem?.toString() === itemId) {
@@ -1022,7 +1083,7 @@ class ProgressService extends BaseService {
       );
       const prevModule = sortedModules[currentModuleIndex - 1];
       const lastSection = prevModule?.sections.sort((a, b) =>
-        String(a.order).localeCompare(String(b.order)),
+        (a.order || '').localeCompare(b.order || ''),
       )[prevModule.sections.length - 1];
       const itemsGroup = await this.itemRepo.readItemsGroup(
         lastSection?.itemsGroupId.toString(),
@@ -1030,14 +1091,19 @@ class ProgressService extends BaseService {
       if (itemsGroup && itemsGroup.items) {
         itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
       }
+      // Same as above: the previous module's last section can genuinely have
+      // zero items in its items group (a section created but not yet
+      // populated), leaving lastItem undefined -- matches the `?.`/`|| ''`
+      // guard the isFirstItem && !isFirstSection branch below already uses
+      // for the identical situation.
       const lastItem = itemsGroup.items.sort((a, b) =>
-        String(a.order).localeCompare(String(b.order)),
+        (a.order || '').localeCompare(b.order || ''),
       )[itemsGroup.items.length - 1];
 
       return {
         moduleId: prevModule?.moduleId.toString(),
         sectionId: lastSection?.sectionId.toString(),
-        itemId: lastItem._id.toString(),
+        itemId: lastItem?._id?.toString() || '',
       };
     }
 
@@ -1053,7 +1119,7 @@ class ProgressService extends BaseService {
         itemsGroup.items = itemsGroup.items.filter((i: any) => !i.isHidden && !i.isDeleted);
       }
       const lastItem = itemsGroup?.items?.sort((a, b) =>
-        String(a.order).localeCompare(String(b.order)),
+        (a.order || '').localeCompare(b.order || ''),
       )[itemsGroup.items.length - 1];
 
       return {
@@ -1786,7 +1852,7 @@ class ProgressService extends BaseService {
     cohortId?: string,
   ): Promise<string> {
     // Guru Setu Progress Override
-    if (courseId?.toString() === GURU_SETU_COURSE_ID && courseVersionId?.toString() === GURU_SETU_VERSION_ID) {
+    if (isGuruSetuProgressCourse(courseId, courseVersionId)) {
       await this.updateEnrollmentProgressPercent(userId, courseId, courseVersionId, undefined, false, undefined, undefined, cohortId);
     }
 
@@ -2436,20 +2502,37 @@ class ProgressService extends BaseService {
       // ----------------------------------------------------
       if (item.type !== 'QUIZ') {
         if (!isSkipped) {
-          /**
-           * IMPORTANT:
-           * stopItemTracking should ideally be idempotent.
-           * If already stopped, do not hard-fail unless your business logic requires it.
-           */
-          stoppedWatchTime = await this.progressRepository.stopItemTracking(
-            watchItemId,
-            session,
-          );
+          // Closes this student's open session for this item, falling back
+          // from a stale client watchItemId to the latest open one.
+          stoppedWatchTime =
+            await this.progressRepository.stopItemTrackingForItem(
+              watchItemId,
+              userId,
+              courseId,
+              courseVersionId,
+              itemId,
+              cohortId,
+              session,
+            );
 
           if (!stoppedWatchTime) {
-            // Record was already closed by a concurrent request (endTime already
-            // set). Treat as idempotent success — progress has already advanced.
-            return;
+            // A concurrent stop may have completed the item already, which is
+            // a genuine success. Otherwise nothing was completed, and saying
+            // so lets the client keep the student on this item instead of
+            // moving them on to a lesson the server will refuse to open.
+            const completedMeanwhile =
+              await this.progressRepository.isItemCompleted(
+                userId,
+                courseId,
+                courseVersionId,
+                itemId,
+                cohortId,
+                session,
+              );
+            if (completedMeanwhile) return;
+            throw new BadRequestError(
+              'Your progress on this lesson was not saved. Please reload the page and play it again.',
+            );
           }
 
           await this.validateItemStopEligibility(
@@ -2633,10 +2716,7 @@ class ProgressService extends BaseService {
       // ----------------------------------------------------
       // 9. GURU SETU OVERRIDE
       // ----------------------------------------------------
-      if (
-        courseId?.toString() === GURU_SETU_COURSE_ID &&
-        courseVersionId?.toString() === GURU_SETU_VERSION_ID
-      ) {
+      if (isGuruSetuProgressCourse(courseId, courseVersionId)) {
         const guruProgress = await this.calculateGuruSetuProgress(
           userId,
           courseVersionId,
@@ -2669,12 +2749,51 @@ class ProgressService extends BaseService {
         percentCompleted >= FOLLOW_UP_INVITE_THRESHOLD;
 
       if (percentCompleted > 99) {
-        await this.recalculateStudentProgress(
-          userId,
-          courseId,
-          courseVersionId,
-          cohortId,
-        );
+        // session must be passed here: without it, this recalculation reads
+        // student-completion data from outside the still-open transaction,
+        // missing the very item completion that triggered it, and its own
+        // write then silently overwrites the correct percentCompleted step
+        // 10 just computed with a stale, too-low value.
+        //
+        // This is also a best-effort consistency pass on top of the
+        // authoritative update a few lines above, already part of this same
+        // transaction -- it must never be the reason the student's actual
+        // completion gets rolled back. recalculateStudentProgress throws
+        // NotFoundError/BadRequestError for edge cases (e.g. a course with
+        // no non-hidden items), which would otherwise abort this entire
+        // transaction over a step whose job is only to double-check, not to
+        // record, the completion.
+        try {
+          await this.recalculateStudentProgress(
+            userId,
+            courseId,
+            courseVersionId,
+            cohortId,
+            session,
+          );
+        } catch (err) {
+          // Only swallow the specific validation-edge-case errors
+          // recalculateStudentProgress deliberately throws BEFORE any
+          // write (NotFoundError/BadRequestError, e.g. "no items found for
+          // this course version"). A genuine MongoDB-level error from one
+          // of its own now-session-threaded writes must NOT be swallowed
+          // here: by the time it's thrown, MongoDB has already marked
+          // this transaction dead server-side, so silently continuing
+          // doesn't "protect" step 10's write -- it just means the next
+          // operation (step 11, the actual completion write) throws a
+          // confusing NoSuchTransaction instead of the original, useful
+          // error, while step 10 survives as a stale, inconsistent
+          // partial write instead of a clean rollback. Let it propagate
+          // so _withTransaction's existing retry/abort handling does the
+          // right thing, the same as any other failure in this transaction.
+          if (!(err instanceof NotFoundError || err instanceof BadRequestError)) {
+            throw err;
+          }
+          console.error(
+            `recalculateStudentProgress failed as a post-completion consistency check for user ${userId}, course ${courseId}/${courseVersionId}:`,
+            err,
+          );
+        }
       }
 
       // ----------------------------------------------------
@@ -2973,6 +3092,11 @@ class ProgressService extends BaseService {
    * and stays incomplete, so this recovers lost progress without handing out
    * completions and without weakening linear progression.
    *
+   * BLOG is the one exception to needing a heartbeat at all: isValidWatchTime
+   * never checks duration for it (no minimum reading time exists in the live
+   * path either), so a blog read fast enough to lose its stop call before the
+   * first 15s heartbeat still gets closed here, falling back to startTime.
+   *
    * Safe to run concurrently across instances and safe to re-run: closing is
    * guarded on the row still being open, and the pointer only moves when it is
    * still parked on the recovered item.
@@ -3014,19 +3138,27 @@ class ProgressService extends BaseService {
       const cohortId = orphan.cohortId?.toString();
 
       try {
-        // Without a heartbeat there is no evidence of time spent, so there is
-        // nothing to justify a completion.
-        if (!orphan.lastSeenAt) {
-          rejectedIds.push(orphan._id);
-          summary.skipped++;
-          continue;
-        }
-
         const item = await this.itemRepo.readItemById(itemId);
 
         // QUIZ and PROJECT completion depends on a submission this job must
         // not invent; only watch-duration items can be judged from timestamps.
         if (!item || !WATCH_TIME_RECOVERABLE_ITEMS.has(item.type)) {
+          rejectedIds.push(orphan._id);
+          summary.skipped++;
+          continue;
+        }
+
+        // Without a heartbeat there is no evidence of time spent -- for VIDEO
+        // that is nothing to justify a completion against, since its
+        // isValidWatchTime check depends on measuring elapsed time. BLOG is
+        // different: isValidWatchTime never checks duration for it at all
+        // ("no minimum reading time exists in the live path either" -- see
+        // that check), so requiring a heartbeat here is stricter than the
+        // rule this job is supposed to mirror. A blog read fast enough to
+        // lose its stop call before the first 15s heartbeat would otherwise
+        // never be recoverable. Fall back to startTime (0 measured duration)
+        // for BLOG, matching what the live path already accepts unconditionally.
+        if (!orphan.lastSeenAt && item.type !== 'BLOG') {
           rejectedIds.push(orphan._id);
           summary.skipped++;
           continue;
@@ -3048,7 +3180,7 @@ class ProgressService extends BaseService {
           continue;
         }
 
-        const endTime = new Date(orphan.lastSeenAt);
+        const endTime = new Date(orphan.lastSeenAt ?? orphan.startTime);
 
         if (!this.isValidWatchTime({...orphan, endTime}, item)) {
           rejectedIds.push(orphan._id);
@@ -3114,7 +3246,21 @@ class ProgressService extends BaseService {
             `(user ${userId}, item ${itemId}):`,
           err,
         );
-        summary.skipped++;
+        // A NotFoundError here means something this record depends on is
+        // permanently gone -- itemRepo.readItemById and courseRepo.readVersion
+        // both throw (not return null) when the item / course version can't
+        // be found, so their `if (!item)` / `if (!courseVersion)` guards above
+        // are unreachable and a deleted item or deleted course version ends
+        // up here instead. That's not transient: leaving it unmarked (like
+        // every other throw) means findOrphanedWatchTimes returns this exact
+        // record again next sweep, hits the identical NotFoundError, forever.
+        // Reject it like any other permanently-unrecoverable record instead.
+        if (err instanceof NotFoundError) {
+          rejectedIds.push(orphan._id);
+          summary.rejected++;
+        } else {
+          summary.skipped++;
+        }
       }
     }
 
@@ -4753,8 +4899,27 @@ class ProgressService extends BaseService {
     const collectedItemIds: string[] = [];
     let isItemFound = false;
 
-    for (const module of courseVersion.modules) {
-      for (const section of module.sections) {
+    // Modules/sections/items are stored in insertion order, not display
+    // order -- every other traversal in this codebase re-sorts by `order`
+    // before walking the tree (see CourseVersionService.sortItemsByOrder
+    // and its call sites). This one didn't, so after a drag-drop reorder
+    // "items up to the current one" could silently include items that are
+    // actually later in the course and exclude ones that are earlier,
+    // corrupting the missed-item backfill below.
+    // `order` is a required field on every module/section/item per the
+    // schema, but legacy or partially-migrated documents can still lack it
+    // at the DB level -- CourseVersionService.sortItemsByOrder (the
+    // codebase's canonical sort for this same data) defends against that
+    // with `a.order || ''` before comparing. Match that here so a missing
+    // `order` degrades to "sorts first", not a crash.
+    const sortedModules = [...courseVersion.modules].sort((a, b) =>
+      (a.order || '').localeCompare(b.order || ''),
+    );
+    for (const module of sortedModules) {
+      const sortedSections = [...module.sections].sort((a, b) =>
+        (a.order || '').localeCompare(b.order || ''),
+      );
+      for (const section of sortedSections) {
         const itemGroupId = section.itemsGroupId;
         if (!itemGroupId) continue;
 
@@ -4763,7 +4928,10 @@ class ProgressService extends BaseService {
         );
         if (!itemGroup || !itemGroup.items) continue;
 
-        for (const item of itemGroup.items) {
+        const sortedItems = [...itemGroup.items].sort((a, b) =>
+          (a.order || '').localeCompare(b.order || ''),
+        );
+        for (const item of sortedItems) {
           if (!item._id) continue;
 
           const currentItemId = item._id.toString();
@@ -4800,8 +4968,20 @@ class ProgressService extends BaseService {
 
     const allItemIds: string[] = [];
 
-    for (const module of courseVersion.modules) {
-      for (const section of module.sections) {
+    // Same insertion-order-vs-display-order issue as getItemIdsUntilItem --
+    // sort before walking so a drag-drop-reordered course still produces
+    // its items in the order the student actually sees them.
+    // Same missing-order defensiveness as getItemIdsUntilItem above --
+    // matches CourseVersionService.sortItemsByOrder's `a.order || ''`
+    // fallback instead of crashing on a legacy/malformed document.
+    const sortedModules = [...courseVersion.modules].sort((a, b) =>
+      (a.order || '').localeCompare(b.order || ''),
+    );
+    for (const module of sortedModules) {
+      const sortedSections = [...module.sections].sort((a, b) =>
+        (a.order || '').localeCompare(b.order || ''),
+      );
+      for (const section of sortedSections) {
         const itemGroupId = section.itemsGroupId;
         if (!itemGroupId) continue;
 
@@ -4810,7 +4990,10 @@ class ProgressService extends BaseService {
         );
         if (!itemGroup || !itemGroup.items) continue;
 
-        for (const item of itemGroup.items) {
+        const sortedItems = [...itemGroup.items].sort((a, b) =>
+          (a.order || '').localeCompare(b.order || ''),
+        );
+        for (const item of sortedItems) {
           if (item._id) {
             allItemIds.push(item._id.toString());
           }
@@ -4922,7 +5105,8 @@ class ProgressService extends BaseService {
     userId: string,
     courseId: string,
     versionId: string,
-    cohortId?: string
+    cohortId?: string,
+    session?: ClientSession,
   ): Promise<string> {
     if (!userId || !courseId || !versionId) {
       throw new BadRequestError('userId, courseId and versionId are required');
@@ -4933,7 +5117,8 @@ class ProgressService extends BaseService {
       userId,
       courseId,
       versionId,
-      cohortId
+      cohortId,
+      session,
     );
 
     if (!progress) {
@@ -4946,10 +5131,20 @@ class ProgressService extends BaseService {
     }
 
     // 2. Fetch required data's in parallel
+    // session is threaded through the student-state reads (progress,
+    // completed items, enrollment) so a caller running inside an open
+    // transaction (stopItem, when a completion pushes past 99%) sees its own
+    // not-yet-committed writes instead of racing ahead of them -- confirmed
+    // live: without it, this recalculation is blind to the very item
+    // completion that triggered it, and its unconditional write below then
+    // overwrites the correct percentCompleted stopItem had just computed
+    // with a stale, too-low value. courseRepo.readVersion reads course
+    // structure, which nothing in this same transaction is concurrently
+    // editing, so it's left as-is.
     const [completedItemIds, courseVersion, enrollment] = await Promise.all([
-      this.progressRepository.getCompletedItems(userId, courseId, versionId, cohortId),
+      this.progressRepository.getCompletedItems(userId, courseId, versionId, cohortId, session),
       this.courseRepo.readVersion(versionId),
-      this.resolveEnrollment(userId, courseId, versionId, cohortId),
+      this.resolveEnrollment(userId, courseId, versionId, cohortId, session),
     ]);
 
     if (!courseVersion) {
@@ -4961,13 +5156,14 @@ class ProgressService extends BaseService {
     }
 
     // Guru Setu Progress Override
-    if (courseId?.toString() === GURU_SETU_COURSE_ID && versionId?.toString() === GURU_SETU_VERSION_ID) {
+    if (isGuruSetuProgressCourse(courseId, versionId)) {
       const guruProgress = await this.calculateGuruSetuProgress(userId, versionId);
       await this.enrollmentRepo.updateProgressPercentById(
         enrollment._id!.toString(),
         guruProgress.percentCompleted,
         guruProgress.completedItemsCount,
         cohortId,
+        session,
       );
       return 'Progress recalculated successfully';
     }
@@ -4994,7 +5190,7 @@ class ProgressService extends BaseService {
     let missedItemIds = allRelevantItemIds.filter(
       itemId => !completedItemSet.has(itemId),
     );
-    const hiddenItems = await this.progressRepository.getHiddenOrDeletedItems(versionId);
+    const hiddenItems = await this.progressRepository.getHiddenOrDeletedItems(versionId, session);
     const hiddenSet = new Set(hiddenItems.map(i => i.itemId.toString()));
     missedItemIds = missedItemIds.filter(itemId => !hiddenSet.has(itemId));
     // 3. Backfill missed watch-time records
@@ -5004,7 +5200,8 @@ class ProgressService extends BaseService {
         courseId,
         versionId,
         missedItemIds,
-        cohortId
+        cohortId,
+        session,
       );
     }
 
@@ -5060,6 +5257,7 @@ class ProgressService extends BaseService {
       percentCompleted,
       totalCompletedItemsCount,
       enrollment.cohort,
+      session,
     );
 
     return 'Progress recalculated successfully';
@@ -5209,7 +5407,33 @@ class ProgressService extends BaseService {
   async getLeaderboardNoAuth(
     courseId: string,
     courseVersionId: string,
+    page?: number,
+    limit?: number,
   ): Promise<GetLeaderboardResponse> {
+    const key = `${courseId}:${courseVersionId}`;
+    const board = await this.noAuthLeaderboardCache.getOrCompute(key, () =>
+      this.buildLeaderboardNoAuth(courseId, courseVersionId, key),
+    );
+
+    const total = board.data.length;
+    if (!limit) {
+      return { ...board, total };
+    }
+    const start = ((page ?? 1) - 1) * limit;
+    return { ...board, data: board.data.slice(start, start + limit), total };
+  }
+
+  private _noAuthLeaderboardCache?: NoAuthLeaderboardCache;
+
+  private get noAuthLeaderboardCache(): NoAuthLeaderboardCache {
+    return (this._noAuthLeaderboardCache ??= new NoAuthLeaderboardCache());
+  }
+
+  private async buildLeaderboardNoAuth(
+    courseId: string,
+    courseVersionId: string,
+    key: string,
+  ): Promise<NoAuthLeaderboard> {
     const course = await this.courseRepo.read(courseId);
     if (!course) {
       throw new BadRequestError(`Invalid courseId: ${courseId}`);
@@ -5220,127 +5444,145 @@ class ProgressService extends BaseService {
       throw new BadRequestError(`Invalid courseVersionId: ${courseVersionId}`);
     }
 
-    // Get all progress records for this course version
-    const progressRecords =
-      await this.progressRepository.getAllProgressForCourseVersion(
-        courseId,
-        courseVersionId,
-      );
-
-    if (!progressRecords) {
-      throw new BadRequestError(
-        `No progress records found for course ${courseId} and version ${courseVersionId}`,
-      );
-    }
-
-    // Get all enrollments to fetch completion percentages
-    const enrollments = await this.enrollmentRepo.getEnrollmentsByCourseVersion(
+    // Every active student in the version, across all cohorts — this is the
+    // public, cohort-agnostic leaderboard. Only the fields used below are
+    // loaded: whole documents for a large course exhausted the instance's
+    // memory.
+    const enrollments = await this.enrollmentRepo.getLeaderboardEnrollments(
       courseId,
       courseVersionId,
     );
 
-    if (!enrollments || enrollments.length === 0) {
+    if (enrollments.length === 0) {
       throw new BadRequestError(
         `No enrollments found for course ${courseId} and version ${courseVersionId}`,
       );
     }
 
-    const enrollmentMap = new Map();
+    // One row per student. A student enrolled in more than one cohort of the
+    // version keeps their furthest enrollment.
+    const enrollmentByUser = new Map<
+      string,
+      { completionPercentage: number; enrolledAt: Date | null }
+    >();
     for (const enrollment of enrollments) {
-      enrollmentMap.set(enrollment.userId.toString(), {
-        completionPercentage: enrollment.percentCompleted ?? 0,
-        enrolledAt: enrollment.enrollmentDate,
-      });
+      const userId = enrollment.userId?.toString();
+      if (!userId) continue;
+      const completionPercentage = Math.min(
+        100,
+        enrollment.percentCompleted ?? 0,
+      );
+      const existing = enrollmentByUser.get(userId);
+      if (!existing || completionPercentage > existing.completionPercentage) {
+        enrollmentByUser.set(userId, {
+          completionPercentage,
+          enrolledAt: enrollment.enrollmentDate ?? null,
+        });
+      }
     }
 
-    // Get user names for all enrolled students
-    const userIds = enrollments.map(e => e.userId.toString());
-    const users = await this.userRepo.getUsersByIds(userIds);
-    if (!users || users.length === 0) {
+    // Finishers are not recalculated: a student at 100% with a completion
+    // date keeps the row built when they first appeared as finished. Drop
+    // any who are no longer enrolled at 100% so they are rebuilt below.
+    const settledFinishers = this.noAuthLeaderboardCache.finishersFor(key);
+    for (const userId of settledFinishers.keys()) {
+      if (enrollmentByUser.get(userId)?.completionPercentage !== 100) {
+        settledFinishers.delete(userId);
+      }
+    }
+
+    const toLookUp = [...enrollmentByUser.keys()].filter(
+      userId => !settledFinishers.has(userId),
+    );
+    const [completionRows, users] = await Promise.all([
+      this.progressRepository.getCompletionForUsers(
+        courseId,
+        courseVersionId,
+        toLookUp,
+      ),
+      this.userRepo.getNamesAndEmailsByIds(toLookUp),
+    ]);
+
+    if (toLookUp.length > 0 && users.length === 0 && settledFinishers.size === 0) {
       throw new BadRequestError(
         'No users found for the given course and version',
       );
     }
-    const userMap = new Map();
-    for (const user of users) {
-      if (user) {
-        const fullName =
-          `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-          'Unknown User';
-        userMap.set(user._id?.toString(), { name: fullName, email: user.email });
+
+    // A student can have more than one progress row in a version; take the
+    // earliest completion among them.
+    const completedAtByUser = new Map<string, Date>();
+    for (const row of completionRows) {
+      if (!row.completed || !row.completedAt) continue;
+      const previous = completedAtByUser.get(row.userId);
+      if (!previous || new Date(row.completedAt) < new Date(previous)) {
+        completedAtByUser.set(row.userId, row.completedAt);
       }
     }
 
-    const formatToIST = (date?: Date | string | null): string => {
-      if (!date) return '—';
+    const userById = new Map<string, { name: string; email?: string }>();
+    for (const user of users) {
+      const fullName =
+        `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
+        'Unknown User';
+      userById.set(user._id, { name: fullName, email: user.email });
+    }
 
-      return new Date(date).toLocaleString('en-IN', {
-        timeZone: 'Asia/Kolkata',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      });
-    };
+    const rows: NoAuthLeaderboardRow[] = [];
+    for (const [userId, enrollment] of enrollmentByUser) {
+      const settled = settledFinishers.get(userId);
+      if (settled) {
+        rows.push(settled);
+        continue;
+      }
 
-    // Combine progress and enrollment data
-    const leaderboardData = progressRecords.map(progress => {
-      const userId = progress.userId.toString();
-      const enrollment = enrollmentMap.get(userId);
-      const user = userMap.get(userId);
-
-      return {
+      const user = userById.get(userId);
+      const completedAt = completedAtByUser.get(userId) ?? null;
+      const row: NoAuthLeaderboardRow = {
         userId,
         userName: user?.name || 'Unknown User',
         email: user?.email || 'No email',
-
-        completionPercentage: Math.min(100, enrollment?.completionPercentage ?? 0),
-
-        completedAt:
-          progress.completed && progress.completedAt
-            ? formatToIST(progress.completedAt)
-            : 'Not completed yet',
-
-        enrolledAt: enrollment?.enrolledAt
-          ? formatToIST(enrollment.enrolledAt)
+        completionPercentage: enrollment.completionPercentage,
+        completedAtMs: completedAt ? new Date(completedAt).getTime() : null,
+        completedAt: completedAt
+          ? IST_DATE_TIME.format(new Date(completedAt))
+          : 'Not completed yet',
+        enrolledAt: enrollment.enrolledAt
+          ? IST_DATE_TIME.format(new Date(enrollment.enrolledAt))
           : 'No enrollment date',
       };
-    });
+      if (row.completionPercentage === 100 && row.completedAtMs !== null) {
+        settledFinishers.set(userId, row);
+      }
+      rows.push(row);
+    }
 
-    // Sort by Progress % (highest first), then by Completion Date (earliest first) for ties
-    const sortedLeaderboard = leaderboardData.sort((a, b) => {
-      // Primary sort: by completion percentage (descending - highest first)
+    // Progress % (highest first), then completion time (earliest first).
+    // Sorts on the raw time: the display strings do not parse back to dates.
+    rows.sort((a, b) => {
       if (a.completionPercentage !== b.completionPercentage) {
         return b.completionPercentage - a.completionPercentage;
       }
-
-      // Secondary sort: by completedAt (ascending - earliest first) for same percentage
-      if (a.completedAt && b.completedAt) {
-        return (
-          new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime()
-        );
+      if (a.completedAtMs !== null && b.completedAtMs !== null) {
+        return a.completedAtMs - b.completedAtMs;
       }
-
-      // If one has completedAt and other doesn't, prioritize the one with completedAt
-      if (a.completedAt) return -1;
-      if (b.completedAt) return 1;
-
-      // Both don't have completedAt, maintain current order
+      if (a.completedAtMs !== null) return -1;
+      if (b.completedAtMs !== null) return 1;
       return 0;
     });
-
-    const rankedLeaderboard = sortedLeaderboard.map((student, index) => ({
-      rank: index + 1,
-      ...student,
-    }));
 
     return {
       course: course.name,
       version: courseVersion.version,
-      data: rankedLeaderboard,
+      data: rows.map((row, index) => ({
+        rank: index + 1,
+        userId: row.userId,
+        userName: row.userName,
+        email: row.email,
+        completionPercentage: row.completionPercentage,
+        completedAt: row.completedAt,
+        enrolledAt: row.enrolledAt,
+      })),
     };
   }
 

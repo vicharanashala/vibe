@@ -62,6 +62,18 @@ class ProgressRepository {
       // Index already exists
     }
 
+    // Course-wide reads (leaderboards, getAllProgressForCourseVersion) filter
+    // on courseId + courseVersionId without a userId, so the index above, which
+    // leads with userId, cannot serve them. Not awaited: the first build on a
+    // large collection must not hold up every progress request on a fresh
+    // instance while it runs.
+    this.progressCollection
+      .createIndex({ courseId: 1, courseVersionId: 1 }, { background: true })
+      .catch(() => {
+        // Index already exists, or the build failed — reads still work
+        // without it, only slower.
+      });
+
     try {
       await this.watchTimeCollection.createIndex(
         {
@@ -136,6 +148,23 @@ class ProgressRepository {
     }
   }
 
+  /**
+   * Some older/externally-written progress and watchTime records have
+   * cohortId stored as a plain string instead of ObjectId (unlike
+   * userId/courseId/courseVersionId, which every query here already
+   * matches with the same $in-both-types tolerance). Matching cohortId by
+   * strict equality against ObjectId alone makes those records silently
+   * invisible to every cohort-scoped query. This mirrors the tolerant
+   * pattern already used for the other ID fields.
+   *
+   * Takes only the truthy-cohortId match value -- callers keep their own
+   * ternary/else-branch (some fall back to {}, some to {cohortId: null}),
+   * this only fixes the truthy side.
+   */
+  private cohortIdMatch(cohortId: string): { cohortId: { $in: (string | ObjectId)[] } } {
+    return { cohortId: { $in: [cohortId, new ObjectId(cohortId)] } };
+  }
+
   async getCompletedItems(
     userId: string,
     courseId: string,
@@ -153,7 +182,7 @@ class ProgressRepository {
         courseVersionId: new ObjectId(courseVersionId),
         endTime: { $exists: true, $ne: null },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? this.cohortIdMatch(cohortId) : {cohortId: null }),
       },
       { session },
     );
@@ -219,7 +248,7 @@ class ProgressRepository {
           userId: new ObjectId(userId),
           courseId: new ObjectId(courseId),
           courseVersionId: new ObjectId(courseVersionId),
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+          ...(cohortId ? this.cohortIdMatch(cohortId) : {}),
           itemId: new ObjectId(itemId),
           endTime: { $exists: true, $ne: null },
           isDeleted: { $ne: true },
@@ -355,7 +384,7 @@ class ProgressRepository {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+        ...(cohortId ? this.cohortIdMatch(cohortId) : {cohortId: null }),
       },
       { $set: { isDeleted: true, deletedAt: new Date() } },
       { session },
@@ -434,7 +463,7 @@ class ProgressRepository {
           {
             userId: { $in: [userIdStr, userIdObj] },
             quizId: { $in: [quizIdStr, quizIdObj] },
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+            ...(cohortId ? this.cohortIdMatch(cohortId) : {cohortId: null}),
           },
           { session },
         )
@@ -450,7 +479,7 @@ class ProgressRepository {
           filter: {
             userId: { $in: [userIdStr, userIdObj] },
             quizId: { $in: [quizIdStr, quizIdObj] },
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null }),
+            ...(cohortId ? this.cohortIdMatch(cohortId) : {cohortId: null }),
           },
         },
       });
@@ -461,7 +490,7 @@ class ProgressRepository {
           filter: {
             quizId: { $in: [quizIdStr, quizIdObj] },
             userId: { $in: [userIdStr, userIdObj] },
-            ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+            ...(cohortId ? this.cohortIdMatch(cohortId) : {cohortId: null}),
           },
           update: {
             $set: {
@@ -526,7 +555,7 @@ class ProgressRepository {
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
         isDeleted: { $ne: true },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? this.cohortIdMatch(cohortId) : {}),
       },
       {
         session,
@@ -602,7 +631,7 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? this.cohortIdMatch(cohortId) : {}),
         isDeleted: { $ne: true },
       },
       { $set: normalizedProgress },
@@ -631,7 +660,7 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? this.cohortIdMatch(cohortId) : {}),
         isDeleted: { $ne: true },
       },
       {
@@ -708,6 +737,59 @@ class ProgressRepository {
       { returnDocument: 'after', session },
     );
     return result;
+  }
+
+  /**
+   * Close the student's open watch session for one item, for the live stop
+   * path.
+   *
+   * stopItemTracking trusts the client's watchTimeId outright. After a refresh
+   * the client can send a stale id (the course store keeps it in
+   * localStorage): a session from before the refresh, or another item's
+   * session that is already closed. That used to match nothing, stopItem took
+   * it for a concurrent duplicate and returned success, and the item never
+   * completed — the next lesson then refused to open until progress was reset.
+   *
+   * The given id is used only if it is this student's open session for this
+   * item. Otherwise the most recent open session for the item is closed, which
+   * is the one the student just watched. Returns null when the student has no
+   * open session for the item at all.
+   */
+  async stopItemTrackingForItem(
+    watchTimeId: string,
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    cohortId?: string,
+    session?: ClientSession,
+  ): Promise<IWatchTime | null> {
+    await this.init();
+    const openSession = {
+      userId: new ObjectId(userId),
+      courseId: new ObjectId(courseId),
+      courseVersionId: new ObjectId(courseVersionId),
+      itemId: new ObjectId(itemId),
+      ...(cohortId ? this.cohortIdMatch(cohortId) : {}),
+      isDeleted: {$ne: true},
+      endTime: {$exists: false},
+    };
+    const close = {$set: {endTime: new Date()}};
+
+    if (ObjectId.isValid(watchTimeId)) {
+      const exact = await this.watchTimeCollection.findOneAndUpdate(
+        {...openSession, _id: new ObjectId(watchTimeId)},
+        close,
+        {returnDocument: 'after', session},
+      );
+      if (exact) return exact;
+    }
+
+    return this.watchTimeCollection.findOneAndUpdate(openSession, close, {
+      sort: {startTime: -1},
+      returnDocument: 'after',
+      session,
+    });
   }
 
   /**
@@ -818,7 +900,7 @@ class ProgressRepository {
       query.courseVersionId = new ObjectId(courseVersionId);
     }
     if (cohortId) {
-      query.cohortId = new ObjectId(cohortId);
+      Object.assign(query, this.cohortIdMatch(cohortId));
     } else {
       query.$or = [
         { cohortId: null },
@@ -871,10 +953,20 @@ class ProgressRepository {
         userId: { $in: [new ObjectId(userId), userId] },
         courseId: { $in: [new ObjectId(courseId), courseId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? this.cohortIdMatch(cohortId) : {}),
         isDeleted: { $ne: true },
       },
-      { $set: progress },
+      {
+        $set: {
+          ...progress,
+          // Mongo only auto-populates an upserted document's fields from
+          // filter conditions that are plain equality -- the $in match above
+          // (needed to also find string-typed legacy cohortId values) isn't
+          // one, so without this a newly-inserted doc would end up with no
+          // cohortId at all.
+          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        },
+      },
       {
         upsert: true, // ⭐ creates document if not found
         returnDocument: 'after', // return updated or inserted doc
@@ -931,7 +1023,7 @@ class ProgressRepository {
             $match: {
               courseId: new ObjectId(courseId),
               courseVersionId: new ObjectId(courseVersionId),
-              ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
+              ...(cohortId ? this.cohortIdMatch(cohortId) : { cohortId: null }),
               isDeleted: { $ne: true },
               endTime: { $gte: since, $ne: null },
             },
@@ -991,7 +1083,7 @@ class ProgressRepository {
             $match: {
               courseId: new ObjectId(courseId),
               courseVersionId: new ObjectId(courseVersionId),
-              ...(cohortId ? { cohortId: new ObjectId(cohortId) } : { cohortId: null }),
+              ...(cohortId ? this.cohortIdMatch(cohortId) : { cohortId: null }),
               isDeleted: { $ne: true },
               startTime: { $ne: null, $exists: true },
             },
@@ -1023,6 +1115,12 @@ class ProgressRepository {
     courseVersionId: string,
     cohortId?: string,
     session?: ClientSession,
+    // When no cohortId is given, default to the no-cohort-only records
+    // (matches existing callers that scope a single cohort or the legacy,
+    // cohort-less case). Pass true to include every cohort instead — for
+    // callers, like the public leaderboard, that want every student
+    // regardless of cohort.
+    allCohorts = false,
   ): Promise<IProgress[]> {
     await this.init();
     const progressRecords = await this.progressCollection
@@ -1030,7 +1128,11 @@ class ProgressRepository {
         {
           courseId: { $in: [new ObjectId(courseId), courseId] },
           courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-          ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+          ...(cohortId
+            ? this.cohortIdMatch(cohortId)
+            : allCohorts
+              ? {}
+              : {cohortId: null}),
         },
         { session },
       )
@@ -1045,6 +1147,39 @@ class ProgressRepository {
       currentModule: progress.currentModule?.toString(),
       currentSection: progress.currentSection?.toString(),
       currentItem: progress.currentItem?.toString(),
+    }));
+  }
+
+  /**
+   * Completion state only, for the given students in one course version,
+   * across all cohorts and skipping soft-deleted rows. Used by the public
+   * leaderboard, which needs neither the current-position fields nor
+   * adminSkips, and only asks about students it has not already settled.
+   * A student can have more than one row; callers dedupe.
+   */
+  async getCompletionForUsers(
+    courseId: string,
+    courseVersionId: string,
+    userIds: string[],
+  ): Promise<{ userId: string; completed: boolean; completedAt: Date | null }[]> {
+    await this.init();
+    if (!userIds.length) return [];
+    const rows = await this.progressCollection
+      .find(
+        {
+          userId: { $in: userIds.flatMap(id => [new ObjectId(id), id]) },
+          courseId: { $in: [new ObjectId(courseId), courseId] },
+          courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
+          isDeleted: { $ne: true },
+        },
+        { projection: { _id: 0, userId: 1, completed: 1, completedAt: 1 } },
+      )
+      .toArray();
+
+    return rows.map(row => ({
+      userId: row.userId?.toString(),
+      completed: !!row.completed,
+      completedAt: row.completedAt ?? null,
     }));
   }
   /**
@@ -1141,7 +1276,7 @@ class ProgressRepository {
       {
         userId: { $in: [new ObjectId(userId), userId] },
         courseVersionId: { $in: [new ObjectId(courseVersionId), courseVersionId] },
-        ...(cohort ? { cohortId: new ObjectId(cohort) } : {}),
+        ...(cohort ? this.cohortIdMatch(cohort) : {}),
         isDeleted: { $ne: true },
       },
       { session },
@@ -1341,7 +1476,7 @@ class ProgressRepository {
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
         itemId: new ObjectId(itemId),
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {cohortId: null}),
+        ...(cohortId ? this.cohortIdMatch(cohortId) : {cohortId: null}),
         isDeleted: { $ne: true },
       },
       { session, limit: 1 },

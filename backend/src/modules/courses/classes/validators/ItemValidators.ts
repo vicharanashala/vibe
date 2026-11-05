@@ -39,8 +39,13 @@ import {
   IProjectDetails,
   IFeedBackFormDetails,
   VideoSource,
+  IDetectorSettings,
 } from '#root/shared/interfaces/models.js';
 import { OnlyOneId } from './customValidators.js';
+import {
+  DetectorSettingsDto,
+  containsAllDetectors,
+} from '#root/modules/setting/classes/validators/CourseSettingValidators.js';
 
 class VideoDetailsPayloadValidator implements IVideoDetails {
   @JSONSchema({
@@ -371,6 +376,54 @@ class ReflectionDetailsPayloadValidator {
   minReviewsToReveal?: number;
 }
 
+class CaseStudyDetailsPayloadValidator {
+  @JSONSchema({
+    description:
+      'The case scenario/prompt shown to the learner (markdown). Required for a usable case.',
+    example: 'A student keeps giving confidently wrong answers in class...',
+    type: 'string',
+  })
+  @IsString()
+  @IsOptional()
+  bodyMarkdown?: string;
+
+  @JSONSchema({
+    description:
+      'Wins a response needs before it leaves the review pool (1-25). Defaults to 7.',
+    example: 7,
+    type: 'integer',
+  })
+  @IsInt()
+  @Min(1)
+  @Max(25)
+  @IsOptional()
+  reviewsRequired?: number;
+
+  @JSONSchema({
+    description:
+      'Comparisons each learner must judge (1-25). Defaults to 7.',
+    example: 7,
+    type: 'integer',
+  })
+  @IsInt()
+  @Min(1)
+  @Max(25)
+  @IsOptional()
+  picksRequired?: number;
+
+  @JSONSchema({
+    description:
+      'Consecutive losses before the author is prompted to revise (0-25, 0 disables). Defaults to 3.',
+    example: 3,
+    type: 'integer',
+  })
+  @IsInt()
+  @Min(0)
+  @Max(25)
+  @IsOptional()
+  weakStreakThreshold?: number;
+}
+
 class CreateItemBody implements Partial<IBaseItem> {
   @JSONSchema({
     description: 'Title of the item',
@@ -415,7 +468,7 @@ class CreateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, or QUIZ',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK', 'REFLECTION'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK', 'REFLECTION', 'CASE_STUDY'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -479,6 +532,12 @@ class CreateItemBody implements Partial<IBaseItem> {
   @ValidateNested()
   @Type(() => ReflectionDetailsPayloadValidator)
   reflectionDetails?: ReflectionDetailsPayloadValidator;
+
+  @ValidateIf(o => o.type === ItemType.CASE_STUDY)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CaseStudyDetailsPayloadValidator)
+  caseStudyDetails?: CaseStudyDetailsPayloadValidator;
 }
 
 class UpdateItemBody implements Partial<IBaseItem> {
@@ -525,7 +584,7 @@ class UpdateItemBody implements Partial<IBaseItem> {
     description: 'Type of the item: VIDEO, BLOG, QUIZ or PROJECT',
     example: 'VIDEO',
     type: 'string',
-    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK', 'REFLECTION'],
+    enum: ['VIDEO', 'BLOG', 'QUIZ', 'PROJECT', 'FEEDBACK', 'REFLECTION', 'CASE_STUDY'],
   })
   @IsEnum(ItemType)
   @IsNotEmpty()
@@ -583,6 +642,8 @@ class UpdateItemBody implements Partial<IBaseItem> {
         return FeedBackFormPayloadValidator;
       case ItemType.REFLECTION:
         return ReflectionDetailsPayloadValidator;
+      case ItemType.CASE_STUDY:
+        return CaseStudyDetailsPayloadValidator;
       default:
         throw new Error(`Unknown item type: ${itemType}`);
     }
@@ -593,7 +654,8 @@ class UpdateItemBody implements Partial<IBaseItem> {
     | QuizDetailsPayloadValidator
     | ProjectDetailsPayloadValidator
     | FeedBackFormPayloadValidator
-    | ReflectionDetailsPayloadValidator;
+    | ReflectionDetailsPayloadValidator
+    | CaseStudyDetailsPayloadValidator;
 }
 
 class MoveItemBody {
@@ -725,6 +787,47 @@ class VersionItemParams {
   @IsMongoId()
   @IsString()
   courseId: string;
+}
+
+/**
+ * `VersionItemParams` requires `courseId`, but this endpoint's route
+ * (`/versions/:versionId/items/:itemId/proctoring`) has no `:courseId`
+ * segment -- reusing it would make every request fail param validation with
+ * a missing-field 400 before the handler ever runs.
+ */
+class ItemProctoringParams {
+  @JSONSchema({
+    title: 'Version ID',
+    description: 'ID of the course version',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  versionId: string;
+
+  @JSONSchema({
+    title: 'Item ID',
+    description: 'ID of the item',
+    type: 'string',
+  })
+  @IsMongoId()
+  @IsString()
+  itemId: string;
+}
+
+class ItemProctoringBody {
+  @JSONSchema({
+    title: 'Item Proctoring Detector Override',
+    description:
+      "Overrides the module/course proctoring detector list for this item. Pass null to clear the override and inherit again. When not null, must list every detector (same shape as the course-level proctoring settings).",
+    type: 'array',
+    nullable: true,
+  })
+  @ValidateIf(o => o.detectors !== null)
+  @ValidateNested({each: true})
+  @containsAllDetectors()
+  @Type(() => DetectorSettingsDto)
+  detectors: IDetectorSettings[] | null;
 }
 
 class DeleteItemParams {
@@ -1177,11 +1280,14 @@ export {
   QuizDetailsPayloadValidator,
   BlogDetailsPayloadValidator,
   ReflectionDetailsPayloadValidator,
+  CaseStudyDetailsPayloadValidator,
   VersionModuleSectionItemParams,
   CourseVersionModuleSectionParams,
   CSVItemBody,
   CSVQuizQuestion,
   VersionItemParams,
+  ItemProctoringParams,
+  ItemProctoringBody,
   DeleteItemParams,
   ItemNotFoundErrorResponse,
   ItemDataResponse,
@@ -1205,6 +1311,8 @@ export const ITEM_VALIDATORS = [
   CSVItemBody,
   CSVQuizQuestion,
   VersionItemParams,
+  ItemProctoringParams,
+  ItemProctoringBody,
   DeleteItemParams,
   ItemNotFoundErrorResponse,
   ItemDataResponse,

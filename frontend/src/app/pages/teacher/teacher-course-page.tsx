@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useVideoUserAnalytics } from '@/hooks/hooks';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useUpdateItemProctoring, useUpdateModuleProctoring, useUpdateModuleStudyMode, useUpdateSectionStudyMode, useUpdateItemStudyMode, useVideoUserAnalytics } from '@/hooks/hooks';
+import { StudyModePanel } from '@/components/StudyModePanel';
+import { studyModeState } from '@/utils/studyMode';
 import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, LockOpen, Lock } from 'lucide-react';
-import { useHideItem } from '@/hooks/hooks';
+import { useHideItem, exportCourseQuestionBank } from '@/hooks/hooks';
+import { DetectorChecklist, allDetectorsOff, type DetectorSetting } from '@/components/proctoring-detectors';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 const MAX_DESCRIPTION_LENGTH = 1000;
@@ -39,6 +42,7 @@ import {
   ArrowDown,
   Pencil,
   MessageSquareQuote,
+  Scale,
 } from "lucide-react";
 
 import { useNavigate } from "@tanstack/react-router";
@@ -61,6 +65,8 @@ import ProjectItem from "./components/ProjectItem";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup, SidebarResizablePanel } from "@/components/ui/resizable";
 import FeedbackFormEditor from "./FeedbackFormEditor";
 import ReflectionItemEditor from './components/ReflectionItemEditor';
+import CaseStudyItemEditor from './components/CaseStudyItemEditor';
+import CaseStudyResponsesPanel from './components/CaseStudyResponsesPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/utils/utils";
@@ -101,9 +107,19 @@ const getItemIcon = (type: string) => {
     case "PROJECT": return <FolderKanban className="h-3 w-3" />;
     case "FEEDBACK": return <MessageSquare className="h-3 w-3" />;
     case "REFLECTION": return <NotebookPen className="h-3 w-3" />;
+    case "CASE_STUDY": return <Scale className="h-3 w-3" />;
     default: return null;
   }
 };
+
+// Items (video/quiz/blog) don't carry their own createdAt field, but their
+// Mongo ObjectId does: the first 4 bytes are a big-endian Unix timestamp set
+// at generation time, and item _ids are generated once, at creation.
+function getCreatedAtFromObjectId(id?: string | null): Date | null {
+  if (!id || id.length < 8) return null;
+  const seconds = parseInt(id.substring(0, 8), 16);
+  return Number.isNaN(seconds) ? null : new Date(seconds * 1000);
+}
 
 interface LabelOptions {
   itemId: string;
@@ -146,7 +162,9 @@ function TeacherCourseContent() {
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const invitesRef = useRef<HTMLDivElement | null>(null);
   const [videoTab, setVideoTab] = useState("video");
+  const [caseStudyTab, setCaseStudyTab] = useState("settings");
   const [isReorderEnabled, setIsReorderEnabled] = useState(false);
+  const [isExportingQuestionBank, setIsExportingQuestionBank] = useState(false);
 
 
 
@@ -162,6 +180,19 @@ function TeacherCourseContent() {
   // Use correct keys for course/version IDs
   const courseId = currentCourse?.courseId;
   const versionId = currentCourse?.versionId;
+
+  const handleExportQuestionBank = async () => {
+    if (!courseId || !versionId) return;
+    setIsExportingQuestionBank(true);
+    try {
+      await exportCourseQuestionBank(courseId, versionId);
+      toast.success("Question bank exported");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to export question bank");
+    } finally {
+      setIsExportingQuestionBank(false);
+    }
+  };
 
 
 
@@ -309,6 +340,38 @@ function TeacherCourseContent() {
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({});
 
   const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
+  const [togglingItemProctoringId, setTogglingItemProctoringId] = useState<string | null>(null);
+  const [togglingModuleProctoringId, setTogglingModuleProctoringId] = useState<string | null>(null);
+  // Optimistic value shown the instant a proctoring toggle/checklist is
+  // clicked, before the save round-trip lands -- cleared on settle (success
+  // or failure), which snaps the UI back to real server data either way.
+  const [optimisticItemDetectors, setOptimisticItemDetectors] = useState<{
+    itemId: string;
+    detectors: DetectorSetting[] | null;
+  } | null>(null);
+  const [optimisticModuleDetectors, setOptimisticModuleDetectors] = useState<{
+    moduleId: string;
+    detectors: DetectorSetting[] | null;
+  } | null>(null);
+  // Re-entrancy guards for the two save functions below: the `isBusy` flags
+  // that disable the checklist UI only take effect once React commits the
+  // re-render from setTogglingItem/ModuleProctoringId, one tick after the
+  // click that set them. A second checkbox click landing inside that window
+  // still reads the pre-toggle `value` prop (neither save has resolved yet),
+  // computes its own array without the first click's change, and whichever
+  // save's PUT lands second on the server wins -- silently discarding the
+  // first click. A plain ref is synchronous, so checking it before any
+  // `await` closes that window regardless of render timing.
+  const itemProctoringSaveInFlight = useRef(false);
+  const moduleProctoringSaveInFlight = useRef(false);
+  // Latest detector array queued by a click that landed while a save was
+  // already in flight. `undefined` means "nothing queued" -- distinct from
+  // `null`, which is itself a valid detectors value (clearing an override).
+  // The in-flight save's own loop drains this once it finishes, so a burst
+  // of rapid clicks all eventually land instead of being silently dropped
+  // once the in-flight guard above blocks their own save attempt.
+  const itemProctoringPending = useRef<DetectorSetting[] | null | undefined>(undefined);
+  const moduleProctoringPending = useRef<DetectorSetting[] | null | undefined>(undefined);
 
   // Check if a project already exists in any section
   const hasExistingProject = useMemo(() => {
@@ -476,6 +539,11 @@ function TeacherCourseContent() {
 
 
   const updateItemOptional = useUpdateItemOptional();
+  const updateItemProctoring = useUpdateItemProctoring();
+  const updateModuleProctoring = useUpdateModuleProctoring();
+  const updateModuleStudyMode = useUpdateModuleStudyMode();
+  const updateSectionStudyMode = useUpdateSectionStudyMode();
+  const updateItemStudyMode = useUpdateItemStudyMode();
 
   // Refetch after any success
   useEffect(() => {
@@ -1830,6 +1898,24 @@ function TeacherCourseContent() {
                   </div>
                 </div>
                 <TooltipProvider>
+                  <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-muted-foreground"
+                        onClick={handleExportQuestionBank}
+                        disabled={isExportingQuestionBank || !courseId || !versionId}
+                      >
+                        {isExportingQuestionBank ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                        <span className="sr-only">Export question bank as CSV</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      {isExportingQuestionBank ? "Exporting…" : "Export all quiz questions (CSV)"}
+                    </TooltipContent>
+                  </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -1846,6 +1932,7 @@ function TeacherCourseContent() {
                       {isReorderEnabled ? "Disable Reordering" : "Enable Reordering"}
                     </TooltipContent>
                   </Tooltip>
+                  </div>
                 </TooltipProvider>
               </div>
               <Separator className="opacity-50" />
@@ -2307,6 +2394,34 @@ function TeacherCourseContent() {
                                                           console.error(err);
                                                         });
                                                     }
+                                                    else if (type === "case_study") {
+                                                      createItemAsync({
+                                                        params: {
+                                                          path: {
+                                                            versionId: versionId!,
+                                                            moduleId: module.moduleId,
+                                                            sectionId: section.sectionId,
+                                                          },
+                                                        },
+                                                        body: {
+                                                          type: "CASE_STUDY",
+                                                          name: "Case study",
+                                                          description: "Write a structured response to the case, then judge pairs of peers' responses",
+                                                          caseStudyDetails: {},
+                                                        } as any,
+                                                      })
+                                                        .then(() => {
+                                                          refetchVersion();
+                                                          if (shouldFetchItems) {
+                                                            refetchItems();
+                                                          }
+                                                          toast.success("Case study added");
+                                                        })
+                                                        .catch((err) => {
+                                                          toast.error("Failed to add case study");
+                                                          console.error(err);
+                                                        });
+                                                    }
                                                     else if (type === "csv_upload") {
                                                       setActiveSectionInfo({ moduleId: module.moduleId, sectionId: section.sectionId });
                                                       setShowCSVUpload(true);
@@ -2336,6 +2451,8 @@ function TeacherCourseContent() {
                                                 <option value="feedback">Feedback Form</option>
 
                                                 <option value="reflection">Reflection (peer reviewed)</option>
+
+                                                <option value="case_study">Case Study (peer reviewed)</option>
 
                                                 <option
                                                   value="project"
@@ -2852,6 +2969,271 @@ function TeacherCourseContent() {
                               </div>
                             </div>
                           )}
+                          {selectedEntity.type === "item" && (() => {
+                            const itemId = selectedItemData?.item?._id;
+                            const itemOverride: DetectorSetting[] | null | undefined =
+                              optimisticItemDetectors && optimisticItemDetectors.itemId === itemId
+                                ? optimisticItemDetectors.detectors
+                                : selectedItemData?.item?.proctoringDetectors;
+                            const isOverriding = itemOverride != null;
+                            const isBusy =
+                              updateItemProctoring.isPending && togglingItemProctoringId === itemId;
+                            const saveItemDetectors = async (detectors: DetectorSetting[] | null) => {
+                              if (!versionId || !itemId) return;
+                              // Always show the click immediately, even if a
+                              // save is already in flight -- DetectorChecklist
+                              // recomputes `value` from this on every render,
+                              // so the NEXT click (guarded below) still starts
+                              // from what the user just checked, not a stale
+                              // pre-click snapshot.
+                              setOptimisticItemDetectors({ itemId, detectors });
+                              if (itemProctoringSaveInFlight.current) {
+                                // A save is already running. Earlier this just
+                                // returned here, silently dropping the click --
+                                // confirmed live: 4 rapid checkbox clicks left
+                                // only the first one persisted. Record this as
+                                // the latest desired state instead; the running
+                                // save's own drain loop below picks it up.
+                                itemProctoringPending.current = detectors;
+                                return;
+                              }
+                              itemProctoringSaveInFlight.current = true;
+                              setTogglingItemProctoringId(itemId);
+                              let toSend: DetectorSetting[] | null | undefined = detectors;
+                              while (toSend !== undefined) {
+                                try {
+                                  await updateItemProctoring.mutateAsync({
+                                    params: { path: { versionId, itemId } },
+                                    body: { detectors: toSend },
+                                  });
+                                  // Awaited so isBusy (and the Switch's disabled
+                                  // state) doesn't clear until the new value has
+                                  // actually landed -- otherwise the switch
+                                  // re-enables while still showing the stale
+                                  // checked state, and a click in that gap fires
+                                  // a second save that races the first.
+                                  await refetchItem();
+                                } catch (error) {
+                                  toast.error('Failed to update item proctoring status');
+                                }
+                                // Drain whatever the newest click queued while
+                                // this save was in flight; loop again if one
+                                // landed, otherwise stop.
+                                toSend = itemProctoringPending.current;
+                                itemProctoringPending.current = undefined;
+                              }
+                              // Clears the optimistic value either way: on
+                              // success the last refetch already has the real
+                              // value, on failure this snaps back to whatever
+                              // selectedItemData still says.
+                              setOptimisticItemDetectors(null);
+                              setTogglingItemProctoringId(null);
+                              itemProctoringSaveInFlight.current = false;
+                            };
+                            return (
+                              <div className="flex flex-col gap-2 px-3 py-2 rounded-md border bg-card">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex flex-col gap-0.5">
+                                    <Label className="text-sm font-medium leading-none">
+                                      Proctoring
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      {isOverriding
+                                        ? "Custom detectors for this item"
+                                        : "Inherits the module/course setting"}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={isOverriding}
+                                      onCheckedChange={checked =>
+                                        saveItemDetectors(checked ? allDetectorsOff() : null)
+                                      }
+                                    />
+                                    {isBusy && <Loader2 className="h-3 w-3 animate-spin" />}
+                                  </div>
+                                </div>
+                                {isOverriding && (
+                                  <>
+                                    {/* Not disabled while isBusy: TanStack's
+                                    isPending flickers false between each
+                                    drain-loop iteration (during the await
+                                    refetchItem() gap), which would let a
+                                    disabled Radix control silently swallow
+                                    clicks at the browser level before they
+                                    ever reach the ref-guard/pending queue
+                                    below that's built to handle exactly this
+                                    concurrency. Confirmed live: this caused
+                                    every other rapid click to be lost. */}
+                                    <DetectorChecklist
+                                      value={itemOverride ?? allDetectorsOff()}
+                                      onChange={next => saveItemDetectors(next)}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      Leave all unchecked to disable proctoring entirely for this item.
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })()}
+                          {/* Study mode: read from the live version tree / section item list,
+                              not the selection snapshot, so a save shows up straight away. */}
+                          {(() => {
+                            if (!versionId) return null;
+                            const findModule = (id?: string) => modules.find((m: any) => m.moduleId === id);
+                            if (selectedEntity.type === "module") {
+                              const moduleId = selectedEntity.data?.moduleId;
+                              const mod = findModule(moduleId) ?? selectedEntity.data;
+                              return (
+                                <StudyModePanel
+                                  level="module"
+                                  state={studyModeState(mod, [])}
+                                  isPending={updateModuleStudyMode.isPending}
+                                  save={studyModeEnabled => updateModuleStudyMode.mutateAsync({ versionId, moduleId, studyModeEnabled })}
+                                />
+                              );
+                            }
+                            if (selectedEntity.type === "section") {
+                              const sectionId = selectedEntity.data?.sectionId;
+                              const mod =
+                                findModule(selectedEntity.parentIds?.moduleId) ??
+                                modules.find((m: any) => (m.sections || []).some((sec: any) => sec.sectionId === sectionId));
+                              if (!mod) return null;
+                              const sec = (mod.sections || []).find((x: any) => x.sectionId === sectionId) ?? selectedEntity.data;
+                              return (
+                                <StudyModePanel
+                                  level="section"
+                                  state={studyModeState(sec, [mod])}
+                                  isPending={updateSectionStudyMode.isPending}
+                                  save={studyModeEnabled =>
+                                    updateSectionStudyMode.mutateAsync({ versionId, moduleId: mod.moduleId, sectionId, studyModeEnabled })
+                                  }
+                                />
+                              );
+                            }
+                            if (selectedEntity.type === "item" && activeSectionInfo) {
+                              const itemId = selectedEntity.data?._id;
+                              const mod = findModule(activeSectionInfo.moduleId);
+                              const sec = (mod?.sections || []).find((x: any) => x.sectionId === activeSectionInfo.sectionId);
+                              const refs: any[] = (currentSectionItems as any)?.items || (Array.isArray(currentSectionItems) ? currentSectionItems : []);
+                              const ref = refs.find(r => (r._id?.toString?.() ?? r._id) === itemId);
+                              if (!itemId) return null;
+                              return (
+                                <StudyModePanel
+                                  level="lesson"
+                                  state={studyModeState(ref, [sec, mod])}
+                                  isPending={updateItemStudyMode.isPending}
+                                  save={studyModeEnabled => updateItemStudyMode.mutateAsync({ versionId, itemId, studyModeEnabled })}
+                                />
+                              );
+                            }
+                            return null;
+                          })()}
+                          {selectedEntity.type === "module" && (() => {
+                            const moduleId = selectedEntity.data?.moduleId;
+                            const moduleOverride: DetectorSetting[] | null | undefined =
+                              optimisticModuleDetectors && optimisticModuleDetectors.moduleId === moduleId
+                                ? optimisticModuleDetectors.detectors
+                                : selectedEntity.data?.proctoringDetectors;
+                            const isOverriding = moduleOverride != null;
+                            const isBusy =
+                              updateModuleProctoring.isPending && togglingModuleProctoringId === moduleId;
+                            const saveModuleDetectors = async (detectors: DetectorSetting[] | null) => {
+                              if (!versionId || !moduleId) return;
+                              // Always show the click immediately, even if a
+                              // save is already in flight -- DetectorChecklist
+                              // recomputes `value` from this on every render,
+                              // so the NEXT click (guarded below) still starts
+                              // from what the user just checked, not a stale
+                              // pre-click snapshot.
+                              setOptimisticModuleDetectors({ moduleId, detectors });
+                              if (moduleProctoringSaveInFlight.current) {
+                                // A save is already running. Earlier this just
+                                // returned here, silently dropping the click --
+                                // confirmed live: 4 rapid checkbox clicks left
+                                // only the first one persisted. Record this as
+                                // the latest desired state instead; the running
+                                // save's own drain loop below picks it up.
+                                moduleProctoringPending.current = detectors;
+                                return;
+                              }
+                              moduleProctoringSaveInFlight.current = true;
+                              setTogglingModuleProctoringId(moduleId);
+                              let toSend: DetectorSetting[] | null | undefined = detectors;
+                              while (toSend !== undefined) {
+                                const sending = toSend;
+                                try {
+                                  await updateModuleProctoring.mutateAsync({
+                                    params: { path: { versionId, moduleId } },
+                                    body: { detectors: sending },
+                                  });
+                                  // selectedEntity.data is a plain snapshot taken at selection
+                                  // time, not a live query result like selectedItemData --
+                                  // refetchVersion() alone updates initialModules (the tree)
+                                  // but not this detail panel, so it would keep showing the
+                                  // stale value until the module was re-selected. Update it
+                                  // directly.
+                                  setSelectedEntity((prev: any) =>
+                                    prev?.type === "module" && prev.data?.moduleId === moduleId
+                                      ? { type: "module", data: { ...prev.data, proctoringDetectors: sending ?? undefined } }
+                                      : prev
+                                  );
+                                  await refetchVersion();
+                                } catch (error) {
+                                  toast.error('Failed to update module proctoring status');
+                                }
+                                // Drain whatever the newest click queued while
+                                // this save was in flight; loop again if one
+                                // landed, otherwise stop.
+                                toSend = moduleProctoringPending.current;
+                                moduleProctoringPending.current = undefined;
+                              }
+                              // On failure this drops back to selectedEntity.data's
+                              // original value since it was never overwritten above.
+                              setOptimisticModuleDetectors(null);
+                              setTogglingModuleProctoringId(null);
+                              moduleProctoringSaveInFlight.current = false;
+                            };
+                            return (
+                              <div className="flex flex-col gap-2 px-3 py-2 rounded-md border bg-card">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex flex-col gap-0.5">
+                                    <Label className="text-sm font-medium leading-none">
+                                      Proctoring
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">
+                                      {isOverriding
+                                        ? "Custom detectors for items in this module"
+                                        : "Inherits the course's universal setting"}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={isOverriding}
+                                      onCheckedChange={checked =>
+                                        saveModuleDetectors(checked ? allDetectorsOff() : null)
+                                      }
+                                    />
+                                    {isBusy && <Loader2 className="h-3 w-3 animate-spin" />}
+                                  </div>
+                                </div>
+                                {isOverriding && (
+                                  <>
+                                    {/* Not disabled while isBusy -- see the
+                                    matching comment on the item panel above. */}
+                                    <DetectorChecklist
+                                      value={moduleOverride ?? allDetectorsOff()}
+                                      onChange={next => saveModuleDetectors(next)}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      Leave all unchecked to disable proctoring entirely for items in this module.
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {/* <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
                           {selectedEntity.type.charAt(0).toUpperCase() + selectedEntity.type.slice(1)}
                         </Badge> */}
@@ -2926,6 +3308,18 @@ function TeacherCourseContent() {
                             {selectedEntity.data?.updatedAt
                               ? new Date(selectedEntity.data.updatedAt).toLocaleString()
                               : "N/A"}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedEntity.type === "item" && (
+                        <div className="flex gap-6 text-xs text-muted-foreground">
+                          <div>
+                            <span className="font-semibold">Created:</span>{" "}
+                            {(() => {
+                              const createdAt = getCreatedAtFromObjectId(selectedItemData?.item?._id);
+                              return createdAt ? createdAt.toLocaleString() : "N/A";
+                            })()}
                           </div>
                         </div>
                       )}
@@ -3502,7 +3896,47 @@ function TeacherCourseContent() {
                             refetchItems();
                             refetchItem();
                           }}
+                          onDelete={() => {
+                            deleteItemAsync({
+                              params: { path: { courseId: courseId || "", itemsGroupId: selectedEntity.parentIds?.itemsGroupId || "", itemId: selectedEntity.data._id } }
+                            }).then(() => {
+                              refetchVersion();
+                              refetchItems();
+                            });
+                            setSelectedEntity(null);
+                          }}
                         />
+                      )}
+
+                      {selectedEntity.type === "item" && selectedEntity.data.type === "CASE_STUDY" && (
+                        <Tabs value={caseStudyTab} onValueChange={setCaseStudyTab} className="mb-4">
+                          <TabsList>
+                            <TabsTrigger value="settings">Settings</TabsTrigger>
+                            <TabsTrigger value="responses">Responses</TabsTrigger>
+                          </TabsList>
+                          {caseStudyTab === "settings" && (
+                            <CaseStudyItemEditor
+                              itemId={selectedEntity.data._id}
+                              courseId={courseId!}
+                              versionId={versionId!}
+                              name={selectedEntity.data.name}
+                              description={selectedEntity.data.description}
+                              details={(selectedItemData as any)?.details}
+                              onSaved={() => {
+                                refetchVersion();
+                                refetchItems();
+                                refetchItem();
+                              }}
+                            />
+                          )}
+                          {caseStudyTab === "responses" && (
+                            <CaseStudyResponsesPanel
+                              courseId={courseId!}
+                              versionId={versionId!}
+                              itemId={selectedEntity.data._id}
+                            />
+                          )}
+                        </Tabs>
                       )}
 
                       {selectedEntity.type === "item" && selectedEntity.data.type === "FEEDBACK" && (

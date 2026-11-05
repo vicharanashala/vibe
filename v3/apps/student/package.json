@@ -1,0 +1,42 @@
+{
+  "name": "@vibe/student",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "name": "student"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.8.0",
+    "@fontsource-variable/aleo": "^5.3.0",
+    "@mediapipe/tasks-audio": "0.10.22-rc.20250304",
+    "@shadcn/react": "^0.3.1",
+    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-router": "^1.170.41",
+    "@tensorflow-models/face-detection": "^1.0.3",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-backend-webgl": "^4.22.0",
+    "@tensorflow/tfjs-core": "^4.22.0",
+    "@tiptap/extension-image": "^3.32.0",
+    "@tiptap/extensions": "^3.32.0",
+    "@tiptap/pm": "^3.32.0",
+    "@tiptap/react": "^3.32.0",
+    "@tiptap/starter-kit": "^3.32.0",
+    "@vibe/api": "workspace:*",
+    "@vibe/proctoring": "workspace:*",
+    "@vladmandic/face-api": "^1.7.15",
+    "boring-avatars": "^2.0.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cn": "^0.4.0",
+    "dompurify": "^3.4.17",
+    "firebase": "^12.19.0",
+    "lucide-react": "^1.52.0",
+    "marked": "^18.1.1",
+    "motion": "^14.0.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.7.0",
+    "usehooks-ts": "^3.1.1"
+  }
+}

@@ -133,6 +133,9 @@ export class CourseSettingController {
       randomizeItems,
       crowdsourcedQuestionSubmissionEnabled,
       isLensEnabled,
+      caseStudiesEnabled,
+      caseStudyStrictUnlockEnabled,
+      caseStudyWeakStreakThreshold,
     } = body;
     const userId = user._id.toString();
 
@@ -149,6 +152,9 @@ export class CourseSettingController {
       userId,
       crowdsourcedQuestionSubmissionEnabled ?? false,
       isLensEnabled ?? true,
+      caseStudiesEnabled ?? false,
+      caseStudyStrictUnlockEnabled ?? true,
+      caseStudyWeakStreakThreshold ?? 3,
     );
 
     setAuditTrail(req, {
@@ -171,6 +177,9 @@ export class CourseSettingController {
           seekForwardEnabled: seekForwardEnabled,
           crowdsourcedQuestionSubmissionEnabled:
             crowdsourcedQuestionSubmissionEnabled ?? false,
+          caseStudiesEnabled: caseStudiesEnabled ?? false,
+          caseStudyStrictUnlockEnabled: caseStudyStrictUnlockEnabled ?? true,
+          caseStudyWeakStreakThreshold: caseStudyWeakStreakThreshold ?? 3,
         },
       },
       outcome: {

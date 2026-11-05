@@ -697,23 +697,29 @@ export class InviteService extends BaseService {
       acceptedAt: date,
     };
 
-    await this.inviteRepo.updateInvite(inviteId, updatedPayload);
-
-    // If existing user, enroll them
+    // If existing user, enroll them. Status write and enrollment share one
+    // transaction so a failed enrollment leaves the invite un-ACCEPTED
+    // (retriable) instead of stranding it as accepted-but-not-enrolled.
     if (!invite.isNewUser && !invite.isAlreadyEnrolled) {
       const user = await this.userRepo.findByEmail(invite.email);
       if (!user) {
         throw new NotFoundError('User not found');
       }
-      // Enroll user in course
-      const result = await this.enrollmentService.enrollUser(
-        user._id.toString(),
-        invite.courseId.toString(),
-        invite.courseVersionId.toString(),
-        invite.role,
-        true,
-        invite.cohortId?.toString(),
-      );
+
+      const result = await this._withTransaction(async session => {
+        await this.inviteRepo.updateInvite(inviteId, updatedPayload, session);
+        return this.enrollmentService.enrollUser(
+          user._id.toString(),
+          invite.courseId.toString(),
+          invite.courseVersionId.toString(),
+          invite.role,
+          true,
+          invite.cohortId?.toString(),
+          undefined,
+          session,
+        );
+      });
+
       if (!result) {
         throw new InternalServerError('Failed to enroll user in course');
       }
@@ -726,6 +732,8 @@ export class InviteService extends BaseService {
         message: `You have been successfully enrolled in the course as ${result.role}.`,
       };
     }
+
+    await this.inviteRepo.updateInvite(inviteId, updatedPayload);
 
     // If new user, message that their invite acceptance as has been acknowledged please sign up
     if (invite.isNewUser) {

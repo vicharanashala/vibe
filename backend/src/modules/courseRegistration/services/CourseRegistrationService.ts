@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import {AutoApprovalMode, resolveMode} from '../utils/autoApproval.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {inject, injectable} from 'inversify';
 import {
@@ -694,6 +695,7 @@ export class CourseRegistrationService extends BaseService {
     isActive: boolean;
     registrationsAutoApproved?: boolean;
     autoapproval_emails?: string[];
+    autoApprovalMode: AutoApprovalMode;
     cohortSettings?: ObjectId[];
     cohortSettingDetails?: any[];
   }> {
@@ -721,6 +723,7 @@ export class CourseRegistrationService extends BaseService {
             isActive: true,
             registrationsAutoApproved: false,
             autoapproval_emails: [],
+            autoApprovalMode: 'EVERYONE',
             cohortSettings: [],
             cohortSettingDetails: [],
           };
@@ -736,6 +739,7 @@ export class CourseRegistrationService extends BaseService {
             );
             cohortSettingDetails.push({
               ...detail,
+              autoApprovalMode: resolveMode(detail),
               cohortId: detail?.cohortId?.toString(),
               courseVersionId: detail.courseVersionId.toString(),
             });
@@ -747,6 +751,7 @@ export class CourseRegistrationService extends BaseService {
           isActive,
           registrationsAutoApproved,
           autoapproval_emails,
+          autoApprovalMode,
           cohortSettings,
         } = courseSettings.settings?.registration || {};
 
@@ -775,6 +780,10 @@ export class CourseRegistrationService extends BaseService {
           isActive: isActive ?? true,
           registrationsAutoApproved,
           autoapproval_emails,
+          autoApprovalMode: resolveMode({
+            autoApprovalMode,
+            autoapproval_emails,
+          }),
           cohortSettings: cohortSettings || [],
           cohortSettingDetails: cohortSettingDetails,
         };
@@ -795,6 +804,7 @@ export class CourseRegistrationService extends BaseService {
       isActive?: boolean;
       registrationsAutoApproved?: boolean;
       autoapproval_emails?: string[];
+      autoApprovalMode?: AutoApprovalMode;
     },
   ) {
     return this._withTransaction(async session => {
@@ -824,6 +834,7 @@ export class CourseRegistrationService extends BaseService {
             isActive: schemas.isActive ?? true,
             registrationsAutoApproved: schemas.registrationsAutoApproved,
             autoapproval_emails: schemas.autoapproval_emails,
+            autoApprovalMode: schemas.autoApprovalMode,
           },
           session,
         );
@@ -842,6 +853,7 @@ export class CourseRegistrationService extends BaseService {
       isActive?: boolean;
       registrationsAutoApproved?: boolean;
       autoapproval_emails?: string[];
+      autoApprovalMode: AutoApprovalMode;
       cohortSettings?: ObjectId[];
     },
     cohortId?: string,
@@ -885,6 +897,7 @@ export class CourseRegistrationService extends BaseService {
               cohortSetting,
               schemas.registrationsAutoApproved ?? false,
               schemas.autoapproval_emails ?? [],
+              schemas.autoApprovalMode,
               session,
             );
             return await this.settingsRepo.readCourseSettings(
@@ -898,6 +911,7 @@ export class CourseRegistrationService extends BaseService {
               cohortId,
               schemas.registrationsAutoApproved ?? false,
               schemas.autoapproval_emails ?? [],
+              schemas.autoApprovalMode,
               session,
             );
             return await this.settingsRepo.updateCohortSettings(
@@ -923,6 +937,7 @@ export class CourseRegistrationService extends BaseService {
             isActive: schemas.isActive ?? true,
             registrationsAutoApproved: schemas.registrationsAutoApproved,
             autoapproval_emails: schemas.autoapproval_emails,
+            autoApprovalMode: schemas.autoApprovalMode,
           },
           session,
         );

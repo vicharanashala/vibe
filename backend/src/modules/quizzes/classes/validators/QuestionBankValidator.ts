@@ -93,6 +93,26 @@ class GetQuestionBankByIdParams {
   })
   questionBankId: string;
 }
+class ExportCourseQuestionBankParams {
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the course',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c85',
+  })
+  courseId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  @JSONSchema({
+    description: 'ID of the course version whose quizzes are exported',
+    type: 'string',
+    example: '60d21b4667d0d8992e610c86',
+  })
+  versionId: string;
+}
+
 class QuestionBankAndQuestionParams {
   @IsMongoId()
   @IsNotEmpty()
@@ -272,6 +292,7 @@ class QuestionBankRef implements IQuestionBankRef {
 export {
   CreateQuestionBankBody,
   GetQuestionBankByIdParams,
+  ExportCourseQuestionBankParams,
   CreateQuestionBankResponse,
   QuestionBankAndQuestionParams,
   QuestionBankResponse,
@@ -283,6 +304,7 @@ export {
 export const QUESTIONBANK_VALIDATORS = [
   CreateQuestionBankBody,
   GetQuestionBankByIdParams,
+  ExportCourseQuestionBankParams,
   CreateQuestionBankResponse,
   QuestionBankAndQuestionParams,
   QuestionBankResponse,

@@ -50,7 +50,7 @@ import { useCourseStore } from "@/store/course-store"
 import type { EnrolledUser, EnrollmentDetails } from "@/types/course.types"
 import { useAuthStore } from "@/store/auth-store"
 import { EnrollmentRole } from "@/types/invite.types"
-import { generateExcel, generateStudentContactsExcel, type ExcelExportOptions } from "@/lib/excel-export"
+import { generateExcel, generateStudentContactsExcel, generateStudentRegistrationDetailsCsv, type ExcelExportOptions, type StudentRegistrationDetailData } from "@/lib/excel-export"
 import {
   downloadGuruSetuFeedbackExport,
   isGuruSetuPilotCourse,
@@ -82,6 +82,32 @@ interface IGradingResult {
   gradingStatus: 'PENDING' | 'PASSED' | 'FAILED' | any;
   gradedAt?: string;
   gradedBy?: string;
+}
+
+// Courses that show a raw "completed items / total items" count in the
+// enrollments table instead of the usual completion-percentage bar. The real
+// total comes live from /progress-detail's completedItemsTotal, which the
+// backend pairs with the same formula used for completedItemsCount for that
+// course (plain item count for most courses; feedback-forms-submitted count
+// for the Guru-Setu-override courses) -- so the numerator and denominator can
+// never represent different things. fallbackTotal is only a loading-state
+// placeholder shown before that fetch resolves, or if the course has no
+// enrolled student yet to query; it is not kept in sync automatically. Add an
+// entry here (and nowhere else on the frontend) to extend this display to
+// another course -- matches #1441's course+version pair shape.
+const ITEM_COUNT_PROGRESS_COURSES: ReadonlyArray<{
+  courseId: string;
+  versionId: string;
+  fallbackTotal: number;
+}> = [
+  {courseId: '6981df886e100cfe04f9c4ad', versionId: '6981df886e100cfe04f9c4ae', fallbackTotal: 47}, // Gurusetu Pilot (FDP for Faculty) -- feedback forms, not all items
+  {courseId: '6a9a7eb5de600629c9fb9405', versionId: '6a9a7eb5de600629c9fb9406', fallbackTotal: 18}, // GuruSetu Psychological Literacy Special Pilot -- feedback forms, not all items (now on the same Guru Setu override as FDP)
+];
+
+function findItemCountProgressCourse(courseId?: string | null, versionId?: string | null) {
+  return ITEM_COUNT_PROGRESS_COURSES.find(
+    c => c.courseId === courseId && c.versionId === versionId,
+  );
 }
 
 // Helper function to generate default names for items with empty names
@@ -438,6 +464,7 @@ function CourseEnrollments() {
   const [isSearching, setIsSearching] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingStudentContacts, setIsExportingStudentContacts] = useState(false);
+  const [isExportingStudentRegistrationDetails, setIsExportingStudentRegistrationDetails] = useState(false);
   const [isExportingGuruSetuFeedback, setIsExportingGuruSetuFeedback] = useState(false);
   const [quizExportOptions, setQuizExportOptions] = useState<ExcelExportOptions>({
     includeAttempts: true,
@@ -623,6 +650,7 @@ function CourseEnrollments() {
   const [activeCount, setActiveCount] = useState(0)
   const [inactiveCount, setInactiveCount] = useState(0)
   const [cohort, setCohort] = useState<string | null>(null);
+  const [cohortFilterSearch, setCohortFilterSearch] = useState("");
   const {
     data: quizScores,
     isLoading: isLoadingQuizScores,
@@ -658,6 +686,23 @@ function CourseEnrollments() {
 
   // const studentEnrollments = enrollmentsData?.enrollments || [];
   const studentEnrollments = enrollmentsData?.enrollments || []
+
+  // Dynamic total for courses that show "Completed Items" (X/Y) instead of a
+  // percentage bar. Y comes from completedItemsTotal in an enrolled student's
+  // live /progress-detail response -- the backend pairs it with the same
+  // formula used for that student's completedItemsCount, so the two numbers
+  // always describe the same thing (see EnrollmentService.getStudentProgressDetail).
+  const itemCountProgressCourse = findItemCountProgressCourse(courseId, versionId);
+  const itemCountDenominatorStudentId =
+    studentEnrollments[0]?.user?._id || studentEnrollments[0]?.user?.id;
+  const { data: itemCountProgressDetail } = useStudentProgressDetail(
+    itemCountDenominatorStudentId,
+    courseId,
+    versionId,
+    !!itemCountProgressCourse && !!itemCountDenominatorStudentId,
+  );
+  const itemCountTotal =
+    itemCountProgressDetail?.completedItemsTotal ?? itemCountProgressCourse?.fallbackTotal;
   const cohortFilteredEnrollments = cohort
   ? studentEnrollments.filter((enrollment: any) => {
       return String(enrollment.cohortId) === String(cohort);
@@ -889,7 +934,7 @@ function CourseEnrollments() {
     debouncedSearch,
     sortBy,
     sortOrder,
-    isExportingStudentContacts,
+    isExportingStudentContacts || isExportingStudentRegistrationDetails,
     'STUDENT',
     statusTab,
     cohort,
@@ -975,6 +1020,59 @@ function CourseEnrollments() {
     }
   };
 
+  const handleExportStudentRegistrationDetails = async () => {
+    if (!courseId || !versionId) {
+      toast.error('Course ID or Version ID is missing');
+      return;
+    }
+
+    if (!totalDocuments) {
+      toast.warning('No students found to export');
+      return;
+    }
+
+    const enrollments = exportEnrollmentsData?.enrollments || [];
+
+    if (!enrollments.length) {
+      toast.warning('No students found to export');
+      return;
+    }
+
+    try {
+      const formattedData: StudentRegistrationDetailData[] = enrollments.map((enrollment: any) => ({
+        name:
+          `${enrollment?.user?.firstName ?? ''} ${enrollment?.user?.lastName ?? ''}`.trim() ||
+          'Unknown User',
+        email: enrollment?.user?.email || '',
+        gender: enrollment?.user?.gender || '',
+        country: enrollment?.user?.country || '',
+        state: enrollment?.user?.state || '',
+        city: enrollment?.user?.city || '',
+      }));
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '_');
+      const statusLabel = enrollmentTab === 'ACTIVE' ? 'active' : 'inactive';
+      const courseLabel = sanitizeFilenamePart(course?.name || 'course');
+      const cohortName = cohort
+        ? (version as any)?.cohortDetails?.find((item: any) => item.id === cohort)?.name
+        : null;
+      const cohortLabel = cohortName
+        ? `${sanitizeFilenamePart(cohortName)}_`
+        : '';
+      const filename = `${courseLabel}_${cohortLabel}${statusLabel}_student_registration_details_${timestamp}.csv`;
+
+      generateStudentRegistrationDetailsCsv(formattedData, filename);
+      toast.success('Student registration details exported successfully');
+    } catch (error) {
+      console.error('Error exporting student registration details:', error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to export student registration details',
+      );
+    }
+  };
+
   const handleExportGuruSetuFeedback = async () => {
     if (!courseId || !versionId) {
       toast.error('Course ID or Version ID is missing');
@@ -1039,6 +1137,12 @@ function CourseEnrollments() {
       handleExportStudentContacts().finally(() => setIsExportingStudentContacts(false));
     }
   }, [isExportingStudentContacts, isLoadingStudentContacts, exportEnrollmentsData]);
+
+  useEffect(() => {
+    if (isExportingStudentRegistrationDetails && !isLoadingStudentContacts) {
+      handleExportStudentRegistrationDetails().finally(() => setIsExportingStudentRegistrationDetails(false));
+    }
+  }, [isExportingStudentRegistrationDetails, isLoadingStudentContacts, exportEnrollmentsData]);
 
   const handleResetProgress = (user: EnrolledUser) => {
     setSelectedUser(user)
@@ -1626,11 +1730,14 @@ function CourseEnrollments() {
                   sortOrder={sortOrder}
                   isLoadingQuizScores={isLoadingQuizScores}
                   setIsExporting={setIsExporting}
-                  isExportingStudentContacts={isLoadingStudentContacts}
+                  isExportingStudentContacts={isExportingStudentContacts && isLoadingStudentContacts}
                   setIsExportingStudentContacts={setIsExportingStudentContacts}
+                  isExportingStudentRegistrationDetails={isExportingStudentRegistrationDetails && isLoadingStudentContacts}
+                  setIsExportingStudentRegistrationDetails={setIsExportingStudentRegistrationDetails}
                   isExportingGuruSetuFeedback={isExportingGuruSetuFeedback}
                   onExportGuruSetuFeedback={handleExportGuruSetuFeedback}
                   isGuruSetuCourse={isGuruSetuCourse}
+                  itemCountTotal={itemCountTotal}
                   unenrollMutation={unenrollMutation}
                   changeStatusMutation={changeStatusMutation}
                   bulkChangeStatusMutation={bulkChangeStatusMutation}
@@ -1653,6 +1760,8 @@ function CourseEnrollments() {
                   version={version}
                   cohort={cohort}
                   setCohort={setCohort}
+                  cohortFilterSearch={cohortFilterSearch}
+                  setCohortFilterSearch={setCohortFilterSearch}
                   courseId= {courseId}
                 />
               )}
@@ -1671,11 +1780,14 @@ function CourseEnrollments() {
                   sortOrder={sortOrder}
                   isLoadingQuizScores={isLoadingQuizScores}
                   setIsExporting={setIsExporting}
-                  isExportingStudentContacts={isLoadingStudentContacts}
+                  isExportingStudentContacts={isExportingStudentContacts && isLoadingStudentContacts}
                   setIsExportingStudentContacts={setIsExportingStudentContacts}
+                  isExportingStudentRegistrationDetails={isExportingStudentRegistrationDetails && isLoadingStudentContacts}
+                  setIsExportingStudentRegistrationDetails={setIsExportingStudentRegistrationDetails}
                   isExportingGuruSetuFeedback={isExportingGuruSetuFeedback}
                   onExportGuruSetuFeedback={handleExportGuruSetuFeedback}
                   isGuruSetuCourse={isGuruSetuCourse}
+                  itemCountTotal={itemCountTotal}
                   unenrollMutation={unenrollMutation}
                   changeStatusMutation={changeStatusMutation}
                   bulkChangeStatusMutation={bulkChangeStatusMutation}
@@ -1712,6 +1824,8 @@ function CourseEnrollments() {
                   version={version}
                   cohort={cohort}
                   setCohort={setCohort}
+                  cohortFilterSearch={cohortFilterSearch}
+                  setCohortFilterSearch={setCohortFilterSearch}
                 />
               )}
             </div>
@@ -3018,9 +3132,15 @@ interface EnrollmentsTableProps {
   setIsExporting: (exporting: boolean) => void;
   isExportingStudentContacts: boolean;
   setIsExportingStudentContacts: (exporting: boolean) => void;
+  isExportingStudentRegistrationDetails: boolean;
+  setIsExportingStudentRegistrationDetails: (exporting: boolean) => void;
   isExportingGuruSetuFeedback: boolean;
   onExportGuruSetuFeedback: () => void;
   isGuruSetuCourse: boolean;
+  // Present (and not undefined) only for courses in ITEM_COUNT_PROGRESS_COURSES --
+  // its mere presence, not a separate boolean, is what switches the Progress
+  // column from a percentage bar to "completed/total" item counts.
+  itemCountTotal?: number;
   quizExportOptions: ExcelExportOptions;
   setQuizExportOptions: Dispatch<SetStateAction<ExcelExportOptions>>;
   unenrollMutation: any;
@@ -3046,6 +3166,8 @@ interface EnrollmentsTableProps {
   version: any;
   cohort: string | null;
   setCohort: (cohort: string | null) => void;
+  cohortFilterSearch: string;
+  setCohortFilterSearch: (search: string) => void;
   courseId: string | undefined
 }
 
@@ -3064,9 +3186,12 @@ function EnrollmentsTable({
   setIsExporting,
   isExportingStudentContacts,
   setIsExportingStudentContacts,
+  isExportingStudentRegistrationDetails,
+  setIsExportingStudentRegistrationDetails,
   isExportingGuruSetuFeedback,
   onExportGuruSetuFeedback,
   isGuruSetuCourse,
+  itemCountTotal,
   quizExportOptions,
   setQuizExportOptions,
   unenrollMutation,
@@ -3092,6 +3217,8 @@ function EnrollmentsTable({
   version,
   cohort,
   setCohort,
+  cohortFilterSearch,
+  setCohortFilterSearch,
   courseId
 }: EnrollmentsTableProps) {
   const isInactiveTab = enrollmentTab === "INACTIVE"
@@ -3172,7 +3299,7 @@ function EnrollmentsTable({
           </Button> */}
 
           {(version as any)?.cohortDetails?.length > 0 && (
-            <DropdownMenu>
+            <DropdownMenu onOpenChange={(open) => { if (!open) setCohortFilterSearch(""); }}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
@@ -3182,7 +3309,20 @@ function EnrollmentsTable({
                   {cohort ? (version as any).cohortDetails.find((c: any) => c.id === cohort)?.name : "Select Cohort"}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              <DropdownMenuContent className="max-h-80 overflow-y-auto">
+                {(version as any).cohortDetails.length > 8 && (
+                  <div className="p-1">
+                    <Input
+                      placeholder="Search cohorts..."
+                      value={cohortFilterSearch}
+                      onChange={(e) => setCohortFilterSearch(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      className="h-8"
+                      autoFocus
+                    />
+                  </div>
+                )}
                 <DropdownMenuRadioGroup
                   value={cohort ?? ""}
                   onValueChange={(id) => {
@@ -3194,14 +3334,19 @@ function EnrollmentsTable({
                     onClick={() => setCohort(null)}>
                     All Cohorts
                   </DropdownMenuRadioItem>
-                  {(version as any)?.cohortDetails?.map((cohort: any) => (
-                    <DropdownMenuRadioItem
-                      key={cohort.id}
-                      value={cohort.id}
-                    >
-                      {cohort.name}
-                    </DropdownMenuRadioItem>
-                  ))}
+                  {(version as any).cohortDetails
+                    .filter((c: any) => c.name.toLowerCase().includes(cohortFilterSearch.toLowerCase()))
+                    .map((cohort: any) => (
+                      <DropdownMenuRadioItem
+                        key={cohort.id}
+                        value={cohort.id}
+                      >
+                        {cohort.name}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  {cohortFilterSearch && !(version as any).cohortDetails.some((c: any) => c.name.toLowerCase().includes(cohortFilterSearch.toLowerCase())) && (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No cohorts match "{cohortFilterSearch}"</div>
+                  )}
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -3236,7 +3381,16 @@ function EnrollmentsTable({
                 )}
               </DropdownMenuItem>
 
-              <DropdownMenuItem onClick={() => setIsExportingStudentContacts(true)} disabled={isExportingStudentContacts || enrollmentsLoading || isSearching}>
+              <DropdownMenuItem onClick={() => setIsExportingStudentRegistrationDetails(true)} disabled={isExportingStudentContacts || isExportingStudentRegistrationDetails || enrollmentsLoading || isSearching}>
+                {isExportingStudentRegistrationDetails ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                <span>{isExportingStudentRegistrationDetails ? "Exporting..." : "Export Student Registration Details"}</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => setIsExportingStudentContacts(true)} disabled={isExportingStudentContacts || isExportingStudentRegistrationDetails || enrollmentsLoading || isSearching}>
                 {isExportingStudentContacts ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -3354,13 +3508,13 @@ function EnrollmentsTable({
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
-                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
+                        { key: "progress", label: `${itemCountTotal !== undefined ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
-                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
+                        { key: "progress", label: `${itemCountTotal !== undefined ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -3441,13 +3595,13 @@ function EnrollmentsTable({
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
                         { key: "unenrolledAt", label: "Unenrolled", className: "w-[120px]" },
-                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
+                        { key: "progress", label: `${itemCountTotal !== undefined ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ]
                       : [
                         { key: "name", label: "Student", className: "pl-6 w-[300px]" },
                         { key: "enrollmentDate", label: "Enrolled", className: "w-[120px]" },
-                        { key: "progress", label: `${courseId === "6981df886e100cfe04f9c4ad" ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
+                        { key: "progress", label: `${itemCountTotal !== undefined ? "Completed Items" :"Completion Percentage"}`, className: "w-[200px]" },
                         { key: "assignedTimeSlot", label: "Assigned Time Slot", className: "w-[200px]" },
                       ];
                     return columns.map(({ key, label, className }) => (
@@ -3587,7 +3741,7 @@ function EnrollmentsTable({
 
                       {/* Progress */}
                       <TableCell className="py-6">
-                        {courseId === "6981df886e100cfe04f9c4ad" ? (`${enrollment.completedItemsCount}/30`) : <EnrollmentProgress progress={Math.min(enrollment.progress ?? 0, 100)} />}
+                        {itemCountTotal !== undefined ? (`${enrollment.completedItemsCount}/${itemCountTotal}`) : <EnrollmentProgress progress={Math.min(enrollment.progress ?? 0, 100)} />}
                       </TableCell>
 
                       {/* Assigned Time Slot */}

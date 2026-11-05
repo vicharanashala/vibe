@@ -1,4 +1,7 @@
-import {IUserRepository} from '#shared/database/interfaces/IUserRepository.js';
+import {
+  IUserRepository,
+  UserNameAndEmail,
+} from '#shared/database/interfaces/IUserRepository.js';
 import {IUser} from '#shared/interfaces/models.js';
 import {instanceToPlain, plainToInstance} from 'class-transformer';
 import {injectable, inject} from 'inversify';
@@ -40,7 +43,60 @@ export class UserRepository implements IUserRepository {
   private async init(): Promise<void> {
     if (!this.usersCollection) {
       this.usersCollection = await this.db.getCollection<IUser>('users');
-      this.usersCollection.createIndex({email: 1, firebaseUID: 1});
+      this.usersCollection
+        .createIndex({email: 1, firebaseUID: 1})
+        .catch(err =>
+          console.error('Failed to create users email+firebaseUID index:', err),
+        );
+      // create()'s upsert (findOneAndUpdate + $setOnInsert, keyed on
+      // firebaseUID) only prevents concurrent duplicate inserts if the
+      // database actually enforces uniqueness -- without this index, MongoDB
+      // has no reason to serialize concurrent upserts matching the same
+      // filter, and each one just inserts its own document. Confirmed live:
+      // 10 concurrent first-logins for one brand-new Google SSO user (a real
+      // SPA's normal burst of parallel authenticated requests on first load)
+      // created 3 separate user documents sharing one firebaseUID before this
+      // index existed.
+      // .catch(), not await: if the database already has pre-existing
+      // duplicate firebaseUID documents (the exact state this fix targets),
+      // the build fails with E11000 -- confirmed live that an un-awaited,
+      // unhandled rejection here crashes the whole process on startup
+      // (Node's default unhandledRejection behavior). Catching logs it
+      // instead so the app keeps serving existing users while the
+      // duplicates get cleaned up server-side.
+      // googleSignup()'s check-then-create gates on email FIRST, before it
+      // ever checks firebaseUID -- so the same "one student, multiple
+      // accounts" race this file's firebaseUID index closes is still fully
+      // open on the email dimension: two concurrent requests with the SAME
+      // email but DIFFERENT firebaseUIDs (e.g. an existing email/password
+      // account's first-ever "Sign in with Google" click from two tabs)
+      // both pass findByEmail/findByFirebaseUID before either has been
+      // created, and create()'s upsert is keyed on firebaseUID, so it can't
+      // self-heal a conflict on email the way it does for firebaseUID.
+      // Confirmed live: 10 such concurrent requests created 10 separate
+      // documents sharing one email before this index existed.
+      // Unlike the firebaseUID conflict (which the upsert filter matches
+      // and self-heals via a transparent retry), a losing request here
+      // can't be resolved by MongoDB alone -- FirebaseAuthService.googleSignup
+      // catches this index's duplicate-key error explicitly and falls back
+      // to the now-existing user, so the request still succeeds instead of
+      // surfacing a raw duplicate-key error.
+      this.usersCollection
+        .createIndex({email: 1}, {unique: true})
+        .catch(err =>
+          console.error(
+            'Failed to create unique email index (likely pre-existing duplicate email documents -- new duplicates are NOT yet prevented until these are cleaned up and this index builds successfully):',
+            err,
+          ),
+        );
+      this.usersCollection
+        .createIndex({firebaseUID: 1}, {unique: true})
+        .catch(err =>
+          console.error(
+            'Failed to create unique firebaseUID index (likely pre-existing duplicate firebaseUID documents -- new duplicates are NOT yet prevented until these are cleaned up and this index builds successfully):',
+            err,
+          ),
+        );
     }
   }
 
@@ -204,11 +260,56 @@ export class UserRepository implements IUserRepository {
   }
 
   /**
+   * Name and email only, for lists that cover a whole course (the public
+   * leaderboard), where loading full user documents is too heavy.
+   */
+  async getNamesAndEmailsByIds(ids: string[]): Promise<UserNameAndEmail[]> {
+    await this.init();
+    if (!ids.length) return [];
+    const users = await this.usersCollection
+      .find(
+        {_id: {$in: ids.map(id => new ObjectId(id))}},
+        {projection: {firstName: 1, lastName: 1, email: 1}},
+      )
+      .toArray();
+    return users.map(user => ({
+      _id: user._id?.toString(),
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+    }));
+  }
+
+  /**
    * Searches for users by name or email
    * @param searchTerm The search term to match against user names or emails
    * @param session Optional MongoDB session
    * @returns Promise with array of user search results
    */
+  async getAllUsers(session?: ClientSession) {
+    await this.init();
+
+    const projection = {
+      _id: 1,
+      firstName: 1,
+      lastName: 1,
+      email: 1,
+      roles: 1,
+    };
+
+    const users = await this.usersCollection
+      .find({}, {session, projection})
+      .toArray();
+
+    return users.map(user => ({
+      _id: user._id as ObjectId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      roles: (user.roles ?? 'user') as 'admin' | 'user',
+    }));
+  }
+
   async searchUsers(searchTerm: string, session?: ClientSession) {
     await this.init();
 

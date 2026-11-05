@@ -16,6 +16,10 @@ export class UserService extends BaseService {
     super(database);
   }
 
+  async listAllUsers() {
+    return this.userRepo.getAllUsers();
+  }
+
   async getUserById(userId: string): Promise<IUser> {
     const user = await this.userRepo.findById(userId);
     if (!user) {

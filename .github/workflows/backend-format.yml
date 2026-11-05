@@ -1,0 +1,117 @@
+name: Backend Format Check
+
+# Checks that backend lines changed by a PR follow the gts Prettier style
+# (backend/.prettierrc.cjs). Only changed lines are checked: most existing
+# backend files predate the style. See .github/scripts/check-backend-format.sh.
+#
+# Runs on every PR so `backend-format-result` always reports; when the PR
+# doesn't touch the backend, `format` is skipped and the result passes.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-format-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: backend-format-changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Did this PR touch the backend?
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != pull_request ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          changed=$(git diff --name-only "$BASE...$HEAD")
+          if grep -qE '^(backend/|\.github/scripts/check-backend-format\.sh$|\.github/workflows/backend-format\.yml$)' <<< "$changed"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No the backend changes; nothing to check."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  format:
+    name: Format Backend
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # No version pin: action-setup reads the root package.json `packageManager`.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Provides gts, whose Prettier version and config the backend uses.
+      - name: Install backend dependencies
+        run: pnpm install --frozen-lockfile --filter ./backend...
+
+      - name: Check formatting of changed lines
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          bash .github/scripts/check-backend-format.sh "origin/$BASE_REF" \
+            format-results/format-report.txt
+
+      # Read by backend-tests-comment.yml, which posts the PR comment. This
+      # run's token is read-only on fork PRs, so it can't comment itself.
+      - name: Record PR metadata
+        if: always()
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p format-results
+          echo "$PR_NUMBER" > format-results/pr-number
+
+      - name: Upload format results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-format-results
+          path: format-results/
+
+  # The required check. Passes when the backend wasn't touched (format skipped) or
+  # it passed; fails otherwise, including when a job was cancelled.
+  result:
+    name: backend-format-result
+    needs: [changes, format]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Report
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          CHECKS: ${{ needs.format.result }}
+        run: |
+          echo "changes: $CHANGES, format: $CHECKS"
+          [ "$CHANGES" = success ] && { [ "$CHECKS" = success ] || [ "$CHECKS" = skipped ]; }

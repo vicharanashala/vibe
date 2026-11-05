@@ -1,0 +1,169 @@
+name: v3 Frontend Checks
+
+# Lint, typecheck and Vitest for the v3 student app and its shared packages
+# (v3/apps/student, v3/packages/api, v3/packages/proctoring). Playwright
+# (v3/apps/student-e2e) is never run here: it needs a running backend.
+#
+# Runs on every PR to main so `v3-checks-result` always reports: a required
+# check that a `paths:` filter skipped would leave unrelated PRs waiting
+# forever. When the PR doesn't touch v3, `checks` is skipped and the result
+# passes straight away. pr-checks-comment.yml turns the uploaded results into
+# the PR comment.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'v3/**'
+      - '.github/workflows/v3-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: v3-checks-changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Did this PR touch v3?
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != pull_request ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          changed=$(git diff --name-only "$BASE...$HEAD")
+          if grep -qE '^(v3/|\.github/workflows/v3-checks\.yml$)' <<< "$changed"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No v3 changes; nothing to check."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  checks:
+    name: v3-checks
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NX_DAEMON: 'false'
+      NX_NO_CLOUD: 'true'
+      RESULTS: ${{ github.workspace }}/v3/test-results
+    defaults:
+      run:
+        working-directory: v3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # v3 is its own pnpm workspace (allowBuilds in v3/pnpm-workspace.yaml
+      # needs pnpm 11), separate from the root's pnpm 10.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: v3/package.json
+          version: 11.9.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: v3/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          mkdir -p "$RESULTS"
+
+      # The three checks run even when an earlier one fails, so the PR comment
+      # shows every problem at once; "Fail if any check failed" decides the job.
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npx nx run-many -t lint --projects=student,api,proctoring --skip-nx-cache 2>&1 | tee "$RESULTS/lint.log"
+
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npx nx run-many -t typecheck --projects=student,api,proctoring --skip-nx-cache 2>&1 | tee "$RESULTS/typecheck.log"
+
+      - name: Unit tests (Vitest)
+        id: test
+        continue-on-error: true
+        run: |
+          npx vitest run --root apps/student \
+            --reporter=default \
+            --reporter=github-actions \
+            --reporter=junit \
+            --outputFile.junit="$RESULTS/junit.xml"
+
+      - name: Record results
+        if: always()
+        env:
+          LINT: ${{ steps.lint.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          TEST: ${{ steps.test.outcome }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          printf 'lint=%s\ntypecheck=%s\ntest=%s\n' "$LINT" "$TYPECHECK" "$TEST" > "$RESULTS/status.txt"
+          if [ -n "$PR_NUMBER" ]; then echo "$PR_NUMBER" > "$RESULTS/pr-number"; fi
+
+      # Read by pr-checks-comment.yml, which posts the PR comment. This run's
+      # token is read-only on fork PRs, so it can't comment itself.
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-check-results
+          path: v3/test-results/
+          if-no-files-found: ignore
+
+      - name: Fail if any check failed
+        env:
+          LINT: ${{ steps.lint.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          TEST: ${{ steps.test.outcome }}
+        run: |
+          echo "lint: $LINT, typecheck: $TYPECHECK, tests: $TEST"
+          [ "$LINT" = success ] && [ "$TYPECHECK" = success ] && [ "$TEST" = success ]
+
+  # The required check. Passes when v3 wasn't touched (checks skipped) or every
+  # check passed; fails otherwise, including when a job was cancelled.
+  result:
+    name: v3-checks-result
+    needs: [changes, checks]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Report
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          CHECKS: ${{ needs.checks.result }}
+        run: |
+          echo "changes: $CHANGES, checks: $CHECKS"
+          [ "$CHANGES" = success ] && { [ "$CHECKS" = success ] || [ "$CHECKS" = skipped ]; }

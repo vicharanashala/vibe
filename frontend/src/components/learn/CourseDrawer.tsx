@@ -29,6 +29,8 @@ const getItemIcon = (type: string) => {
     case "form":
     case "feedback":
       return <FileEdit className="h-3 w-3" />;
+    case "case_study":
+      return <FileEdit className="h-3 w-3" />;
     default:
       return <FileText className="h-3 w-3" />;
   }
@@ -55,6 +57,8 @@ const typeLabel = (type: string) => {
       return "Feedback";
     case "project":
       return "Project";
+    case "case_study":
+      return "Case Study";
     default:
       return type || "Item";
   }

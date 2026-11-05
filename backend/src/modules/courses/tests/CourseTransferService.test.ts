@@ -29,6 +29,8 @@ import {
   QuestionRepository,
 } from '#root/modules/quizzes/repositories/index.js';
 import {QuestionBank} from '#root/modules/quizzes/classes/transformers/QuestionBank.js';
+import {QuestionBankService} from '#root/modules/quizzes/services/QuestionBankService.js';
+import {cloneModules} from '../utils/cloneModules.js';
 import {CourseSetting} from '#root/modules/setting/index.js';
 import {COURSES_TYPES} from '../types.js';
 import {CourseTransferService} from '../services/CourseTransferService.js';
@@ -453,6 +455,65 @@ describe('Course transfer (export / import)', () => {
       expect(settings.settings.followUpInvite.enabled).toBe(false);
     });
 
+    it('keeps module, section and item study-mode settings through export, import and copy', async () => {
+      const source = await seedCourse(faker.commerce.productName());
+
+      // Module one disallows study mode, its section allows it, and its quiz
+      // disallows it again; module two stays unset (inherit).
+      const sourceVersion = await courseRepo.readVersion(source.versionId);
+      sourceVersion.modules[0].studyModeEnabled = false;
+      sourceVersion.modules[0].sections[0].studyModeEnabled = true;
+      await courseRepo.updateVersion(source.versionId, sourceVersion as any);
+      const groupId =
+        sourceVersion.modules[0].sections[0].itemsGroupId.toString();
+      const group = await itemRepo.readItemsGroup(groupId);
+      group.items[1].studyModeEnabled = false;
+      await itemRepo.updateItemsGroup(groupId, group);
+
+      const bundle = await transferService.exportCourseVersion(
+        source.courseId,
+        source.versionId,
+      );
+      expect(bundle.modules[0].studyModeEnabled).toBe(false);
+      expect(bundle.modules[0].sections[0].studyModeEnabled).toBe(true);
+      expect(
+        bundle.modules[0].sections[0].items[0].studyModeEnabled,
+      ).toBeUndefined();
+      expect(bundle.modules[0].sections[0].items[1].studyModeEnabled).toBe(
+        false,
+      );
+      expect(bundle.modules[1].studyModeEnabled).toBeUndefined();
+
+      const expectSettings = async (modules: any[]) => {
+        expect(modules[0].studyModeEnabled).toBe(false);
+        expect(modules[0].sections[0].studyModeEnabled).toBe(true);
+        expect(modules[1].studyModeEnabled ?? null).toBeNull();
+        expect(modules[1].sections[0].studyModeEnabled ?? null).toBeNull();
+        const items = (
+          await itemRepo.readItemsGroup(
+            modules[0].sections[0].itemsGroupId.toString(),
+          )
+        ).items;
+        expect(items[0].studyModeEnabled ?? null).toBeNull();
+        expect(items[1].studyModeEnabled).toBe(false);
+      };
+
+      const created = await transferService.importCourse(bundle, importerId);
+      await expectSettings(
+        (await courseRepo.readVersion(created.versionId)).modules,
+      );
+
+      const cloned = await cloneModules(
+        (await courseRepo.readVersion(source.versionId)).modules as any,
+        new ObjectId().toString(),
+        itemRepo,
+        questionBankRepo,
+        questionRepo,
+        source.courseId,
+      );
+      await expectSettings(cloned);
+    });
+
     it('creates two independent courses when the same bundle is imported twice', async () => {
       const source = await seedCourse(faker.commerce.productName());
       const bundle = await transferService.exportCourseVersion(
@@ -537,6 +598,109 @@ describe('Course transfer (export / import)', () => {
         .collection('questionBanks')
         .countDocuments({title: bankTitle});
       expect(banks).toBe(0);
+    });
+  });
+
+  /**
+   * Crowd questions still awaiting review once sat in graded banks (V1.1),
+   * were copied onward by export/import and course cloning, and were drawn
+   * into graded attempts. None of those paths may carry or serve them.
+   */
+  describe('Questions awaiting review', () => {
+    async function seedWithPendingQuestion() {
+      const source = await seedCourse(faker.commerce.productName());
+      const [approvedId, pendingId] = source.questionIds;
+      await questionRepo.update(pendingId, {
+        source: 'STUDENT_GENERATED',
+        reviewStatus: 'PENDING_REVIEW',
+      } as any);
+      return {...source, approvedId, pendingId};
+    }
+
+    it('leaves them out of an export', async () => {
+      const source = await seedWithPendingQuestion();
+      const bundle = await transferService.exportCourseVersion(
+        source.courseId,
+        source.versionId,
+      );
+
+      expect(bundle.questionBanks[0].questions).toHaveLength(1);
+      expect(bundle.questionBanks[0].questions[0].text).toBe('What is 2 + 2?');
+    });
+
+    it('drops them when an older bundle still carries them', async () => {
+      const source = await seedCourse(faker.commerce.productName());
+      const bundle = await transferService.exportCourseVersion(
+        source.courseId,
+        source.versionId,
+      );
+      bundle.questionBanks[0].questions[1] = {
+        ...bundle.questionBanks[0].questions[1],
+        source: 'STUDENT_GENERATED',
+        reviewStatus: 'PENDING_REVIEW',
+      };
+
+      const created = await transferService.importCourse(bundle, importerId);
+      const version = await courseRepo.readVersion(created.versionId);
+      const itemsGroup = await itemRepo.readItemsGroup(
+        version.modules[0].sections[0].itemsGroupId.toString(),
+      );
+      const quiz = await itemRepo.readItemById(itemsGroup.items[1]._id.toString());
+      const bank = await questionBankRepo.getById(
+        (quiz.details as any).questionBankRefs[0].bankId.toString(),
+      );
+
+      expect(bank.questions).toHaveLength(1);
+      const kept = await questionRepo.getById(bank.questions[0].toString());
+      expect(kept.text).toBe('What is 2 + 2?');
+    });
+
+    it('leaves them behind when a course version is cloned', async () => {
+      const source = await seedWithPendingQuestion();
+      const version = await courseRepo.readVersion(source.versionId);
+
+      const newModules = await cloneModules(
+        version.modules as any,
+        new ObjectId().toString(),
+        itemRepo,
+        questionBankRepo,
+        questionRepo,
+        source.courseId,
+      );
+
+      const itemsGroup = await itemRepo.readItemsGroup(
+        newModules[0].sections[0].itemsGroupId.toString(),
+      );
+      const quiz = await itemRepo.readItemById(itemsGroup.items[1]._id.toString());
+      const bank = await questionBankRepo.getById(
+        (quiz.details as any).questionBankRefs[0].bankId.toString(),
+      );
+
+      expect(bank.questions).toHaveLength(1);
+      const kept = await questionRepo.getById(bank.questions[0].toString());
+      expect(kept.text).toBe('What is 2 + 2?');
+    });
+
+    it('never draws them into an attempt, whether the bank stores the id as a string or an ObjectId', async () => {
+      const source = await seedWithPendingQuestion();
+      const questionBankService = container.get<QuestionBankService>(
+        QUIZZES_TYPES.QuestionBankService,
+      );
+
+      for (const storedAs of [
+        [source.approvedId, source.pendingId],
+        [new ObjectId(source.approvedId), new ObjectId(source.pendingId)],
+      ]) {
+        await questionBankRepo.update(source.bankId, {questions: storedAs} as any);
+        // Ask for more than the bank holds: only the approved question comes back.
+        for (let i = 0; i < 5; i++) {
+          const drawn = await questionBankService.getQuestions({
+            bankId: source.bankId,
+            count: 2,
+          } as any);
+          expect(drawn).toEqual([source.approvedId]);
+        }
+      }
     });
   });
 });

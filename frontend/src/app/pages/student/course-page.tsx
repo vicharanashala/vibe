@@ -9,6 +9,7 @@ import { useShareLinkStore } from "@/store/share-link-store";
 import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
 import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
+import { classifyItemForbiddenError } from "@/utils/itemForbiddenError";
 const LazyStudentTimeslotModal = lazy(() => import("@/components/course/StudentTimeslotModal"));
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import type { PendingStudentQuestionContext } from "@/types/student-question.types";
@@ -37,6 +38,7 @@ import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileFallbackScreen from "@/components/MobileFallbackScreen";
+import { PhoneStudyLesson } from "@/components/PhoneStudyLesson";
 import { EmotionType } from "@/components/EmotionSelector";
 import { useSubmitEmotion } from "@/hooks/use-emotion";
 
@@ -168,8 +170,14 @@ export default function CoursePage() {
         streamRef.current = null;
       }
     };
+    // allProctorsDisabled is a real dependency, not just an extra guard: when
+    // it flips back to false (an item re-enabling detectors after an earlier
+    // item in the session disabled them all), this effect must re-run to
+    // actually re-acquire the camera/mic stream -- without it in the deps
+    // array, allProctorsDisabled flipping false was invisible to this effect
+    // and the stream was never requested again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showProctorDialog, consentSatisfied]);
+  }, [showProctorDialog, consentSatisfied, allProctorsDisabled]);
 
   // Get the setCurrentCourse function from the store
   const { setCurrentCourse } = useCourseStore();
@@ -441,6 +449,33 @@ export default function CoursePage() {
 
     if (itemError && selectedItemId && itemErrorName === "ForbiddenError") {
 
+      // Several different 403s reach here from ItemService.readItem. Only
+      // the out-of-order-progression case is actually a locked lesson; the
+      // archived-course and time-slot cases were both rendering as "ViBe
+      // lessons unlock in order" regardless, which told a student outside
+      // their booked window (or looking at an archived version) the wrong
+      // thing entirely. The amber time-slot banner below already existed
+      // for this; it just never had this branch routing into it, so it was
+      // unreachable dead code. See classifyItemForbiddenError's own doc
+      // comment for the exact backend message strings this matches against,
+      // including the "not enrolled" gap that's a known, deliberately
+      // unfixed case (see there for why).
+      const forbiddenKind = classifyItemForbiddenError(itemError);
+      if (forbiddenKind === 'time-slot') {
+        setTimeSlotBlock(itemError);
+        setIsNavigatingToNext(false);
+        return;
+      }
+      if (forbiddenKind === 'unrecognized') {
+        console.warn(
+          'Unrecognized ForbiddenError message reached the item-error handler -- ' +
+            'falling back to the generic "locked lesson" message. If this is actually ' +
+            'a time-slot or archived-course error with new wording, ' +
+            'classifyItemForbiddenError needs updating:',
+          itemError,
+        );
+      }
+
       // toast.error(itemError);
       // Clear loading state on error
       setIsNavigatingToNext(false);
@@ -487,30 +522,73 @@ export default function CoursePage() {
 
   // Log proctoring settings when loaded (and refetch on window focus for instant sync)
   useEffect(() => {
-    async function fetchSettings() {
+    async function fetch() {
       try {
         const data = await getSettings(COURSE_ID, VERSION_ID);
-        if (data) {
-          setProctoringData(data);
+        if (!data) return;
+        setProctoringData(data);
+
+        // Selective proctoring: readItem resolves item > module > universal and
+        // returns the resolved detector list as itemData.item.proctoringDetectors
+        const resolvedDetectors =
+          (itemData as {item?: {proctoringDetectors?: {settings: {enabled: boolean}}[]}})
+            ?.item?.proctoringDetectors ?? data.settings?.proctors?.detectors ?? [];
+        const noDetectorsActive = resolvedDetectors.every(
+          (detector: any) => detector.settings.enabled === false,
+        );
+
+        const isPlainShareViewer = useShareLinkStore
+          .getState()
+          .isPlainViewerFor(COURSE_ID, VERSION_ID);
+
+        if (noDetectorsActive || isPlainShareViewer) {
           setShowProctorDialog(false);
           setAllProctorsDisabled(true);
           setReadyToDetect(true);
+        } else {
+          setAllProctorsDisabled(false);
+          setReadyToDetect(false);
         }
       } catch (err) {
         console.error("Failed to fetch settings:", err);
       }
     }
-
-    fetchSettings();
+    fetch();
 
     const handleFocus = () => {
-      fetchSettings();
+      fetch();
     };
     window.addEventListener("focus", handleFocus);
     return () => {
       window.removeEventListener("focus", handleFocus);
     };
-  }, [COURSE_ID, VERSION_ID]);
+  }, [COURSE_ID, VERSION_ID, itemData]);
+
+  // The detector list FloatingVideo actually arms. Swaps in this item's
+  // resolved (item > module > universal) detector list when readItem
+  // returned one, falling back to the course-wide list otherwise -- fully
+  // symmetric, so an item can enable or disable *specific* detectors
+  // relative to the course default, not just a one-way "exempt" flag.
+  const effectiveProctoringSettings = useMemo(() => {
+    const base = proctoringData || {
+      _id: "",
+      studentId: "",
+      versionId: "",
+      courseId: "",
+      settings: {
+        proctors: { detectors: [] },
+        linearProgressionEnabled: true,
+      },
+    };
+    const resolvedDetectors = (itemData as {item?: {proctoringDetectors?: any[]}})
+      ?.item?.proctoringDetectors;
+    if (!resolvedDetectors) return base;
+    return {
+      ...base,
+      settings: { ...base.settings, proctors: { detectors: resolvedDetectors } },
+    };
+  }, [proctoringData, itemData]);
+>>>>>>> upstream/main
 
   // Update section items when data is loaded
   useEffect(() => {
@@ -852,18 +930,21 @@ export default function CoursePage() {
       setPendingStudentQuestionContext(null);
 
       try {
-        // Record completion for the current item before leaving.
-        // Documents (BLOG) only get their completion recorded by an explicit stop
-        // call; unlike video/quiz/project they don't auto-complete on their own
-        // event. Without this, leaving a document via the sidebar (instead of the
-        // "Next Lesson" button) left it un-ticked and stuck students below 100%.
-        // Scoped to BLOG so half-watched videos / unfinished quizzes are untouched,
-        // and wrapped so a stop failure can never block navigation.
-        if (itemContainerRef.current && currentItem?.type === 'BLOG') {
+        // Record completion for the current item before leaving. Awaited for
+        // every item type: the stop must reach the server before the next
+        // item's GET, or the backend still sees this item as incomplete and
+        // 403s the next one -- this was previously scoped to BLOG only, which
+        // left videos left via the sidebar (instead of the "Next Lesson"
+        // button) relying on an unmount fallback that raced the next lesson's
+        // request. A half-watched video is rejected server-side inside the
+        // stop transaction, so the row rolls back and stays open and
+        // recoverable -- this can never record a completion that wasn't
+        // earned. Wrapped so a stop failure can never block navigation.
+        if (itemContainerRef.current) {
           try {
             await itemContainerRef.current.stopCurrentItem();
           } catch (e) {
-            console.error('Failed to record document completion on sidebar nav:', e);
+            console.error('Failed to record completion on sidebar nav:', e);
           }
         }
         // Small delay for API/callback cleanup
@@ -1715,8 +1796,23 @@ const handleGoToNextItem = async () => {
     );
   }
 
-  if (isMobile && !allProctorsDisabled)
-    return <MobileFallbackScreen />
+  // Phones: study mode for videos where the instructor allows it (no
+  // proctoring, nothing saved), the existing "use a computer" screen otherwise.
+  // Items whose proctoring is all off keep opening here as before.
+  if (isMobile && !allProctorsDisabled) {
+    const outline = (courseVersionData as any)?.modules || [];
+    return selectedItemId && selectedModuleId && selectedSectionId && COURSE_ID && VERSION_ID ? (
+      <PhoneStudyLesson
+        courseId={COURSE_ID}
+        versionId={VERSION_ID}
+        cohortId={COHORT_ID || undefined}
+        modules={outline}
+        initial={{ moduleId: selectedModuleId, sectionId: selectedSectionId, itemId: selectedItemId }}
+      />
+    ) : (
+      <MobileFallbackScreen />
+    );
+  }
 
   const modules = (courseVersionData as any)?.modules || [];
 
@@ -1743,12 +1839,21 @@ const handleGoToNextItem = async () => {
     const moduleIndex = allModules.findIndex((m: any) => m.moduleId === moduleId);
     const currentModuleIndex = allModules.findIndex((m: any) => m.moduleId === currentModuleId);
 
+    // Same failure mode as the currentItemIndex guard below: if currentModuleId
+    // doesn't resolve in this course structure (e.g. a stale/cross-version
+    // pointer left behind by an admin reset), currentModuleIndex is -1 and
+    // *every* real module (index >= 0) would compare greater than it, locking
+    // already-completed modules. Unknown position must not imply locked.
+    if (currentModuleIndex === -1) return false;
+
     if (moduleIndex > currentModuleIndex) return true;
     if (moduleIndex < currentModuleIndex) return false;
 
     const sections = allModules[moduleIndex]?.sections || [];
     const sectionIndex = sections.findIndex((s: any) => s.sectionId === sectionId);
     const currentSectionIndex = sections.findIndex((s: any) => s.sectionId === currentSectionId);
+
+    if (currentSectionIndex === -1) return false;
 
     if (sectionIndex > currentSectionIndex) return true;
     if (sectionIndex < currentSectionIndex) return false;
@@ -1762,11 +1867,17 @@ const handleGoToNextItem = async () => {
   // even for already-completed items. Unknown position must not imply locked.
   if (currentItemIndex === -1) return false;
 
-  // Only unlock next item if it's a QUIZ paired with current VIDEO
+  // Unlock the paired quiz only once the video is actually completed. The
+  // backend serves it on the same condition, so unlocking earlier hands the
+  // student a link that 403s mid-video.
   if (itemIndex === currentItemIndex + 1) {
     const currentItemInList = sectionItemsList[currentItemIndex] as any;
     const thisItem = sectionItemsList[itemIndex] as any;
-    if (currentItemInList?.type === 'VIDEO' && thisItem?.type === 'QUIZ') {
+    if (
+      currentItemInList?.type === 'VIDEO' &&
+      thisItem?.type === 'QUIZ' &&
+      currentItemInList?.isCompleted
+    ) {
       return false; // unlock paired quiz
     }
     return true; // lock everything else
@@ -1866,7 +1977,30 @@ return false;
         </DialogContent>
       </Dialog>
 
-
+      {/* Hidden proctoring engine — kept mounted (clipped to 1px) so the webcam
+          keeps decoding and anomaly detection keeps running off-screen. */}
+      {!showProctorDialog && (
+        <div
+          aria-hidden
+          className="bottom-0 left-0 z-0 fixed opacity-0 w-px h-px overflow-hidden pointer-events-none"
+        >
+          <FloatingVideo
+            isVisible={!allProctorsDisabled}
+            onClose={() => { }}
+            onAnomalyDetected={() => { }}
+            setDoGesture={setDoGesture}
+            settings={effectiveProctoringSettings}
+            anomalies={anomalies}
+            readyToDetect={readyToDetect}
+            setReadyToDetect={setReadyToDetect}
+            setAnomalies={setAnomalies}
+            rewindVid={rewindVid}
+            setRewindVid={setRewindVid}
+            pauseVid={pauseVid}
+            setPauseVid={setPauseVid}
+          />
+        </div>
+      )}
 
       {/* Focused cinematic stage */}
       <main

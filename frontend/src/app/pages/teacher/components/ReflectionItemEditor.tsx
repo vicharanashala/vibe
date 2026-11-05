@@ -1,11 +1,12 @@
 import {useEffect, useState} from 'react';
-import {Loader2} from 'lucide-react';
+import {Loader2, Trash2} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {Textarea} from '@/components/ui/textarea';
 import {toast} from 'sonner';
 import {useUpdateCourseItem} from '@/hooks/hooks';
+import ConfirmationModal from './confirmation-modal';
 
 /** Mirrors POLICY_LIMITS on the server, which clamps anything out of range. */
 const LIMITS = {
@@ -40,6 +41,7 @@ interface ReflectionItemEditorProps {
     minReviewsToReveal?: number;
   };
   onSaved: () => void;
+  onDelete?: () => void;
 }
 
 function NumberField({
@@ -100,8 +102,10 @@ export default function ReflectionItemEditor({
   description,
   details,
   onSaved,
+  onDelete,
 }: ReflectionItemEditorProps) {
   const {mutateAsync: updateItem, isPending} = useUpdateCourseItem();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const asText = (n?: number) => (typeof n === 'number' ? String(n) : '');
 
@@ -266,6 +270,16 @@ export default function ReflectionItemEditor({
           {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Save settings
         </Button>
+        {onDelete ? (
+          <Button
+            variant="outline"
+            className="border-border bg-background"
+            onClick={() => setShowDeleteModal(true)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </Button>
+        ) : null}
         <p className="text-xs text-muted-foreground">
           Blank fields use the platform defaults ({
             LIMITS.maxReviewsPerReflection.fallback
@@ -274,6 +288,18 @@ export default function ReflectionItemEditor({
           {LIMITS.minReviewsToReveal.fallback}).
         </p>
       </div>
+      {onDelete ? (
+        <ConfirmationModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={onDelete}
+          title="Delete Reflection"
+          description="This will delete this reflection item, including any student submissions and reviews. Are you sure?"
+          confirmText="Delete"
+          cancelText="Cancel"
+          isDestructive={true}
+        />
+      ) : null}
     </div>
   );
 }

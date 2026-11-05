@@ -8,6 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { aiSectionAPI, connectToLiveStatusUpdates, getApiUrl } from "@/lib/genai-api";
+import { DirectApiError, smartBloomDirectAPI, textInWindow, type TranscriptChunk } from "@/lib/smart-bloom-direct-api";
+import { readTranscriptFile } from "@/lib/transcript-file-reader";
+import {
+  BROWSER_WHISPER_MODELS,
+  DEFAULT_BROWSER_WHISPER_MODEL,
+  transcribeMediaFile,
+  type TranscriptionProgress,
+} from "@/lib/browser-transcriber";
+import { Progress } from "@/components/ui/progress";
 import { useCourseStore } from "@/store/course-store";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowRight, BookOpen, BrainCircuit, Check, CheckCircle, ChevronLeft, ChevronRight, FlaskConical, Loader2, Pencil, X, XCircle } from "lucide-react";
@@ -105,6 +114,21 @@ type PipelineStep =
   | "CURATION_READY"
   | "UPLOAD_CONTENT"
   | "COMPLETED";
+
+type TranscriptInput =
+  | { kind: "file"; file: File }
+  | { kind: "text"; text: string }
+  // A video or audio file, transcribed in the browser with Whisper.
+  | { kind: "media"; file: File; model: string };
+
+/** Seconds as m:ss or h:mm:ss, for log lines. */
+const formatClock = (seconds: number): string => {
+  const total = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = String(total % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+};
 
 interface CuratedQuestion {
   id: string;
@@ -551,6 +575,25 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
   const [segmentCount, setSegmentCount] = useState<number | null>(null);
   const [revealedSegmentCount, setRevealedSegmentCount] = useState(0);
 
+  // Direct path (no AI server): the instructor's transcript + MiniMax.
+  // The page holds the transcript and segment map because the backend keeps no state.
+  const [pipelineMode, setPipelineMode] = useState<"AI_SERVER" | "DIRECT">("AI_SERVER");
+  const directTranscriptRef = useRef<TranscriptChunk[]>([]);
+  const directSegmentMapRef = useRef<number[]>([]);
+  const directQuestionSeqRef = useRef(0);
+  const [transcriptPrompt, setTranscriptPrompt] = useState<string | null>(null);
+  // Why the last run stopped; stays on screen (with the log) until the next run starts.
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
+  const [isReadingTranscriptFile, setIsReadingTranscriptFile] = useState(false);
+  const [pastedTranscript, setPastedTranscript] = useState("");
+  const transcriptFileResolverRef = useRef<((input: TranscriptInput | null) => void) | null>(null);
+  // In-browser transcription of an uploaded video/audio file (direct mode).
+  const [whisperModel, setWhisperModel] = useState(DEFAULT_BROWSER_WHISPER_MODEL);
+  const [mediaProgress, setMediaProgress] = useState<TranscriptionProgress | null>(null);
+  const mediaAbortRef = useRef<AbortController | null>(null);
+  // Set once the AI-server run reaches curation; after that an error is not an outage.
+  const aiCurationStartedRef = useRef(false);
+
   // Curation animation state
   const [swipeDirection, setSwipeDirection] = useState<"left" | "right" | null>(null);
   const [isNewQuestionEntering, setIsNewQuestionEntering] = useState(false);
@@ -565,6 +608,8 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
       sseRef.current?.close();
       sseRef.current = null;
       sseListenersRef.current.clear();
+      // Stop an in-browser transcription; its worker would otherwise keep running.
+      mediaAbortRef.current?.abort();
     };
   }, []);
 
@@ -1303,6 +1348,7 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
       if (i === 0) {
         // Open curation immediately so the user can start swiping segment 1
         // while the remaining segments are still streaming in.
+        aiCurationStartedRef.current = true;
         setPipelineStep("CURATION_READY");
         toast.success(`Segment 1 ready — start swiping! More segments loading…`);
       }
@@ -1313,7 +1359,260 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     }
   };
 
+  // ── Direct path (no AI server) ──────────────────────────────────────────────
+
+  /** Ask the instructor for a transcript (file or pasted text); resolves null if they cancel. */
+  const requestTranscriptFile = (message: string) =>
+    new Promise<TranscriptInput | null>((resolve) => {
+      transcriptFileResolverRef.current = resolve;
+      setTranscriptPrompt(message);
+    });
+
+  const resolveTranscriptFile = (input: TranscriptInput | null) => {
+    const resolve = transcriptFileResolverRef.current;
+    transcriptFileResolverRef.current = null;
+    setTranscriptPrompt(null);
+    resolve?.(input);
+  };
+
+  /**
+   * Transcribe the instructor's copy of the video (or its audio) in this browser.
+   * Resolves null when it fails or is cancelled, so the caller asks again.
+   */
+  const transcribeInBrowser = async (file: File, model: string): Promise<TranscriptChunk[] | null> => {
+    const controller = new AbortController();
+    mediaAbortRef.current = controller;
+    const modelLabel = BROWSER_WHISPER_MODELS.find((m) => m.id === model)?.label ?? model;
+    addLog(`Transcribing ${file.name} in this browser (${modelLabel})…`);
+    const startedAt = Date.now();
+    setMediaProgress({ stage: "decoding" });
+    try {
+      const chunks = await transcribeMediaFile(file, {
+        model,
+        signal: controller.signal,
+        onProgress: setMediaProgress,
+      });
+      const lastEnd = chunks[chunks.length - 1].timestamp[1];
+      const minutes = ((Date.now() - startedAt) / 60_000).toFixed(1);
+      addLog(
+        `Transcript made from ${file.name} ✓ — ${chunks.length} timed lines up to ${formatClock(lastEnd)} ` +
+          `(took ${minutes} min)`,
+      );
+      return chunks;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        addLog("Browser transcription cancelled.");
+      } else {
+        const message = error instanceof Error ? error.message : "Browser transcription failed.";
+        addLog(message);
+        toast.error(message);
+      }
+      return null;
+    } finally {
+      if (mediaAbortRef.current === controller) mediaAbortRef.current = null;
+      setMediaProgress(null);
+    }
+  };
+
+  /**
+   * The instructor supplies the transcript: pasted from YouTube's "Show
+   * transcript" panel, a file in any layout with timestamps (the server finds
+   * them), or the video/audio itself, transcribed in the browser. Keep asking
+   * until one works, or the instructor cancels.
+   */
+  const loadDirectTranscript = async (versionId: string): Promise<{ chunks: TranscriptChunk[] }> => {
+    const message = "The AI server is unavailable, so Smart Bloom needs this video's transcript from you.";
+    addLog("Waiting for the transcript…");
+    for (;;) {
+      const input = await requestTranscriptFile(message);
+      if (!input) throw new Error("Transcript not provided, so Smart Bloom stopped.");
+      if (input.kind === "media") {
+        const chunks = await transcribeInBrowser(input.file, input.model);
+        if (chunks) return { chunks };
+        continue;
+      }
+      setIsReadingTranscriptFile(true);
+      try {
+        const label = input.kind === "file" ? input.file.name : "pasted text";
+        const content = input.kind === "file" ? await readTranscriptFile(input.file) : input.text;
+        const { transcript } = await smartBloomDirectAPI.transcript(versionId, content);
+        const chunks = transcript?.chunks ?? [];
+        if (chunks.length) {
+          const lastStart = chunks[chunks.length - 1].timestamp[0];
+          addLog(`Transcript read from ${label} ✓ — ${chunks.length} timed lines up to ${formatClock(lastStart)}`);
+          setPastedTranscript("");
+          return { chunks };
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not read this transcript.");
+      } finally {
+        setIsReadingTranscriptFile(false);
+      }
+    }
+  };
+
+  /** Generate one segment's questions and shape them like the AI-server results. */
+  const generateDirectSegmentQuestions = async (
+    segmentIndex: number,
+    segMap: number[],
+    perBloomLevel: number,
+    instructions?: string,
+  ): Promise<CuratedQuestion[]> => {
+    const versionId = currentCourse?.versionId;
+    if (!versionId) throw new Error("Missing course version");
+    const start = segmentIndex === 0 ? 0 : segMap[segmentIndex - 1];
+    const end = segMap[segmentIndex];
+    const segmentText = textInWindow(directTranscriptRef.current, start, end);
+    if (!segmentText) {
+      addLog(`Segment ${segmentIndex + 1} has no spoken content — skipped.`);
+      return [];
+    }
+
+    const result = await smartBloomDirectAPI.generateQuestions({
+      versionId,
+      segmentNumber: segmentIndex + 1,
+      startSeconds: start,
+      endSeconds: end,
+      segmentText,
+      bloomTargets: Object.fromEntries(activeBloomKeys.map((key) => [key, perBloomLevel])),
+      questionTypes: activeQuestionTypes,
+      instructions,
+    });
+    if (result.failedLevels.length) {
+      addLog(`Segment ${segmentIndex + 1}: ${result.failedLevels.join(", ")} questions could not be generated.`);
+    }
+
+    // Stamp each question with its segment END time (this page's segment id) and
+    // normalise against this one segment only, so nothing is redistributed.
+    const stamped = result.questions.map((question) => ({ ...question, segmentId: end }));
+    return normalizeQuestionPayload(stamped, { segmentMap: [end] }).map((question) => ({
+      ...question,
+      id: `direct-${end}-${directQuestionSeqRef.current++}`,
+    }));
+  };
+
+  const runDirectPipeline = async (reason: string) => {
+    const versionId = currentCourse?.versionId;
+    if (!versionId) throw new Error("Missing course or version information");
+
+    setPipelineMode("DIRECT");
+    setCreatedJobId(null);
+    setQuestions([]);
+    setAcceptedQuestionIds(new Set());
+    setRejectedQuestionIds(new Set());
+    setSegmentCount(null);
+    setRevealedSegmentCount(0);
+    addLog(`AI server unavailable (${reason}). Continuing without it: your transcript + MiniMax.`);
+
+    // Check the server can generate questions before asking the instructor for anything.
+    const { minimaxConfigured } = await smartBloomDirectAPI.status();
+    if (!minimaxConfigured) {
+      throw new Error(
+        "The AI server is unavailable, and the backup (direct mode) is not set up on this server: " +
+          "MINIMAX_API_KEY is missing from the backend environment. Ask the platform admin to add it, " +
+          "or try again when the AI server is back.",
+      );
+    }
+    toast.info("AI server unavailable — continuing in direct mode.");
+
+    // ── Transcript ──
+    setPipelineStep("TRANSCRIPT_GENERATION");
+    const { chunks } = await loadDirectTranscript(versionId);
+    directTranscriptRef.current = chunks;
+
+    // ── Segmentation ──
+    setPipelineStep("SEGMENTATION");
+    addLog("Segmenting content…");
+    const segmentation = await smartBloomDirectAPI.segment({
+      versionId,
+      chunks,
+      strategy: segmentationStrategy,
+      minSegmentSeconds: MIN_SEGMENT_DURATION_SECONDS,
+    });
+    if (segmentation.warning) addLog(segmentation.warning);
+    const segMap = segmentation.segmentMap;
+    directSegmentMapRef.current = segMap;
+    setSegmentCount(segMap.length);
+    addLog(`Segmentation complete ✓ — ${segMap.length} segments found`);
+
+    // ── Questions, one segment at a time, revealed as each finishes ──
+    setPipelineStep("QUESTION_GENERATION");
+    const plan = buildSmartBloomGenerationPlan(segMap, activeBloomKeys);
+    setTotalQuestions(plan.totalQuestions);
+    const instructions = getQuestionGenerationParams(plan.totalQuestions, plan.segmentInstructionBlock).prompt;
+    addLog(`Generating about ${plan.totalQuestions} questions for ${segMap.length} segment(s)…`);
+
+    let generatedTotal = 0;
+    let curationOpened = false;
+    for (let i = 0; i < segMap.length; i++) {
+      addLog(`Generating questions for segment ${i + 1}…`);
+      let generated: CuratedQuestion[] = [];
+      try {
+        generated = await generateDirectSegmentQuestions(
+          i,
+          segMap,
+          plan.perSegmentBloomTargets[i] ?? DEFAULT_BLOOM_QUESTIONS_PER_SEGMENT,
+          instructions,
+        );
+      } catch (error) {
+        // A setup problem affects every segment: stop instead of repeating it.
+        if (error instanceof DirectApiError && error.status === 503) throw error;
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        addLog(`Segment ${i + 1} failed: ${msg}`);
+      }
+      generatedTotal += generated.length;
+      if (generated.length) mergeQuestions(generated);
+      setRevealedSegmentCount(i + 1);
+      addLog(`Segment ${i + 1}: ${generated.length} questions available`);
+      if (!curationOpened && generated.length) {
+        curationOpened = true;
+        setPipelineStep("CURATION_READY");
+        toast.success(`Segment ${i + 1} ready — start swiping! More segments loading…`);
+      }
+    }
+
+    if (generatedTotal === 0) {
+      throw new Error("No questions could be generated for any segment. See the log above for the reason.");
+    }
+    if (segMap.length > 1) {
+      toast.success(`All ${segMap.length} segments ready for curation.`);
+    }
+  };
+
+  const requestDirectRefillForSegment = async (segmentId: number) => {
+    if (isRefilling) return;
+    const segMap = directSegmentMapRef.current;
+    const segmentIndex = segMap.indexOf(segmentId);
+    if (segmentIndex === -1) return;
+
+    const activeCount = questions.filter((q) => q.segmentId === segmentId && !rejectedQuestionIds.has(q.id)).length;
+    if (activeCount >= MIN_ACTIVE_QUESTIONS_PER_SEGMENT) return;
+    const needed = MIN_ACTIVE_QUESTIONS_PER_SEGMENT - activeCount;
+
+    setIsRefilling(true);
+    try {
+      const perLevel = Math.max(1, Math.ceil(Math.max(needed, 3) / Math.max(1, activeBloomKeys.length)));
+      const generated = await generateDirectSegmentQuestions(
+        segmentIndex,
+        segMap,
+        perLevel,
+        getQuestionGenerationParams(Math.max(needed, 3)).prompt,
+      );
+      mergeQuestions(generated);
+      toast.success(`Fetched additional questions for segment ${segmentIndex + 1}`);
+    } catch (error) {
+      console.error("Direct refill failed", error);
+      toast.error("Could not auto-refill questions for this segment");
+    } finally {
+      setIsRefilling(false);
+    }
+  };
+
   const requestRefillForSegment = async (segmentId: number) => {
+    if (pipelineMode === "DIRECT") {
+      await requestDirectRefillForSegment(segmentId);
+      return;
+    }
     if (!createdJobId || isRefilling) return;
 
     // Count all non-rejected questions (not just ones not yet decided)
@@ -1484,7 +1783,8 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
   };
 
   const uploadCuratedQuestions = async () => {
-    if (!createdJobId || !currentCourse?.courseId || !currentCourse?.versionId || !currentCourse?.moduleId || !currentCourse?.sectionId) {
+    const hasSource = pipelineMode === "DIRECT" || Boolean(createdJobId);
+    if (!hasSource || !currentCourse?.courseId || !currentCourse?.versionId || !currentCourse?.moduleId || !currentCourse?.sectionId) {
       toast.error("Missing job or course information");
       return;
     }
@@ -1542,6 +1842,43 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
       });
     };
 
+    if (pipelineMode === "DIRECT") {
+      setIsUploading(true);
+      setPipelineStep("UPLOAD_CONTENT");
+      addLog("Starting content upload…");
+      try {
+        const summary = await smartBloomDirectAPI.upload({
+          versionId: currentCourse.versionId,
+          moduleId: currentCourse.moduleId,
+          sectionId: currentCourse.sectionId,
+          videoUrl: youtubeUrl.trim(),
+          segmentMap: directSegmentMapRef.current,
+          questions: curated,
+          distribution,
+          videoItemBaseName: "video_item",
+          quizItemBaseName: "quiz_item",
+        });
+        addLog(
+          `Upload complete ✓ — ${summary.questionsCreated} questions in ${summary.quizItems} quiz(zes)` +
+            (summary.questionsSkipped ? `, ${summary.questionsSkipped} could not be saved` : ""),
+        );
+        await refreshTeacherContentCache();
+        setPipelineStep("COMPLETED");
+        toast.success("Curated questions uploaded successfully. Teacher content refreshed.");
+        onUploadComplete?.(currentCourse.moduleId, currentCourse.sectionId);
+      } catch (error) {
+        console.error(error);
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        addLog(`Upload failed: ${msg}`);
+        toast.error("Failed to upload curated questions");
+        setPipelineStep("CURATION_READY");
+      } finally {
+        setIsUploading(false);
+      }
+      return;
+    }
+
+    if (!createdJobId) return;
     setIsUploading(true);
     setPipelineStep("UPLOAD_CONTENT");
     addLog("Starting content upload…");
@@ -1594,6 +1931,16 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     }
   };
 
+  // The "Show transcript" instructions link to the video. Build that link from the
+  // 11-character video id alone, never from the typed text, so nothing the
+  // instructor typed ends up in an href.
+  const youtubeWatchUrl = useMemo(() => {
+    const match = youtubeUrl
+      .trim()
+      .match(/^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})(?:[?&#/]\S*)?$/);
+    return match ? `https://www.youtube.com/watch?v=${encodeURIComponent(match[1])}` : null;
+  }, [youtubeUrl]);
+
   const isValidYouTubeUrl = (url: string): boolean => {
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})(\S*)?$/;
     return youtubeRegex.test(url.trim());
@@ -1627,6 +1974,11 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     setQuestions([]);
     setAcceptedQuestionIds(new Set());
     setRejectedQuestionIds(new Set());
+    setPipelineMode("AI_SERVER");
+    setPipelineError(null);
+    aiCurationStartedRef.current = false;
+    directTranscriptRef.current = [];
+    directSegmentMapRef.current = [];
     try {
       const questionGenerationParameters = {
         ...allocateQuestionTypes(totalQuestions, activeQuestionTypes),
@@ -1661,9 +2013,28 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
     } catch (error) {
       console.error("Failed to start Smart Bloom job:", error);
       const msg = error instanceof Error ? error.message : "Unknown error";
-      addLog(`Error: ${msg}`);
-      toast.error(`Smart Bloom failed: ${msg}`);
       disconnectSSE();
+
+      // The AI server failed before curation began: carry on without it.
+      if (!aiCurationStartedRef.current) {
+        try {
+          await runDirectPipeline(msg.length > 140 ? `${msg.slice(0, 140)}…` : msg);
+          return;
+        } catch (directError) {
+          console.error("Smart Bloom direct mode failed:", directError);
+          const directMsg = directError instanceof Error ? directError.message : "Unknown error";
+          addLog(`Error: ${directMsg}`);
+          toast.error("Smart Bloom could not continue — see the details below.");
+          setPipelineError(directMsg);
+          setTranscriptPrompt(null);
+          setPipelineStep("IDLE");
+          return;
+        }
+      }
+
+      addLog(`Error: ${msg}`);
+      toast.error("Smart Bloom could not continue — see the details below.");
+      setPipelineError(msg);
       setPipelineStep("IDLE");
     } finally {
       setIsSubmitting(false);
@@ -1864,13 +2235,23 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
           </div>
 
           {/* ── Pipeline Progress Panel ── */}
-          {pipelineStep !== "IDLE" && (
+          {(pipelineStep !== "IDLE" || pipelineError) && (
             <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold">Pipeline Progress</h3>
-                {segmentCount && (
-                  <Badge variant="outline">{segmentCount} segments detected</Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  {pipelineMode === "DIRECT" && (
+                    <Badge
+                      variant="outline"
+                      title="The AI server was unavailable. The transcript comes from you (pasted or uploaded), and questions from MiniMax."
+                    >
+                      Direct mode
+                    </Badge>
+                  )}
+                  {segmentCount && (
+                    <Badge variant="outline">{segmentCount} segments detected</Badge>
+                  )}
+                </div>
               </div>
 
               {/* Step strip */}
@@ -1952,6 +2333,201 @@ const SmartBloomWorkflow = ({ onUploadComplete }: SmartBloomWorkflowProps = {}) 
                   <p className="mt-1 text-xs text-blue-700/90 dark:text-blue-300/80">
                     We are finalizing upload and refreshing course content. This can take a few moments.
                   </p>
+                </div>
+              )}
+
+              {/* Transcript needed from the instructor (direct mode) */}
+              {transcriptPrompt && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-3 space-y-3 dark:border-amber-900 dark:bg-amber-950/30">
+                  <div className="flex items-start gap-2 text-sm text-amber-900 dark:text-amber-200">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span className="font-medium">{transcriptPrompt}</span>
+                  </div>
+
+                  <div className="space-y-1 text-xs text-amber-900 dark:text-amber-200">
+                    <p className="font-medium">Copy the transcript from YouTube:</p>
+                    <ol className="list-decimal pl-5 space-y-0.5 text-amber-800/90 dark:text-amber-300/80">
+                      <li>
+                        {youtubeWatchUrl ? (
+                          <>
+                            <a
+                              href={youtubeWatchUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline font-medium"
+                            >
+                              Open the video on YouTube
+                            </a>{" "}
+                            (opens in a new tab).
+                          </>
+                        ) : (
+                          <>Open the video on YouTube.</>
+                        )}
+                      </li>
+                      <li>Below the video, click <span className="font-medium">…more</span> to expand the description.</li>
+                      <li>
+                        Scroll to the end of the description and click <span className="font-medium">Show transcript</span>.
+                      </li>
+                      <li>
+                        Keep the timestamps visible. If you only see text, open the <span className="font-medium">⋮</span> menu
+                        at the top of the transcript and choose <span className="font-medium">Toggle timestamps</span>.
+                      </li>
+                      <li>
+                        Click just before the first timestamp, scroll to the end, hold <span className="font-medium">Shift</span>{" "}
+                        and click after the last line, then copy (Ctrl+C, or ⌘C on a Mac).
+                      </li>
+                      <li>
+                        Paste it below and click <span className="font-medium">Use pasted transcript</span>.
+                      </li>
+                    </ol>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="smart-bloom-transcript-paste" className="text-xs text-amber-900 dark:text-amber-200">
+                      Paste the transcript here
+                    </Label>
+                    <Textarea
+                      id="smart-bloom-transcript-paste"
+                      rows={6}
+                      className="bg-background font-mono text-xs"
+                      placeholder={"0:00\nWelcome to today's lecture…\n0:12\nWe begin with…"}
+                      value={pastedTranscript}
+                      disabled={isReadingTranscriptFile}
+                      onChange={(e) => setPastedTranscript(e.target.value)}
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        disabled={isReadingTranscriptFile || !pastedTranscript.trim()}
+                        onClick={() => resolveTranscriptFile({ kind: "text", text: pastedTranscript })}
+                      >
+                        Use pasted transcript
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={isReadingTranscriptFile}
+                        onClick={() => resolveTranscriptFile(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+
+                  <details className="text-xs text-amber-800/90 dark:text-amber-300/80">
+                    <summary className="cursor-pointer select-none">Have a transcript file instead?</summary>
+                    <div className="mt-2 space-y-1.5">
+                      <p>
+                        Any file with timestamps works: subtitles (.srt, .vtt), Word, Excel/CSV, or exports from Zoom,
+                        Teams or Otter.
+                      </p>
+                      <Input
+                        type="file"
+                        accept=".srt,.vtt,.sbv,.txt,.csv,.tsv,.json,.docx,.xlsx,.xls,.ods,.md,text/*"
+                        className="max-w-xs bg-background"
+                        disabled={isReadingTranscriptFile}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (file) resolveTranscriptFile({ kind: "file", file });
+                        }}
+                      />
+                    </div>
+                  </details>
+
+                  <details className="text-xs text-amber-800/90 dark:text-amber-300/80">
+                    <summary className="cursor-pointer select-none">
+                      Have the video or its audio on this computer? Make the transcript here
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                      <p>
+                        The file stays on this computer: it is transcribed in this browser, not uploaded. The speech
+                        model downloads once (about{" "}
+                        {BROWSER_WHISPER_MODELS.find((m) => m.id === whisperModel)?.downloadMB ?? 80} MB) and a long
+                        lecture can take a while, so keep this tab open. English speech only. Up to 1 GB; for bigger
+                        videos, upload just the audio (M4A or MP3).
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Label htmlFor="smart-bloom-whisper-model" className="text-xs">
+                          Speech model
+                        </Label>
+                        <select
+                          id="smart-bloom-whisper-model"
+                          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                          value={whisperModel}
+                          disabled={isReadingTranscriptFile}
+                          onChange={(e) => setWhisperModel(e.target.value)}
+                        >
+                          {BROWSER_WHISPER_MODELS.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <Input
+                        type="file"
+                        accept="video/*,audio/*"
+                        className="max-w-xs bg-background"
+                        disabled={isReadingTranscriptFile}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (file) resolveTranscriptFile({ kind: "media", file, model: whisperModel });
+                        }}
+                      />
+                    </div>
+                  </details>
+                </div>
+              )}
+
+              {/* In-browser transcription of the instructor's video/audio (direct mode) */}
+              {mediaProgress && (
+                <div className="rounded-md border px-3 py-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      {mediaProgress.stage === "decoding" && "Reading the audio from your file…"}
+                      {mediaProgress.stage === "loading-model" &&
+                        `Downloading the speech model (first time only)… ${mediaProgress.percent}%`}
+                      {mediaProgress.stage === "transcribing" &&
+                        `Transcribing… ${formatClock(mediaProgress.processedSeconds)} of ${formatClock(mediaProgress.totalSeconds)}`}
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={() => mediaAbortRef.current?.abort()}>
+                      Cancel
+                    </Button>
+                  </div>
+                  {mediaProgress.stage !== "decoding" && (
+                    <Progress
+                      value={
+                        mediaProgress.stage === "loading-model"
+                          ? mediaProgress.percent
+                          : mediaProgress.totalSeconds
+                            ? (mediaProgress.processedSeconds / mediaProgress.totalSeconds) * 100
+                            : 0
+                      }
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground">Keep this tab open until it finishes.</p>
+                </div>
+              )}
+              {isReadingTranscriptFile && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Reading transcript file…
+                </div>
+              )}
+
+              {/* Why the run stopped; stays until the next run */}
+              {pipelineError && pipelineStep === "IDLE" && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 dark:border-red-900 dark:bg-red-950/30">
+                  <div className="flex items-start gap-2 text-sm text-red-800 dark:text-red-300">
+                    <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">Smart Bloom stopped</p>
+                      <p className="mt-0.5 text-xs">{pipelineError}</p>
+                    </div>
+                  </div>
                 </div>
               )}
 

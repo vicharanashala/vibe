@@ -3939,6 +3939,12 @@ export class EnrollmentRepository {
     courseVersionId: string,
     cohortId?: string,
     session?: ClientSession,
+    // When no cohortId is given, default to the no-cohort-only enrollments
+    // (matches existing callers that scope a single cohort or the legacy,
+    // cohort-less case). Pass true to include every cohort instead — for
+    // callers, like the public leaderboard, that want every enrolled student
+    // regardless of cohort.
+    allCohorts = false,
   ): Promise<IEnrollment[]> {
     try {
       await this.init();
@@ -3955,7 +3961,9 @@ export class EnrollmentRepository {
             isDeleted: { $ne: true },
             ...(cohortId
               ? { cohortId: new ObjectId(cohortId) }
-              : { cohortId: null }),
+              : allCohorts
+                ? {}
+                : { cohortId: null }),
           },
           { session },
         )
@@ -3968,6 +3976,33 @@ export class EnrollmentRepository {
         'Failed to fetch student enrollments for the course version',
       );
     }
+  }
+
+  /**
+   * Same student set as getEnrollmentsByCourseVersion(..., allCohorts = true),
+   * but only the three fields the public leaderboard reads. Full enrollment
+   * documents for a large course were enough to run the Cloud Run instance
+   * out of memory.
+   */
+  async getLeaderboardEnrollments(
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<
+    Pick<IEnrollment, 'userId' | 'percentCompleted' | 'enrollmentDate'>[]
+  > {
+    await this.init();
+    return await this.enrollmentCollection
+      .find(
+        {
+          courseId: new ObjectId(courseId),
+          courseVersionId: new ObjectId(courseVersionId),
+          role: 'STUDENT',
+          status: { $regex: /^active$/i },
+          isDeleted: { $ne: true },
+        },
+        { projection: { _id: 0, userId: 1, percentCompleted: 1, enrollmentDate: 1 } },
+      )
+      .toArray();
   }
 
   /**

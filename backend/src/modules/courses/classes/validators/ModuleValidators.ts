@@ -1,4 +1,4 @@
-import {IModule, ICourseVersion} from '#root/shared/interfaces/models.js';
+import {IModule, ICourseVersion, IDetectorSettings} from '#root/shared/interfaces/models.js';
 import {
   IsNotEmpty,
   IsString,
@@ -6,10 +6,16 @@ import {
   IsOptional,
   IsMongoId,
   ValidateIf,
+  ValidateNested,
   IsBoolean,
 } from 'class-validator';
+import {Type} from 'class-transformer';
 import {JSONSchema} from 'class-validator-jsonschema';
 import {OnlyOneId} from './customValidators.js';
+import {
+  DetectorSettingsDto,
+  containsAllDetectors,
+} from '#root/modules/setting/classes/validators/CourseSettingValidators.js';
 
 class CreateModuleBody implements Partial<IModule> {
   @JSONSchema({
@@ -182,6 +188,21 @@ class HideModuleBody {
   hide: boolean;
 }
 
+class ModuleProctoringBody {
+  @JSONSchema({
+    title: 'Module Proctoring Detector Override',
+    description:
+      "Overrides the course's universal proctoring detector list for every item in this module that does not have its own item-level override. Pass null to clear the override and inherit the universal setting again. When not null, must list every detector (same shape as the course-level proctoring settings).",
+    type: 'array',
+    nullable: true,
+  })
+  @ValidateIf(o => o.detectors !== null)
+  @ValidateNested({each: true})
+  @containsAllDetectors()
+  @Type(() => DetectorSettingsDto)
+  detectors: IDetectorSettings[] | null;
+}
+
 class ModuleDataResponse {
   @JSONSchema({
     description: 'The updated course version data containing modules',
@@ -246,6 +267,7 @@ export {
   ModuleDeletedResponse,
   HideModuleParams,
   HideModuleBody,
+  ModuleProctoringBody,
 };
 
 export const MODULE_VALIDATORS = [
@@ -259,4 +281,5 @@ export const MODULE_VALIDATORS = [
   ModuleDeletedResponse,
   HideModuleParams,
   HideModuleBody,
+  ModuleProctoringBody,
 ];

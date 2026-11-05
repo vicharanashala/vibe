@@ -1,25 +1,77 @@
-frontend:
-  - changed-files:
-      - any-glob-to-any-file: ["frontend/**"]
+# Area labels for pull requests, applied by actions/labeler
+# (.github/workflows/labeler.yml). A label is added when any changed file
+# matches, and removed again when none does (sync-labels). Type and size
+# labels come from .github/scripts/pr-labels.js.
 
 backend:
   - changed-files:
       - any-glob-to-any-file: ["backend/**"]
+
+# The current web app.
+frontend:
+  - changed-files:
+      - any-glob-to-any-file: ["frontend/**"]
+
+frontend-v3:
+  - changed-files:
+      - any-glob-to-any-file: ["v3/**"]
+
+openspec:
+  - changed-files:
+      - any-glob-to-any-file:
+        - "openspec/**"
+        - ".claude/commands/opsx/**"
+        - ".claude/skills/openspec-*/**"
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+        - "docs/**"
+        - "**/README.md"
+        - "**/docs/**"
+
+cli:
+  - changed-files:
+      - any-glob-to-any-file: ["cli/**"]
+
+# Playwright end-to-end tests (labelled only; CI doesn't run them).
+e2e:
+  - changed-files:
+      - any-glob-to-any-file:
+        - "e2e/**"
+        - "v3/apps/student-e2e/**"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+        - "**/*.spec.*"
+        - "**/*.test.*"
+        - "**/test/**"
+        - "**/tests/**"
+        - "e2e/**"
+        - "v3/apps/student-e2e/**"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+        - ".github/workflows/**"
+        - ".github/scripts/**"
 
 devops:
   - changed-files:
       - any-glob-to-any-file:
         - ".github/**"
         - ".husky/**"
-
-docs:
-  - changed-files:
-      - any-glob-to-any-file:
-        - "**/README.md"
-        - "**/docs/**"
+        - "self-hosting/**"
+        - "scripts/**"
+        - "firebase.json"
+        - ".firebaserc"
 
 dependencies:
   - changed-files:
       - any-glob-to-any-file:
-        - "frontend/package*.json"
-        - "backend/package*.json"
+        - "**/package.json"
+        - "pnpm-lock.yaml"
+        - "v3/pnpm-lock.yaml"
+        - "pnpm-workspace.yaml"
+        - "v3/pnpm-workspace.yaml"

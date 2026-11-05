@@ -1,0 +1,44 @@
+{
+  "totalDocuments": 1,
+  "totalPages": 1,
+  "currentPage": 1,
+  "enrollments": [
+    {
+      "_id": "6ad4bffd7d433adc6a5d0f99",
+      "courseId": "6ad484bb7d433adc6a5d0f6f",
+      "courseVersionId": "6ad484bb7d433adc6a5d0f70",
+      "role": "INSTRUCTOR",
+      "status": "ACTIVE",
+      "enrollmentDate": "2026-10-18T12:47:57.541Z",
+      "course": {
+        "_id": {
+          "buffer": {
+            "type": "Buffer",
+            "data": [
+              106,
+              212,
+              132,
+              187,
+              125,
+              67,
+              58,
+              220,
+              106,
+              93,
+              15,
+              111
+            ]
+          }
+        },
+        "name": "Studio feedback test",
+        "description": "Throwaway course: a reading, then a feedback form.",
+        "updatedAt": "2026-10-18T08:35:07.607Z",
+        "versions": [
+          "6ad484bb7d433adc6a5d0f70"
+        ]
+      }
+    }
+  ],
+  "activeCount": 1,
+  "archivedCount": 0
+}

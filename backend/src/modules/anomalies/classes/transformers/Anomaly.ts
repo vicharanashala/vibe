@@ -10,6 +10,10 @@ export enum AnomalyType {
   FOCUS = 'FOCUS',
   HAND_GESTURE_DETECTION = 'HAND_GESTURE_DETECTION',
   FACE_RECOGNITION = 'FACE_RECOGNITION',
+  // Case-studies proctoring extensions — see PLANNING.md §4.9. Additive to
+  // the existing seven; nothing above changes shape or meaning.
+  TAB_SWITCH_DURING_REVIEW = 'TAB_SWITCH_DURING_REVIEW',
+  PASTE_ATTEMPTED = 'PASTE_ATTEMPTED',
 }
 
 export enum FileType {
@@ -130,6 +134,20 @@ export class AnomalyStats {
   })
   FACE_RECOGNITION: number;
 
+  @IsNumber()
+  @JSONSchema({
+    title: 'Number of tab-switch-during-review anomalies',
+    description: 'Number of times a reviewer switched away during a case-studies comparison timer',
+  })
+  TAB_SWITCH_DURING_REVIEW: number;
+
+  @IsNumber()
+  @JSONSchema({
+    title: 'Number of blocked paste attempts',
+    description: 'Number of times a paste was blocked in the case-studies response composer',
+  })
+  PASTE_ATTEMPTED: number;
+
   constructor() {
     this.VOICE_DETECTION = 0;
     this.NO_FACE = 0;
@@ -138,6 +156,8 @@ export class AnomalyStats {
     this.FOCUS = 0;
     this.HAND_GESTURE_DETECTION = 0;
     this.FACE_RECOGNITION = 0;
+    this.TAB_SWITCH_DURING_REVIEW = 0;
+    this.PASTE_ATTEMPTED = 0;
   }
 }
 
