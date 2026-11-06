@@ -1,11 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { clampSeek, CROP_PX, formatTime, PLAYER_VARS, YouTubePlayer, youTubeErrorMessage } from './youtube-player';
+import { clampSeek, CROP_PX, formatTime, PLAYER_VARS, qualityOptions, YouTubePlayer, youTubeErrorMessage } from './youtube-player';
 
 /** A stand-in for the YouTube IFrame API that records what the app asks of it. */
 function installFakeYouTube() {
-  const state = { time: 0, duration: 300 };
+  const state = { time: 0, duration: 300, qualities: [] as string[] };
   const player = {
     getCurrentTime: vi.fn(() => state.time),
     getDuration: vi.fn(() => state.duration),
@@ -15,6 +15,8 @@ function installFakeYouTube() {
     playVideo: vi.fn(),
     pauseVideo: vi.fn(),
     setPlaybackRate: vi.fn(),
+    getAvailableQualityLevels: vi.fn(() => state.qualities),
+    setPlaybackQuality: vi.fn(),
     mute: vi.fn(),
     unMute: vi.fn(),
     destroy: vi.fn(),
@@ -66,6 +68,16 @@ describe('clampSeek', () => {
 
   it('treats a missing end as the whole video', () => {
     expect(clampSeek(900, { start: 0, end: 0, furthest: 0, allowSeekForward: true })).toBe(900);
+  });
+});
+
+describe('qualityOptions', () => {
+  it('offers everything when YouTube reports nothing', () => {
+    expect(qualityOptions([]).map((q) => q.label)).toEqual(['Auto', '1080p', '720p', '480p', '360p', '240p']);
+  });
+
+  it('always keeps Auto and drops what the video lacks or we don’t know', () => {
+    expect(qualityOptions(['hd720', 'tiny']).map((q) => q.label)).toEqual(['Auto', '720p']);
   });
 });
 
@@ -146,6 +158,32 @@ describe('YouTubePlayer', () => {
     option.focus();
     await user.keyboard('{Enter}');
     expect(yt.player.setPlaybackRate).toHaveBeenCalledWith(1.5);
+  });
+
+  it('offers quality choices and asks YouTube for the one picked', async () => {
+    const yt = installFakeYouTube();
+    const user = userEvent.setup();
+    render(<YouTubePlayer videoId="QJNwK2uJyGs" start={0} end={300} allowSeekForward />);
+    await yt.ready();
+    const menu = screen.getByRole('button', { name: 'Video quality' });
+    expect(menu).toHaveTextContent('Auto');
+    await user.click(menu);
+    const option = await screen.findByRole('menuitemradio', { name: '720p' });
+    option.focus();
+    await user.keyboard('{Enter}');
+    expect(yt.player.setPlaybackQuality).toHaveBeenCalledWith('hd720');
+    expect(menu).toHaveTextContent('720p');
+  });
+
+  it('lists only the qualities the video reports once it plays', async () => {
+    const yt = installFakeYouTube();
+    const user = userEvent.setup();
+    render(<YouTubePlayer videoId="QJNwK2uJyGs" start={0} end={300} allowSeekForward />);
+    await yt.ready();
+    yt.state.qualities = ['hd720', 'medium', 'auto'];
+    yt.playing();
+    await user.click(screen.getByRole('button', { name: 'Video quality' }));
+    expect((await screen.findAllByRole('menuitemradio')).map((o) => o.textContent)).toEqual(['Auto', '720p', '360p']);
   });
 
   it('won’t play while a proctoring block pauses the lesson', async () => {
