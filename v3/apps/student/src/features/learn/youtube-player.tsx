@@ -31,6 +31,8 @@ interface YTPlayer {
   playVideo(): void;
   pauseVideo(): void;
   setPlaybackRate(rate: number): void;
+  getAvailableQualityLevels?(): string[];
+  setPlaybackQuality?(quality: string): void;
   mute(): void;
   unMute(): void;
   destroy(): void;
@@ -99,6 +101,27 @@ export const PLAYER_VARS = {
 export const CROP_PX = 72;
 
 export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
+
+/**
+ * The quality menu's choices, in YouTube's names. YouTube has ignored
+ * setPlaybackQuality since 2019 and still picks the quality itself, so today
+ * this menu only asks. It's kept so the control is in place if that changes,
+ * or for a player that honours it.
+ */
+export const QUALITIES = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'hd1080', label: '1080p' },
+  { value: 'hd720', label: '720p' },
+  { value: 'large', label: '480p' },
+  { value: 'medium', label: '360p' },
+  { value: 'small', label: '240p' },
+] as const;
+
+/** Only what the video reports, or every choice when it reports nothing. */
+export function qualityOptions(available: readonly string[]) {
+  return QUALITIES.filter((q) => q.value === 'auto' || available.length === 0 || available.includes(q.value));
+}
+
 const SKIP_SECONDS = 10;
 /** How long Play may take before we say the video didn't start. */
 const START_TIMEOUT_MS = 8000;
@@ -180,6 +203,8 @@ export function YouTubePlayer({
   const [furthest, setFurthest] = useState(start);
   const [clipEnd, setClipEnd] = useState(end > start ? end : start);
   const [rate, setRate] = useState(1);
+  const [quality, setQuality] = useState('auto');
+  const [availableQualities, setAvailableQualities] = useState<string[]>([]);
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [captions, setCaptions] = useState(false);
@@ -198,6 +223,8 @@ export function YouTubePlayer({
     setCurrent(start);
     setFurthest(start);
     setProblem(null);
+    setQuality('auto');
+    setAvailableQualities([]);
 
     void loadYouTubeApi().then((YT) => {
       if (cancelled || !hostRef.current) return;
@@ -218,6 +245,7 @@ export function YouTubePlayer({
             if (isPlaying) {
               window.clearTimeout(startTimer.current);
               setProblem(null);
+              setAvailableQualities(player?.getAvailableQualityLevels?.() ?? []);
               // YouTube may switch captions on by itself when playback starts.
               if (!captionsRef.current) player?.unloadModule?.('captions');
             }
@@ -320,6 +348,11 @@ export function YouTubePlayer({
     setRate(value);
   };
 
+  const changeQuality = (value: string) => {
+    playerRef.current?.setPlaybackQuality?.(value);
+    setQuality(value);
+  };
+
   const toggleFullscreen = () => {
     if (document.fullscreenElement) void document.exitFullscreen?.();
     else void frameRef.current?.requestFullscreen?.();
@@ -338,6 +371,7 @@ export function YouTubePlayer({
   };
 
   const length = Math.max(clipEnd - start, 0);
+  const qualities = qualityOptions(availableQualities);
   const canSkipForward = clampSeek(current + SKIP_SECONDS, limits) > current + 0.5;
 
   return (
@@ -441,6 +475,20 @@ export function YouTubePlayer({
                 {SPEEDS.map((s) => (
                   <DropdownMenuRadioItem key={s} value={String(s)} closeOnClick>
                     {s}×
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="tabular-nums" aria-label="Video quality" disabled={!ready} />}>
+              {qualities.find((q) => q.value === quality)?.label ?? 'Auto'}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-28">
+              <DropdownMenuRadioGroup value={quality} onValueChange={changeQuality}>
+                {qualities.map((q) => (
+                  <DropdownMenuRadioItem key={q.value} value={q.value} closeOnClick>
+                    {q.label}
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
