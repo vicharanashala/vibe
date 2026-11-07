@@ -81,6 +81,25 @@ export const DEFAULT_QUIZ_DETAILS: QuizDetails = {
   releaseTime: new Date(0).toISOString(),
 };
 
+/**
+ * The item GET returns each bank's id as a serialised ObjectId
+ * (`{ buffer: { data: [...] } }`). Sent back like that, the backend stores the
+ * object as is, and every later read of the quiz (Studio's bank list, a
+ * student starting an attempt) fails with a BSONError. Send the hex string,
+ * as the old editor does.
+ */
+export const quizWire = (d: QuizDetails): QuizDetails =>
+  d.questionBankRefs
+    ? {
+        ...d,
+        questionBankRefs: d.questionBankRefs.map((ref) =>
+          ref && typeof ref === 'object' && 'bankId' in ref
+            ? { ...ref, bankId: toId((ref as { bankId: never }).bankId) }
+            : ref,
+        ),
+      }
+    : d;
+
 const blogWire = (d: BlogDetails) => ({
   content: d.content,
   points: Number(d.points || 0).toFixed(1),
@@ -198,7 +217,11 @@ export function useSaveLesson(loc: LessonLocation, itemId?: string) {
         return toId(res.createdItem._id as never);
       }
       const details =
-        input.type === 'BLOG' ? blogWire(input.details) : input.details;
+        input.type === 'BLOG'
+          ? blogWire(input.details)
+          : input.type === 'QUIZ'
+            ? quizWire(input.details)
+            : input.details;
       unwrap(
         await api.PUT(
           '/api/courses/{courseId}/versions/{versionId}/items/{itemId}',
