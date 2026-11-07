@@ -120,6 +120,18 @@ export function pageOfEnrollments<
       (!query.filter || (query.filter === 'STUDENT') === (e.role === 'STUDENT')) &&
       (!search || `${e.user.firstName} ${e.user.lastName ?? ''} ${e.user.email}`.toLowerCase().includes(search)),
   );
+  // Like the backend: sort the whole match before paging. With no sortBy the
+  // rows stay in the order given, which stands for the backend's default.
+  if (query.sortBy) {
+    const key = (e: T): string | number => {
+      const row = e as T & { progress?: number; enrollmentDate?: string };
+      if (query.sortBy === 'name') return `${e.user.firstName} ${e.user.lastName ?? ''}`;
+      if (query.sortBy === 'progress') return row.progress ?? 0;
+      return row.enrollmentDate ?? '';
+    };
+    const dir = query.sortOrder === 'asc' ? 1 : -1;
+    matches.sort((a, b) => (key(a) < key(b) ? -dir : key(a) > key(b) ? dir : 0));
+  }
   return {
     enrollments: matches.slice((page - 1) * limit, page * limit),
     totalDocuments: matches.length,

@@ -10,6 +10,8 @@ import {
 
 import { AdminShell, StudioEditorShell } from '@/features/admin/admin-shell';
 import { CourseDetailPage, parseCourseTab, type CourseTab } from '@/features/admin/course-detail-page';
+import { parsePeopleSort, type SortOrder } from '@/features/admin/people-sort';
+import type { PeopleSortBy } from '@/features/admin/queries';
 import { CoursesPage as StudioCoursesPage } from '@/features/admin/courses-page';
 import { LessonEditorPage } from '@/features/admin/editor/lesson-editor-page';
 import type { LessonType } from '@/features/admin/editor/lesson-api';
@@ -159,11 +161,22 @@ const adminUsersRoute = createRoute({ getParentRoute: () => adminLayoutRoute, pa
 const adminCourseRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: '/admin/courses/$courseId/$versionId',
-  validateSearch: (search: Record<string, unknown>): { tab?: CourseTab } => ({ tab: parseCourseTab(search.tab) }),
+  validateSearch: (search: Record<string, unknown>): { tab?: CourseTab; sort?: PeopleSortBy; order?: SortOrder } => {
+    const sort = parsePeopleSort(search.sort, search.order);
+    return { tab: parseCourseTab(search.tab), sort: sort?.by, order: sort?.order };
+  },
   component: function AdminCourseRoute() {
     const { courseId, versionId } = adminCourseRoute.useParams();
-    const { tab } = adminCourseRoute.useSearch();
-    return <CourseDetailPage key={versionId} courseId={courseId} versionId={versionId} tab={tab} />;
+    const { tab, sort, order } = adminCourseRoute.useSearch();
+    return (
+      <CourseDetailPage
+        key={versionId}
+        courseId={courseId}
+        versionId={versionId}
+        tab={tab}
+        peopleSort={sort && order ? { by: sort, order } : undefined}
+      />
+    );
   },
 });
 

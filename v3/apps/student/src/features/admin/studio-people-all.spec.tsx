@@ -163,6 +163,7 @@ describe('Overview, in a course bigger than one page', () => {
     );
     expect(await stat('Average progress')).toHaveTextContent('42%');
     expect(await stat('Finished')).toHaveTextContent('7');
-    expect(listCalls()).toEqual([]);
+    // The only list request is the short "Finished the course" preview, never the whole course.
+    expect(listCalls()).toEqual([{ page: 1, limit: 5, filter: 'STUDENT', sortBy: 'progress', sortOrder: 'desc' }]);
   });
 });
