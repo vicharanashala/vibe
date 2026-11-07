@@ -30,6 +30,7 @@ const WATCH_ITEM_ID = 'watchtime-1';
 
 function makeService() {
   const service: any = Object.create(ProgressService.prototype);
+  service.contentLockService = {assertOpenForUser: async () => {}};
 
   service._withTransaction = async (fn: any) => fn({} as any);
 

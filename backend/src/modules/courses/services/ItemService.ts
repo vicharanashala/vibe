@@ -1,4 +1,5 @@
 import {StudyModeError} from '#courses/errors/StudyModeError.js';
+import {ContentLockService} from './ContentLockService.js';
 import { injectable, inject } from 'inversify';
 import { ClientSession, ObjectId } from 'mongodb';
 import {
@@ -100,6 +101,8 @@ export class ItemService extends BaseService {
     private readonly courseSettingService: CourseSettingService,
     @inject(SETTING_TYPES.TimeSlotService)
     private readonly timeSlotService: TimeSlotService,
+    @inject(COURSES_TYPES.ContentLockService)
+    private readonly contentLockService: ContentLockService,
   ) {
     super(database);
   }
@@ -679,6 +682,11 @@ export class ItemService extends BaseService {
     if(versionStatus==="archived"){
         throw new ForbiddenError("This course version is inactive, you can't access items");
     }
+
+    // An instructor's lock closes the lesson in strict and study mode, even if
+    // the student finished it, so it comes before both of those rule sets. A
+    // refused read moves nothing: the progress pointer only changes further down.
+    await this.contentLockService.assertOpenForUser(userId, itemId);
 
     // Student-specific checks (parallelized)
     const [
@@ -1274,6 +1282,62 @@ export class ItemService extends BaseService {
         session,
       );
       return {itemId, studyModeEnabled};
+    });
+  }
+
+  /**
+   * Sets or clears this item's lock setting (`null` = inherit from its section
+   * and module). Stored on the item's ItemsGroup ref, like isHidden.
+   */
+  public async updateItemLock(
+    versionId: string,
+    itemId: string,
+    isLocked: boolean | null,
+  ): Promise<{itemId: string; isLocked: boolean | null}> {
+    return this._withTransaction(async session => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        versionId,
+        session,
+      );
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is archived and cannot be updated.',
+        );
+      }
+      const itemsGroup = await this.itemRepo.findItemsGroupByItemId(
+        itemId,
+        session,
+      );
+      const version = itemsGroup
+        ? await this.courseRepo.readVersion(versionId, session)
+        : null;
+      // The item's group must belong to a section of this version, so an id
+      // from another course can't be edited through this one's permissions.
+      const inVersion = version?.modules?.some(m =>
+        m.sections?.some(
+          s => s.itemsGroupId?.toString() === itemsGroup._id?.toString(),
+        ),
+      );
+      const ref = inVersion
+        ? itemsGroup.items.find(i => i._id?.toString() === itemId)
+        : undefined;
+      if (!ref) {
+        throw new NotFoundError(
+          `Item ${itemId} not found in version ${versionId}.`,
+        );
+      }
+
+      if (isLocked === null) {
+        delete ref.isLocked;
+      } else {
+        ref.isLocked = isLocked;
+      }
+      await this.itemRepo.updateItemsGroup(
+        itemsGroup._id.toString(),
+        itemsGroup,
+        session,
+      );
+      return {itemId, isLocked};
     });
   }
 

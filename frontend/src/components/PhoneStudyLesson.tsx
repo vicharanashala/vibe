@@ -6,6 +6,7 @@ import HlsVideoPlayer from '@/components/HlsVideoPlayer';
 import MobileFallbackScreen from '@/components/MobileFallbackScreen';
 import { Button } from '@/components/ui/button';
 import { fetchClient } from '@/lib/openapi';
+import { contentLockRefusal, lockedMessage } from '@/utils/contentLock';
 import {
   phoneLessonMode,
   resolveStudyMode,
@@ -91,6 +92,7 @@ export function PhoneStudyLesson({
   });
 
   const refusal = item.isError ? studyModeRefusal((item.error as StudyReadError).body) : undefined;
+  const locked = item.isError ? contentLockRefusal((item.error as StudyReadError).body) : undefined;
   const mode = item.isSuccess ? phoneLessonMode(item.data, true, false) : 'fallback';
   const reason =
     refusal?.kind === 'disabled'
@@ -116,6 +118,12 @@ export function PhoneStudyLesson({
           </div>
           <h1 className="text-lg font-semibold">{item.data.name}</h1>
           <StudyVideo item={item.data} />
+        </div>
+      ) : locked ? (
+        <div className="flex h-[60vh] flex-col items-center justify-center p-6 text-center">
+          <Lock className="mb-3 h-8 w-8 text-muted-foreground" aria-hidden />
+          <h1 className="text-lg font-semibold">Locked by your instructor</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{lockedMessage(locked.source)}</p>
         </div>
       ) : (
         <MobileFallbackScreen reason={reason} />

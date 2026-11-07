@@ -41,6 +41,7 @@ import {
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
 import {StudyModeBody} from '../classes/validators/StudyModeValidators.js';
+import {ContentLockBody} from '../classes/validators/ContentLockValidators.js';
 import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import { AuditAction, AuditCategory, OutComeStatus } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
@@ -201,6 +202,74 @@ Accessible to:
       },
       changes: {
         after: {studyModeEnabled: body.studyModeEnabled},
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
+
+    return {version: instanceToPlain(updatedVersion)};
+  }
+
+  @OpenAPI({
+    summary: "Set this section's lock setting",
+    description: `Locks every item in the section that has no setting of its own for students, keeps them open (overriding the module), or clears the setting (null) so the section inherits again.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
+  @Authorized()
+  @HttpCode(200)
+  @Put('/versions/:versionId/modules/:moduleId/sections/:sectionId/lock')
+  @UseInterceptor(AuditTrailsHandler)
+  @ResponseSchema(SectionDataResponse, {
+    description: 'Section lock setting updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(SectionNotFoundErrorResponse, {
+    description: 'Section not found',
+    statusCode: 404,
+  })
+  async updateLock(
+    @Params() params: VersionModuleSectionParams,
+    @Body() body: ContentLockBody,
+    @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request,
+  ) {
+    const {versionId, moduleId, sectionId} = params;
+
+    const versionResource = subject('CourseVersion', {versionId});
+    if (!ability.can(CourseVersionActions.Modify, versionResource)) {
+      throw new ForbiddenError(
+        'You do not have permission to modify this course version',
+      );
+    }
+
+    const updatedVersion = await this.sectionService.updateSectionLock(
+      versionId,
+      moduleId,
+      sectionId,
+      body.isLocked,
+    );
+
+    setAuditTrail(req, {
+      category: AuditCategory.SECTION,
+      action: AuditAction.SECTION_UPDATE_LOCK,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        moduleId: ObjectId.createFromHexString(moduleId),
+        sectionId: ObjectId.createFromHexString(sectionId),
+      },
+      changes: {
+        after: {isLocked: body.isLocked},
       },
       outcome: {
         status: OutComeStatus.SUCCESS,

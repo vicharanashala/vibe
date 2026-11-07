@@ -1,7 +1,8 @@
-import { parentPort, workerData } from "worker_threads";
-import "reflect-metadata";
-import { Container } from "inversify";
-import "dotenv/config";
+import {parentPort, workerData} from 'worker_threads';
+import 'reflect-metadata';
+import {Container} from 'inversify';
+import 'dotenv/config';
+import {ContentLockService} from '#courses/services/ContentLockService.js';
 
 import {
   InviteRepository,
@@ -63,26 +64,72 @@ container
 const database = container.get<MongoDatabase>(GLOBAL_TYPES.Database);
 await database.connect();
 const ledgerRepo = new LedgerRepository(database);
-const inviteRepo = new InviteRepository(database)
-const progressRepo = new ProgressRepository(database)
-const enrollmentRepo = new EnrollmentRepository(database)
-const anomalyRepo = new AnomalyRepository(database)
-const settingsRepo = new SettingRepository(database)
-const courseRegistrationRepo = new CourseRegistrationRepository(database)
-const projectSubmissionRepo = new ProjectSubmissionRepository(database)
-const questionBankRepo = new QuestionBankRepository(database)
-const reportsRepo = new ReportRepository(database)
-const courseRepo = new CourseRepository(database, progressRepo, enrollmentRepo, anomalyRepo, settingsRepo, courseRegistrationRepo, projectSubmissionRepo, questionBankRepo, reportsRepo, inviteRepo)
-const mailService = new MailService()
-const userRepo = new UserRepository(database)
-const itemRepo = new ItemRepository(database, courseRepo)
-const submissionRepo = new SubmissionRepository(database)
-const userQuizMetricsRepo = new UserQuizMetricsRepository(database)
-const quizRepo = new QuizRepository(database)
-const feedbackRepo = new FeedbackRepository(database)
-const progressService = new ProgressService(progressRepo, submissionRepo, courseRepo, settingsRepo, userRepo, itemRepo, enrollmentRepo, userQuizMetricsRepo, quizRepo, projectSubmissionRepo, feedbackRepo, database)
-const enrollmentService = new EnrollmentService(enrollmentRepo, courseRepo, userRepo, itemRepo, courseRegistrationRepo, progressService, settingsRepo, inviteRepo, progressRepo, ledgerRepo, database)
-const inviteService = new InviteService(inviteRepo, userRepo, courseRepo, enrollmentRepo, mailService, itemRepo, enrollmentService, database);
+const inviteRepo = new InviteRepository(database);
+const progressRepo = new ProgressRepository(database);
+const enrollmentRepo = new EnrollmentRepository(database);
+const anomalyRepo = new AnomalyRepository(database);
+const settingsRepo = new SettingRepository(database);
+const courseRegistrationRepo = new CourseRegistrationRepository(database);
+const projectSubmissionRepo = new ProjectSubmissionRepository(database);
+const questionBankRepo = new QuestionBankRepository(database);
+const reportsRepo = new ReportRepository(database);
+const courseRepo = new CourseRepository(
+  database,
+  progressRepo,
+  enrollmentRepo,
+  anomalyRepo,
+  settingsRepo,
+  courseRegistrationRepo,
+  projectSubmissionRepo,
+  questionBankRepo,
+  reportsRepo,
+  inviteRepo,
+);
+const mailService = new MailService();
+const userRepo = new UserRepository(database);
+const itemRepo = new ItemRepository(database, courseRepo);
+const submissionRepo = new SubmissionRepository(database);
+const userQuizMetricsRepo = new UserQuizMetricsRepository(database);
+const quizRepo = new QuizRepository(database);
+const feedbackRepo = new FeedbackRepository(database);
+const progressService = new ProgressService(
+  progressRepo,
+  submissionRepo,
+  courseRepo,
+  settingsRepo,
+  userRepo,
+  itemRepo,
+  enrollmentRepo,
+  userQuizMetricsRepo,
+  quizRepo,
+  projectSubmissionRepo,
+  feedbackRepo,
+  database,
+  new ContentLockService(courseRepo, itemRepo, enrollmentRepo),
+);
+const enrollmentService = new EnrollmentService(
+  enrollmentRepo,
+  courseRepo,
+  userRepo,
+  itemRepo,
+  courseRegistrationRepo,
+  progressService,
+  settingsRepo,
+  inviteRepo,
+  progressRepo,
+  ledgerRepo,
+  database,
+);
+const inviteService = new InviteService(
+  inviteRepo,
+  userRepo,
+  courseRepo,
+  enrollmentRepo,
+  mailService,
+  itemRepo,
+  enrollmentService,
+  database,
+);
 
 (async () => {
   if (!inviteIds.length) {

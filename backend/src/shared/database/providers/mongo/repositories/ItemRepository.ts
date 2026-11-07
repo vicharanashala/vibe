@@ -223,6 +223,7 @@ export class ItemRepository implements IItemRepository {
           ...(item.studyModeEnabled != null
             ? {studyModeEnabled: item.studyModeEnabled}
             : {}),
+          ...(item.isLocked != null ? {isLocked: item.isLocked} : {}),
           name: existingItem.name || 'Untitled',
         };
         // console.log(`[ItemRepository] Item ${item._id} (${item.type}): name="${itemRef.name}"`);

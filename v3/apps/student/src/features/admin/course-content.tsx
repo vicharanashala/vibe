@@ -3,6 +3,7 @@ import {
   ArrowUpIcon,
   BookOpenTextIcon,
   GraduationCapIcon,
+  LockIcon,
   ChevronDownIcon,
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
@@ -46,6 +47,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useCourseVersion, useSectionItems, type CourseModule, type CourseSection } from '@/features/courses/queries';
+import { resolveContentLock, type ContentLockNode } from '@/features/content-lock/content-lock';
 import { resolveStudyMode, type StudyModeNode } from '@/features/study-mode/study-mode';
 import { cn } from '@/lib/utils';
 
@@ -56,6 +58,7 @@ import {
   useMoveItem,
   useDeleteModule,
   useDeleteSection,
+  useSetContentLock,
   useSetStudyMode,
   useUpdateModule,
   useUpdateSection,
@@ -214,6 +217,7 @@ function ModuleBlock({ courseId, versionId, module, index, outline }: Ids & { mo
             Module {String(index + 1).padStart(2, '0')}
             {module.isHidden && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-muted-foreground normal-case">Hidden</span>}
             <StudyModeBadge node={module} parents={[]} className="ml-2 normal-case" />
+            <LockBadge node={module} parents={[]} className="ml-2 normal-case" />
           </p>
           <h3 className="mt-0.5 font-aleo text-lg leading-snug break-words">{module.name}</h3>
           {/* Two lines, then "Show more" (tap, so it works on phones). */}
@@ -225,6 +229,7 @@ function ModuleBlock({ courseId, versionId, module, index, outline }: Ids & { mo
           onAdd={{ label: 'Add section', run: () => setAddingSection(true) }}
           onDelete={() => setDeleting(true)}
           studyMode={{ target: { level: 'module', versionId, moduleId: module.moduleId }, node: module, parents: [] }}
+          contentLock={{ target: { level: 'module', versionId, moduleId: module.moduleId }, node: module, parents: [] }}
         />
       </div>
 
@@ -309,12 +314,14 @@ function SectionBlock({
           {section.name}
           {section.isHidden && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">Hidden</span>}
           <StudyModeBadge node={section} parents={[module]} className="ml-2" />
+          <LockBadge node={section} parents={[module]} className="ml-2" />
         </p>
         <RowMenu
           label={`Section ${section.name}`}
           onEdit={() => setEditing(true)}
           onDelete={() => setDeleting(true)}
           studyMode={{ target: { level: 'section', versionId, moduleId, sectionId: section.sectionId }, node: section, parents: [module] }}
+          contentLock={{ target: { level: 'section', versionId, moduleId, sectionId: section.sectionId }, node: section, parents: [module] }}
         />
       </div>
       {/* Collapsed sections don't mount ItemRows, so their lessons load only when opened. */}
@@ -415,11 +422,17 @@ function ItemRows({ courseId, versionId, module, section, itemsGroupId }: Ids & 
               <span className="hidden text-xs text-muted-foreground sm:inline">{t.label}</span>
               {item.isOptional && <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">Optional</span>}
               <StudyModeBadge node={item} parents={[section, module]} />
+              <LockBadge node={item} parents={[section, module]} />
               <RowMenu
                 label={`Lesson ${item.name}`}
                 onEdit={editable ? open : undefined}
                 onDelete={itemsGroupId ? () => setDeleting({ id: item._id, name: item.name }) : undefined}
                 studyMode={{
+                  target: { level: 'item', versionId, moduleId, sectionId, itemId: item._id },
+                  node: item,
+                  parents: [section, module],
+                }}
+                contentLock={{
                   target: { level: 'item', versionId, moduleId, sectionId, itemId: item._id },
                   node: item,
                   parents: [section, module],
@@ -486,12 +499,14 @@ function RowMenu({
   onAdd,
   onDelete,
   studyMode,
+  contentLock,
 }: {
   label: string;
   onEdit?: () => void;
   onAdd?: { label: string; run: () => void };
   onDelete?: () => void;
   studyMode?: StudyModeMenuProps;
+  contentLock?: ContentLockMenuProps;
 }) {
   return (
     <DropdownMenu>
@@ -510,6 +525,7 @@ function RowMenu({
           </DropdownMenuItem>
         )}
         {studyMode && <StudyModeSubmenu {...studyMode} />}
+        {contentLock && <ContentLockSubmenu {...contentLock} />}
         {onDelete && (
           <>
             {(onEdit || onAdd || studyMode) && <DropdownMenuSeparator />}
@@ -594,6 +610,78 @@ function StudyModeSubmenu({ target, node, parents }: StudyModeMenuProps) {
           <DropdownMenuRadioItem closeOnClick value="inherit">Inherit ({inherited})</DropdownMenuRadioItem>
           <DropdownMenuRadioItem closeOnClick value="on">On: students may study it on any device</DropdownMenuRadioItem>
           <DropdownMenuRadioItem closeOnClick value="off">Off: strict mode only</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Content lock
+// ---------------------------------------------------------------------------
+
+/** Whether a node is locked when it has no setting of its own. */
+function inheritedLock(parents: ContentLockNode[]) {
+  const [nearest, outer] = parents;
+  if (parents.length === 2) return resolveContentLock(undefined, nearest, outer).locked;
+  if (parents.length === 1) return resolveContentLock(undefined, undefined, nearest).locked;
+  return false;
+}
+
+/**
+ * "Locked" when locked here or inherited ("(inherited)"), and "Open" only where
+ * a node stays open inside something locked. Nothing when simply open.
+ */
+function LockBadge({ node, parents, className }: { node: ContentLockNode; parents: ContentLockNode[]; className?: string }) {
+  const own = node.isLocked ?? null;
+  const inherited = inheritedLock(parents);
+  if (own === true)
+    return (
+      <Badge variant="secondary" className={className}>
+        Locked
+      </Badge>
+    );
+  if (own === false && inherited)
+    return (
+      <Badge variant="outline" className={className}>
+        Open
+      </Badge>
+    );
+  if (own === null && inherited)
+    return (
+      <Badge variant="outline" className={cn('text-muted-foreground', className)}>
+        Locked (inherited)
+      </Badge>
+    );
+  return null;
+}
+
+type ContentLockMenuProps = { target: StudyModeTarget; node: ContentLockNode; parents: ContentLockNode[] };
+const LOCK_VALUE = { inherit: null, locked: true, open: false } as const;
+
+/** Inherit / Locked / Open for a module, section or lesson. Shows the saved value only. */
+function ContentLockSubmenu({ target, node, parents }: ContentLockMenuProps) {
+  const setLock = useSetContentLock();
+  const own = node.isLocked ?? null;
+  const current = own === null ? 'inherit' : own ? 'locked' : 'open';
+  const choose = (value: string) => {
+    if (value === current || !(value in LOCK_VALUE)) return;
+    // mutateAsync, not mutate's onError: picking an option closes (unmounts)
+    // this menu, and TanStack Query skips per-call callbacks after unmount.
+    setLock
+      .mutateAsync({ target, value: LOCK_VALUE[value as keyof typeof LOCK_VALUE] })
+      .catch((e: Error) => toast.error(`The lock wasn’t saved: ${e.message}`));
+  };
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <LockIcon /> Lock
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="w-56">
+        <DropdownMenuRadioGroup value={current} onValueChange={choose}>
+          <DropdownMenuRadioItem closeOnClick value="inherit">Inherit ({inheritedLock(parents) ? 'locked' : 'open'})</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem closeOnClick value="locked">Locked: closed to students</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem closeOnClick value="open">Open: students can reach it</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuSubContent>
     </DropdownMenuSub>

@@ -55,15 +55,16 @@ import {
   FeedbackSubmissionItem,
   QuizItem,
 } from '#root/modules/courses/classes/transformers/Item.js';
-import { QuestionRepository } from '../repositories/index.js';
-import { FeedbackRepository } from '../repositories/providers/mongodb/FeedbackRepository.js';
-import { COURSES_TYPES } from '#root/modules/courses/types.js';
-import { USERS_TYPES } from '#root/modules/users/types.js';
-import { ProgressRepository } from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { ProgressService } from '#root/modules/users/services/ProgressService.js';
-import { StudentQuestionRepository } from '#root/modules/studentQuestions/repositories/providers/mongodb/StudentQuestionRepository.js';
-import { StudentQuestionService } from '#root/modules/studentQuestions/services/StudentQuestionService.js';
+import {QuestionRepository} from '../repositories/index.js';
+import {FeedbackRepository} from '../repositories/providers/mongodb/FeedbackRepository.js';
+import {ContentLockService} from '#root/modules/courses/services/ContentLockService.js';
+import {COURSES_TYPES} from '#root/modules/courses/types.js';
+import {USERS_TYPES} from '#root/modules/users/types.js';
+import {ProgressRepository} from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {ProgressService} from '#root/modules/users/services/ProgressService.js';
+import {StudentQuestionRepository} from '#root/modules/studentQuestions/repositories/providers/mongodb/StudentQuestionRepository.js';
+import {StudentQuestionService} from '#root/modules/studentQuestions/services/StudentQuestionService.js';
 import {
   IStudentQuestionOption,
   IStudentSegmentQuestion,
@@ -120,6 +121,9 @@ class AttemptService extends BaseService {
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
+
+    @inject(COURSES_TYPES.ContentLockService)
+    private readonly contentLockService: ContentLockService,
   ) {
     super(database);
   }
@@ -505,6 +509,9 @@ class AttemptService extends BaseService {
     quizId: string,
     cohortId?: string
   ): Promise<{ attemptId: string; questionRenderViews: IQuestionRenderView[] }> {
+    // Before the transaction, so a refusal creates no metrics and uses no attempt.
+    await this.contentLockService.assertOpenForUser(userId.toString(), quizId);
+
     return this._withTransaction(async session => {
 
 
@@ -828,6 +835,8 @@ class AttemptService extends BaseService {
     details: Record<string, any>,
     cohortId?: string
   ): Promise<string> {
+    await this.contentLockService.assertOpenForUser(userId, feedbackFormId);
+
     return this._withTransaction(async session => {
       // Course version is active or not
       const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId);
