@@ -78,6 +78,7 @@ import {
   OutComeStatus,
 } from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import {ObjectId} from 'mongodb';
+import {StudyProgressService} from '../services/StudyProgressService.js';
 
 @OpenAPI({
   tags: ['Enrollments'],
@@ -92,6 +93,8 @@ export class EnrollmentController {
     private readonly userService: UserService,
     @inject(CohortScopeService)
     private readonly cohortScopeService: CohortScopeService,
+    @inject(USERS_TYPES.StudyProgressService)
+    private readonly studyProgressService: StudyProgressService,
   ) {}
 
   /**
@@ -857,6 +860,20 @@ export class EnrollmentController {
       };
     }
 
+    // Study progress for this page's students, from one structure pass
+    // (spec backend/study-progress, "Teachers see each student's study progress").
+    const students = enrollmentsData.enrollments.filter(
+      (e: any) => e.role === 'STUDENT' && e.userId,
+    );
+    const studyProgress = await this.studyProgressService.forUsers(
+      courseId,
+      versionId,
+      students.map((e: any) => ({
+        userId: e.userId.toString(),
+        cohortId: e.cohortId ? e.cohortId.toString() : null,
+      })),
+    );
+
     const totalDocuments =
       'totalDocuments' in enrollmentsData
         ? enrollmentsData.totalDocuments
@@ -877,6 +894,18 @@ export class EnrollmentController {
           unenrolledAt: enrollment.unenrolledAt,
           user: {...enrollment.userInfo, _id: enrollment.userId},
           progress: enrollment.percentCompleted ?? 0,
+          studyProgress: (() => {
+            if (enrollment.role !== 'STUDENT' || !enrollment.userId)
+              return null;
+            const p = studyProgress.get(enrollment.userId.toString());
+            return p
+              ? {
+                  studiedItems: p.studiedItems,
+                  totalItems: p.totalItems,
+                  percentStudied: p.percentStudied,
+                }
+              : null;
+          })(),
           completedItemsCount: enrollment.completedItemsCount || 0,
           assignedTimeSlots: enrollment.assignedTimeSlots || [],
           totalQuizScore: enrollment.totalQuizScore || 0,

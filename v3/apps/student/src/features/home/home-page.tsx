@@ -246,10 +246,14 @@ function LoadError({ onRetry }: { onRetry: () => void }) {
 function GettingStarted({ uid, hasCourse, hasStarted }: { uid: string; hasCourse: boolean; hasStarted: boolean }) {
   const onboarding = readOnboarding(uid);
   const steps = [
-    { label: 'Create your account', done: true, to: undefined },
-    { label: 'Check your camera and microphone', done: Boolean(onboarding.mediaCheckPassedAt), to: '/onboarding' as const },
-    { label: 'Join a course', done: hasCourse, to: undefined },
-    { label: 'Start your first lesson', done: hasStarted, to: hasCourse ? ('/courses' as const) : undefined },
+    { label: 'Create your account', done: true, link: undefined },
+    {
+      label: 'Check your camera and microphone',
+      done: Boolean(onboarding.mediaCheckPassedAt),
+      link: <Link to="/onboarding" search={{ step: 'media' }} />,
+    },
+    { label: 'Join a course', done: hasCourse, link: undefined },
+    { label: 'Start your first lesson', done: hasStarted, link: hasCourse ? <Link to="/courses" /> : undefined },
   ];
   const doneCount = steps.filter((s) => s.done).length;
 
@@ -284,8 +288,8 @@ function GettingStarted({ uid, hasCourse, hasStarted }: { uid: string; hasCourse
                 </ItemActions>
               </>
             );
-            return !s.done && s.to ? (
-              <Item key={s.label} variant="outline" size="sm" render={<Link to={s.to} />}>
+            return !s.done && s.link ? (
+              <Item key={s.label} variant="outline" size="sm" render={s.link}>
                 {body}
               </Item>
             ) : (

@@ -1,3 +1,4 @@
+import { contentLockRefusal, type LockedLevel } from '@/features/content-lock/content-lock';
 import { ArrowDownIcon, ArrowUpIcon, CheckCircle2Icon, CircleAlertIcon, ClockIcon, KeyboardIcon, LightbulbIcon, ListChecksIcon, RotateCcwIcon, TargetIcon, XCircleIcon } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 
@@ -61,6 +62,7 @@ export function QuizRunner({
   lessonRef,
   item,
   ensureWatchItem,
+  onLocked,
   onPassed,
   onExit,
   onAnsweringChange,
@@ -68,6 +70,8 @@ export function QuizRunner({
   lessonRef: LessonRef;
   item: LessonItem;
   ensureWatchItem: () => Promise<string | undefined>;
+  /** Starting was refused because the instructor locked this quiz. */
+  onLocked?: (source: LockedLevel) => void;
   onPassed: () => void;
   onExit: () => void;
   /** True while an attempt is open with answers not yet submitted. */
@@ -90,6 +94,8 @@ export function QuizRunner({
       if (attempt.questions.length === 0) return setStage({ kind: 'blocked', message: 'This quiz has no questions yet.' });
       setStage({ kind: 'answering', attemptId: attempt.attemptId, questions: attempt.questions });
     } catch (e) {
+      const locked = contentLockRefusal(e);
+      if (locked) return onLocked?.(locked.source);
       setError((e as Error).message);
       setStage({ kind: 'intro' });
     }

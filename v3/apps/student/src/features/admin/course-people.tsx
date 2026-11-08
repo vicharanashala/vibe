@@ -1,6 +1,7 @@
-import { MailPlusIcon, SearchIcon, UsersIcon, XIcon } from 'lucide-react';
-import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { InfoIcon, MailPlusIcon, SearchIcon, UsersIcon, XIcon } from 'lucide-react';
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { toast } from 'sonner';
+import { useDebounceValue } from 'usehooks-ts';
 
 import { GeneratedAvatar } from '@/components/generated-art';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,8 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group';
 import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import {
@@ -40,7 +43,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { useCourseEnrollments, useInviteUser } from './queries';
+import { useCourseEnrollmentsPage, useInviteUser } from './queries';
 import { ErrorText, formatDate, RoleBadge } from './studio-ui';
 
 type RoleFilter = 'all' | 'STUDENT' | 'INSTRUCTOR';
@@ -57,25 +60,26 @@ export function CoursePeople({
   inviteOpen: boolean;
   onInviteOpenChange: (open: boolean) => void;
 }) {
-  const enrollments = useCourseEnrollments(courseId, versionId);
   const [query, setQuery] = useState('');
   const [role, setRole] = useState<RoleFilter>('all');
+  const [page, setPage] = useState(1);
+  const [search] = useDebounceValue(query.trim(), 300);
+  useEffect(() => setPage(1), [search, role]);
 
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return (enrollments.data ?? []).filter(
-      (e) =>
-        (role === 'all' || e.role === role) &&
-        (!q ||
-          e.user.email.toLowerCase().includes(q) ||
-          `${e.user.firstName} ${e.user.lastName ?? ''}`
-            .toLowerCase()
-            .includes(q)),
-    );
-  }, [enrollments.data, query, role]);
-
-  const count = (r: RoleFilter) =>
-    (enrollments.data ?? []).filter((e) => r === 'all' || e.role === r).length;
+  const enrollments = useCourseEnrollmentsPage(courseId, versionId, {
+    page,
+    search,
+    filter: role === 'all' ? undefined : role === 'STUDENT' ? 'STUDENT' : 'OTHER',
+  });
+  // Whole-course counts for the tabs. A limit of 1, since only the totals matter.
+  const students = useCourseEnrollmentsPage(courseId, versionId, { limit: 1, filter: 'STUDENT' });
+  const staff = useCourseEnrollmentsPage(courseId, versionId, { limit: 1, filter: 'OTHER' });
+  const counts =
+    students.data && staff.data
+      ? { all: students.data.total + staff.data.total, STUDENT: students.data.total, INSTRUCTOR: staff.data.total }
+      : null;
+  const shown = enrollments.data?.enrollments ?? [];
+  const totalPages = enrollments.data?.totalPages ?? 1;
 
   return (
     <div>
@@ -84,25 +88,25 @@ export function CoursePeople({
           <TabsList>
             <TabsTrigger value="all">
               All{' '}
-              {enrollments.data && (
+              {counts && (
                 <span className="text-muted-foreground tabular-nums">
-                  {count('all')}
+                  {counts.all.toLocaleString()}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger value="STUDENT">
               Students{' '}
-              {enrollments.data && (
+              {counts && (
                 <span className="text-muted-foreground tabular-nums">
-                  {count('STUDENT')}
+                  {counts.STUDENT.toLocaleString()}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger value="INSTRUCTOR">
               Instructors{' '}
-              {enrollments.data && (
+              {counts && (
                 <span className="text-muted-foreground tabular-nums">
-                  {count('INSTRUCTOR')}
+                  {counts.INSTRUCTOR.toLocaleString()}
                 </span>
               )}
             </TabsTrigger>
@@ -129,7 +133,7 @@ export function CoursePeople({
       <div className="mt-4">
         {enrollments.isPending && <Skeleton className="h-48 rounded-2xl" />}
         {enrollments.isError && <ErrorText error={enrollments.error} />}
-        {enrollments.data && enrollments.data.length === 0 && (
+        {counts?.all === 0 && (
           <Empty className="rounded-2xl border border-dashed border-border bg-card">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -148,7 +152,7 @@ export function CoursePeople({
             </EmptyContent>
           </Empty>
         )}
-        {enrollments.data && enrollments.data.length > 0 && (
+        {enrollments.data && counts?.all !== 0 && (
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <Table>
               <TableHeader>
@@ -156,7 +160,10 @@ export function CoursePeople({
                   <TableHead className="pl-4">Person</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead className="hidden md:table-cell">
-                    Progress
+                    <HeadWithHint label="Progress" dot="bg-emerald-500" hint="Lessons completed in strict mode. This is the course progress used for completion and certificates." />
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    <HeadWithHint label="Study" dot="bg-sky-500" hint="Videos and articles the student studied in study mode or completed in strict mode. Doesn’t count towards completion." />
                   </TableHead>
                   <TableHead className="hidden sm:table-cell">Status</TableHead>
                   <TableHead className="hidden pr-4 text-right sm:table-cell">
@@ -188,11 +195,30 @@ export function CoursePeople({
                         <div className="flex w-36 items-center gap-2">
                           <Progress
                             value={e.progress ?? 0}
-                            className="h-1.5 flex-1"
+                            className="h-1.5 flex-1 [&_[data-slot=progress-indicator]]:bg-emerald-500"
                             aria-label={`${e.user.firstName}'s progress`}
                           />
                           <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">
                             {Math.round(e.progress ?? 0)}%
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {e.role === 'STUDENT' && e.studyProgress ? (
+                        <div
+                          className="flex w-36 items-center gap-2"
+                          title={`${e.studyProgress.studiedItems} of ${e.studyProgress.totalItems} videos & articles`}
+                        >
+                          <Progress
+                            value={e.studyProgress.percentStudied}
+                            className="h-1.5 flex-1 [&_[data-slot=progress-indicator]]:bg-sky-500"
+                            aria-label={`${e.user.firstName}'s study progress`}
+                          />
+                          <span className="w-9 text-right text-xs text-sky-700 tabular-nums dark:text-sky-300">
+                            {e.studyProgress.percentStudied}%
                           </span>
                         </div>
                       ) : (
@@ -219,6 +245,19 @@ export function CoursePeople({
                 )}
               </TableBody>
             </Table>
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div className="mt-3 flex items-center justify-end gap-2">
+            <span className="mr-auto text-sm text-muted-foreground tabular-nums">
+              Page {page} of {totalPages}
+            </span>
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+              Next
+            </Button>
           </div>
         )}
       </div>
@@ -402,5 +441,21 @@ export function InviteDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** A table header with a colour dot (matching its bar) and an explanation in a tooltip. */
+function HeadWithHint({ label, dot, hint }: { label: string; dot: string; hint: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={<span className="inline-flex cursor-default items-center gap-1.5" />}
+      >
+        <span className={cn('size-2 rounded-full', dot)} aria-hidden />
+        {label}
+        <InfoIcon className="size-3.5 text-muted-foreground/70" aria-hidden />
+      </TooltipTrigger>
+      <TooltipContent className="max-w-64">{hint}</TooltipContent>
+    </Tooltip>
   );
 }

@@ -303,7 +303,7 @@ function Responses({
           </EmptyMedia>
           <EmptyTitle>No responses yet</EmptyTitle>
           <EmptyDescription>
-            Responses appear here as students send the form in certified mode.
+            Responses appear here as students send the form in strict mode.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

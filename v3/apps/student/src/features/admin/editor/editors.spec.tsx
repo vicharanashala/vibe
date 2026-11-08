@@ -262,13 +262,20 @@ describe('quiz editor', () => {
         (c) => c[0] === '/api/quizzes/questions/{questionId}',
       ),
     ).toHaveLength(0);
-    // The item update carries the bank links back, since it replaces details.
+    // The item update carries the bank links back, since it replaces details,
+    // with each bank id as a hex string. The GET serialises it as
+    // { buffer: { data } }; sending that back stores an object the backend
+    // can't read, and the quiz then fails to load (BSONError) for everyone.
     const itemPut = api.PUT.mock.calls.find(
       (c) =>
         c[0] === '/api/courses/{courseId}/versions/{versionId}/items/{itemId}',
     )!;
-    expect(itemPut[1].body.details.questionBankRefs).toEqual(
-      studio.quizItem.item.details.questionBankRefs,
+    const [ref] = studio.quizItem.item.details.questionBankRefs;
+    expect(itemPut[1].body.details.questionBankRefs).toEqual([
+      { ...ref, bankId: hex(ref.bankId) },
+    ]);
+    expect(itemPut[1].body.details.questionBankRefs[0].bankId).toMatch(
+      /^[0-9a-f]{24}$/,
     );
   });
 });

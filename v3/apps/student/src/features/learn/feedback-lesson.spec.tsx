@@ -142,10 +142,9 @@ describe('feedback lesson (study mode)', () => {
   it('shows the form read-only and never sends it', async () => {
     renderApp(url('blue'));
     expect(
-      await screen.findByText(/Answers are sent only in certified mode/),
+      await screen.findByText(/Answers are sent only in strict mode/),
     ).toBeInTheDocument();
-    // Study mode keeps the lesson hidden until the camera is on, hence `hidden: true`;
-    // only the visible radio controls (not Base UI's hidden native inputs) are checked.
+    // Only the visible radio controls (not Base UI's hidden native inputs) are checked.
     const radios = screen
       .getAllByRole('radio', { hidden: true })
       .filter((r) => r.dataset.slot === 'radio-group-item');

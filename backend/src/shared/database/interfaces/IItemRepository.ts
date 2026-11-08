@@ -33,6 +33,16 @@ export interface IItemRepository {
     session?: ClientSession,
   ): Promise<ItemsGroup>;
 
+  /**
+   * Several ItemsGroups in one query, raw: unlike readItemsGroup it doesn't
+   * rebuild the refs, so every stored ref field (e.g. studyModeEnabled) is
+   * kept. Missing ids are simply absent from the result.
+   */
+  readItemsGroupsByIds(
+    itemsGroupIds: string[],
+    session?: ClientSession,
+  ): Promise<ItemsGroup[]>;
+
   updateItemsGroup(
     itemsGroupId: string,
     itemsGroup: ItemsGroup,

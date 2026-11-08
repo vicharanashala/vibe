@@ -3,6 +3,7 @@ import { unwrap } from '@vibe/api';
 
 import { courseKeys } from '@/features/courses/queries';
 import { api } from '@/lib/api';
+import type { ResolvedStudyMode } from '@/features/study-mode/study-mode';
 
 export interface DetectorSetting {
   detectorName: string;
@@ -18,6 +19,8 @@ export interface LessonItem {
   isAlreadyWatched?: boolean;
   /** Resolved server-side: item > module > course setting. */
   proctoringDetectors?: DetectorSetting[];
+  /** Whether study mode is allowed for this item, resolved server-side (item > section > module). */
+  studyMode?: ResolvedStudyMode;
   details: {
     // VIDEO
     URL?: string;
@@ -54,7 +57,7 @@ export interface LessonRef {
 }
 
 export const learnKeys = {
-  item: (r: LessonRef) => ['lesson', r.versionId, r.itemId] as const,
+  item: (r: LessonRef, mode?: 'study') => ['lesson', r.versionId, r.itemId, mode ?? 'strict'] as const,
   settings: (courseId: string, versionId: string) => ['course-settings', courseId, versionId] as const,
 };
 
@@ -82,14 +85,20 @@ export function isDetectorEnabled(detectors: DetectorSetting[] | undefined, name
   return (detectors ?? []).some((d) => d.detectorName === name && d.settings?.enabled);
 }
 
-export function useLesson(r: LessonRef) {
+/**
+ * The lesson as the student may open it. `mode: 'study'` asks for a study-mode
+ * read: the backend skips the linear-progression lock and never touches
+ * progress, and refuses quizzes and items where study mode is disabled (see
+ * `studyModeRefusal`).
+ */
+export function useLesson(r: LessonRef, mode?: 'study') {
   return useQuery({
-    queryKey: learnKeys.item(r),
+    queryKey: learnKeys.item(r, mode),
     queryFn: async () =>
       (
         unwrap(
           await api.GET('/api/courses/{courseId}/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/item/{itemId}', {
-            params: { path: r },
+            params: { path: r, query: mode ? { mode } : {} },
           }),
         ) as unknown as { item: LessonItem }
       ).item,
@@ -178,4 +187,43 @@ export function youtubeId(url?: string): string | null {
   if (!url) return null;
   const m = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
   return m?.[1] ?? null;
+}
+
+/** A student's study progress (spec backend/study-progress): covered ÷ study-allowed videos and articles. */
+export interface StudyProgress {
+  studiedItems: number;
+  totalItems: number;
+  percentStudied: number;
+  studiedItemIds: string[];
+}
+
+export const studyKeys = {
+  progress: (courseId: string, versionId: string) => ['study-progress', courseId, versionId] as const,
+};
+
+export function useStudyProgress(courseId: string, versionId: string, enabled = true) {
+  return useQuery({
+    queryKey: studyKeys.progress(courseId, versionId),
+    enabled: enabled && !!courseId && !!versionId,
+    staleTime: 60_000,
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/users/progress/courses/{courseId}/versions/{versionId}/study-progress', {
+          params: { path: { courseId, versionId } },
+        }),
+      ) as unknown as StudyProgress,
+  });
+}
+
+/**
+ * Marks a video or article as studied in study mode. Never touches strict
+ * progress; a repeat is harmless (the backend keeps the first time).
+ */
+export async function recordStudyView(r: LessonRef): Promise<void> {
+  unwrap(
+    await api.POST('/api/users/progress/courses/{courseId}/versions/{versionId}/study-views', {
+      params: { path: { courseId: r.courseId, versionId: r.versionId } },
+      body: { itemId: r.itemId, moduleId: r.moduleId, sectionId: r.sectionId },
+    }),
+  );
 }

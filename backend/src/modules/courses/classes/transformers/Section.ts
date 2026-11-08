@@ -44,6 +44,15 @@ class Section implements ISection {
 
   @Expose()
   isHidden: boolean = false;
+
+  // Absent/null means "inherit from the module" — see resolveStudyMode.
+  @Expose()
+  studyModeEnabled?: boolean | null;
+
+  // Absent/null means "inherit from the module" — see resolveContentLock.
+  @Expose()
+  isLocked?: boolean | null;
+
   isDeleted?: boolean;
 
   @Expose()

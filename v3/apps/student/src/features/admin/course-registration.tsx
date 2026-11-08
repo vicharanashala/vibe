@@ -41,6 +41,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
@@ -53,7 +54,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
 import { FeedbackFormFields } from '@/features/feedback/feedback-form';
 import { FormBuilder } from '@/features/feedback/form-builder';
 import { useCourseSettings } from '@/features/learn/queries';
@@ -67,6 +67,8 @@ import {
   type FormValues,
 } from '@/features/feedback/form-schema';
 
+import { listFitsInOneSave } from './auto-approval-entries';
+import { AutoApprovalList, useAutoApprovalEntries } from './auto-approval-list';
 import { useAllUsers, useStudioAccess, useUpdateCourseSettings } from './queries';
 import {
   useBulkApproveRegistrations,
@@ -76,6 +78,7 @@ import {
   useSaveRegistrationForm,
   useSetRegistrationStatus,
   useToggleRegistration,
+  type AutoApprovalMode,
   type RegistrationRequest,
   type RegistrationSettings,
   type RegistrationStatus,
@@ -179,7 +182,8 @@ function CatalogueSwitch({
     update.mutate(
       {
         ...rest,
-        linearProgressionEnabled: rest.linearProgressionEnabled ?? false,
+        // Unset means on to the backend; never save it as off by default.
+        linearProgressionEnabled: rest.linearProgressionEnabled ?? true,
         seekForwardEnabled: rest.seekForwardEnabled ?? false,
         detectors: (proctors?.detectors ?? []).map((d) => ({
           detectorName: d.detectorName,
@@ -239,16 +243,26 @@ function RegistrationSettingsPanel({
   const toggle = useToggleRegistration(versionId);
   const saveAuto = useSaveAutoApproval(versionId);
   const [auto, setAuto] = useState(settings.registrationsAutoApproved);
-  const [patterns, setPatterns] = useState(
-    settings.autoapproval_emails.join('\n'),
-  );
-  const parsed = patterns
-    .split(/[\n,]+/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const [mode, setMode] = useState(settings.autoApprovalMode);
+  const list = useAutoApprovalEntries(settings.autoapproval_emails);
   const dirty =
     auto !== settings.registrationsAutoApproved ||
-    parsed.join('\n') !== settings.autoapproval_emails.join('\n');
+    mode !== settings.autoApprovalMode ||
+    (mode === 'LIST' && list.isChanged);
+  const saveBody = (emails: string[]) => ({
+    registrationsAutoApproved: auto,
+    autoApprovalMode: mode,
+    autoapproval_emails: mode === 'LIST' ? emails : [],
+  });
+  const tooLong = mode === 'LIST' && !listFitsInOneSave(list.withDraft);
+
+  function save() {
+    const emails = mode === 'LIST' ? list.commitDraft() : [];
+    if (!emails) return;
+    saveAuto.mutate(saveBody(emails), {
+      onSuccess: () => toast.success('Approval settings saved.'),
+    });
+  }
 
   return (
     <div className="grid gap-4">
@@ -303,51 +317,60 @@ function RegistrationSettingsPanel({
           </Field>
           {auto && (
             <Field>
-              <FieldLabel htmlFor="reg-patterns">
-                Only for these emails (optional)
-              </FieldLabel>
-              <Textarea
-                id="reg-patterns"
-                rows={3}
-                value={patterns}
-                onChange={(e) => setPatterns(e.target.value)}
-                placeholder={'@iitrpr.ac.in\nstudent@example.com'}
-              />
-              <FieldDescription>
-                One per line. An address is approved if it contains any of
-                these, so “@iitrpr.ac.in” covers a whole domain. Leave empty to
-                approve everyone; anyone else waits for you.
-              </FieldDescription>
+              <FieldLabel id="reg-mode">Who is approved</FieldLabel>
+              <RadioGroup
+                aria-labelledby="reg-mode"
+                value={mode}
+                onValueChange={(v) => setMode(v as AutoApprovalMode)}
+              >
+                <Field orientation="horizontal">
+                  <RadioGroupItem value="EVERYONE" id="reg-mode-everyone" />
+                  <FieldLabel
+                    htmlFor="reg-mode-everyone"
+                    className="font-normal"
+                  >
+                    Everyone
+                  </FieldLabel>
+                </Field>
+                <Field orientation="horizontal">
+                  <RadioGroupItem value="LIST" id="reg-mode-list" />
+                  <FieldLabel htmlFor="reg-mode-list" className="font-normal">
+                    Only these emails
+                  </FieldLabel>
+                </Field>
+              </RadioGroup>
             </Field>
+          )}
+          {auto && mode === 'LIST' && (
+            <AutoApprovalList list={list} />
           )}
           {(dirty || saveAuto.isError) && (
             <div className="flex flex-wrap items-center justify-end gap-2">
-              {saveAuto.isError && (
+              {tooLong ? (
+                <p role="alert" className="mr-auto text-sm text-destructive">
+                  This list is too long to save. The limit is about 3,500
+                  emails. Use a domain for large groups, or remove some emails.
+                </p>
+              ) : saveAuto.isError ? (
                 <ErrorText error={saveAuto.error} className="mr-auto" />
+              ) : (
+                <p className="mr-auto text-sm text-muted-foreground">
+                  Not saved yet.
+                </p>
               )}
               <Button
                 variant="outline"
                 onClick={() => {
                   setAuto(settings.registrationsAutoApproved);
-                  setPatterns(settings.autoapproval_emails.join('\n'));
+                  setMode(settings.autoApprovalMode);
+                  list.reset();
                 }}
               >
                 Discard
               </Button>
               <Button
-                disabled={saveAuto.isPending}
-                onClick={() =>
-                  saveAuto.mutate(
-                    {
-                      registrationsAutoApproved: auto,
-                      autoapproval_emails: auto ? parsed : [],
-                    },
-                    {
-                      onSuccess: () =>
-                        toast.success('Approval settings saved.'),
-                    },
-                  )
-                }
+                disabled={saveAuto.isPending || tooLong}
+                onClick={save}
               >
                 {saveAuto.isPending && <Spinner className="size-4" />}
                 Save
