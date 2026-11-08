@@ -1,4 +1,4 @@
-﻿import {
+import {
   ReviewItem,
   CourseRetentionSummary,
   RecallQuality,
@@ -89,9 +89,10 @@ function futureDate(daysFromNow: number): Date {
 export const DEMO_STUDENT_ID = 'dJDsxeP9kqOkHEygUHWu45DmJkQz';
 export const DEMO_STUDENT_EMAILS: ReadonlySet<string> = new Set([
   'student@test.com',
+  'student.test1@example.com',
 ]);
 export function isDemoStudentEmail(email: string | null | undefined): boolean {
-  return !!email && DEMO_STUDENT_EMAILS.has(email);
+  return !!email && (DEMO_STUDENT_EMAILS.has(email) || DEMO_STUDENT_EMAILS.has(email.trim().toLowerCase()));
 }
 
 // Human-readable mock directory (added 2026-08-03)
@@ -144,7 +145,7 @@ export function courseDisplay(courseId: string): CourseDisplay {
   };
 }
 
-// ── Question body preview lookup (Day 2, 2026-08-04) ──────────────────────
+// -- Question body preview lookup (Day 2, 2026-08-04) ----------------------
 //
 // Mirrors the day-1 pattern (MOCK_COURSE_DIRECTORY / MOCK_STUDENT_DIRECTORY)
 // but for question bodies. Used by the teacher dashboard per-card row to
@@ -369,6 +370,7 @@ function deriveMockRetention(courseId: string, studentId?: string): CourseRetent
 // â”€â”€ Helper â€” get auth token â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getToken(): string {
+  if (typeof localStorage === 'undefined') return '';
   return localStorage.getItem('firebase-auth-token') ?? '';
 }
 
@@ -450,9 +452,12 @@ export async function submitReview(
 ): Promise<SubmitReviewResponse> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 300));
-    const idx = MOCK_REVIEW_ITEMS.findIndex(
+    let idx = MOCK_REVIEW_ITEMS.findIndex(
       i => i.student_id === studentId && i.question_id === questionId,
     );
+    if (idx === -1) {
+      idx = MOCK_REVIEW_ITEMS.findIndex(i => i.question_id === questionId);
+    }
     if (idx === -1) throw new Error('Mock: review item not found');
     const item = MOCK_REVIEW_ITEMS[idx];
 
@@ -538,7 +543,7 @@ export async function submitReview(
     // wrong (Knob 8c), force a full SM-2 reset (n=0, interval=1d) regardless
     // of which button the student pressed. Without this, a wrong pick +
     // `got_it` (capped to `unsure`, q=3) on an item with prior n>=2 still
-    // produces interval = round(prior * EF) — e.g. 16 * 2.56 ≈ 41 days —
+    // produces interval = round(prior * EF) — e.g. 16 * 2.56 ˜ 41 days —
     // which contradicts the amber "Downgraded" notice shown to the user.
     // Mirrors the backend override in `SpacedRepetitionService.submitReview`.
     if (isCorrect === false) {
@@ -1075,7 +1080,7 @@ export async function resetReview(
   });
 }
 
-// ── SR-disabled (Knob 6, Phase C, 2026-07-21) ──────────────────────────
+// -- SR-disabled (Knob 6, Phase C, 2026-07-21) --------------------------
 
 /**
  * Per-student SR-disabled flag storage.
@@ -1179,7 +1184,7 @@ export async function setStudentSRDisabled(
  *
  * Mock path: `studentsAffected = studentIds.length`,
  * `itemsAffected = studentIds.length` (mock has no notion of
- * "already-disabled" → always treats each id as a transition).
+ * "already-disabled" ? always treats each id as a transition).
  */
 export async function bulkSetStudentSRDisabled(
   studentIds: string[],
@@ -1210,7 +1215,7 @@ export async function bulkSetStudentSRDisabled(
   }) as unknown as Promise<BulkUpdateResponse>;
 }
 
-// ── Manual Review Assignment (Knob 7, Phase C, 2026-07-21) ───────────────
+// -- Manual Review Assignment (Knob 7, Phase C, 2026-07-21) ---------------
 
 /**
  * One entry returned by GET /courses/:courseId/assignable-questions.
@@ -1233,7 +1238,7 @@ export type AssignableQuestion = {
 
 /**
  * Knob 8 (Phase D prep, 2026-07-21): Mock correctness catalogue.
- * Maps questionId → indices into the corresponding `MOCK_QUESTIONS[].options[]`
+ * Maps questionId ? indices into the corresponding `MOCK_QUESTIONS[].options[]`
  * array (defined in `ReviewSession.tsx`) that represent the canonical
  * correct answer. Used by `submitReview()` to compute `isCorrect` in
  * mock mode, mirroring the backend's `_evaluateMCQCorrectness`.

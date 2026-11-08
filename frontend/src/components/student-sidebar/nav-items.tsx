@@ -1,4 +1,4 @@
-import { LayoutDashboard, Flag, BookOpen, Megaphone, FileText, SquareTerminal, BarChart3, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Flag, BookOpen, Megaphone, FileText, SquareTerminal, BarChart3, Bot, type LucideIcon } from "lucide-react";
 
 export type StudentNavItem = {
   /** Stable identifier — used for keys and conditional logic. */
@@ -24,4 +24,10 @@ export const STUDENT_NAV_ITEMS: StudentNavItem[] = [
   { key: "hp-system", title: "HP System", to: "/student/hp-system/cohorts", icon: SquareTerminal, requires: "hpSystem" },
   { key: "announcements", title: "Announcements", to: "/student/announcements", icon: Megaphone, indicator: "announcements" },
   { key: "submissions", title: "My Submissions", to: "/student/submissions", icon: FileText },
+  {
+    key: "review-scheduler",
+    title: "My Reviews",
+    to: "/student/review/dashboard",
+    icon: Bot,
+  },
 ];
