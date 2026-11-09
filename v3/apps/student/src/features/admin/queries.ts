@@ -519,20 +519,36 @@ const PEOPLE_PAGE_SIZE = 50;
  * Always pass a limit: the backend's default of 10 looks like the whole course.
  * `OTHER` means everyone who isn't a student.
  */
+/** Columns the backend can sort the whole course by. */
+export type PeopleSortBy = 'name' | 'progress' | 'enrollmentDate';
+
 export function useCourseEnrollmentsPage(
   courseId: string,
   versionId: string,
-  opts: { page?: number; limit?: number; search?: string; filter?: 'STUDENT' | 'OTHER' } = {},
+  opts: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    filter?: 'STUDENT' | 'OTHER';
+    sortBy?: PeopleSortBy;
+    sortOrder?: 'asc' | 'desc';
+  } = {},
 ) {
-  const { page = 1, limit = PEOPLE_PAGE_SIZE, search = '', filter } = opts;
+  const { page = 1, limit = PEOPLE_PAGE_SIZE, search = '', filter, sortBy, sortOrder } = opts;
   return useQuery({
-    queryKey: ['admin', 'enrollments', courseId, versionId, 'page', { page, limit, search, filter }],
+    queryKey: ['admin', 'enrollments', courseId, versionId, 'page', { page, limit, search, filter, sortBy, sortOrder }],
     queryFn: async () => {
       const raw = unwrap(
         await api.GET('/api/users/enrollments/courses/{courseId}/versions/{versionId}', {
           params: {
             path: { courseId, versionId },
-            query: { page, limit, ...(search && { search }), ...(filter && { filter }) } as never,
+            query: {
+              page,
+              limit,
+              ...(search && { search }),
+              ...(filter && { filter }),
+              ...(sortBy && { sortBy, sortOrder: sortOrder ?? 'desc' }),
+            } as never,
           },
         }),
       ) as unknown as { enrollments?: CourseEnrollment[]; totalDocuments?: number; totalPages?: number };

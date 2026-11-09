@@ -26,6 +26,8 @@ import { useCourseSettings } from '@/features/learn/queries';
 
 import { CourseContent, ITEM_TYPES } from './course-content';
 import { CoursePeople } from './course-people';
+import { FinishedStudents } from './finished-students';
+import { DEFAULT_PEOPLE_SORT, isDefaultSort, type PeopleSort } from './people-sort';
 import { CourseIntegrity } from './course-integrity';
 import { DETECTORS } from './course-proctoring';
 import { CourseRegistration } from './course-registration';
@@ -54,10 +56,13 @@ export function CourseDetailPage({
   courseId,
   versionId,
   tab = 'overview',
+  peopleSort = DEFAULT_PEOPLE_SORT,
 }: {
   courseId: string;
   versionId: string;
   tab?: CourseTab;
+  /** People's order, kept in the URL so links (and a reload) keep it. */
+  peopleSort?: PeopleSort;
 }) {
   const course = useCourse(courseId);
   const version = useCourseVersion(versionId);
@@ -70,6 +75,15 @@ export function CourseDetailPage({
       to: '/admin/courses/$courseId/$versionId',
       params: { courseId, versionId },
       search: next === 'overview' ? {} : { tab: next },
+      replace: true,
+    });
+  }
+
+  function sortPeople(sort: PeopleSort) {
+    void navigate({
+      to: '/admin/courses/$courseId/$versionId',
+      params: { courseId, versionId },
+      search: isDefaultSort(sort) ? { tab: 'people' } : { tab: 'people', sort: sort.by, order: sort.order },
       replace: true,
     });
   }
@@ -151,6 +165,7 @@ export function CourseDetailPage({
             versionId={versionId}
             description={course.data?.description}
             onGo={goTo}
+            onSeeFinished={() => sortPeople({ by: 'progress', order: 'desc' })}
             onInvite={() => {
               goTo('people');
               setInviteOpen(true);
@@ -166,6 +181,8 @@ export function CourseDetailPage({
             versionId={versionId}
             inviteOpen={inviteOpen}
             onInviteOpenChange={setInviteOpen}
+            sort={peopleSort}
+            onSortChange={sortPeople}
           />
         </TabsContent>
         <TabsContent value="registration" className="pt-6">
@@ -189,12 +206,14 @@ function CourseOverview({
   description,
   onGo,
   onInvite,
+  onSeeFinished,
 }: {
   courseId: string;
   versionId: string;
   description?: string;
   onGo: (tab: CourseTab) => void;
   onInvite: () => void;
+  onSeeFinished: () => void;
 }) {
   const version = useCourseVersion(versionId);
   const stats = useCourseEnrollmentStats(courseId, versionId);
@@ -234,6 +253,8 @@ function CourseOverview({
           ]}
         />
       </section>
+
+      <FinishedStudents courseId={courseId} versionId={versionId} onSeeAll={onSeeFinished} />
 
       <section className="grid gap-3 sm:grid-cols-3">
         <ActionTile
