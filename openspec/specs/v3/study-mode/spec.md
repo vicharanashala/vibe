@@ -18,7 +18,7 @@ The student app SHALL offer two modes per course, labelled "Study mode" and "Str
 - **THEN** it offers "Study mode" and "Strict mode" with descriptions that say only strict mode counts towards progress
 
 ### Requirement: Study mode is free viewing
-In study mode the app SHALL open any video or reading where study mode is allowed, in any order, whatever the course's linear-progression setting. It SHALL let the student rewatch and seek freely, run no proctoring, and save no progress.
+In study mode the app SHALL open any video or reading where study mode is allowed, in any order, whatever the course's linear-progression setting. It SHALL let the student rewatch and seek freely, run no proctoring, and save no strict progress. It SHALL record study views as described by the study progress requirements.
 
 #### Scenario: Linear course in study mode
 - **WHEN** a course has linear progression on and a student in study mode opens a lesson they haven't reached
