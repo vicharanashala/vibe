@@ -90,6 +90,10 @@ export interface IModule {
   // Absent/null means "inherit the course's universal proctoring detector
   // list" — see resolveProctoringDetectors below.
   proctoringDetectors?: IDetectorSettings[] | null;
+  // Absent/null means "inherit" — see resolveStudyMode below.
+  studyModeEnabled?: boolean | null;
+  // Absent/null means "inherit" — see resolveContentLock below.
+  isLocked?: boolean | null;
   sections: ISection[];
   isDeleted?: boolean;
   deletedAt?: Date;
@@ -103,6 +107,10 @@ export interface ISection {
   description: string;
   order: string;
   isHidden: boolean;
+  // Absent/null means "inherit from the module" — see resolveStudyMode below.
+  studyModeEnabled?: boolean | null;
+  // Absent/null means "inherit from the module" — see resolveContentLock below.
+  isLocked?: boolean | null;
   itemsGroupId?: ID;
   isDeleted?: boolean;
   deletedAt?: Date;
@@ -398,6 +406,76 @@ export function resolveProctoringDetectors(
   return courseSettings?.settings?.proctors?.detectors ?? [];
 }
 
+/** Which level of the course an item's effective study-mode value came from. */
+export type StudyModeSource = 'item' | 'section' | 'module' | 'default';
+
+export interface IResolvedStudyMode {
+  allowed: boolean;
+  source: StudyModeSource;
+}
+
+type StudyModeNode = {studyModeEnabled?: boolean | null} | undefined | null;
+
+/**
+ * Resolve whether study mode is allowed for an item, given the item's own
+ * setting (stored on its ItemsGroup ref, like isHidden), its section's and
+ * its module's.
+ *
+ * Most specific wins: item > section > module. With nothing set anywhere,
+ * study mode is allowed (`source: 'default'`), so every course created before
+ * this setting existed stays fully open to study mode.
+ *
+ * Uses `!= null` for the same reason as resolveProctoringDetectors: a field
+ * that was never set reads back from MongoDB as `null`.
+ */
+export function resolveStudyMode(
+  item: StudyModeNode,
+  section: StudyModeNode,
+  courseModule: StudyModeNode,
+): IResolvedStudyMode {
+  if (item?.studyModeEnabled != null) {
+    return {allowed: item.studyModeEnabled, source: 'item'};
+  }
+  if (section?.studyModeEnabled != null) {
+    return {allowed: section.studyModeEnabled, source: 'section'};
+  }
+  if (courseModule?.studyModeEnabled != null) {
+    return {allowed: courseModule.studyModeEnabled, source: 'module'};
+  }
+  return {allowed: true, source: 'default'};
+}
+
+export type ContentLockSource = 'item' | 'section' | 'module' | 'default';
+
+export interface IResolvedContentLock {
+  locked: boolean;
+  source: ContentLockSource;
+}
+
+type ContentLockNode = {isLocked?: boolean | null} | undefined | null;
+
+/**
+ * Resolve whether an item is locked for students, given the item's own setting
+ * (stored on its ItemsGroup ref, like isHidden), its section's and its
+ * module's. Most specific wins: item > section > module, so one lesson can stay
+ * open inside a locked module. With nothing set the item is open, so all
+ * content created before this setting stays open.
+ */
+export function resolveContentLock(
+  item: ContentLockNode,
+  section: ContentLockNode,
+  courseModule: ContentLockNode,
+): IResolvedContentLock {
+  if (item?.isLocked != null) return {locked: item.isLocked, source: 'item'};
+  if (section?.isLocked != null) {
+    return {locked: section.isLocked, source: 'section'};
+  }
+  if (courseModule?.isLocked != null) {
+    return {locked: courseModule.isLocked, source: 'module'};
+  }
+  return {locked: false, source: 'default'};
+}
+
 /**
  * Whether any detector in a resolved list is armed. Every course defaults
  * every detector to `enabled: false` on creation, so an empty/missing list
@@ -680,6 +758,7 @@ export interface ICohortSettings {
   cohortId: string | ObjectId;
   registrationsAutoApproved: boolean;
   autoapproval_emails: string[];
+  autoApprovalMode?: 'EVERYONE' | 'LIST' | null;
 }
 
 export interface IUserActivityEvent {
@@ -900,6 +979,7 @@ export interface ISettings {
     isActive?: boolean;
     registrationsAutoApproved?: boolean;
     autoapproval_emails?: string[];
+    autoApprovalMode?: 'EVERYONE' | 'LIST' | null;
     cohortSettings?: ObjectId[];
   };
   timeslots?: {

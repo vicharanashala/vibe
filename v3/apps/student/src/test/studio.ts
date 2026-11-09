@@ -8,6 +8,7 @@ import { api, fakeAuth, ok, respond, type STUDENT } from './session';
 
 import courses from './fixtures/studio/courses.json';
 import enrollments from './fixtures/studio/enrollments.json';
+import enrollmentStats from './fixtures/studio/enrollment-stats.json';
 import feedbackItem from './fixtures/studio/feedback-item.json';
 import feedbackSectionItems from './fixtures/studio/feedback-section-items.json';
 import feedbackSubmissions from './fixtures/studio/feedback-submissions.json';
@@ -104,8 +105,28 @@ export const REGISTRATION = {
 export const RESULTS_QUIZ_ID = resultsItem.item._id;
 
 type Params = {
-  params?: { path?: Record<string, string>; query?: Record<string, string> };
+  params?: { path?: Record<string, string>; query?: Record<string, unknown> };
 };
+
+/** Pages, filters and searches the way the backend does. Newest first is left to the caller. */
+export function pageOfEnrollments<
+  T extends { role: unknown; user: { email: string; firstName: string; lastName?: string | null } },
+>(rows: T[], query: Record<string, unknown> = {}) {
+  const limit = Number(query.limit ?? 10);
+  const page = Number(query.page ?? 1);
+  const search = String(query.search ?? '').toLowerCase();
+  const matches = rows.filter(
+    (e) =>
+      (!query.filter || (query.filter === 'STUDENT') === (e.role === 'STUDENT')) &&
+      (!search || `${e.user.firstName} ${e.user.lastName ?? ''} ${e.user.email}`.toLowerCase().includes(search)),
+  );
+  return {
+    enrollments: matches.slice((page - 1) * limit, page * limit),
+    totalDocuments: matches.length,
+    totalPages: Math.ceil(matches.length / limit),
+    currentPage: page,
+  };
+}
 
 export function studioGet(path: string, opts?: Params) {
   const p = opts?.params?.path ?? {};
@@ -117,7 +138,9 @@ export function studioGet(path: string, opts?: Params) {
     case '/api/users/':
       return ok(users);
     case '/api/users/enrollments/courses/{courseId}/versions/{versionId}':
-      return ok(enrollments);
+      return ok(pageOfEnrollments(enrollments.enrollments, opts?.params?.query));
+    case '/api/users/enrollments/courses/{courseId}/versions/{versionId}/statistics':
+      return ok(enrollmentStats);
     case '/api/courses/{courseId}': {
       const c = courses.courses.find((x) => hex(x._id) === p.courseId);
       return ok(
@@ -236,6 +259,10 @@ export const ADMIN: typeof STUDENT = {
   email: 'instructor@vibe.local',
   displayName: 'Ira Instructor',
   providerData: [{ providerId: 'password' }],
+  metadata: {
+    creationTime: 'Mon, 05 Oct 2026 10:00:00 GMT',
+    lastSignInTime: 'Mon, 05 Oct 2026 10:00:04 GMT',
+  },
   getIdToken: async () => 'test-token',
   reload: async () => undefined,
 };
@@ -257,6 +284,10 @@ export const TEACHER: typeof STUDENT = {
   email: 'teacher@vibe.local',
   displayName: 'Tara Teacher',
   providerData: [{ providerId: 'password' }],
+  metadata: {
+    creationTime: 'Mon, 05 Oct 2026 10:00:00 GMT',
+    lastSignInTime: 'Mon, 05 Oct 2026 10:00:04 GMT',
+  },
   getIdToken: async () => 'test-token',
   reload: async () => undefined,
 };

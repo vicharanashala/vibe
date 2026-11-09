@@ -10,6 +10,7 @@ import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
 import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
 import { classifyItemForbiddenError } from "@/utils/itemForbiddenError";
+import { resolveContentLock } from "@/utils/contentLock";
 const LazyStudentTimeslotModal = lazy(() => import("@/components/course/StudentTimeslotModal"));
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import type { PendingStudentQuestionContext } from "@/types/student-question.types";
@@ -25,6 +26,7 @@ import {
   X,
   CircleCheckIcon,
   Maximize2,
+  Lock,
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -38,6 +40,7 @@ import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileFallbackScreen from "@/components/MobileFallbackScreen";
+import { PhoneStudyLesson } from "@/components/PhoneStudyLesson";
 import { EmotionType } from "@/components/EmotionSelector";
 import { useSubmitEmotion } from "@/hooks/use-emotion";
 
@@ -213,6 +216,8 @@ export default function CoursePage() {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [doGesture, setDoGesture] = useState<boolean>(false);
   const [isItemForbidden, setIsItemForbidden] = useState<boolean>(false);
+  // The instructor locked the lesson just refused: says so, not "lessons unlock in order".
+  const [lockedByInstructor, setLockedByInstructor] = useState<boolean>(false);
   // Time-slot / commitment gate block (distinct from linear-progression ForbiddenError).
   const [timeSlotBlock, setTimeSlotBlock] = useState<string | null>(null);
   const [showTimeslotPicker, setShowTimeslotPicker] = useState<boolean>(false);
@@ -446,7 +451,9 @@ export default function CoursePage() {
       return;
     }
 
-    if (itemError && selectedItemId && itemErrorName === "ForbiddenError") {
+    const refusedByLock = itemErrorName === "CONTENT_LOCKED";
+    if (itemError && selectedItemId && (itemErrorName === "ForbiddenError" || refusedByLock)) {
+      setLockedByInstructor(refusedByLock);
 
       // Several different 403s reach here from ItemService.readItem. Only
       // the out-of-order-progression case is actually a locked lesson; the
@@ -459,7 +466,7 @@ export default function CoursePage() {
       // comment for the exact backend message strings this matches against,
       // including the "not enrolled" gap that's a known, deliberately
       // unfixed case (see there for why).
-      const forbiddenKind = classifyItemForbiddenError(itemError);
+      const forbiddenKind = refusedByLock ? 'known-generic' : classifyItemForbiddenError(itemError);
       if (forbiddenKind === 'time-slot') {
         setTimeSlotBlock(itemError);
         setIsNavigatingToNext(false);
@@ -1808,14 +1815,38 @@ const handleGoToNextItem = async () => {
     );
   }
 
-  if (isMobile && !allProctorsDisabled)
-    return <MobileFallbackScreen />
+  // Phones: study mode for videos where the instructor allows it (no
+  // proctoring, nothing saved), the existing "use a computer" screen otherwise.
+  // Items whose proctoring is all off keep opening here as before.
+  if (isMobile && !allProctorsDisabled) {
+    const outline = (courseVersionData as any)?.modules || [];
+    return selectedItemId && selectedModuleId && selectedSectionId && COURSE_ID && VERSION_ID ? (
+      <PhoneStudyLesson
+        courseId={COURSE_ID}
+        versionId={VERSION_ID}
+        cohortId={COHORT_ID || undefined}
+        modules={outline}
+        initial={{ moduleId: selectedModuleId, sectionId: selectedSectionId, itemId: selectedItemId }}
+      />
+    ) : (
+      <MobileFallbackScreen />
+    );
+  }
 
   const modules = (courseVersionData as any)?.modules || [];
 
   const isLinearProgressionEnabled = proctoringData?.settings.linearProgressionEnabled ?? true;
 
+  // Opened on a lesson the instructor locked, with no earlier lesson to go back to.
+  const lockedScreen = !currentItem && itemErrorName === "CONTENT_LOCKED";
+
   const isItemLocked = (moduleId: string, sectionId: string, itemId: string): boolean => {
+    // Locked by the instructor: closed in any course, even if already completed.
+    const lockModule = ((courseVersionData as any)?.modules || []).find((m: any) => m.moduleId === moduleId);
+    const lockSection = (lockModule?.sections || []).find((s: any) => s.sectionId === sectionId);
+    const lockItem = (sectionItems[sectionId] || []).find((i: any) => i._id === itemId);
+    if (resolveContentLock(lockItem as any, lockSection, lockModule).locked) return true;
+
     if (!isLinearProgressionEnabled) return false;
     if (!progressData) return false;
 
@@ -2005,7 +2036,16 @@ return false;
         onClick={() => setAiExpanded(false)}
       >
         {/* Lesson content */}
-        {currentItem ? (
+        {lockedScreen ? (
+          <div className="z-30 absolute inset-0 flex items-center justify-center p-6 text-center">
+            <div className="max-w-md">
+              <Lock className="mx-auto mb-3 h-8 w-8" aria-hidden />
+              <h1 className="font-semibold text-lg">Locked by your instructor</h1>
+              <p className="mt-1 text-sm opacity-80">{itemError}</p>
+              <p className="mt-1 text-sm opacity-80">You can open it again once they unlock it. Your progress isn’t affected.</p>
+            </div>
+          </div>
+        ) : currentItem ? (
           currentItem.type === "PROJECT" ? (
             <div className="z-30 absolute inset-0 px-3 sm:px-6 py-16 overflow-y-auto">
               <div className="mx-auto w-full max-w-5xl">
@@ -2147,9 +2187,11 @@ return false;
               <div className="flex items-start gap-3">
                 <AlertCircle className="mt-0.5 w-5 h-5 shrink-0" />
                 <div className="flex-1">
-                  <p className="font-semibold text-sm">Lesson locked</p>
+                  <p className="font-semibold text-sm">{lockedByInstructor ? "Locked by your instructor" : "Lesson locked"}</p>
                   <p className="mt-0.5 text-red-50/90 text-xs leading-relaxed">
-                    ViBe lessons unlock in order. Please finish your current lesson to continue.
+                    {lockedByInstructor
+                      ? "Your instructor has locked this lesson. You can open it again once they unlock it."
+                      : "ViBe lessons unlock in order. Please finish your current lesson to continue."}
                   </p>
                 </div>
                 <button onClick={() => setIsItemForbidden(false)} className="text-red-50/80 hover:text-white">
@@ -2293,7 +2335,7 @@ return false;
 
       {/* Fullscreen gate — after a reload or an Esc, a request can only succeed
           inside a click, so block the lesson until the student clicks to re-enter. */}
-      {needsFullscreen && (
+      {needsFullscreen && !lockedScreen && (
         <div
           className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-5 bg-black/80 backdrop-blur-sm text-center px-6"
           role="dialog"

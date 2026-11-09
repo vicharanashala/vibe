@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Settings, Mail, Plus, X } from "lucide-react";
 import { useUpdateAutoApprovalsettings } from "@/hooks/hooks";
@@ -16,6 +17,8 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 
+type AutoApprovalMode = "EVERYONE" | "LIST";
+
 interface AutoApprovalModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -23,6 +26,7 @@ interface AutoApprovalModalProps {
   currentSettings?: {
     registrationsAutoApproved?: boolean;
     autoapproval_emails?: string[];
+    autoApprovalMode?: AutoApprovalMode;
     cohortSettingDetails?: any[];
   };
   courseVersion: any;
@@ -36,9 +40,11 @@ export default function AutoApprovalModal({
   courseVersion,
 }: AutoApprovalModalProps) {
   const [isAutoApproved, setIsAutoApproved] = useState(false);
+  const [mode, setMode] = useState<AutoApprovalMode>("EVERYONE");
   const [emailPatterns, setEmailPatterns] = useState<string[]>([]);
   const [newEmailPattern, setNewEmailPattern] = useState("");
   const [isUpdating,setIsUpdating]=useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const { mutateAsync:updateAutoApprovalSettings } = useUpdateAutoApprovalsettings(versionId);
   const [cohort, setCohort] = useState<string | null>(null);
 
@@ -51,15 +57,18 @@ export default function AutoApprovalModal({
       );
 
       setIsAutoApproved(setting?.registrationsAutoApproved ?? false);
+      setMode(setting?.autoApprovalMode ?? "EVERYONE");
       setEmailPatterns(setting?.autoapproval_emails ?? []);
     } else {
       setIsAutoApproved(currentSettings.registrationsAutoApproved ?? false);
+      setMode(currentSettings.autoApprovalMode ?? "EVERYONE");
       setEmailPatterns(currentSettings.autoapproval_emails ?? []);
     }
   }, [cohort, currentSettings]);
 
   useEffect(() => {
     if (isOpen) {
+      setSaveError(null);
       setCohort(null);    }
   }, [isOpen]);
 
@@ -88,10 +97,12 @@ export default function AutoApprovalModal({
       return;
     }
     setIsUpdating(true);
+    setSaveError(null);
     try {
       await updateAutoApprovalSettings({
         registrationsAutoApproved: isAutoApproved,
-        autoapproval_emails: emailPatterns,
+        autoApprovalMode: mode,
+        autoapproval_emails: mode === "LIST" ? emailPatterns : [],
         cohortId: cohort || undefined,
       });
       toast.success('Auto-approval settings updated successfully');
@@ -100,7 +111,9 @@ export default function AutoApprovalModal({
     } catch (error) {
       setIsUpdating(false);
       console.error('Error updating auto-approval settings:', error);
-      toast.error('Failed to update auto-approval settings');
+      // Shown in the modal: a toast would sit behind the dialog's overlay. A
+      // rejected entry comes back with a message naming it.
+      setSaveError((error as any)?.message || 'Failed to update auto-approval settings');
     }
   };
 
@@ -158,7 +171,7 @@ export default function AutoApprovalModal({
                 Enable Auto Approval
               </Label>
               <p className="text-xs text-muted-foreground">
-                Automatically approve registrations based on email patterns
+                Approved students are enrolled straight away and get an email
               </p>
             </div>
             <Switch
@@ -168,23 +181,50 @@ export default function AutoApprovalModal({
             />
           </div>
 
-          {/* Email patterns */}
+          {/* Who is approved */}
           {isAutoApproved && (
+            <div className="space-y-2">
+              <Label id="auto-approval-mode" className="text-sm font-medium">
+                Who is approved
+              </Label>
+              <RadioGroup
+                aria-labelledby="auto-approval-mode"
+                value={mode}
+                onValueChange={(value) => setMode(value as AutoApprovalMode)}
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="EVERYONE" id="auto-approval-everyone" />
+                  <Label htmlFor="auto-approval-everyone" className="text-sm font-normal">
+                    Everyone
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="LIST" id="auto-approval-list" />
+                  <Label htmlFor="auto-approval-list" className="text-sm font-normal">
+                    Only these emails
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+
+          {/* Email patterns */}
+          {isAutoApproved && mode === "LIST" && (
             <div className="space-y-3">
               <div className="space-y-1">
                 <Label className="text-sm font-medium flex items-center gap-2">
                   <Mail className="h-4 w-4" />
-                  Email Patterns
+                  Emails and domains
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Add email patterns to auto-approve. If empty, all registrations will be approved.
+                  A full address matches only that address. A domain such as iitm.ac.in matches only that domain, not its subdomains. Anyone else waits for you.
                 </p>
               </div>
 
               {/* Add new pattern */}
               <div className="flex gap-2">
                 <Input
-                  placeholder="e.g., iitm.ac.in, gmail.com"
+                  placeholder="e.g., iitm.ac.in or student@example.com"
                   value={newEmailPattern}
                   onChange={(e) => setNewEmailPattern(e.target.value)}
                   onKeyPress={handleKeyPress}
@@ -226,15 +266,20 @@ export default function AutoApprovalModal({
                 <div className="text-xs text-muted-foreground bg-muted/50 border border-border rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <Mail className="h-4 w-4" />
-                    <span className="font-medium">No email patterns specified</span>
+                    <span className="font-medium">No emails or domains added</span>
                   </div>
-                  All registrations will be automatically approved.
+                  Nobody will be approved automatically until you add one.
                 </div>
               )}
             </div>
           )}
         </div>
       )}
+        {saveError && (
+          <p role="alert" className="text-sm text-destructive mt-4">
+            {saveError}
+          </p>
+        )}
         <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-6">
           <Button
             variant="outline"

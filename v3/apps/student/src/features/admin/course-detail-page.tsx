@@ -29,7 +29,7 @@ import { CoursePeople } from './course-people';
 import { CourseIntegrity } from './course-integrity';
 import { DETECTORS } from './course-proctoring';
 import { CourseRegistration } from './course-registration';
-import { useCourse, useCourseEnrollments } from './queries';
+import { useCourse, useCourseEnrollmentStats } from './queries';
 import { useRecordCourseVisit } from './recent-courses';
 import { ErrorText, SectionHeading, StatStrip, StudioPage } from './studio-ui';
 
@@ -197,17 +197,10 @@ function CourseOverview({
   onInvite: () => void;
 }) {
   const version = useCourseVersion(versionId);
-  const enrollments = useCourseEnrollments(courseId, versionId);
+  const stats = useCourseEnrollmentStats(courseId, versionId);
   const settings = useCourseSettings(courseId, versionId);
 
   const modules = version.data?.modules.filter((m) => !m.isDeleted) ?? [];
-  const students = (enrollments.data ?? []).filter((e) => e.role === 'STUDENT');
-  const finished = students.filter((e) => (e.progress ?? 0) >= 100).length;
-  const avg = students.length
-    ? Math.round(
-        students.reduce((s, e) => s + (e.progress ?? 0), 0) / students.length,
-      )
-    : null;
   const checksOn = (settings.data?.settings.proctors?.detectors ?? []).filter(
     (d) => d.settings.enabled,
   ).length;
@@ -224,13 +217,15 @@ function CourseOverview({
           stats={[
             {
               label: 'Students',
-              value: enrollments.data ? students.length : '–',
+              value: stats.data ? stats.data.totalEnrollments : '–',
             },
             {
               label: 'Average progress',
-              value: avg === null ? '–' : `${avg}%`,
+              value: stats.data?.totalEnrollments
+                ? `${Math.round(stats.data.averageProgressPercent)}%`
+                : '–',
             },
-            { label: 'Finished', value: enrollments.data ? finished : '–' },
+            { label: 'Finished', value: stats.data ? stats.data.completedCount : '–' },
             {
               label: 'Lessons',
               value: version.data ? (version.data.totalItems ?? 0) : '–',

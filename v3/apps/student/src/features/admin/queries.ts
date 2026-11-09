@@ -192,6 +192,89 @@ function invalidateVersion(queryClient: ReturnType<typeof useQueryClient>, versi
   void queryClient.invalidateQueries({ queryKey: courseKeys.version(versionId) });
 }
 
+// ---- Content lock ----
+
+/** Set, or with `value: null` clear back to "inherit", a module's, section's or lesson's lock. */
+export function useSetContentLock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ target, value }: { target: StudyModeTarget; value: boolean | null }) => {
+      const body = { isLocked: value };
+      if (target.level === 'module')
+        return unwrap(
+          await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/lock', {
+            params: { path: { versionId: target.versionId, moduleId: target.moduleId } },
+            body,
+          }),
+        );
+      if (target.level === 'section')
+        return unwrap(
+          await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/lock', {
+            params: { path: { versionId: target.versionId, moduleId: target.moduleId, sectionId: target.sectionId } },
+            body,
+          }),
+        );
+      return unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/items/{itemId}/lock', {
+          params: { path: { versionId: target.versionId, itemId: target.itemId } },
+          body,
+        }),
+      );
+    },
+    onSuccess: (_data, { target }) => {
+      if (target.level === 'item')
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.sectionItems(target.versionId, target.moduleId, target.sectionId),
+        });
+      else invalidateVersion(queryClient, target.versionId);
+    },
+  });
+}
+
+// ---- Study mode ----
+
+/** Where a study-mode setting is written; `value: null` clears it back to "inherit". */
+export type StudyModeTarget =
+  | { level: 'module'; versionId: string; moduleId: string }
+  | { level: 'section'; versionId: string; moduleId: string; sectionId: string }
+  | { level: 'item'; versionId: string; moduleId: string; sectionId: string; itemId: string };
+
+export function useSetStudyMode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ target, value }: { target: StudyModeTarget; value: boolean | null }) => {
+      const body = { studyModeEnabled: value };
+      if (target.level === 'module')
+        return unwrap(
+          await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/study-mode', {
+            params: { path: { versionId: target.versionId, moduleId: target.moduleId } },
+            body,
+          }),
+        );
+      if (target.level === 'section')
+        return unwrap(
+          await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/study-mode', {
+            params: { path: { versionId: target.versionId, moduleId: target.moduleId, sectionId: target.sectionId } },
+            body,
+          }),
+        );
+      return unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/items/{itemId}/study-mode', {
+          params: { path: { versionId: target.versionId, itemId: target.itemId } },
+          body,
+        }),
+      );
+    },
+    onSuccess: (_data, { target }) => {
+      if (target.level === 'item')
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.sectionItems(target.versionId, target.moduleId, target.sectionId),
+        });
+      else invalidateVersion(queryClient, target.versionId);
+    },
+  });
+}
+
 // ---- Modules ----
 
 export function useCreateModule() {
@@ -318,6 +401,34 @@ export function useDeleteItem() {
   });
 }
 
+/** Moves a lesson within its section: right before or right after another lesson. */
+export function useMoveItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      versionId,
+      moduleId,
+      sectionId,
+      itemId,
+      to,
+    }: {
+      versionId: string;
+      moduleId: string;
+      sectionId: string;
+      itemId: string;
+      to: { beforeItemId: string } | { afterItemId: string };
+    }) =>
+      unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}/move', {
+          params: { path: { versionId, moduleId, sectionId, itemId } },
+          body: to,
+        }),
+      ),
+    onSuccess: (_data, { versionId, moduleId, sectionId }) =>
+      queryClient.invalidateQueries({ queryKey: courseKeys.sectionItems(versionId, moduleId, sectionId) }),
+  });
+}
+
 export function useCourse(courseId: string) {
   return useQuery({
     queryKey: ['admin', 'course', courseId],
@@ -335,6 +446,8 @@ export interface CourseEnrollment {
   enrollmentDate: string;
   /** Percent complete, 0-100. */
   progress?: number;
+  /** Study progress (students only; null for other roles, absent on older backends). */
+  studyProgress?: { studiedItems: number; totalItems: number; percentStudied: number } | null;
   completedItemsCount?: number;
   user: { _id: string; email: string; firstName: string; lastName?: string };
 }
@@ -399,17 +512,51 @@ export function useMakeAdmin() {
   });
 }
 
-export function useCourseEnrollments(courseId: string, versionId: string) {
+const PEOPLE_PAGE_SIZE = 50;
+
+/**
+ * One page of a course version's people, searched and filtered by the backend.
+ * Always pass a limit: the backend's default of 10 looks like the whole course.
+ * `OTHER` means everyone who isn't a student.
+ */
+export function useCourseEnrollmentsPage(
+  courseId: string,
+  versionId: string,
+  opts: { page?: number; limit?: number; search?: string; filter?: 'STUDENT' | 'OTHER' } = {},
+) {
+  const { page = 1, limit = PEOPLE_PAGE_SIZE, search = '', filter } = opts;
   return useQuery({
-    queryKey: ['admin', 'enrollments', courseId, versionId],
+    queryKey: ['admin', 'enrollments', courseId, versionId, 'page', { page, limit, search, filter }],
     queryFn: async () => {
       const raw = unwrap(
         await api.GET('/api/users/enrollments/courses/{courseId}/versions/{versionId}', {
+          params: {
+            path: { courseId, versionId },
+            query: { page, limit, ...(search && { search }), ...(filter && { filter }) } as never,
+          },
+        }),
+      ) as unknown as { enrollments?: CourseEnrollment[]; totalDocuments?: number; totalPages?: number };
+      return {
+        enrollments: (raw.enrollments ?? []).map((e) => ({ ...e, role: normalizeCourseRole(e.role) as CourseEnrollment['role'] })),
+        total: raw.totalDocuments ?? 0,
+        totalPages: raw.totalPages ?? 1,
+      };
+    },
+    placeholderData: (prev) => prev,
+    enabled: !!courseId && !!versionId,
+  });
+}
+
+/** Whole-course numbers for active students, worked out by the backend. */
+export function useCourseEnrollmentStats(courseId: string, versionId: string) {
+  return useQuery({
+    queryKey: ['admin', 'enrollments', courseId, versionId, 'stats'],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/users/enrollments/courses/{courseId}/versions/{versionId}/statistics', {
           params: { path: { courseId, versionId } },
         }),
-      ) as unknown as { enrollments: CourseEnrollment[] };
-      return (raw.enrollments ?? []).map((e) => ({ ...e, role: normalizeCourseRole(e.role) as CourseEnrollment['role'] }));
-    },
+      ) as unknown as { totalEnrollments: number; completedCount: number; averageProgressPercent: number },
     enabled: !!courseId && !!versionId,
   });
 }

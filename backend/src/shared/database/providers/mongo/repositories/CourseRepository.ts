@@ -648,6 +648,8 @@ export class CourseRepository implements ICourseRepository {
                 // pipeline) kept honouring the stored override and disabled
                 // proctoring for every item in that module.
                 proctoringDetectors: '$$mod.proctoringDetectors',
+                studyModeEnabled: '$$mod.studyModeEnabled',
+                isLocked: '$$mod.isLocked',
                 sections: {
                   $filter: {
                     input: '$$mod.sections',
@@ -721,6 +723,8 @@ export class CourseRepository implements ICourseRepository {
                 // Same allowlist caveat as getActiveVersion above: omitting a
                 // field here silently drops it from every module.
                 proctoringDetectors: '$$mod.proctoringDetectors',
+                studyModeEnabled: '$$mod.studyModeEnabled',
+                isLocked: '$$mod.isLocked',
                 sections: {
                   $filter: {
                     input: '$$mod.sections',
@@ -1474,6 +1478,7 @@ export class CourseRepository implements ICourseRepository {
     cohortId: string,
     registrationsAutoApproved: boolean,
     autoapproval_emails: string[],
+    autoApprovalMode: 'EVERYONE' | 'LIST',
     session?: ClientSession
   ): Promise<string> {
     try {
@@ -1483,7 +1488,8 @@ export class CourseRepository implements ICourseRepository {
           courseVersionId: new ObjectId(versionId),
           cohortId: new ObjectId(cohortId),
           registrationsAutoApproved,
-          autoapproval_emails
+          autoapproval_emails,
+          autoApprovalMode,
         },
         { session }
       );
@@ -1550,6 +1556,7 @@ export class CourseRepository implements ICourseRepository {
     settingId: string,
     registrationsAutoApproved: boolean,
     autoapproval_emails: string[],
+    autoApprovalMode: 'EVERYONE' | 'LIST',
     session?: ClientSession
   ): Promise<boolean> {
     try {
@@ -1560,6 +1567,7 @@ export class CourseRepository implements ICourseRepository {
           $set: {
             registrationsAutoApproved,
             autoapproval_emails,
+            autoApprovalMode,
             updatedAt: new Date()
           }
         },

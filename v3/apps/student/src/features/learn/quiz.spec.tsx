@@ -6,6 +6,8 @@ import { api, fixtures, ok, resetSession, signInStudent } from '@/test/session';
 
 import { toAnswers, toId, type QuizQuestion } from './quiz-api';
 
+import lockedByModule from '@/test/fixtures/content-locked.json';
+
 vi.mock('@/lib/firebase', () => import('@/test/session').then((m) => m.firebaseModule));
 vi.mock('firebase/auth', async (orig) => ({ ...(await orig<object>()), ...(await import('@/test/session')).firebaseAuthFns }));
 vi.mock('@/lib/api', () => import('@/test/session').then((m) => m.apiModule));
@@ -123,9 +125,51 @@ describe('green-track quiz', () => {
     expect(screen.getByRole('button', { name: /retry quiz/i })).toBeInTheDocument();
   });
 
+  it('shows the locked screen when the quiz was locked before starting', async () => {
+    api.POST.mockImplementation(async (p: string) =>
+      p.endsWith('/start')
+        ? { data: undefined, error: lockedByModule, response: new Response(null, { status: 403 }) }
+        : ok(fixtures.quizAttempt),
+    );
+    const user = userEvent.setup();
+    renderApp(url);
+    await user.click(await screen.findByRole('button', { name: 'Start quiz' }));
+    expect(await screen.findByRole('heading', { name: 'Locked by your instructor' })).toBeInTheDocument();
+    expect(api.POST.mock.calls.some(([p]) => p === '/api/quizzes/{quizId}/attempt')).toBe(false);
+  });
+
+  it('lets an attempt started before the lock finish, even when the lesson refetch is refused', async () => {
+    const fallback = api.GET.getMockImplementation()!;
+    let locked = false;
+    api.GET.mockImplementation(async (p: string, ...rest: unknown[]) =>
+      locked && p === ITEM && (rest[0] as { params: { path: { itemId: string } } }).params.path.itemId === quizPath.item.id
+        ? { data: undefined, error: lockedByModule, response: new Response(null, { status: 403 }) }
+        : fallback(p, ...rest),
+    );
+    const user = userEvent.setup();
+    const { router } = renderApp(url);
+    await user.click(await screen.findByRole('button', { name: 'Start quiz' }));
+    const total = fixtures.quizAttempt.questionRenderViews.length;
+    locked = true;
+    for (let i = 0; i < total; i++) {
+      await screen.findByText(`Question ${i + 1} of ${total}`);
+      await answerCurrent(user);
+      if (i < total - 1) await user.click(screen.getByRole('button', { name: 'Next' }));
+    }
+    await user.click(screen.getByRole('button', { name: 'Submit answers' }));
+    expect(await screen.findByRole('heading', { name: 'Quiz passed' })).toBeInTheDocument();
+
+    // Continue refreshes the lesson, which is now refused; the result stays until we move on.
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(router.state.location.pathname.endsWith('/after-quiz')).toBe(true));
+    expect(screen.queryByRole('heading', { name: 'Locked by your instructor' })).not.toBeInTheDocument();
+  });
+
   it('is not available in study mode', async () => {
     renderApp(url.replace('track=green', 'track=blue'));
-    expect(await screen.findByText(/Assessments count only in certified mode/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Quizzes are taken in strict mode' })).toBeInTheDocument();
+    for (const link of screen.getAllByRole('link', { name: 'Switch to strict mode' }))
+      expect(link.getAttribute('href')).toContain('track=green');
     expect(api.POST.mock.calls.some(([p]) => p === '/api/quizzes/{quizId}/attempt')).toBe(false);
   });
 });

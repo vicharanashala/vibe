@@ -28,7 +28,7 @@ import { LessonPage } from '@/features/learn/lesson-page';
 import { parseTrack, readTrack } from '@/features/learn/tracks';
 import { LandingPage } from '@/features/landing/landing-page';
 import { OnboardingPage } from '@/features/onboarding/onboarding-page';
-import { readOnboarding } from '@/features/onboarding/onboarding-state';
+import { needsOnboarding } from '@/features/onboarding/onboarding-state';
 import { ProfilePage } from '@/features/profile/profile-page';
 import { RegistrationPage } from '@/features/registration/registration-page';
 
@@ -90,22 +90,25 @@ async function requireUser(location: { href: string }) {
 const onboardingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/onboarding',
-  validateSearch: validateRedirect,
+  validateSearch: (search: Record<string, unknown>): { redirect?: string; step?: 'media' } => ({
+    ...validateRedirect(search),
+    step: search.step === 'media' ? 'media' : undefined,
+  }),
   beforeLoad: ({ location }) => requireUser(location),
   component: function OnboardingRoute() {
-    const { redirect: to } = onboardingRoute.useSearch();
-    return <OnboardingPage redirect={to} />;
+    const { redirect: to, step } = onboardingRoute.useSearch();
+    return <OnboardingPage redirect={to} mediaOnly={step === 'media'} />;
   },
 });
 
 async function requireOnboardedUser(location: { href: string; pathname: string }) {
   const user = await requireUser(location);
-  if (!readOnboarding(user.uid).completedAt) {
+  if (needsOnboarding(user)) {
     throw redirect({ to: '/onboarding', search: { redirect: location.pathname === '/home' ? undefined : location.href } });
   }
 }
 
-/** Signed-in area. First-time users see onboarding once before anything else. */
+/** Signed-in area. Onboarding comes first only on an account's first sign-in. */
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'app',

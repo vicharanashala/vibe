@@ -555,6 +555,17 @@ class ItemRef {
   @Expose()
   isHidden?: boolean;
 
+  // The item's own study-mode setting. Lives on the ref (like isHidden) so
+  // section item lists carry it. Absent/null means "inherit" — see
+  // resolveStudyMode in shared/interfaces/models.ts.
+  @Expose()
+  studyModeEnabled?: boolean | null;
+
+  // The item's own lock setting, on the ref for the same reason. Absent/null
+  // means "inherit" — see resolveContentLock in shared/interfaces/models.ts.
+  @Expose()
+  isLocked?: boolean | null;
+
   @Expose()
   name: string;
 

@@ -41,6 +41,10 @@ export interface CourseSection {
   order: string;
   isHidden?: boolean;
   isDeleted?: boolean;
+  /** Own study-mode setting; absent/null inherits from the module. */
+  studyModeEnabled?: boolean | null;
+  /** Own lock setting; absent/null inherits from the module. */
+  isLocked?: boolean | null;
 }
 
 export interface CourseModule {
@@ -50,6 +54,10 @@ export interface CourseModule {
   order: string;
   isHidden?: boolean;
   isDeleted?: boolean;
+  /** Own study-mode setting; absent/null means study mode is allowed unless a section or item says otherwise. */
+  studyModeEnabled?: boolean | null;
+  /** Own lock setting; absent/null means open unless a section or lesson says otherwise. */
+  isLocked?: boolean | null;
   sections: CourseSection[];
 }
 
@@ -72,6 +80,10 @@ export interface SectionItem {
   isHidden?: boolean | null;
   isCompleted?: boolean;
   isOptional?: boolean;
+  /** Own study-mode setting; absent/null inherits from the section. */
+  studyModeEnabled?: boolean | null;
+  /** Own lock setting; absent/null inherits from the section. */
+  isLocked?: boolean | null;
 }
 
 export interface ProgressPercentage {
