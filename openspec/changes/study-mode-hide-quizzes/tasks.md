@@ -11,4 +11,4 @@ Checks from `v3/`: `npx vitest run --root apps/student` and `npx tsc -b apps/stu
 
 ## 2. Integration check
 
-- [ ] 2.1 Run the full v3 checks (vitest, tsc, nx lint and typecheck) and `openspec validate --all --strict`; capture before/after screenshots for the PR
+- [x] 2.1 Run the full v3 checks (vitest, tsc, nx lint and typecheck) and `openspec validate --all --strict`; capture before/after screenshots for the PR
