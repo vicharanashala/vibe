@@ -2544,13 +2544,6 @@ class ProgressService extends BaseService {
     if (!courseVersion) return;
     const courseId = courseVersion.courseId.toString();
 
-    const linearProgressionEnabled =
-      await this.getCourseSettingService().isLinearProgressionEnabled(
-        courseId,
-        courseVersionId,
-      );
-    if (!linearProgressionEnabled) return;
-
     const progress = await this.progressRepository.findProgress(
       userId,
       courseId,
@@ -2580,6 +2573,14 @@ class ProgressService extends BaseService {
       cohortId,
     );
     if (!videoCompleted) return;
+
+    // Last, so an ordinary attempt never needs the course settings.
+    const linearProgressionEnabled =
+      await this.getCourseSettingService().isLinearProgressionEnabled(
+        courseId,
+        courseVersionId,
+      );
+    if (!linearProgressionEnabled) return;
 
     const video = await this.itemRepo.readItemById(
       previousVideo.itemId.toString(),
