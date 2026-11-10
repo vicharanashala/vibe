@@ -738,7 +738,21 @@ export class ItemService extends BaseService {
       itemId,
     );
 
-    const response = (isAlreadyWatched = isItemAlreadyCompleted) => ({
+    // A failed quiz in a linear course sends the student back to the video
+    // before it, and they must watch it again before retaking the quiz
+    // (ProgressService.isRewatchOfCurrentVideo). Reporting it as not watched
+    // makes both web apps track that rewatch like a first viewing.
+    const requiredRewatch =
+      mode !== 'study' &&
+      linearProgressionEnabled &&
+      isItemAlreadyCompleted &&
+      item.type === ItemType.VIDEO &&
+      !currentUserProgress?.completed &&
+      currentUserProgress?.currentItem?.toString() === itemId;
+
+    const response = (
+      isAlreadyWatched = isItemAlreadyCompleted && !requiredRewatch,
+    ) => ({
       ...item,
       _id: item._id.toString(),
       isAlreadyWatched,

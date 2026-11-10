@@ -511,6 +511,11 @@ class AttemptService extends BaseService {
   ): Promise<{ attemptId: string; questionRenderViews: IQuestionRenderView[] }> {
     // Before the transaction, so a refusal creates no metrics and uses no attempt.
     await this.contentLockService.assertOpenForUser(userId.toString(), quizId);
+    await this.progressService.assertNoRewatchPending(
+      userId.toString(),
+      quizId,
+      cohortId,
+    );
 
     return this._withTransaction(async session => {
 
