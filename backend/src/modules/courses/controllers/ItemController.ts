@@ -975,6 +975,62 @@ Access control logic:
   }
 
   @OpenAPI({
+    summary: 'List the feedback forms in a course version',
+    description:
+      "Every feedback form in course order with its module, section, the lesson it is about and how many students' current answers it has. Course staff only, within their cohorts.",
+  })
+  @Authorized()
+  @Get('/:courseId/versions/:versionId/feedback/forms')
+  @HttpCode(200)
+  async listFeedbackForms(
+    @Params() params: CourseVersionFeedbackParams,
+    @QueryParams() query: GetFeedbackSummaryQuery,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
+  ) {
+    const {courseId, versionId} = params;
+    const cohortIds = this.courseFeedbackScope(
+      ability,
+      authenticatedUser,
+      courseId,
+      versionId,
+      query.cohortId,
+    );
+    return {
+      forms: await this.feedbackExportService.listForms(versionId, cohortIds),
+    };
+  }
+
+  /** Course staff only; returns the caller's cohort scope for the version. */
+  private courseFeedbackScope(
+    ability: any,
+    authenticatedUser: AuthenticatedUser,
+    courseId: string,
+    versionId: string,
+    requestedCohortId?: string,
+  ): string[] | undefined {
+    const staff =
+      ability.can(
+        EnrollmentActions.ViewAll,
+        subject('Enrollment', {courseId}),
+      ) ||
+      ability.can(
+        EnrollmentActions.ViewAll,
+        subject('Enrollment', {courseId, versionId}),
+      );
+    if (!staff) {
+      throw new ForbiddenError('Only course staff can see feedback responses');
+    }
+    const scope = this.cohortScopeService.resolve(
+      authenticatedUser,
+      courseId,
+      versionId,
+      requestedCohortId,
+    );
+    const ids = cohortScopeIds(scope);
+    return ids ? ids.map(id => id.toString()) : undefined;
+  }
+
+  @OpenAPI({
     summary: 'Export all feedback in a course version',
     description:
       'Every feedback form in the course version, for any course. .xlsx: an Overview sheet, a sheet per form and a Watch + feedback sheet. CSV: every answer in one table (type=all) or one row per student per video (type=watch). Course staff only, within their cohorts.',

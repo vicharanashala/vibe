@@ -105,6 +105,35 @@ describe('course feedback export route', () => {
   });
 });
 
+describe('course feedback forms list', () => {
+  it('lists forms for staff, within their cohorts, and refuses students', async () => {
+    const {c, who} = setup();
+    c.feedbackExportService.listForms = vi.fn(async () => [
+      {id: FORM, name: 'Intro feedback', responses: 3},
+    ]);
+    expect(
+      await c.listFeedbackForms(
+        {courseId: COURSE, versionId: VERSION},
+        {},
+        who,
+      ),
+    ).toEqual({
+      forms: [{id: FORM, name: 'Intro feedback', responses: 3}],
+    });
+    expect(c.feedbackExportService.listForms).toHaveBeenCalledWith(VERSION, [
+      COHORT,
+    ]);
+    const student = setup(false);
+    await expect(
+      student.c.listFeedbackForms(
+        {courseId: COURSE, versionId: VERSION},
+        {},
+        student.who,
+      ),
+    ).rejects.toThrow(ForbiddenError);
+  });
+});
+
 describe('per-form export routes', () => {
   it('refuses students', async () => {
     const {c, res, who} = setup(false);

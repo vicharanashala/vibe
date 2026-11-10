@@ -357,6 +357,28 @@ describe('FeedbackExportService -- real MongoDB', {timeout: 60000}, () => {
     expect(cohort.allAnswers.rows.map(r => r[5])).toEqual(['Intro feedback']);
   });
 
+  it('lists every form in course order with its current responses', async () => {
+    const {ids} = await seed();
+    const forms = await service.listForms(ids.version.toString());
+    expect(
+      forms.map(f => [
+        f.name,
+        f.moduleName,
+        f.sectionName,
+        f.aboutName,
+        f.responses,
+      ]),
+    ).toEqual([
+      ['Intro feedback', 'Module 1', 'Basics', 'Intro video', 1],
+      ['Deep dive feedback', 'Module 1', 'Basics', 'Deep dive', 0],
+      ['Course feedback', 'Module 1', 'Wrap up', '', 1],
+    ]);
+    const cohort = await service.listForms(ids.version.toString(), [
+      ids.cohort.toString(),
+    ]);
+    expect(cohort.map(f => f.responses)).toEqual([1, 0, 0]);
+  });
+
   it('exports one form and the workbook reads back', async () => {
     const {ids, tag} = await seed();
     const {sheet} = await service.buildFormExport(

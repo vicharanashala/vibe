@@ -590,6 +590,37 @@ export class FeedbackExportService {
     };
   }
 
+  /** Every feedback form in the version, in course order, with its current responses. */
+  async listForms(
+    versionId: string,
+    cohortIds?: string[],
+  ): Promise<
+    {
+      id: string;
+      name: string;
+      moduleName: string;
+      sectionName: string;
+      aboutName: string;
+      responses: number;
+    }[]
+  > {
+    const {formPlaces} = await this.structure(versionId);
+    const forms = await this.loadForms(formPlaces);
+    const counts = await this.feedbackRepo.countCurrentByForm(
+      forms.map(f => f.id),
+      versionId,
+      cohortIds,
+    );
+    return forms.map(f => ({
+      id: f.id,
+      name: f.name,
+      moduleName: f.moduleName,
+      sectionName: f.sectionName,
+      aboutName: f.aboutName,
+      responses: counts.get(f.id) ?? 0,
+    }));
+  }
+
   /** One form's sheet, for the per-form download. */
   async buildFormExport(
     courseId: string,

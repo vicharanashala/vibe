@@ -492,6 +492,37 @@ class FeedbackRepository {
     return rows.map(r => (r.details ?? {}) as Record<string, unknown>);
   }
 
+  /** Current answers per form (form id -> count), for the course feedback list. */
+  async countCurrentByForm(
+    feedbackFormIds: string[],
+    courseVersionId: string,
+    cohortIds?: string[],
+  ): Promise<Map<string, number>> {
+    await this.init();
+    if (!feedbackFormIds.length) return new Map();
+    const rows = await this.feedbackSubmissionCollection
+      .aggregate([
+        {
+          $match: {
+            feedbackFormId: {$in: feedbackFormIds.map(id => new ObjectId(id))},
+            courseVersionId: new ObjectId(courseVersionId),
+          },
+        },
+        ...FeedbackRepository.versionStages(),
+        {
+          $match: {
+            isCurrentVersion: true,
+            ...(cohortIds
+              ? {cohortId: {$in: cohortIds.map(id => new ObjectId(id))}}
+              : {}),
+          },
+        },
+        {$group: {_id: '$feedbackFormId', count: {$sum: 1}}},
+      ])
+      .toArray();
+    return new Map(rows.map(r => [r._id.toString(), r.count as number]));
+  }
+
   /** Every submission (all versions) for a set of forms, oldest first, for exports. */
   async getSubmissionsForForms(
     feedbackFormIds: string[],
