@@ -308,6 +308,28 @@ class AttemptController {
   }
 
   @OpenAPI({
+    summary: 'Get my current feedback answer',
+    description:
+      "Returns the signed-in student's current answer to a feedback form (their latest submission), or null when they haven't answered it.",
+  })
+  @Authorized()
+  @Get('/:itemId/feedback/mine')
+  @HttpCode(200)
+  async getMyFeedback(
+    @Params() params: SubmitFeedbackParams,
+    @Ability(getCourseAbility) {user},
+  ): Promise<{
+    feedback: {details: Record<string, any>; createdAt: Date} | null;
+  }> {
+    return {
+      feedback: await this.attemptService.getMyFeedback(
+        user._id.toString(),
+        params.itemId,
+      ),
+    };
+  }
+
+  @OpenAPI({
     summary: 'Get details of a quiz attempt',
     description:
       'Retrieves the details of a specific quiz attempt for the current user.',

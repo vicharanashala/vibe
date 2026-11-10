@@ -36,6 +36,7 @@ import {
   ItemProctoringBody,
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
+  GetFeedbackSummaryQuery,
   CSVItemBody,
   CourseVersionModuleSectionParams,
   csvResponse,
@@ -51,6 +52,15 @@ import {VersionModuleSectionParams} from '../classes/index.js';
 import {ItemActions, getItemAbility} from '../abilities/itemAbilities.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
+import {
+  EnrollmentActions,
+  getEnrollmentAbility,
+} from '#root/modules/users/abilities/enrollmentAbilities.js';
+import {
+  CohortScopeService,
+  cohortScopeIds,
+} from '#root/shared/functions/cohortScope.js';
+import type {AuthenticatedUser} from '#root/shared/interfaces/models.js';
 import {
   ItemStudyModeResponse,
   StudyModeBody,
@@ -89,6 +99,8 @@ export class ItemController {
     private readonly quizService: QuizService,
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(CohortScopeService)
+    private readonly cohortScopeService: CohortScopeService,
   ) {}
   @OpenAPI({
     summary: 'Create an item',
@@ -781,17 +793,86 @@ Access control logic:
   async getFeedackSubmissions(
     @Params() params: GetFeedbackSubmissionsParams,
     @QueryParams() query: GetFeedbackSubmissionsQuery,
-    // @Ability(getItemAbility) { ability },
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
   ) {
     const {courseId, feedbackId} = params;
-    const {search = '', page = 1, limit = 1} = query;
+    const {search = '', page = 1, limit = 1, userId, cohortId, history} = query;
+    const {cohortIds} = await this.feedbackAccess(
+      ability,
+      authenticatedUser,
+      courseId,
+      feedbackId,
+      cohortId,
+    );
     return await this.itemService.getFeedbackSubmissions(
       courseId,
       feedbackId,
       search,
       Number(page),
       Number(limit),
+      {userId, cohortIds, history},
     );
+  }
+
+  /**
+   * Course staff only (instructor, manager, TA, admin), and only within the
+   * cohorts they can see. Returns the item's version and that cohort scope.
+   */
+  private async feedbackAccess(
+    ability: any,
+    authenticatedUser: AuthenticatedUser,
+    courseId: string,
+    itemId: string,
+    requestedCohortId?: string,
+  ): Promise<{versionId: string; cohortIds?: string[]}> {
+    const versionId = await this.itemService.findItemVersionId(itemId);
+    const staff =
+      ability.can(
+        EnrollmentActions.ViewAll,
+        subject('Enrollment', {courseId}),
+      ) ||
+      ability.can(
+        EnrollmentActions.ViewAll,
+        subject('Enrollment', {courseId, versionId}),
+      );
+    if (!staff) {
+      throw new ForbiddenError('Only course staff can see feedback responses');
+    }
+    const scope = this.cohortScopeService.resolve(
+      authenticatedUser,
+      courseId,
+      versionId,
+      requestedCohortId,
+    );
+    const ids = cohortScopeIds(scope);
+    return {
+      versionId,
+      cohortIds: ids ? ids.map(id => id.toString()) : undefined,
+    };
+  }
+
+  @OpenAPI({
+    summary: 'Summarise feedback responses',
+    description:
+      "Per-question counts, averages and latest text answers over each student's current answer to a feedback form. Course staff only.",
+  })
+  @Authorized()
+  @Get('/:courseId/item/:feedbackId/feedback/summary')
+  @HttpCode(200)
+  async getFeedbackSummary(
+    @Params() params: GetFeedbackSubmissionsParams,
+    @QueryParams() query: GetFeedbackSummaryQuery,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
+  ) {
+    const {courseId, feedbackId} = params;
+    const {cohortIds} = await this.feedbackAccess(
+      ability,
+      authenticatedUser,
+      courseId,
+      feedbackId,
+      query.cohortId,
+    );
+    return this.itemService.getFeedbackSummary(courseId, feedbackId, cohortIds);
   }
 
   @OpenAPI({

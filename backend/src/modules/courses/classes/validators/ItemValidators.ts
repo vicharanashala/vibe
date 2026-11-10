@@ -1174,6 +1174,33 @@ class GetFeedbackSubmissionsQuery {
 
   @IsString()
   limit?: string;
+
+  @JSONSchema({description: 'Only this student’s responses', type: 'string'})
+  @IsOptional()
+  @IsMongoId()
+  userId?: string;
+
+  @JSONSchema({description: 'Only responses from this cohort', type: 'string'})
+  @IsOptional()
+  @IsMongoId()
+  cohortId?: string;
+
+  @JSONSchema({
+    description:
+      "'latest' (default): each student's current answer only; 'all': include replaced answers",
+    type: 'string',
+    enum: ['latest', 'all'],
+  })
+  @IsOptional()
+  @IsIn(['latest', 'all'])
+  history?: 'latest' | 'all';
+}
+
+class GetFeedbackSummaryQuery {
+  @JSONSchema({description: 'Only responses from this cohort', type: 'string'})
+  @IsOptional()
+  @IsMongoId()
+  cohortId?: string;
 }
 
 class CSVRow {
@@ -1287,6 +1314,7 @@ export {
   GetItemParams,
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
+  GetFeedbackSummaryQuery,
   CSVRow,
   csvResponse
 };
@@ -1312,6 +1340,7 @@ export const ITEM_VALIDATORS = [
   GetItemParams,
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
+  GetFeedbackSummaryQuery,
   CSVRow,
   csvResponse
 ];
