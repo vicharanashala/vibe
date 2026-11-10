@@ -123,6 +123,7 @@ import { QuizRunner } from './quiz';
 import { useIncidentReporter } from './incident-reporter';
 import { useAfterQuizSubmit } from './quiz-api';
 import { MODEL_CHECK_LABELS } from './proctoring/assets';
+import { DiagnosticsSheet } from './proctoring/diagnostics-view';
 import { fixActions } from './proctoring/fix-actions';
 import { deviceEntries, modelEntry, ProctoringSetup, type SetupEntry } from './proctoring/proctoring-setup';
 import { YouTubePlayer } from './youtube-player';
@@ -544,6 +545,7 @@ function useProctoring(
     : [];
   const setupReady = setupEntries.every((e) => e.state === 'ready');
   const restartChecks = () => modelChecks.forEach((m) => m.on && m.check.retry());
+  const [diagnosing, setDiagnosing] = useState(false);
 
   const blocked =
     (needsCameraStream && !cameraReady) ||
@@ -565,13 +567,15 @@ function useProctoring(
             aria-hidden="true"
           />
           <CameraBubble stream={camera.stream} />
-          {!setupReady && (
+          {!setupReady && !diagnosing && (
             <ProctoringSetup
               entries={setupEntries}
               hint="This lesson is proctored and needs your camera and microphone on. Nothing is recorded unless a check flags something; then a still photo is saved for your course team, as in the consent form."
               actions={fixActions(restartChecks)}
+              onRunDiagnostics={() => setDiagnosing(true)}
             />
           )}
+          <DiagnosticsSheet open={diagnosing} onOpenChange={setDiagnosing} actions={fixActions(restartChecks)} />
         </>
       )}
       {setupReady && showEnrollment && (

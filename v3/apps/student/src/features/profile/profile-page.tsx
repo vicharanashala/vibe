@@ -1,12 +1,12 @@
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { unwrap } from '@vibe/api';
 import { updateProfile } from 'firebase/auth';
-import { CheckCircle2Icon, LogOutIcon } from 'lucide-react';
+import { CheckCircle2Icon, LogOutIcon, StethoscopeIcon } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 
 import { PasswordInput } from '@/components/password-input';
 import { AppearancePicker } from '@/components/appearance-picker';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
@@ -64,6 +64,11 @@ export function ProfilePage() {
         )}
         <Panel title="Appearance" description="Applies across ViBe on this device, including the studio.">
           <AppearancePicker />
+        </Panel>
+        <Panel title="Proctored lessons" description="If a proctored lesson won’t start, check what your device and browser need.">
+          <Link to="/check-device" className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'w-full sm:w-auto')}>
+            <StethoscopeIcon /> Check my device
+          </Link>
         </Panel>
         <Panel title="Session">
           <Button

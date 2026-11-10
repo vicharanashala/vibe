@@ -33,6 +33,14 @@ vi.mock('./detectors/use-voice-detector', () => ({
 const loader = vi.hoisted(() => ({ clearProctoringCache: vi.fn(async () => undefined), clearAppFiles: vi.fn(async () => undefined) }));
 vi.mock('./proctoring/model-loader', async (orig) => ({ ...(await orig<object>()), ...loader }));
 
+// Real diagnostics would reach the model hosts from the test.
+vi.mock('./proctoring/diagnostics', async (orig) => ({
+  ...(await orig<object>()),
+  runDiagnostics: async function* () {
+    yield { id: 'wasm', label: 'WebAssembly', status: 'pass', detail: 'Supported.' };
+  },
+}));
+
 const enrollment = fixtures.enrollments.enrollments[0];
 const path = fixtures.currentPath;
 const lessonUrl = `/learn/${enrollment.courseId}/${enrollment.courseVersionId}/${path.module.id}/${path.section.id}/${path.item.id}`;
@@ -128,6 +136,16 @@ describe('proctored lesson setup', () => {
     await waitFor(() => expect(checks.voice.retry).toHaveBeenCalled());
     expect(loader.clearProctoringCache).toHaveBeenCalled();
     expect(checks.faceCount.retry).toHaveBeenCalled();
+  });
+
+  it('opens diagnostics from the checklist without leaving the lesson', async () => {
+    lessonWith('voiceDetection');
+    checks.voice.readiness = r({ state: 'failed', error: 'Couldn’t reach the model server.' });
+    renderApp(lessonUrl);
+    await setup();
+    await userEvent.click(screen.getByRole('button', { name: /Run diagnostics/ }));
+    expect(await screen.findByRole('heading', { name: 'Check my device' })).toBeInTheDocument();
+    expect(await screen.findByRole('list', { name: 'Diagnostics results' })).toBeInTheDocument();
   });
 
   it('shows no setup and opens no camera in study mode', async () => {
