@@ -11,7 +11,8 @@ import {
   TriangleAlertIcon,
   XCircleIcon,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import {
   AlertDialog,
@@ -38,6 +39,8 @@ import {
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
+import { popIn, still } from '@/lib/motion';
+import { cn } from '@/lib/utils';
 
 import { describeCameraIssue, type CameraIssue, type CameraState } from '../camera-presence';
 import { progressPercent, progressText } from './format';
@@ -136,10 +139,47 @@ function StatusIcon({ state }: { state: EntryState }) {
   return <Spinner aria-label="In progress" />;
 }
 
+/** The status icon, popping in when the status changes (not on every progress tick). */
+function AnimatedStatus({ state }: { state: EntryState }) {
+  const reduce = useReducedMotion();
+  const key = state === 'checking' || state === 'downloading' || state === 'starting' ? 'busy' : state;
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.span key={key} className="inline-flex" variants={reduce ? still : popIn} initial="hidden" animate="shown" exit="hidden">
+        <StatusIcon state={state} />
+      </motion.span>
+    </AnimatePresence>
+  );
+}
+
+/** True for a moment after `state` turns ready, for a brief green glow on the row. */
+function useJustReady(state: EntryState) {
+  const previous = useRef(state);
+  const [glow, setGlow] = useState(false);
+  useEffect(() => {
+    if (state === 'ready' && previous.current !== 'ready') {
+      setGlow(true);
+      const id = window.setTimeout(() => setGlow(false), 900);
+      previous.current = state;
+      return () => window.clearTimeout(id);
+    }
+    previous.current = state;
+    return undefined;
+  }, [state]);
+  return glow;
+}
+
 export function EntryRow({ entry }: { entry: SetupEntry }) {
   const percent = entry.progress ? progressPercent(entry.progress) : null;
+  const glow = useJustReady(entry.state);
   return (
-    <Item size="sm" variant="outline" role="listitem" aria-label={entry.label}>
+    <Item
+      size="sm"
+      variant="outline"
+      role="listitem"
+      aria-label={entry.label}
+      className={cn('transition-colors duration-700', glow && 'border-emerald-500/40 bg-emerald-500/10 duration-150')}
+    >
       <ItemMedia variant="icon" className="text-muted-foreground">
         {entry.icon}
       </ItemMedia>
@@ -150,11 +190,15 @@ export function EntryRow({ entry }: { entry: SetupEntry }) {
         </ItemTitle>
         <ItemDescription className={entry.state === 'failed' ? 'text-destructive' : undefined}>{entry.detail}</ItemDescription>
         {(entry.state === 'downloading' || entry.state === 'stalled') && entry.progress && (
-          <Progress className="mt-1.5" value={percent} aria-label={`${entry.label} download`} />
+          <Progress
+            className="mt-1.5 [&_[data-slot=progress-indicator]]:transition-all [&_[data-slot=progress-indicator]]:duration-300"
+            value={percent}
+            aria-label={`${entry.label} download`}
+          />
         )}
       </ItemContent>
       <ItemActions>
-        <StatusIcon state={entry.state} />
+        <AnimatedStatus state={entry.state} />
         {entry.onRetry && (entry.state === 'failed' || entry.state === 'stalled') && (
           <Button size="sm" variant="outline" onClick={entry.onRetry}>
             <RotateCcwIcon /> Try again
@@ -230,22 +274,39 @@ export function ProctoringSetup({
   hint,
   actions,
   onRunDiagnostics,
+  allSet = false,
 }: {
   entries: SetupEntry[];
   /** What the lesson's proctoring does, shown under the title. */
   hint: string;
   actions: FixActions;
   onRunDiagnostics?: () => void;
+  /** Everything just became ready: show a short "all set" moment before closing. */
+  allSet?: boolean;
 }) {
-  const needsAttention = entries.some((e) => e.state === 'failed' || e.state === 'stalled');
+  const reduce = useReducedMotion();
+  const needsAttention = !allSet && entries.some((e) => e.state === 'failed' || e.state === 'stalled');
   return (
     <AlertDialog open>
       <AlertDialogContent className="data-[size=default]:sm:max-w-xl">
         <AlertDialogHeader>
-          <AlertDialogMedia className={needsAttention ? 'text-amber-600' : 'text-sky-600'}>
-            {needsAttention ? <TriangleAlertIcon /> : <ShieldCheckIcon />}
+          <AlertDialogMedia className={allSet ? 'text-emerald-600' : needsAttention ? 'text-amber-600' : 'text-sky-600'}>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={allSet ? 'done' : needsAttention ? 'attention' : 'setup'}
+                className="inline-flex"
+                variants={reduce ? still : popIn}
+                initial="hidden"
+                animate="shown"
+                exit="hidden"
+              >
+                {allSet ? <CheckCircle2Icon /> : needsAttention ? <TriangleAlertIcon /> : <ShieldCheckIcon />}
+              </motion.span>
+            </AnimatePresence>
           </AlertDialogMedia>
-          <AlertDialogTitle>{needsAttention ? 'Something needs your attention' : 'Getting this lesson ready'}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {allSet ? 'You’re all set' : needsAttention ? 'Something needs your attention' : 'Getting this lesson ready'}
+          </AlertDialogTitle>
           <AlertDialogDescription>{hint}</AlertDialogDescription>
         </AlertDialogHeader>
         <ItemGroup className="gap-2" aria-label="Proctoring setup">
