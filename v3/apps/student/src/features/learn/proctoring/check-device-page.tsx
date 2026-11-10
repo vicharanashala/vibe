@@ -1,7 +1,6 @@
 import { StethoscopeIcon } from 'lucide-react';
 
 import { DiagnosticsPanel } from './diagnostics-view';
-import { fixActions } from './fix-actions';
 
 /** "Check my device": the proctoring diagnostics, available any time from the profile. */
 export function CheckDevicePage() {
@@ -17,7 +16,7 @@ export function CheckDevicePage() {
         </div>
       </div>
       <div className="mt-6">
-        <DiagnosticsPanel actions={fixActions()} />
+        <DiagnosticsPanel />
       </div>
     </div>
   );

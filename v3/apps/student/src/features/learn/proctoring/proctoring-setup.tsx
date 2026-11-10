@@ -136,7 +136,7 @@ function StatusIcon({ state }: { state: EntryState }) {
   return <Spinner aria-label="In progress" />;
 }
 
-function EntryRow({ entry }: { entry: SetupEntry }) {
+export function EntryRow({ entry }: { entry: SetupEntry }) {
   const percent = entry.progress ? progressPercent(entry.progress) : null;
   return (
     <Item size="sm" variant="outline" role="listitem" aria-label={entry.label}>

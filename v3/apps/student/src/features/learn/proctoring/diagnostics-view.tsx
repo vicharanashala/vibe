@@ -8,8 +8,10 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Spinner } from '@/components/ui/spinner';
 
 import { formatReport, runDiagnostics, type CheckResult, type CheckStatus } from './diagnostics';
+import { MODEL_CHECK_LABELS } from './assets';
 import { fixActions } from './fix-actions';
-import { FixMenu, type FixActions } from './proctoring-setup';
+import { EntryRow, FixMenu, modelEntry, type FixActions } from './proctoring-setup';
+import { REDOWNLOAD_CHECKS, useModelRedownload } from './redownload';
 
 const STATUS_LABEL: Record<CheckStatus, string> = { pass: 'Passed', warn: 'Warning', fail: 'Problem', info: 'Info' };
 
@@ -21,11 +23,18 @@ function ResultIcon({ status }: { status: CheckStatus }) {
   return <InfoIcon className="text-muted-foreground" aria-label={label} />;
 }
 
-/** Runs the device checks, shows each result as it arrives, and offers the report and fixes. */
-export function DiagnosticsPanel({ actions }: { actions: FixActions }) {
+/**
+ * Runs the device checks, shows each result as it arrives, and offers the
+ * report and fixes. "Download models again" downloads every model right here,
+ * with progress, then runs the checks again; `restartChecks` (in a lesson)
+ * then restarts the lesson's checks, which load the fresh copies.
+ */
+export function DiagnosticsPanel({ restartChecks }: { restartChecks?: () => void }) {
   const [results, setResults] = useState<CheckResult[]>([]);
   const [running, setRunning] = useState(false);
   const run = useRef(0);
+  const redownload = useModelRedownload();
+  const downloadsRef = useRef<HTMLElement>(null);
 
   const start = useCallback(async () => {
     const id = ++run.current;
@@ -44,6 +53,21 @@ export function DiagnosticsPanel({ actions }: { actions: FixActions }) {
       run.current += 1;
     };
   }, [start]);
+
+  const downloadAgain = useCallback(async () => {
+    const { failed } = await redownload.run();
+    if (failed) toast.error(`${failed} model${failed === 1 ? '' : 's'} couldn’t be downloaded. See the reasons above.`);
+    else toast.success('Models downloaded and saved on this device.');
+    restartChecks?.();
+    void start();
+  }, [redownload, restartChecks, start]);
+  // Bring the download progress into view as it starts: the Fixes menu sits below the results.
+  const hasDownloads = redownload.progress !== null;
+  useEffect(() => {
+    if (redownload.running && hasDownloads) downloadsRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, [redownload.running, hasDownloads]);
+  const base = fixActions();
+  const actions: FixActions = { ...base, downloadAgain: () => void downloadAgain() };
 
   const problems = results.filter((r) => r.status === 'fail').length;
   const warnings = results.filter((r) => r.status === 'warn').length;
@@ -87,11 +111,24 @@ export function DiagnosticsPanel({ actions }: { actions: FixActions }) {
           </div>
         )}
       </ItemGroup>
+      {redownload.progress && (
+        <section ref={downloadsRef} aria-label="Downloading models" className="flex scroll-mt-4 flex-col gap-2">
+          <h3 className="text-sm font-medium">{redownload.running ? 'Downloading models again…' : 'Models downloaded again'}</h3>
+          <ItemGroup className="gap-2" aria-label="Model downloads">
+            {REDOWNLOAD_CHECKS.map((check) => {
+              const readiness = redownload.progress?.[check];
+              return readiness ? (
+                <EntryRow key={check} entry={modelEntry(check, MODEL_CHECK_LABELS[check], readiness, () => void downloadAgain())} />
+              ) : null;
+            })}
+          </ItemGroup>
+        </section>
+      )}
       <div className="flex flex-wrap gap-2">
-        <Button onClick={copy} disabled={running}>
+        <Button onClick={copy} disabled={running || redownload.running}>
           <CopyIcon /> Copy report
         </Button>
-        <Button variant="outline" onClick={() => void start()} disabled={running}>
+        <Button variant="outline" onClick={() => void start()} disabled={running || redownload.running}>
           <RotateCcwIcon /> Run again
         </Button>
         <FixMenu actions={actions} label="Fixes" />
@@ -105,17 +142,17 @@ export function DiagnosticsPanel({ actions }: { actions: FixActions }) {
 
 /**
  * The diagnostics in a side pane, openable from anywhere: the setup checklist,
- * the account menu, the profile page and the lesson header. Without `actions`,
- * "Download models again" reloads the page to download them.
+ * the account menu, the profile page and the lesson header.
  */
 export function DiagnosticsSheet({
   open,
   onOpenChange,
-  actions = fixActions(),
+  restartChecks,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  actions?: FixActions;
+  /** In a lesson: restart its checks after the models are downloaded again. */
+  restartChecks?: () => void;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -124,7 +161,7 @@ export function DiagnosticsSheet({
           <SheetTitle>Check my device</SheetTitle>
           <SheetDescription>Finds what’s stopping proctoring from starting, and how to fix it.</SheetDescription>
         </SheetHeader>
-        <div className="px-4 pb-6">{open && <DiagnosticsPanel actions={actions} />}</div>
+        <div className="px-4 pb-6">{open && <DiagnosticsPanel restartChecks={restartChecks} />}</div>
       </SheetContent>
     </Sheet>
   );

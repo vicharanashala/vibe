@@ -576,7 +576,7 @@ function useProctoring(
               onRunDiagnostics={() => setDiagnosing(true)}
             />
           )}
-          <DiagnosticsSheet open={diagnosing} onOpenChange={setDiagnosing} actions={fixActions(restartChecks)} />
+          <DiagnosticsSheet open={diagnosing} onOpenChange={setDiagnosing} restartChecks={restartChecks} />
         </>
       )}
       {setupReady && showEnrollment && (
