@@ -35,12 +35,37 @@ When the backend refuses a submission, the form SHALL show the reason in plain l
 - **WHEN** a student opens a form whose video they haven't finished and presses Send
 - **THEN** the form says to finish the previous video first, with a link to it, and their answers stay filled in
 
-### Requirement: Study mode shows a read-only preview
-In study mode a feedback form SHALL show its questions read-only with a note that answers are sent only in strict mode, plus the student's current answers when they have any.
+### Requirement: Students answer forms in study mode
+Strict mode is PC-only, so study mode is how phones answer. In study mode a form SHALL be fillable and sendable when the course allows it, with the same validation, the student's current answer filled in, and Update when answered. It SHALL NOT change strict progress.
 
-#### Scenario: Study mode preview
-- **WHEN** a student opens a form in study mode
-- **THEN** they see the questions disabled and a note to switch to strict mode to answer
+#### Scenario: Answering on a phone
+- **WHEN** a student on a phone opens a form in study mode and sends their answers
+- **THEN** the answers are stored as a study-mode answer and their strict progress is unchanged
+
+#### Scenario: Video not studied yet
+- **WHEN** a student sends a study-mode form whose video they haven't studied
+- **THEN** the form explains why, links to the video, and keeps their answers
+
+### Requirement: Read-only when the course turns study-mode feedback off
+When the course doesn't accept study-mode feedback, a form in study mode SHALL show its questions read-only, with the student's current answer, and a note that answers are accepted only in strict mode.
+
+#### Scenario: Turned off
+- **WHEN** a student opens a form in study mode in a course that turned study-mode feedback off
+- **THEN** the questions are disabled and there is no Send button
+
+### Requirement: Studio switch for study-mode feedback
+The course Feedback tab SHALL offer "Students can send feedback in study mode", on by default, explaining that turning it off stops students on phones from sending feedback. Responses SHALL show whether each answer came from study or strict mode.
+
+#### Scenario: Turning it off
+- **WHEN** a teacher turns the switch off
+- **THEN** it stays off and students' study-mode forms become read-only
+
+### Requirement: Feedback screens work on phones
+Every feedback screen SHALL work at 360 px wide without sideways page scrolling: the student form in both modes, Studio responses, summary, the response pane (full width on phones), download menus and the Feedback tab. Controls SHALL be at least 40 px tall on phones.
+
+#### Scenario: A 1 to 10 scale on a phone
+- **WHEN** a student opens a form with a 1 to 10 scale on a 360 px wide phone
+- **THEN** the scale wraps onto rows with its end labels, and nothing scrolls sideways
 
 ### Requirement: Form builder field kinds
 The Studio form builder SHALL offer:

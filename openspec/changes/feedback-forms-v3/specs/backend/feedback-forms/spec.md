@@ -49,6 +49,24 @@ A form that follows a video SHALL refuse a student who hasn't completed that vid
 - **WHEN** a student submits the form after a video they haven't completed
 - **THEN** the submission is refused with "Watch the previous video before sending this feedback."
 
+### Requirement: Study-mode submissions
+A submission MAY be sent in study mode. It SHALL be refused when the course turned study-mode feedback off, and, after a video, when the student has no study view of it. It SHALL be stored with its mode, never change strict progress, and replace the student's earlier answer whatever its mode.
+
+#### Scenario: Study mode after a studied video
+- **WHEN** a student who studied the video sends its form in study mode
+- **THEN** the answer is stored as current with mode study, and strict progress is unchanged
+
+#### Scenario: Turned off
+- **WHEN** a student sends a form in study mode in a course that turned it off
+- **THEN** it is refused with "Your course team accepts feedback only in strict mode."
+
+### Requirement: Study-mode feedback setting
+Each course version SHALL have a setting for study-mode feedback, on when never set. Course staff SHALL be able to read it, and only staff who can edit the course SHALL be able to change it.
+
+#### Scenario: New course
+- **WHEN** a course never changed the setting
+- **THEN** study-mode feedback is accepted
+
 ### Requirement: Course feedback export
 Course staff SHALL be able to export all feedback for any course version as an Excel workbook or as CSV, optionally limited to one cohort. Students and staff of other courses SHALL be refused. It SHALL work for every course, not only listed pilot courses.
 
@@ -81,6 +99,7 @@ Every answer row SHALL include:
 - module, section and form name
 - the lesson the form is about
 - submitted time in IST and in ISO 8601
+- the mode it was sent in (Study or Strict)
 
 Each question SHALL be its own column, titled with the question text in form order, with choices shown as their labels and multiple choices joined by "; ".
 
@@ -100,7 +119,7 @@ The Overview sheet SHALL show, per enrolled student: name, email, cohort, progre
 - **THEN** they appear on Overview with 0 forms answered
 
 ### Requirement: Watch and feedback sheet
-The Watch + feedback sheet SHALL show, per enrolled student and video: watch time, watch percent (capped at 100), number of watch sessions, first and last watch time, and the student's current answers to the form directly after that video.
+The Watch + feedback sheet SHALL show, per enrolled student and video: watch time, watch percent (capped at 100), number of watch sessions, first and last watch time, and the student's current answers to the form directly after that video, with the mode they were sent in.
 
 #### Scenario: Watched but no feedback
 - **WHEN** a student watched a video but didn't answer its form

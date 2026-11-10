@@ -41,6 +41,13 @@ Backend checks: `npx vitest run <files>` from `backend/`, `npx tsc --noEmit -p b
 - [x] 6.1 Run the full backend suite for the touched modules, `npx tsc --noEmit -p backend` and the format check, plus the full v3 checks (`npx vitest run --root apps/student --maxWorkers=2`, tsc, `NX_DAEMON=false npx nx run-many -t lint typecheck --projects=student --parallel=1`) and `openspec validate --all --strict`; confirm all pass
 - [x] 6.2 On the local stack (backend :4002, v3), with a course of two videos each followed by a form plus a form first in a section: answer, reopen and update as a student; check Studio responses, search, the history Sheet and the summary; download the course workbook and CSVs and the per-form files and open them, confirming sheets, headers, labels, IST times and latest-vs-history rows; time the export on a production-sized local copy if available. Record the results in the PR, with screenshots
 
+## 7. Study mode and phones
+
+- [x] 7.1 Backend: `studyModeFeedback` course setting (on unless false) with staff-only read and edit-permission change at `…/feedback/settings`; study-mode submissions refused when off or after an unstudied video, stored with `mode`, no strict progress, latest wins across modes; Mode columns in exports; verify with unit, controller and real-database tests
+- [x] 7.2 v3: study-mode form fillable and sendable when allowed (prefill, validation, refusal with a link), read-only with a note when off; Studio switch on the Feedback tab; Study/Strict badges in responses; verify with specs
+- [x] 7.3 Phones: survey every feedback screen at 390, 360 and 768 px and fix tap targets, the summary bars, the response pane width and wide tables; verify no sideways page scroll and controls of 40 px or more
+- [ ] 7.4 Local end-to-end on a 390 px phone viewport: refused before studying the video, sent after, reopened with answers; switch off makes the form read-only; strict on desktop unchanged; the export shows the Mode column. Record the results and phone screenshots in the PR
+
 ## Workflow follow-up
 
 - Deploy the backend first, then `deploy-frontend-v3`.

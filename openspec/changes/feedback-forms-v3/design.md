@@ -110,6 +110,25 @@ The renamed-question case is handled by keying columns on the stored property ke
   - the Summary uses a new server aggregate (`GET …/feedback/summary`), so it isn't capped at 1,000
 - **Downloads:** go through the API client as a blob, as today, with a sonner toast and an error state.
 
+### 9. Study-mode feedback, behind a per-course switch
+Strict mode is PC-only, so phones only have study mode.
+
+- **Setting:** `settings.studyModeFeedback` on the course settings document, read as on unless it is `false`. Students already receive course settings through `GET /setting/course-setting/:c/:v`, so the v3 form knows without a new call. Studio reads and changes it through `GET`/`PUT /courses/:c/versions/:v/feedback/settings`: reading needs course staff, changing needs permission to edit the course.
+- **Submit:** the body takes `mode: 'strict' | 'study'` (default strict). For study mode:
+  - refuse when the setting is off
+  - after a video, require a recorded study view (the `studyViews` collection from study progress) instead of strict completion
+  - never read or write strict progress
+- **Lazy dependencies:** the settings repository and study views are resolved only on the study path, so strict submissions don't depend on them.
+- **Mode:** each submission stores `mode`, and the latest answer wins across modes. Exports add a "Mode" column, plus "Answer mode" on Watch + feedback. Studio shows a Study or Strict badge.
+- **v3:** a `StudyFeedbackForm` replaces the read-only preview when allowed, and keeps it when not. Studio's Feedback tab has the switch.
+
+### 10. Phones
+- **Student form:** choice and checkbox rows are full-width, 40 px tap targets.
+- **Summary:** each choice and its count share a line, with a full-width bar below.
+- **Controls:** tabs, Download, search and cohort select are 40 px or taller on phones.
+- **Response pane:** full width on phones.
+- **Wide tables:** at tablet width they keep the first column sticky.
+
 ## Risks / Trade-offs
 
 - **[Risk] Large courses (thousands of students × many videos) make big workbooks** → Write the workbook with a lean XML writer and project only the needed fields. The Watch sheet uses the already-optimised Gurusetu approach. The cap is the HTTP timeout, so it's measured on the largest production course during implementation.
