@@ -1659,6 +1659,10 @@
        "seekForwardEnabled": {
         "type": "boolean"
        },
+       "studyModeFeedback": {
+        "type": "boolean",
+        "description": "Whether students can send feedback forms in study mode (how phones answer). Default true."
+       },
        "hpSystem": {
         "type": "boolean"
        },
@@ -5071,6 +5075,18 @@
      "versionId"
     ]
    },
+   "UpdateFeedbackSettingsBody": {
+    "properties": {
+     "studyModeFeedback": {
+      "type": "boolean",
+      "description": "Whether students can send feedback forms in study mode (how phones answer)."
+     }
+    },
+    "type": "object",
+    "required": [
+     "studyModeFeedback"
+    ]
+   },
    "GetFeedbackSummaryQuery": {
     "properties": {
      "cohortId": {
@@ -7391,6 +7407,14 @@
       "pattern": "^[0-9a-fA-F]{24}$",
       "description": "ID of the course version",
       "example": "60d21b4667d0d8992e610c99"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "strict",
+       "study"
+      ],
+      "description": "The mode the student answered in. Study-mode answers need the course to allow them and, after a video, a study view of it; they never change strict progress. Defaults to 'strict'."
      },
      "cohortId": {
       "type": "string",
@@ -26204,6 +26228,95 @@
      "Course Items"
     ],
     "description": "Every feedback form in course order with its module, section, the lesson it is about and how many students' current answers it has. Course staff only, within their cohorts."
+   }
+  },
+  "/api/courses/{courseId}/versions/{versionId}/feedback/settings": {
+   "get": {
+    "operationId": "ItemController.getFeedbackSettings",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course ID"
+      }
+     },
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course version ID"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "Read a course version's feedback settings",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Whether students can send feedback forms in study mode (how phones answer, since strict mode is PC-only). Course staff only."
+   },
+   "put": {
+    "operationId": "ItemController.updateFeedbackSettings",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course ID"
+      }
+     },
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course version ID"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UpdateFeedbackSettingsBody"
+       }
+      }
+     },
+     "description": "UpdateFeedbackSettingsBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "Change a course version's feedback settings",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Turns study-mode feedback on or off. Off means students on phones cannot send feedback. Requires permission to edit the course content."
    }
   },
   "/api/courses/{courseId}/versions/{versionId}/feedback/export": {

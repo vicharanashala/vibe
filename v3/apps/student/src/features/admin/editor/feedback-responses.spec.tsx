@@ -159,4 +159,30 @@ describe('course Feedback tab', () => {
     await user.click(await screen.findByRole('menuitem', { name: /watch time \+ feedback/ }));
     await waitFor(() => expect(queryOf(COURSE_EXPORT).at(-1)).toEqual({ format: 'csv', type: 'watch' }));
   });
+
+  it('shows study-mode feedback as on by default, and turns it off', async () => {
+    const SETTINGS = '/api/courses/{courseId}/versions/{versionId}/feedback/settings';
+    let saved = true;
+    withExtras((path) => (path === SETTINGS ? ok({ studyModeFeedback: saved }) : undefined));
+    api.PUT.mockImplementation(async (path: string, opts?: { body?: { studyModeFeedback: boolean } }) => {
+      if (path === SETTINGS) {
+        saved = opts!.body!.studyModeFeedback;
+        return ok({ studyModeFeedback: saved });
+      }
+      return ok({});
+    });
+    const user = userEvent.setup();
+    renderApp(courseUrl);
+    const toggle = await screen.findByRole('switch', { name: /Students can send feedback in study mode/ });
+    await waitFor(() => expect(toggle).toBeChecked());
+    expect(screen.getByText(/Phones can only use study mode/)).toBeInTheDocument();
+    await user.click(toggle);
+    await waitFor(() =>
+      expect(api.PUT).toHaveBeenCalledWith(SETTINGS, {
+        params: { path: { courseId: loc.courseId, versionId: loc.versionId } },
+        body: { studyModeFeedback: false },
+      }),
+    );
+    await waitFor(() => expect(toggle).not.toBeChecked());
+  });
 });

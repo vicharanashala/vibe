@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { RichContent } from '@/components/rich-content';
 import { FeedbackFormFields } from '@/features/feedback/feedback-form';
+import { StudyFeedbackForm, type PreviousLessonLink } from '@/features/feedback/study-feedback';
 import {
   answerable,
   fieldName,
@@ -130,7 +131,6 @@ import {
   answeredOn,
   myFeedbackKey,
   useMyFeedback,
-  type MyFeedback,
 } from '@/features/feedback/my-feedback';
 import { fixActions } from './proctoring/fix-actions';
 import { deviceEntries, modelEntry, ProctoringSetup, type SetupEntry } from './proctoring/proctoring-setup';
@@ -845,6 +845,7 @@ function GreenFeedback({
               courseId: ref.courseId,
               courseVersionId: ref.versionId,
               sectionId: ref.sectionId,
+              mode: 'strict',
             } as never,
           }),
         );
@@ -1223,7 +1224,6 @@ function BlueLesson({
   // Study mode runs no proctoring at all — not even a camera check.
   // It does record study views (not strict progress) for study progress.
   const onPlayingChange = useStudyViewRecorder(ref, item);
-  const myFeedback = useMyFeedback(ref.itemId, item.type === 'FEEDBACK');
   const version = useCourseVersion(ref.versionId);
   const { items } = useFlatSyllabus(version.data);
   const index = items.findIndex((i) => i._id === ref.itemId);
@@ -1283,7 +1283,18 @@ function BlueLesson({
         item={item}
         allowSeekForward
         onPlayingChange={onPlayingChange}
-        feedbackAnswer={myFeedback.data}
+        studyFeedback={{
+          lessonRef: ref,
+          previous: prev
+            ? {
+                courseId: ref.courseId,
+                versionId: ref.versionId,
+                moduleId: prev.moduleId,
+                sectionId: prev.sectionId,
+                itemId: prev._id,
+              }
+            : null,
+        }}
       />
     </LessonFrame>
   );
@@ -1295,15 +1306,15 @@ function LessonContent({
   paused,
   onPlayingChange,
   onEnded,
-  feedbackAnswer,
+  studyFeedback,
 }: {
   item: LessonItem;
   allowSeekForward: boolean;
   paused?: boolean;
   onPlayingChange?: (playing: boolean) => void;
   onEnded?: () => void;
-  /** Study-mode preview of a feedback form: the student's current answer. */
-  feedbackAnswer?: MyFeedback | null;
+  /** Study mode: what a feedback form needs to be answered there. */
+  studyFeedback?: { lessonRef: LessonRef; previous: PreviousLessonLink | null };
 }) {
   const videoId = item.type === 'VIDEO' ? youtubeId(item.details.URL) : null;
   return (
@@ -1338,27 +1349,13 @@ function LessonContent({
               </AlertDescription>
             </Alert>
           ))}
-        {item.type === 'FEEDBACK' && (
-          <div className="grid gap-6">
-            <Alert>
-              <InfoIcon />
-              <AlertDescription>
-                This is the feedback form for the previous lesson. Answers are
-                sent only in strict mode.
-                {feedbackAnswer &&
-                  ` Showing what you answered on ${answeredOn(feedbackAnswer.createdAt)}.`}
-              </AlertDescription>
-            </Alert>
-            <FeedbackFormFields
-              fields={schemaToFields(
-                item.details.jsonSchema,
-                item.details.uiSchema,
-              )}
-              values={feedbackAnswer?.details ?? {}}
-              onChange={() => undefined}
-              disabled
-            />
-          </div>
+        {item.type === 'FEEDBACK' && studyFeedback && (
+          <StudyFeedbackForm
+            lessonRef={studyFeedback.lessonRef}
+            jsonSchema={item.details.jsonSchema}
+            uiSchema={item.details.uiSchema}
+            previous={studyFeedback.previous}
+          />
         )}
         {item.type === 'BLOG' && (
           <div>

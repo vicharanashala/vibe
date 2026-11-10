@@ -2736,6 +2736,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/courses/{courseId}/versions/{versionId}/feedback/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a course version's feedback settings
+         * @description Whether students can send feedback forms in study mode (how phones answer, since strict mode is PC-only). Course staff only.
+         */
+        get: operations["ItemController.getFeedbackSettings"];
+        /**
+         * Change a course version's feedback settings
+         * @description Turns study-mode feedback on or off. Off means students on phones cannot send feedback. Requires permission to edit the course content.
+         */
+        put: operations["ItemController.updateFeedbackSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses/{courseId}/versions/{versionId}/feedback/export": {
         parameters: {
             query?: never;
@@ -7244,6 +7268,8 @@ export interface components {
                 };
                 linearProgressionEnabled?: boolean;
                 seekForwardEnabled?: boolean;
+                /** @description Whether students can send feedback forms in study mode (how phones answer). Default true. */
+                studyModeFeedback?: boolean;
                 hpSystem?: boolean;
                 /** @description Whether the Case Studies tab is enabled for this course version. */
                 caseStudiesEnabled?: boolean;
@@ -9174,6 +9200,10 @@ export interface components {
             /** @description Course version ID */
             versionId: string;
         };
+        UpdateFeedbackSettingsBody: {
+            /** @description Whether students can send feedback forms in study mode (how phones answer). */
+            studyModeFeedback: boolean;
+        };
         GetFeedbackSummaryQuery: {
             /** @description Only responses from this cohort */
             cohortId?: string;
@@ -10342,6 +10372,11 @@ export interface components {
              * @example 60d21b4667d0d8992e610c99
              */
             courseVersionId: string;
+            /**
+             * @description The mode the student answered in. Study-mode answers need the course to allow them and, after a video, a study view of it; they never change strict progress. Defaults to 'strict'.
+             * @enum {string}
+             */
+            mode?: "strict" | "study";
             /**
              * @description Cohort of the student
              * @example cohort-1
@@ -19597,6 +19632,57 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ItemController.getFeedbackSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ItemController.updateFeedbackSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateFeedbackSettingsBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateFeedbackSettingsBody"];
+            };
+        };
         responses: {
             /** @description Successful response */
             200: {

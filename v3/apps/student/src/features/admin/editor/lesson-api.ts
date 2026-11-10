@@ -598,6 +598,8 @@ export interface FeedbackResponse {
   previousItem?: { name?: string } | null;
   /** False for an answer the student later replaced (history views only). */
   isCurrent: boolean;
+  /** The mode the student answered in (study mode is how phones answer). */
+  mode: 'strict' | 'study';
 }
 
 function toResponse(s: any): FeedbackResponse {
@@ -613,6 +615,7 @@ function toResponse(s: any): FeedbackResponse {
     },
     previousItem: s.previousItem ? { name: s.previousItem.name } : null,
     isCurrent: s.isCurrentVersion !== false,
+    mode: s.mode === 'study' ? 'study' : 'strict',
   };
 }
 
@@ -745,6 +748,40 @@ export function useCourseFeedbackForms(
           }),
         ) as unknown as { forms: CourseFeedbackForm[] }
       ).forms ?? [],
+  });
+}
+
+const feedbackSettingsKey = (versionId: string) => ['studio', 'feedback-settings', versionId] as const;
+
+/** Whether students can send feedback in study mode (GET …/feedback/settings). On by default. */
+export function useFeedbackSettings(courseId: string, versionId: string) {
+  return useQuery({
+    queryKey: feedbackSettingsKey(versionId),
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/courses/{courseId}/versions/{versionId}/feedback/settings', {
+          params: { path: { courseId, versionId } },
+        }),
+      ) as unknown as { studyModeFeedback: boolean },
+  });
+}
+
+/** Turns study-mode feedback on or off (PUT …/feedback/settings). */
+export function useUpdateFeedbackSettings(courseId: string, versionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (studyModeFeedback: boolean) =>
+      unwrap(
+        await api.PUT('/api/courses/{courseId}/versions/{versionId}/feedback/settings', {
+          params: { path: { courseId, versionId } },
+          body: { studyModeFeedback },
+        }),
+      ) as unknown as { studyModeFeedback: boolean },
+    onSuccess: (data) => {
+      queryClient.setQueryData(feedbackSettingsKey(versionId), data);
+      // Students' course settings carry it too.
+      void queryClient.invalidateQueries({ queryKey: ['course-settings'] });
+    },
   });
 }
 

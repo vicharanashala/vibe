@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import { GeneratedAvatar } from '@/components/generated-art';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -529,10 +530,17 @@ function IndividualResponses({
                       {r.user.email}
                     </p>
                   </div>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
                     {formatDate(r.createdAt)}
+                    <ModeBadge mode={r.mode} />
                   </span>
                 </div>
+                {questions[0] && (
+                  <p className="line-clamp-2 text-sm text-muted-foreground">
+                    <span className="text-foreground">{questions[0].label.trim() || fieldName(questions[0])}:</span>{' '}
+                    {answerText(questions[0], r.details) || '—'}
+                  </p>
+                )}
               </Card>
             ))}
           </div>
@@ -588,7 +596,10 @@ function IndividualResponses({
                       </TableCell>
                     ))}
                     <TableCell className="pr-4 text-right whitespace-nowrap text-muted-foreground">
-                      {formatDate(r.createdAt)}
+                      <span className="flex flex-col items-end gap-1">
+                        {formatDate(r.createdAt)}
+                        <ModeBadge mode={r.mode} />
+                      </span>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -634,6 +645,18 @@ function IndividualResponses({
   );
 }
 
+/** Which mode an answer was sent in: study mode is how phones answer. */
+function ModeBadge({ mode }: { mode: FeedbackResponse['mode'] }) {
+  return (
+    <Badge
+      variant="secondary"
+      className={mode === 'study' ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300' : undefined}
+    >
+      {mode === 'study' ? 'Study' : 'Strict'}
+    </Badge>
+  );
+}
+
 /** One student's answers to every question, the lesson it was about, and earlier versions. */
 function ResponseSheet({
   courseId,
@@ -664,6 +687,9 @@ function ResponseSheet({
                 {response.user.email} · sent {formatDate(response.createdAt)}
                 {response.previousItem?.name ? ` · about “${response.previousItem.name}”` : ''}
               </SheetDescription>
+              <div>
+                <ModeBadge mode={response.mode} />
+              </div>
             </SheetHeader>
             <div className="grid gap-6 px-4 pb-8">
               <dl className="grid gap-3" aria-label="Answers">
@@ -685,8 +711,9 @@ function ResponseSheet({
                 ) : (
                   earlier.map((h) => (
                     <details key={h._id} className="rounded-xl border border-border px-4 py-3 text-sm">
-                      <summary className="cursor-pointer">
+                      <summary className="flex cursor-pointer flex-wrap items-center gap-2">
                         Replaced answer from {formatDate(h.createdAt)}
+                        <ModeBadge mode={h.mode} />
                       </summary>
                       <dl className="mt-2 grid gap-2">
                         {questions.map((f) => (

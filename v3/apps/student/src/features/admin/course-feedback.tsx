@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
-import { MessageSquareTextIcon } from 'lucide-react';
+import { MessageSquareTextIcon, SmartphoneIcon } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -25,6 +27,8 @@ import { CohortSelect, FeedbackDownloadMenu } from './editor/feedback-downloads'
 import {
   downloadCourseFeedback,
   useCourseFeedbackForms,
+  useFeedbackSettings,
+  useUpdateFeedbackSettings,
   type CourseFeedbackForm,
 } from './editor/lesson-api';
 import { ErrorText, SectionHeading } from './studio-ui';
@@ -76,6 +80,8 @@ export function CourseFeedback({ courseId, versionId }: { courseId: string; vers
           />
         </div>
       </div>
+
+      <StudyModeFeedbackSwitch courseId={courseId} versionId={versionId} />
 
       {forms.isPending && <Skeleton className="h-48 rounded-2xl" />}
       {forms.isError && <ErrorText error={forms.error} />}
@@ -149,5 +155,49 @@ export function CourseFeedback({ courseId, versionId }: { courseId: string; vers
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * "Students can send feedback in study mode": on by default. Strict mode is
+ * PC-only, so this is the only way students on phones can answer.
+ */
+function StudyModeFeedbackSwitch({ courseId, versionId }: { courseId: string; versionId: string }) {
+  const settings = useFeedbackSettings(courseId, versionId);
+  const update = useUpdateFeedbackSettings(courseId, versionId);
+  const on = update.isPending ? update.variables : (settings.data?.studyModeFeedback ?? true);
+  return (
+    <Card className="px-4 py-4 sm:px-5">
+      <label htmlFor="study-mode-feedback" className="flex cursor-pointer items-start gap-4">
+        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+          <SmartphoneIcon className="size-4" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">Students can send feedback in study mode</span>
+          <span className="mt-0.5 block text-sm text-muted-foreground">
+            Phones can only use study mode, so turning this off means students on phones can’t send feedback. Study-mode
+            answers never change strict progress.
+          </span>
+        </span>
+        <Switch
+          id="study-mode-feedback"
+          className="mt-1"
+          checked={on}
+          disabled={settings.isPending || update.isPending}
+          onCheckedChange={(checked) =>
+            update.mutate(checked === true, {
+              onSuccess: (data) =>
+                toast.success(
+                  data.studyModeFeedback
+                    ? 'Students can now send feedback in study mode.'
+                    : 'Feedback can now be sent only in strict mode.',
+                ),
+              onError: () => toast.error('Couldn’t change the setting. Please try again.'),
+            })
+          }
+        />
+      </label>
+      {settings.isError && <ErrorText error={settings.error} />}
+    </Card>
   );
 }

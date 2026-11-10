@@ -31,7 +31,7 @@ const CHOICE = 'Which part was hardest?';
 const MINE = '/api/quizzes/{itemId}/feedback/mine';
 
 /** The student is on the feedback form (the backend's current path points at it). */
-function onFeedbackForm(mine: unknown = null) {
+function onFeedbackForm(mine: unknown = null, settings: Record<string, unknown> | null = null) {
   const version = studio.feedbackVersion;
   api.GET.mockImplementation(
     async (
@@ -40,6 +40,8 @@ function onFeedbackForm(mine: unknown = null) {
     ) => {
       if (path === '/api/users/me') return respond(path);
       if (path === MINE) return ok({ feedback: mine });
+      if (settings && path === '/api/setting/course-setting/{courseId}/{versionId}')
+        return ok({ settings });
       // Consent signed, like the existing lesson specs, so the form itself shows.
       if (
         path ===
@@ -114,6 +116,7 @@ describe('feedback lesson (certified mode)', () => {
         courseId: FEEDBACK.courseId,
         courseVersionId: FEEDBACK.versionId,
         sectionId: FEEDBACK.sectionId,
+        mode: 'strict',
       },
     });
     expect(
@@ -196,32 +199,78 @@ describe('feedback lesson: answering again', () => {
   });
 });
 
-describe('feedback lesson (study mode)', () => {
-  it('shows the student’s earlier answers in the read-only preview', async () => {
-    onFeedbackForm(answeredBefore);
+describe('feedback lesson (study mode, how phones answer)', () => {
+  const START = '/api/users/progress/courses/{courseId}/versions/{versionId}/start';
+
+  it('sends the answers in study mode without touching strict progress', async () => {
+    const user = userEvent.setup();
     renderApp(url('blue'));
-    expect(await screen.findByText(/Showing what you answered on/)).toBeInTheDocument();
-    const checked = screen
-      .getAllByRole('radio', { hidden: true })
-      .filter((r) => r.dataset.slot === 'radio-group-item' && r.getAttribute('aria-checked') === 'true');
-    expect(checked.length).toBeGreaterThan(0);
+    await user.click(await screen.findByText('4', { exact: true }));
+    await user.click(screen.getByText('Collisions', { exact: true }));
+    await user.click(screen.getByRole('button', { name: 'Send feedback' }));
+    await waitFor(() => expect(api.POST).toHaveBeenCalledWith(SUBMIT, expect.anything()));
+    expect(api.POST.mock.calls.find((c) => c[0] === SUBMIT)![1].body).toMatchObject({
+      details: { [RATING]: '4', [CHOICE]: 'Collisions' },
+      mode: 'study',
+    });
+    expect(await screen.findByText('Thanks for your feedback.')).toBeInTheDocument();
+    expect(api.POST).not.toHaveBeenCalledWith(START, expect.anything());
+    expect(api.POST).not.toHaveBeenCalledWith(STOP, expect.anything());
   });
 
-  it('shows the form read-only and never sends it', async () => {
+  it('asks for required answers in study mode too', async () => {
+    const user = userEvent.setup();
     renderApp(url('blue'));
+    await user.click(await screen.findByRole('button', { name: 'Send feedback' }));
+    expect(await screen.findByText('This question is required.')).toBeInTheDocument();
+    expect(api.POST).not.toHaveBeenCalledWith(SUBMIT, expect.anything());
+  });
+
+  it('fills in the earlier answer, and offers Update once something changes', async () => {
+    onFeedbackForm(answeredBefore);
+    const user = userEvent.setup();
+    renderApp(url('blue'));
+    expect(await screen.findByText(/You answered this on/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Answer saved' })).toBeDisabled();
+    await user.click(await screen.findByText('5', { exact: true }));
+    await user.click(screen.getByRole('button', { name: 'Update feedback' }));
+    await waitFor(() => expect(api.POST).toHaveBeenCalledWith(SUBMIT, expect.anything()));
+    expect(api.POST.mock.calls.find((c) => c[0] === SUBMIT)![1].body.mode).toBe('study');
+  });
+
+  it('explains when the video before it has not been studied yet, and links to it', async () => {
+    api.POST.mockImplementation(async (path: string) =>
+      path === SUBMIT
+        ? {
+            data: undefined,
+            error: { message: 'Watch the previous video in study mode before sending this feedback.' },
+            response: new Response(null, { status: 403 }),
+          }
+        : respondPost(path),
+    );
+    const user = userEvent.setup();
+    renderApp(url('blue'));
+    await user.click(await screen.findByText('4', { exact: true }));
+    await user.click(screen.getByRole('button', { name: 'Send feedback' }));
     expect(
-      await screen.findByText(/Answers are sent only in strict mode/),
+      await screen.findByText(/Watch the previous video in study mode before sending this feedback\. Your answers are kept\./),
     ).toBeInTheDocument();
-    // Only the visible radio controls (not Base UI's hidden native inputs) are checked.
+    expect(screen.getByRole('link', { name: 'Go to the previous lesson' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('track=blue'),
+    );
+  });
+
+  it('stays read-only when the course accepts feedback only in strict mode', async () => {
+    onFeedbackForm(answeredBefore, { studyModeFeedback: false });
+    renderApp(url('blue'));
+    expect(await screen.findByText(/accepts answers only in strict mode/)).toBeInTheDocument();
+    expect(screen.getByText(/Showing what you answered on/)).toBeInTheDocument();
     const radios = screen
       .getAllByRole('radio', { hidden: true })
       .filter((r) => r.dataset.slot === 'radio-group-item');
-    expect(radios.length).toBeGreaterThan(0);
-    for (const radio of radios)
-      expect(radio).toHaveAttribute('aria-disabled', 'true');
-    expect(
-      screen.queryByRole('button', { name: 'Send feedback' }),
-    ).not.toBeInTheDocument();
+    for (const radio of radios) expect(radio).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByRole('button', { name: /Send feedback|Update feedback/ })).not.toBeInTheDocument();
     expect(api.POST).not.toHaveBeenCalledWith(SUBMIT, expect.anything());
   });
 });
