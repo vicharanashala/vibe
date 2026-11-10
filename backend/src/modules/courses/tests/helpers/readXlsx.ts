@@ -57,7 +57,8 @@ export function readXlsx(buf: Buffer): {
       for (const c of row[1].matchAll(
         /<c r="([A-Z]+\d+)"([^>]*)>(.*?)<\/c>/g,
       )) {
-        const text = c[3].replace(/<[^>]+>/g, '');
+        const text =
+          /<(?:t|v)(?: [^>]*)?>([^<]*)<\/(?:t|v)>/.exec(c[3])?.[1] ?? '';
         const value = c[2].includes('inlineStr')
           ? unescape(text)
           : Number(text);
