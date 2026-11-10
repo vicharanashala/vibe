@@ -127,6 +127,7 @@ import {
 import { QuizRunner } from './quiz';
 import { useIncidentReporter } from './incident-reporter';
 import { useAfterQuizSubmit } from './quiz-api';
+import { isLinearCourse, isOrderLocked } from './linear-progression';
 import { MODEL_CHECK_LABELS } from './proctoring/assets';
 import { DiagnosticsDialog } from './proctoring/diagnostics-view';
 import {
@@ -293,8 +294,9 @@ export function LessonPage({ track, ...ref }: LessonProps) {
 }
 
 /**
- * Green track: one lesson at a time, in order. Enforced here too, so it holds
- * even in courses whose backend linear-progression setting is off.
+ * Green track: in a linear course, one lesson at a time, in order (the same
+ * rule the backend applies). When the course turns linear progression off,
+ * any lesson opens.
  */
 function GreenGate({
   lessonRef: ref,
@@ -306,12 +308,17 @@ function GreenGate({
   progress: number;
 }) {
   const path = useCurrentPath(ref.courseId, ref.versionId);
-  const isCurrent = path.data?.item?.id === ref.itemId;
+  const settings = useCourseSettings(ref.courseId, ref.versionId);
+  // Wait for both, so neither the lesson nor the locked screen flashes first.
+  const pending = path.isPending || settings.isPending;
   const isLocked =
-    !path.isPending &&
-    !item.isAlreadyWatched &&
-    !!path.data?.item &&
-    !isCurrent;
+    !pending &&
+    isOrderLocked({
+      linear: isLinearCourse(settings.data),
+      alreadyDone: Boolean(item.isAlreadyWatched),
+      itemId: ref.itemId,
+      currentItemId: path.data?.item?.id,
+    });
   // Hooks must run unconditionally — don't gate this call behind the early
   // returns below. Instead it takes its own `enabled` flag, so a lesson that's
   // still loading or locked never opens the camera for content it isn't showing.
@@ -319,11 +326,11 @@ function GreenGate({
     item.proctoringDetectors,
     ref.courseId,
     ref.versionId,
-    !path.isPending && !isLocked,
+    !pending && !isLocked,
     ref.itemId,
   );
 
-  if (path.isPending)
+  if (pending)
     return (
       <LessonFrame
         lessonRef={ref}
