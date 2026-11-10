@@ -19,6 +19,13 @@ import {
   ETHICS_CONSENT_ADDITIONAL,
   ETHICS_CONSENT_VERSION,
 } from "@/constants/ethicsConsent";
+import {
+  SamagraConsentBody,
+  SAMAGRA_CONSENT_TITLE,
+  SAMAGRA_CONSENT_DECLARATION,
+  SAMAGRA_CONSENT_VERSION,
+  isSamagraCourse,
+} from "@/constants/samagraConsent";
 import { useSignEthicsConsent } from "@/hooks/system-notification-hooks";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -48,6 +55,8 @@ export function EthicsConsentModal({
   const [hasScrolledToEnd, setHasScrolledToEnd] = useState(false);
   const [agreeDeclaration, setAgreeDeclaration] = useState(false);
   const [agreeAdditional, setAgreeAdditional] = useState(false);
+  // Samagra shows its own proctoring and data notice, with no research checkbox.
+  const samagra = isSamagraCourse(courseId);
   const [signature, setSignature] = useState(user?.name ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -77,7 +86,7 @@ export function EthicsConsentModal({
   const canReview =
     hasScrolledToEnd &&
     agreeDeclaration &&
-    agreeAdditional &&
+    (samagra || agreeAdditional) &&
     signature.trim().length > 0;
 
   const handleSubmit = async () => {
@@ -88,7 +97,7 @@ export function EthicsConsentModal({
         params: { path: { courseId, versionId } },
         body: {
           signature: signature.trim(),
-          additionalImageConsent: agreeAdditional,
+          additionalImageConsent: samagra ? false : agreeAdditional,
         },
       } as any);
       toast.success("Consent signed. You can now access your course.");
@@ -119,7 +128,9 @@ export function EthicsConsentModal({
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
             {step === "form"
-              ? ETHICS_CONSENT_TITLE
+              ? samagra
+                ? SAMAGRA_CONSENT_TITLE
+                : ETHICS_CONSENT_TITLE
               : step === "preview"
                 ? "Review & Sign"
                 : "Just one quick step to get started"}
@@ -141,7 +152,7 @@ export function EthicsConsentModal({
               onScroll={handleScroll}
               className="max-h-[50vh] overflow-y-auto rounded-md border border-border/60 bg-muted/20 p-4"
             >
-              <EthicsConsentBody />
+              {samagra ? <SamagraConsentBody /> : <EthicsConsentBody />}
             </div>
 
             {!hasScrolledToEnd && (
@@ -164,26 +175,28 @@ export function EthicsConsentModal({
                 htmlFor="ethics-declaration"
                 className="text-sm font-normal leading-snug cursor-pointer"
               >
-                {ETHICS_CONSENT_DECLARATION}
+                {samagra ? SAMAGRA_CONSENT_DECLARATION : ETHICS_CONSENT_DECLARATION}
               </Label>
             </div>
 
-            {/* Additional consent (required) */}
-            <div className="flex items-start gap-2">
-              <Checkbox
-                id="ethics-additional"
-                className="mt-0.5"
-                checked={agreeAdditional}
-                disabled={!hasScrolledToEnd}
-                onCheckedChange={(v) => setAgreeAdditional(!!v)}
-              />
-              <Label
-                htmlFor="ethics-additional"
-                className="text-sm font-normal leading-snug cursor-pointer"
-              >
-                {ETHICS_CONSENT_ADDITIONAL}
-              </Label>
-            </div>
+            {/* Additional consent (required, not shown for Samagra) */}
+            {!samagra && (
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="ethics-additional"
+                  className="mt-0.5"
+                  checked={agreeAdditional}
+                  disabled={!hasScrolledToEnd}
+                  onCheckedChange={(v) => setAgreeAdditional(!!v)}
+                />
+                <Label
+                  htmlFor="ethics-additional"
+                  className="text-sm font-normal leading-snug cursor-pointer"
+                >
+                  {ETHICS_CONSENT_ADDITIONAL}
+                </Label>
+              </div>
+            )}
 
             {/* Signature */}
             <div className="space-y-1.5">
@@ -249,14 +262,16 @@ export function EthicsConsentModal({
                   </dt>
                   <dd className="text-green-600 dark:text-green-500">✓ Agreed</dd>
                 </div>
-                <div className="flex flex-col">
-                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Additional Consent (future research / demonstration)
-                  </dt>
-                  <dd className={agreeAdditional ? "text-green-600 dark:text-green-500" : "text-muted-foreground"}>
-                    {agreeAdditional ? "✓ Agreed" : "Not granted"}
-                  </dd>
-                </div>
+                {!samagra && (
+                  <div className="flex flex-col">
+                    <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Additional Consent (future research / demonstration)
+                    </dt>
+                    <dd className={agreeAdditional ? "text-green-600 dark:text-green-500" : "text-muted-foreground"}>
+                      {agreeAdditional ? "✓ Agreed" : "Not granted"}
+                    </dd>
+                  </div>
+                )}
               </dl>
             </div>
 
@@ -303,7 +318,7 @@ export function EthicsConsentModal({
         )}
 
         <p className="text-center text-[10px] text-muted-foreground">
-          Consent version {ETHICS_CONSENT_VERSION}
+          Consent version {samagra ? SAMAGRA_CONSENT_VERSION : ETHICS_CONSENT_VERSION}
         </p>
       </DialogContent>
     </Dialog>
