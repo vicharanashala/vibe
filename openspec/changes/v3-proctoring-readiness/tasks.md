@@ -20,9 +20,9 @@ All commands run from `v3/`. Each group's checks: `npx vitest run --root apps/st
 
 ## 3. Setup checklist in the lesson
 
-- [ ] 3.1 Build `ProctoringSetup` (shadcn AlertDialog, Item, Progress with known and indeterminate sizes, Badge "Saved on this device", Buttons) that renders one entry per enabled check, with MB/percent text, stalled/failed reasons, and per-entry Try again; verify with Testing Library specs for each state, including an unknown size showing MB without a percentage
-- [ ] 3.2 Wire it into `useProctoring` in `lesson-page.tsx`: build the entries from the enabled detectors, block while any entry isn't ready (in addition to today's rules), close when all are ready, and replace `CameraRequired` for proctored lessons; verify lesson specs: only the camera listed when only cameraMic is on, all-ready unblocks, a failed model keeps the checklist open, and study mode shows nothing
-- [ ] 3.3 Add the clear menu to the checklist (Download models again → clears and restarts every check without a reload; Clear app files and reload → confirm dialog listing what is removed; Reload); verify specs for both clear paths with the loader mocked
+- [x] 3.1 Build `ProctoringSetup` (shadcn AlertDialog, Item, Progress with known and indeterminate sizes, Badge "Saved on this device", Buttons) that renders one entry per enabled check, with MB/percent text, stalled/failed reasons, and per-entry Try again; verify with Testing Library specs for each state, including an unknown size showing MB without a percentage
+- [x] 3.2 Wire it into `useProctoring` in `lesson-page.tsx`: build the entries from the enabled detectors, block while any entry isn't ready (in addition to today's rules), close when all are ready, and replace `CameraRequired` for proctored lessons; verify lesson specs: only the camera listed when only cameraMic is on, all-ready unblocks, a failed model keeps the checklist open, and study mode shows nothing
+- [x] 3.3 Add the clear menu to the checklist (Download models again → clears and restarts every check without a reload; Clear app files and reload → confirm dialog listing what is removed; Reload); verify specs for both clear paths with the loader mocked
 
 ## 4. Diagnostics
 
