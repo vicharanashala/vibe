@@ -20,9 +20,9 @@ Backend checks: `npx vitest run <files>` from `backend/`, `npx tsc --noEmit -p b
 
 ## 3. v3: students
 
-- [ ] 3.1 In `GreenFeedback`, load `feedback/mine`, prefill answers with "You answered this on <date>", label the button Update, and skip re-sending on Continue without edits; verify with specs in `features/learn/feedback-lesson.spec.tsx`
-- [ ] 3.2 Show backend refusals in plain language and keep the answers (unfinished video → message with a link to the previous lesson); verify with a spec for the refused submission
-- [ ] 3.3 Study-mode preview shows the student's current answers when present, still disabled with the strict-mode note; verify with a spec
+- [x] 3.1 In `GreenFeedback`, load `feedback/mine`, prefill answers with "You answered this on <date>", label the button Update, and skip re-sending on Continue without edits; verify with specs in `features/learn/feedback-lesson.spec.tsx`
+- [x] 3.2 Show backend refusals in plain language and keep the answers (unfinished video → message with a link to the previous lesson); verify with a spec for the refused submission
+- [x] 3.3 Study-mode preview shows the student's current answers when present, still disabled with the strict-mode note; verify with a spec
 
 ## 4. v3: form builder
 

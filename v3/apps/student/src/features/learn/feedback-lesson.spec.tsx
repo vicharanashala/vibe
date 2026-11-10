@@ -28,8 +28,10 @@ const STOP = '/api/users/progress/courses/{courseId}/versions/{versionId}/stop';
 const RATING = 'How useful was the previous lesson?';
 const CHOICE = 'Which part was hardest?';
 
+const MINE = '/api/quizzes/{itemId}/feedback/mine';
+
 /** The student is on the feedback form (the backend's current path points at it). */
-function onFeedbackForm() {
+function onFeedbackForm(mine: unknown = null) {
   const version = studio.feedbackVersion;
   api.GET.mockImplementation(
     async (
@@ -37,6 +39,7 @@ function onFeedbackForm() {
       opts?: { params?: { path?: Record<string, string> } },
     ) => {
       if (path === '/api/users/me') return respond(path);
+      if (path === MINE) return ok({ feedback: mine });
       // Consent signed, like the existing lesson specs, so the form itself shows.
       if (
         path ===
@@ -138,7 +141,72 @@ describe('feedback lesson (certified mode)', () => {
   });
 });
 
+const answeredBefore = {
+  details: { [RATING]: '4', [CHOICE]: 'Collisions' },
+  createdAt: '2026-11-01T10:00:00.000Z',
+};
+
+describe('feedback lesson: answering again', () => {
+  it('fills in the student’s earlier answers and moves on without resending them', async () => {
+    onFeedbackForm(answeredBefore);
+    const user = userEvent.setup();
+    renderApp(url('green'));
+    expect(await screen.findByText(/You answered this on/)).toBeInTheDocument();
+    expect(await screen.findByText('2 of 3 answered')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Update feedback' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(api.POST).toHaveBeenCalledWith(STOP, expect.anything()));
+    expect(api.POST).not.toHaveBeenCalledWith(SUBMIT, expect.anything());
+  });
+
+  it('sends an updated answer once something changes', async () => {
+    onFeedbackForm(answeredBefore);
+    const user = userEvent.setup();
+    renderApp(url('green'));
+    await screen.findByText(/You answered this on/);
+    await user.click(await screen.findByText('5', { exact: true }));
+    await user.click(screen.getByRole('button', { name: 'Update feedback' }));
+    await waitFor(() => expect(api.POST).toHaveBeenCalledWith(SUBMIT, expect.anything()));
+    expect(api.POST.mock.calls.find((c) => c[0] === SUBMIT)![1].body.details).toEqual({
+      [RATING]: '5',
+      [CHOICE]: 'Collisions',
+    });
+  });
+
+  it('explains a refusal in plain words, keeps the answers and links to the previous lesson', async () => {
+    api.POST.mockImplementation(async (path: string) =>
+      path === SUBMIT
+        ? {
+            data: undefined,
+            error: { message: 'Watch the previous video before sending this feedback.' },
+            response: new Response(null, { status: 403 }),
+          }
+        : respondPost(path),
+    );
+    const user = userEvent.setup();
+    renderApp(url('green'));
+    await user.click(await screen.findByText('4', { exact: true }));
+    await user.click(screen.getByRole('button', { name: 'Send feedback' }));
+    expect(
+      await screen.findByText(/Watch the previous video before sending this feedback\. Your answers are kept\./),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Go to the previous lesson' })).toBeInTheDocument();
+    expect(screen.getByText('1 of 3 answered')).toBeInTheDocument();
+    expect(api.POST).not.toHaveBeenCalledWith(STOP, expect.anything());
+  });
+});
+
 describe('feedback lesson (study mode)', () => {
+  it('shows the student’s earlier answers in the read-only preview', async () => {
+    onFeedbackForm(answeredBefore);
+    renderApp(url('blue'));
+    expect(await screen.findByText(/Showing what you answered on/)).toBeInTheDocument();
+    const checked = screen
+      .getAllByRole('radio', { hidden: true })
+      .filter((r) => r.dataset.slot === 'radio-group-item' && r.getAttribute('aria-checked') === 'true');
+    expect(checked.length).toBeGreaterThan(0);
+  });
+
   it('shows the form read-only and never sends it', async () => {
     renderApp(url('blue'));
     expect(

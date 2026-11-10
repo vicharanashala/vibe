@@ -187,6 +187,8 @@ export function respond(path: string) {
       return ok(fixtures.registrationRejectedEmpty);
     case '/api/users/progress/courses/{courseId}/versions/{versionId}/study-progress':
       return ok(fixtures.studyProgress);
+    case '/api/quizzes/{itemId}/feedback/mine':
+      return ok({ feedback: null });
     default:
       throw new Error(`No test fixture for GET ${path}`);
   }
