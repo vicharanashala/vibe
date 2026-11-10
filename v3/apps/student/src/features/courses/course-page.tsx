@@ -12,8 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrackBadge } from '@/features/learn/lesson-page';
 import { resolveContentLock, type ContentLockNode } from '@/features/content-lock/content-lock';
-import { resolveStudyMode, type StudyModeNode } from '@/features/study-mode/study-mode';
-import { TRACKS, useCourseTrack, type Track } from '@/features/learn/tracks';
+import { hiddenInStudyMode, itemsForTrack, resolveStudyMode, type StudyModeNode } from '@/features/study-mode/study-mode';
+import { TRACKS, useCourseTrack, useFlatSyllabus, type FlatItem, type Track } from '@/features/learn/tracks';
 import { cn } from '@/lib/utils';
 
 import { CourseCover, ProgressBar, ProgressMeter, STRICT_PROGRESS_HINT, StudyProgressSummary, itemTypeMeta } from './course-ui';
@@ -43,6 +43,9 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
   const studied = new Set(study.data?.studiedItemIds ?? []);
   // The course name/description live on the enrolment, not the version.
   const enrollment = useEnrollments('active').data?.enrollments.find((e) => e.courseVersionId === versionId);
+  // Study mode hides quizzes; the whole syllabus tells which sections hold
+  // only quizzes and what to continue with instead of a quiz.
+  const syllabus = useFlatSyllabus(track === 'blue' ? version.data : undefined);
 
   if (version.isPending) {
     return (
@@ -67,11 +70,24 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
 
   const modules = visibleInOrder(version.data.modules);
   const pct = percentage.data?.percentCompleted ?? 0;
-  const totalItems = percentage.data?.totalItems ?? version.data.totalItems ?? 0;
+  const quizCount = version.data.itemCounts?.QUIZ ?? 0;
+  const strictTotal = percentage.data?.totalItems ?? version.data.totalItems ?? 0;
+  const totalItems = track === 'blue' ? Math.max(0, (version.data.totalItems ?? strictTotal) - quizCount) : strictTotal;
   const name = enrollment?.course.name ?? 'Course';
-  const counts = Object.entries(version.data.itemCounts ?? {}).filter(([, n]) => n);
+  const counts = Object.entries(version.data.itemCounts ?? {}).filter(([type, n]) => n && !(track === 'blue' && type === 'QUIZ'));
 
-  const next = path.data?.item && path.data.module && path.data.section ? path.data : null;
+  // Sections (and modules) with nothing but quizzes don't appear in study mode.
+  const hiddenSections = new Set<string>();
+  if (track === 'blue' && !syllabus.pending) {
+    const bySection = new Map<string, boolean>();
+    for (const item of syllabus.items) bySection.set(item.sectionId, (bySection.get(item.sectionId) ?? false) || !hiddenInStudyMode(item));
+    for (const [sectionId, hasStudyContent] of bySection) if (!hasStudyContent) hiddenSections.add(sectionId);
+  }
+  const shownModules = modules.filter((m) => !visibleInOrder(m.sections).length || visibleInOrder(m.sections).some((sec) => !hiddenSections.has(sec.sectionId)));
+
+  const pathNext = path.data?.item && path.data.module && path.data.section ? path.data : null;
+  // In study mode, "where you left off" is never a quiz: the next lesson after it instead.
+  const next = track === 'blue' && pathNext?.item?.type === 'QUIZ' ? studyContinueTarget(syllabus.items, pathNext.item.id) : pathNext;
   const continueLabel = track === 'blue' ? 'Study where you left off' : pct > 0 ? 'Continue where you left off' : 'Start course';
   const continueLink = next && {
     to: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId' as const,
@@ -105,7 +121,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
           </p>
         )}
         <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          <li>{modules.length} modules</li>
+          <li>{shownModules.length} modules</li>
           <li>{totalItems} lessons</li>
           {counts.map(([type, n]) => (
             <li key={type}>
@@ -156,10 +172,10 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
             Syllabus
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {modules.length} modules · {totalItems} lessons
+            {shownModules.length} modules · {totalItems} lessons
           </p>
           <ol className="mt-6 flex flex-col gap-8">
-            {modules.map((m, i) => (
+            {shownModules.map((m, i) => (
               <ModuleBlock
                 key={m.moduleId}
                 index={i}
@@ -168,7 +184,8 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
                 versionId={versionId}
                 track={track}
                 studied={studied}
-                currentPath={path.data}
+                currentPath={track === 'blue' ? (next ?? undefined) : path.data}
+                hiddenSections={hiddenSections}
                 progress={moduleProgress.data?.find((p) => p.moduleId === m.moduleId)}
               />
             ))}
@@ -222,6 +239,7 @@ function ModuleBlock({
   track,
   studied,
   currentPath,
+  hiddenSections,
   progress,
 }: {
   index: number;
@@ -231,9 +249,11 @@ function ModuleBlock({
   track: Track;
   studied: Set<string>;
   currentPath?: CurrentPath;
+  /** Sections not shown in this track (study mode: sections with only quizzes). */
+  hiddenSections: Set<string>;
   progress?: { totalItems: number; completedItems: number };
 }) {
-  const sections = visibleInOrder(m.sections);
+  const sections = visibleInOrder(m.sections).filter((s) => !hiddenSections.has(s.sectionId));
   const pct = progress && progress.totalItems ? (progress.completedItems / progress.totalItems) * 100 : 0;
   const containsCurrent = currentPath?.module?.id === m.moduleId;
 
@@ -304,7 +324,7 @@ function SectionBlock({
   const [open, setOpen] = useState(defaultOpen);
   useEffect(() => setOpen(defaultOpen), [defaultOpen]);
   const items = useSectionItems(versionId, moduleId, sectionId, open);
-  const list = visibleInOrder(items.data ?? []);
+  const list = itemsForTrack(visibleInOrder(items.data ?? []), track);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border border-border">
@@ -428,4 +448,21 @@ function TrackSwitcher({ track, onChange }: { track: Track; onChange: (t: Track)
       </CardContent>
     </Card>
   );
+}
+
+/**
+ * Study mode's Continue target when the student's current item is a quiz: the
+ * next non-quiz lesson after it in the syllabus, else the last one before it.
+ */
+function studyContinueTarget(items: FlatItem[], quizId: string): CurrentPath | null {
+  const at = items.findIndex((i) => i._id === quizId);
+  if (at < 0) return null;
+  const pick = items.slice(at + 1).find((i) => !hiddenInStudyMode(i)) ?? [...items.slice(0, at)].reverse().find((i) => !hiddenInStudyMode(i));
+  return pick
+    ? {
+        module: { id: pick.moduleId, name: '' },
+        section: { id: pick.sectionId, name: '' },
+        item: { id: pick._id, name: pick.name, type: pick.type },
+      }
+    : null;
 }
