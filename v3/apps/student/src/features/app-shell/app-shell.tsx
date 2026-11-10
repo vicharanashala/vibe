@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useStudioAccess } from '@/features/admin/queries';
-import { DiagnosticsSheet } from '@/features/learn/proctoring/diagnostics-view';
+import { DiagnosticsDialog } from '@/features/learn/proctoring/diagnostics-view';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 import { Wordmark } from '@/features/landing/wordmark';
 import { cn } from '@/lib/utils';
@@ -220,7 +220,7 @@ function AccountMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-    <DiagnosticsSheet open={checkingDevice} onOpenChange={setCheckingDevice} />
+    <DiagnosticsDialog open={checkingDevice} onOpenChange={setCheckingDevice} />
     </>
   );
 }
