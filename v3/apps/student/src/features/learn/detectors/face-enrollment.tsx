@@ -3,8 +3,12 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { useUpdateFaceReference } from '@/features/courses/queries';
+
+import { progressPercent, progressText } from '../proctoring/format';
+import { useReadiness } from '../proctoring/readiness';
 
 import { FACE_DETECTOR_OPTIONS, FACE_EMBEDDING_LENGTH, loadFaceModels } from './use-face-recognition';
 
@@ -26,7 +30,8 @@ export function FaceEnrollment({
   versionId: string;
   onDone: () => void;
 }) {
-  const [modelsReady, setModelsReady] = useState(false);
+  const { readiness, attempt, retry, track } = useReadiness();
+  const modelsReady = readiness.state === 'ready';
   const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [captured, setCaptured] = useState<{ dataUrl: string; embedding: number[] } | null>(null);
@@ -38,10 +43,24 @@ export function FaceEnrollment({
   }, [stream]);
 
   useEffect(() => {
-    void loadFaceModels()
-      .then(() => setModelsReady(true))
-      .catch(() => setError('Couldn’t load face recognition. Check your connection and try again.'));
-  }, []);
+    let cancelled = false;
+    track.begin();
+    loadFaceModels((progress) => {
+      if (!cancelled) track.progress(progress);
+    })
+      .then((loaded) => {
+        if (cancelled) return;
+        track.loaded(loaded);
+        track.ready();
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) track.fail(e);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt, track]);
+  const percent = progressPercent(readiness);
 
   async function capture() {
     const video = videoRef.current;
@@ -114,6 +133,29 @@ export function FaceEnrollment({
             <video ref={previewRef} autoPlay playsInline muted className="h-full w-full -scale-x-100 object-cover" />
           </div>
           {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+          {readiness.state === 'failed' ? (
+            <div className="mt-4 flex flex-col items-center gap-2">
+              <p className="text-sm text-destructive">Couldn’t load face recognition: {readiness.error}</p>
+              <Button variant="outline" onClick={retry}>
+                <RotateCcwIcon className="size-4" aria-hidden /> Try again
+              </Button>
+            </div>
+          ) : (
+            !modelsReady && (
+              <div className="mt-4 w-56 text-left" aria-live="polite">
+                <p className="text-xs text-muted-foreground">
+                  {readiness.state === 'downloading' || readiness.state === 'stalled'
+                    ? `Downloading face recognition: ${progressText(readiness)}${percent === null ? '' : ` · ${percent}%`}`
+                    : readiness.fromCache
+                      ? 'Face recognition saved on this device, starting…'
+                      : 'Getting face recognition ready…'}
+                </p>
+                {readiness.state === 'downloading' && (
+                  <Progress className="mt-1.5" value={percent} aria-label="Face recognition download" />
+                )}
+              </div>
+            )
+          )}
           <Button className="mt-6" size="lg" onClick={capture} disabled={!modelsReady || capturing}>
             {capturing || !modelsReady ? <Spinner className="size-4" /> : <CameraIcon className="size-4" aria-hidden />}
             {modelsReady ? 'Capture photo' : 'Loading…'}

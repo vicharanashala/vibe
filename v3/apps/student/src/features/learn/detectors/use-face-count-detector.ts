@@ -1,12 +1,26 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
+import { faceCountAssets } from '../proctoring/assets';
+import { loadAssets } from '../proctoring/model-loader';
+import { READY, useReadiness, type Readiness } from '../proctoring/readiness';
+
+import type { FaceCountModelFiles } from './face-count-model';
+
 const FRAMES_PER_SECOND = 3;
 
-/** Runs the TF.js face-count worker against a live video element, 3fps. */
-export function useFaceCountDetector(videoRef: RefObject<HTMLVideoElement | null>, enabled: boolean): number | null {
+/**
+ * Runs the TF.js face-count worker against a live video element, 3fps. The
+ * model is downloaded here, through the shared proctoring loader, and handed
+ * to the worker; frames are only sent once a video frame is available.
+ */
+export function useFaceCountDetector(
+  videoRef: RefObject<HTMLVideoElement | null>,
+  enabled: boolean,
+): { faceCount: number | null; readiness: Readiness; retry: () => void } {
   const [faceCount, setFaceCount] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
   const workerRef = useRef<Worker | null>(null);
+  const { readiness, attempt, retry, track } = useReadiness();
 
   useEffect(() => {
     if (!enabled) {
@@ -14,22 +28,44 @@ export function useFaceCountDetector(videoRef: RefObject<HTMLVideoElement | null
       setReady(false);
       return;
     }
-    const worker = new Worker(new URL('./face-count-worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (e: MessageEvent<{ type: string; faceCount?: number }>) => {
-      if (e.data.type === 'MODEL_READY') setReady(true);
-      else if (e.data.type === 'DETECTION_RESULT') setFaceCount(e.data.faceCount ?? null);
-      else if (e.data.type === 'ERROR') setReady(false);
-    };
-    worker.onerror = () => setReady(false);
-    worker.postMessage({ type: 'INIT' });
-    workerRef.current = worker;
+    let cancelled = false;
+    let worker: Worker | null = null;
+    track.begin();
+    (async () => {
+      const { files, fromCache, saved } = await loadAssets(faceCountAssets(), (progress) => {
+        if (!cancelled) track.progress(progress);
+      });
+      if (cancelled) return;
+      track.loaded({ fromCache, saved });
+      worker = new Worker(new URL('./face-count-worker.ts', import.meta.url), { type: 'module' });
+      // Errors before MODEL_READY mean the check never started; after it, a frame failed.
+      let started = false;
+      worker.onmessage = (e: MessageEvent<{ type: string; faceCount?: number; message?: string }>) => {
+        if (e.data.type === 'MODEL_READY') {
+          started = true;
+          setReady(true);
+          track.ready();
+        } else if (e.data.type === 'DETECTION_RESULT') setFaceCount(e.data.faceCount ?? null);
+        else if (e.data.type === 'ERROR' && !started) track.fail(new Error(e.data.message));
+      };
+      worker.onerror = () => {
+        setReady(false);
+        if (!started) track.fail(new Error('The face detection worker couldn’t start.'));
+      };
+      const transfer: FaceCountModelFiles = { model: files.model.buffer, weights: files.weights.buffer };
+      worker.postMessage({ type: 'INIT', files: transfer }, [transfer.model, transfer.weights]);
+      workerRef.current = worker;
+    })().catch((error: unknown) => {
+      if (!cancelled) track.fail(error);
+    });
     return () => {
-      worker.terminate();
+      cancelled = true;
+      worker?.terminate();
       workerRef.current = null;
       setReady(false);
       setFaceCount(null);
     };
-  }, [enabled]);
+  }, [enabled, attempt, track]);
 
   useEffect(() => {
     if (!enabled || !ready) return;
@@ -52,5 +88,5 @@ export function useFaceCountDetector(videoRef: RefObject<HTMLVideoElement | null
     return () => window.clearInterval(interval);
   }, [enabled, ready, videoRef]);
 
-  return faceCount;
+  return { faceCount, readiness: enabled ? readiness : READY, retry };
 }

@@ -32,6 +32,7 @@ import { LandingPage } from '@/features/landing/landing-page';
 import { OnboardingPage } from '@/features/onboarding/onboarding-page';
 import { needsOnboarding } from '@/features/onboarding/onboarding-state';
 import { ProfilePage } from '@/features/profile/profile-page';
+import { CheckDevicePage } from '@/features/learn/proctoring/check-device-page';
 import { RegistrationPage } from '@/features/registration/registration-page';
 
 const rootRoute = createRootRoute({
@@ -143,6 +144,7 @@ const courseRoute = createRoute({
   },
 });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile', component: ProfilePage });
+const checkDeviceRoute = createRoute({ getParentRoute: () => appRoute, path: '/check-device', component: CheckDevicePage });
 
 /**
  * Studio (teacher/admin) gets its own shell, nav and theme. AdminShell does the
@@ -236,7 +238,7 @@ const routeTree = rootRoute.addChildren([
   learnRoute,
   registerRoute,
   ...legacyRegisterRoutes,
-  appRoute.addChildren([homeRoute, coursesRoute, exploreRoute, courseRoute, profileRoute]),
+  appRoute.addChildren([homeRoute, coursesRoute, exploreRoute, courseRoute, profileRoute, checkDeviceRoute]),
   adminLayoutRoute.addChildren([adminIndexRoute, adminCoursesRoute, adminCourseRoute, adminUsersRoute]),
   studioEditorLayoutRoute.addChildren([lessonEditorRoute]),
 ]);

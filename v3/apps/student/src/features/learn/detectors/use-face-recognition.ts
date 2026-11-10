@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 
-const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+import { FACE_API_NETS, faceRecognitionAssets } from '../proctoring/assets';
+import { loadAssets, type GroupProgress } from '../proctoring/model-loader';
+import { READY, useReadiness, type Readiness } from '../proctoring/readiness';
+
 export const FACE_EMBEDDING_LENGTH = 128;
 // Used for BOTH the reference capture (face-enrollment.tsx) and every live check
 // below — a different inputSize/threshold between the two would align face
@@ -21,14 +24,50 @@ const REQUIRED_MISMATCHES = 4;
 
 export type FaceRecognitionStatus = 'loading' | 'no-face' | 'matched' | 'mismatched';
 
-let modelsLoaded: Promise<void> | null = null;
-export function loadFaceModels(): Promise<void> {
-  modelsLoaded ??= Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-  ]).then(() => undefined);
-  return modelsLoaded;
+interface FaceModelsLoaded {
+  fromCache: boolean;
+  saved: boolean;
+}
+
+// One load shared by live recognition and the reference-photo capture.
+let modelsLoaded: Promise<FaceModelsLoaded> | null = null;
+let lastProgress: GroupProgress | null = null;
+const progressListeners = new Set<(progress: GroupProgress) => void>();
+
+/**
+ * Downloads (or reads from the device) face-api's three nets, pinned to the
+ * installed library version, and loads them into face-api. A failed load is
+ * forgotten so the next call tries again.
+ */
+export function loadFaceModels(onProgress?: (progress: GroupProgress) => void): Promise<FaceModelsLoaded> {
+  if (onProgress) {
+    progressListeners.add(onProgress);
+    if (lastProgress) onProgress(lastProgress);
+  }
+  modelsLoaded ??= (async () => {
+    const { files, fromCache, saved } = await loadAssets(faceRecognitionAssets(), (progress) => {
+      lastProgress = progress;
+      progressListeners.forEach((listener) => listener(progress));
+    });
+    for (const { net, file } of FACE_API_NETS) {
+      const manifest = JSON.parse(new TextDecoder().decode(files[`${file}-manifest`])) as { weights: faceapi.tf.io.WeightsManifestEntry[] }[];
+      const weightMap = faceapi.tf.io.decodeWeights(files[`${file}-weights`].buffer, manifest.flatMap((group) => group.weights));
+      faceapi.nets[net].loadFromWeightMap(weightMap);
+    }
+    return { fromCache, saved };
+  })().catch((error: unknown) => {
+    modelsLoaded = null;
+    lastProgress = null;
+    throw error;
+  });
+  const loading = modelsLoaded;
+  return onProgress ? loading.finally(() => progressListeners.delete(onProgress)) : loading;
+}
+
+/** Forget the loaded models, so the next load reads them again (after the saved copy is cleared). */
+export function resetFaceModels() {
+  modelsLoaded = null;
+  lastProgress = null;
 }
 
 /**
@@ -49,15 +88,43 @@ export function useFaceRecognition(
   videoRef: RefObject<HTMLVideoElement | null>,
   referenceEmbedding: number[] | null | undefined,
   enabled: boolean,
-): FaceRecognitionStatus {
+): { status: FaceRecognitionStatus; readiness: Readiness; retry: () => void } {
   const [status, setStatus] = useState<FaceRecognitionStatus>('loading');
+  const { readiness, attempt, retry, track } = useReadiness();
+  const [modelsReady, setModelsReady] = useState(false);
+
+  // The models load as soon as the check is on, even before a reference photo
+  // exists: the reference-photo capture needs them too.
+  useEffect(() => {
+    if (!enabled) {
+      setModelsReady(false);
+      return;
+    }
+    let cancelled = false;
+    track.begin();
+    loadFaceModels((progress) => {
+      if (!cancelled) track.progress(progress);
+    })
+      .then((loaded) => {
+        if (cancelled) return;
+        track.loaded(loaded);
+        track.ready();
+        setModelsReady(true);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) track.fail(error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, attempt, track]);
   const matchStreak = useRef(0);
   const mismatchStreak = useRef(0);
   const hasMatchedOnce = useRef(false);
   const processingRef = useRef(false);
 
   useEffect(() => {
-    if (!enabled || !referenceEmbedding) {
+    if (!enabled || !referenceEmbedding || !modelsReady) {
       setStatus('loading');
       matchStreak.current = 0;
       mismatchStreak.current = 0;
@@ -65,10 +132,7 @@ export function useFaceRecognition(
       return;
     }
 
-    let cancelled = false;
-    void loadFaceModels().then(() => {
-      if (!cancelled) setStatus('no-face');
-    });
+    setStatus('no-face');
 
     const interval = window.setInterval(async () => {
       const video = videoRef.current;
@@ -109,11 +173,8 @@ export function useFaceRecognition(
       }
     }, VERIFY_INTERVAL_MS);
 
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [enabled, referenceEmbedding, videoRef]);
+    return () => window.clearInterval(interval);
+  }, [enabled, referenceEmbedding, videoRef, modelsReady]);
 
-  return status;
+  return { status, readiness: enabled ? readiness : READY, retry };
 }
