@@ -203,7 +203,7 @@ export function FeedbackFormFields({
             className={
               f.kind === 'rating'
                 ? 'grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-2'
-                : undefined
+                : 'gap-0.5'
             }
           >
             {scale.map((opt, oi) =>
@@ -228,9 +228,10 @@ export function FeedbackFormFields({
                   </Field>
                 </FieldLabel>
               ) : (
-                <Field key={opt} orientation="horizontal">
+                <Field key={opt} orientation="horizontal" className="items-center">
                   <RadioGroupItem value={opt} id={`${id}-${oi}`} />
-                  <FieldLabel htmlFor={`${id}-${oi}`} className="font-normal">
+                  {/* The whole row is the tap target: at least 40px tall on phones. */}
+                  <FieldLabel htmlFor={`${id}-${oi}`} className="min-h-10 flex-1 items-center font-normal">
                     {opt}
                   </FieldLabel>
                 </Field>
@@ -255,9 +256,9 @@ export function FeedbackFormFields({
         <FieldSet key={f.key} data-invalid={!!error || undefined}>
           <FieldLegend variant="label">{label}</FieldLegend>
           {help}
-          <FieldGroup data-slot="checkbox-group" className="gap-3">
+          <FieldGroup data-slot="checkbox-group" className="gap-0.5">
             {(f.other ? [...f.options.filter((o) => o !== OTHER), OTHER] : f.options).map((opt, oi) => (
-              <Field key={opt} orientation="horizontal">
+              <Field key={opt} orientation="horizontal" className="items-center">
                 <Checkbox
                   id={`${id}-${oi}`}
                   checked={selected.includes(opt)}
@@ -271,7 +272,7 @@ export function FeedbackFormFields({
                     )
                   }
                 />
-                <FieldLabel htmlFor={`${id}-${oi}`} className="font-normal">
+                <FieldLabel htmlFor={`${id}-${oi}`} className="min-h-10 flex-1 items-center font-normal">
                   {opt}
                 </FieldLabel>
               </Field>

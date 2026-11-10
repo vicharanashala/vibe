@@ -208,7 +208,7 @@ export function FeedbackEditor({
         className="mt-8 flex-col gap-6"
       >
         {item && (
-          <TabsList>
+          <TabsList className="h-11 sm:h-9">
             <TabsTrigger value="questions">Questions</TabsTrigger>
             <TabsTrigger value="responses">Responses</TabsTrigger>
           </TabsList>
@@ -329,7 +329,7 @@ function Responses({
           value={view}
           onValueChange={(v) => setView(v as 'summary' | 'individual')}
         >
-          <TabsList>
+          <TabsList className="h-11 sm:h-9">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="individual">
               Individual{' '}
@@ -415,15 +415,21 @@ function ResponseSummary({
                 {counts.map(([choice, count]) => {
                   const pct = counted ? Math.round((count / counted) * 100) : 0;
                   return (
+                    // Phones: choice and count on one line, a full-width bar below.
+                    // Wider screens: choice, bar and count in one row.
                     <li
                       key={choice}
-                      className="grid grid-cols-[minmax(0,8rem)_1fr_auto] items-center gap-3 text-sm"
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 text-sm sm:grid-cols-[minmax(0,8rem)_1fr_auto]"
                     >
-                      <span className="truncate">{choice}</span>
-                      <Progress value={pct} aria-label={`${choice}: ${pct}%`} className="h-2" />
-                      <span className="w-20 text-right text-muted-foreground tabular-nums">
+                      <span className="order-1 break-words sm:truncate">{choice}</span>
+                      <span className="order-2 text-right text-muted-foreground tabular-nums sm:order-3 sm:w-20">
                         {count} · {pct}%
                       </span>
+                      <Progress
+                        value={pct}
+                        aria-label={`${choice}: ${pct}%`}
+                        className="order-3 col-span-2 h-2 sm:order-2 sm:col-span-1"
+                      />
                     </li>
                   );
                 })}
@@ -485,7 +491,7 @@ function IndividualResponses({
 
   return (
     <div className="grid gap-4">
-      <InputGroup className="bg-card sm:w-80">
+      <InputGroup className="h-10 bg-card sm:h-9 sm:w-80">
         <InputGroupAddon>
           <SearchIcon aria-hidden />
         </InputGroupAddon>
@@ -549,7 +555,8 @@ function IndividualResponses({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="pl-4">Student</TableHead>
+                  {/* Sticky, so the student stays in view while wide answers scroll sideways. */}
+                  <TableHead className="sticky left-0 z-10 bg-muted pl-4">Student</TableHead>
                   {questions.map((f) => (
                     <TableHead
                       key={f.key}
@@ -568,7 +575,7 @@ function IndividualResponses({
                     className="cursor-pointer"
                     onClick={() => setOpen(r)}
                   >
-                    <TableCell className="pl-4">
+                    <TableCell className="sticky left-0 z-10 bg-card pl-4 shadow-[1px_0_0_var(--border)]">
                       <button
                         type="button"
                         className="flex items-center gap-2.5 text-left"
@@ -678,7 +685,7 @@ function ResponseSheet({
   const questions = answerable(fields).filter((f) => fieldName(f));
   return (
     <Sheet open={!!response} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-lg">
+      <SheetContent className="w-full overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:w-3/4 data-[side=right]:sm:max-w-lg">
         {response && (
           <>
             <SheetHeader>

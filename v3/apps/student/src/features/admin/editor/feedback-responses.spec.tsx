@@ -160,6 +160,16 @@ describe('course Feedback tab', () => {
     await waitFor(() => expect(queryOf(COURSE_EXPORT).at(-1)).toEqual({ format: 'csv', type: 'watch' }));
   });
 
+  it('says “1 response” on the phone card for a form with one answer', async () => {
+    withExtras((path) =>
+      path === '/api/courses/{courseId}/versions/{versionId}/feedback/forms'
+        ? ok({ forms: [{ ...studio.feedbackForms.forms[0], responses: 1 }] })
+        : undefined,
+    );
+    renderApp(courseUrl);
+    expect(await screen.findByText('1 response')).toBeInTheDocument();
+  });
+
   it('shows study-mode feedback as on by default, and turns it off', async () => {
     const SETTINGS = '/api/courses/{courseId}/versions/{versionId}/feedback/settings';
     let saved = true;

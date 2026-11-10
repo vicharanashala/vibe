@@ -66,7 +66,7 @@ export function FeedbackDownloadMenu({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" disabled={busy} />}>
+      <DropdownMenuTrigger render={<Button variant="outline" className="h-10 sm:h-9" disabled={busy} />}>
         {busy ? <Spinner /> : <DownloadIcon aria-hidden />}
         {busy ? 'Preparing file…' : label}
       </DropdownMenuTrigger>
@@ -120,7 +120,7 @@ export function CohortSelect({
       aria-label="Cohort"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="sm:w-56"
+      className="h-10 sm:h-9 sm:w-56"
     >
       <NativeSelectOption value="">All cohorts</NativeSelectOption>
       {cohorts.map((c) => (

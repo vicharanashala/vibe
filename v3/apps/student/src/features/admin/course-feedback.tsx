@@ -109,7 +109,9 @@ export function CourseFeedback({ courseId, versionId }: { courseId: string; vers
                   {f.aboutName ? ` · about “${f.aboutName}”` : ''}
                 </p>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm tabular-nums">{f.responses} responses</span>
+                  <span className="text-sm tabular-nums">
+                    {f.responses} {f.responses === 1 ? 'response' : 'responses'}
+                  </span>
                   <Link {...responsesLink(f)} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
                     Responses
                   </Link>
@@ -122,7 +124,7 @@ export function CourseFeedback({ courseId, versionId }: { courseId: string; vers
             <Table aria-label="Feedback forms">
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="pl-4">Form</TableHead>
+                  <TableHead className="sticky left-0 z-10 bg-muted pl-4">Form</TableHead>
                   <TableHead>Module</TableHead>
                   <TableHead>Section</TableHead>
                   <TableHead>About lesson</TableHead>
@@ -133,7 +135,9 @@ export function CourseFeedback({ courseId, versionId }: { courseId: string; vers
               <TableBody>
                 {forms.data.map((f) => (
                   <TableRow key={f.id}>
-                    <TableCell className="pl-4 font-medium">{f.name}</TableCell>
+                    <TableCell className="sticky left-0 z-10 bg-card pl-4 font-medium shadow-[1px_0_0_var(--border)]">
+                      {f.name}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{f.moduleName}</TableCell>
                     <TableCell className="text-muted-foreground">{f.sectionName}</TableCell>
                     <TableCell className="text-muted-foreground">{f.aboutName || '—'}</TableCell>
