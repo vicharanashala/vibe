@@ -407,23 +407,26 @@ function useProctoring(
   }, [camera.stream]);
 
   const isBlurry = useBlurDetector(captureRef, needsBlur && cameraReady);
-  const gesture = useGestureDetector(captureRef, needsGesture && cameraReady);
-  useThumbsUpChallenge(gesture, needsGesture && cameraReady);
-  const isSpeaking = useVoiceDetector(camera.stream, needsVoice && cameraReady);
-  const faceCount = useFaceCountDetector(
+  const gestureCheck = useGestureDetector(captureRef, needsGesture && cameraReady);
+  useThumbsUpChallenge(gestureCheck.gesture, needsGesture && cameraReady);
+  const voice = useVoiceDetector(camera.stream, needsVoice && cameraReady);
+  const isSpeaking = voice.isSpeaking;
+  const faceCountCheck = useFaceCountDetector(
     captureRef,
     needsFaceCount && cameraReady,
   );
+  const faceCount = faceCountCheck.faceCount;
 
   const faceReference = useFaceReference(courseId, versionId);
   const referenceEmbedding = needsFaceRecognition
     ? faceReference.data?.faceEmbedding
     : undefined;
-  const recognitionStatus = useFaceRecognition(
+  const faceRecognition = useFaceRecognition(
     captureRef,
     referenceEmbedding,
     needsFaceRecognition && cameraReady,
   );
+  const recognitionStatus = faceRecognition.status;
 
   // Record incidents for the course team (with a still photo, as the consent form says).
   useIncidentReporter(
