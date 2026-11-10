@@ -71,6 +71,10 @@ import {
   IStudentSegmentQuestion,
 } from '#root/modules/studentQuestions/classes/transformers/StudentSegmentQuestion.js';
 import { STUDENT_QUESTION_TYPES } from '#root/modules/studentQuestions/types.js';
+import {getContainer} from '#root/bootstrap/loadModules.js';
+import {SETTING_TYPES} from '#root/modules/setting/types.js';
+import type {SettingRepository} from '#root/shared/database/providers/mongo/repositories/SettingRepository.js';
+import type {StudyViewRepository} from '#root/shared/database/providers/mongo/repositories/StudyViewRepository.js';
 
 const PEER_QUESTION_DEFAULT_POINTS = 0;
 const PEER_QUESTION_DEFAULT_TIME_LIMIT_SECONDS = 60;
@@ -871,8 +875,23 @@ class AttemptService extends BaseService {
     feedbackFormId: string,
     details: Record<string, any>,
     clientCohortId?: string,
+    mode: 'strict' | 'study' = 'strict',
   ): Promise<string> {
     await this.contentLockService.assertOpenForUser(userId, feedbackFormId);
+    // Study mode is how phones answer (strict mode is PC-only), so the course
+    // decides whether study-mode answers are accepted. Default: yes.
+    const study = mode === 'study' ? this.studyModeDeps() : null;
+    if (
+      study &&
+      !(await study.settings.isStudyModeFeedbackAllowed(
+        courseId,
+        courseVersionId,
+      ))
+    ) {
+      throw new ForbiddenError(
+        'Your course team accepts feedback only in strict mode.',
+      );
+    }
     const cohortId = await this.resolveFeedbackCohort(
       userId,
       courseId,
@@ -925,8 +944,21 @@ class AttemptService extends BaseService {
       const previousItemId = previousItem ? previousItem._id.toString() : null;
       const previousItemType = previousItem ? previousItem.type : null;
 
-      // 4. A form after a video waits until the video is finished
-      if (previousItemType === 'VIDEO') {
+      // 4. A form after a video waits until the video is finished: in strict
+      //    mode, completed; in study mode, studied (a recorded study view).
+      //    Study mode never reads or changes strict progress.
+      if (previousItemType === 'VIDEO' && study) {
+        const views = await study.studyViews.findViews(
+          courseVersionId,
+          [userId],
+          [previousItemId],
+        );
+        if (!views.length) {
+          throw new ForbiddenError(
+            'Watch the previous video in study mode before sending this feedback.',
+          );
+        }
+      } else if (previousItemType === 'VIDEO') {
         const isPreviousWatched = await this.progressRepository.isItemCompleted(
           userId,
           courseId,
@@ -978,6 +1010,7 @@ class AttemptService extends BaseService {
         previousItemId: previousItemId ? new ObjectId(previousItemId) : null,
         previousItemType,
         isCurrent: true,
+        mode,
         createdAt: now,
         updatedAt: now,
       };
@@ -995,14 +1028,37 @@ class AttemptService extends BaseService {
   async getMyFeedback(
     userId: string,
     feedbackFormId: string,
-  ): Promise<{details: Record<string, any>; createdAt: Date} | null> {
+  ): Promise<{
+    details: Record<string, any>;
+    createdAt: Date;
+    mode: 'strict' | 'study';
+  } | null> {
     const current = await this.feedbackRepository.findCurrentForUser(
       userId,
       feedbackFormId,
     );
     return current
-      ? {details: current.details ?? {}, createdAt: current.createdAt}
+      ? {
+          details: current.details ?? {},
+          createdAt: current.createdAt,
+          mode: current.mode === 'study' ? 'study' : 'strict',
+        }
       : null;
+  }
+
+  /**
+   * The course setting and study views, resolved only for study-mode
+   * submissions so strict ones never depend on them.
+   */
+  protected studyModeDeps(): {
+    settings: Pick<SettingRepository, 'isStudyModeFeedbackAllowed'>;
+    studyViews: Pick<StudyViewRepository, 'findViews'>;
+  } {
+    const container = getContainer();
+    return {
+      settings: container.get<SettingRepository>(SETTING_TYPES.SettingRepo),
+      studyViews: container.get<StudyViewRepository>(USERS_TYPES.StudyViewRepo),
+    };
   }
 
   private async _normalizeAnswers(answers: IQuestionAnswer[]) {

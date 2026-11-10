@@ -964,6 +964,8 @@ export interface ISettings {
   proctors: IProctoringSettings;
   linearProgressionEnabled: boolean;
   seekForwardEnabled: boolean;
+  /** Students may send feedback forms in study mode (phones use study mode). Default true. */
+  studyModeFeedback?: boolean;
   hpSystem?: boolean;
   isPublic?: boolean;
   baseHp?: number;

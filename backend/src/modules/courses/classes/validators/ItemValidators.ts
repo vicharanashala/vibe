@@ -1242,6 +1242,16 @@ class CourseVersionFeedbackParams {
   versionId: string;
 }
 
+class UpdateFeedbackSettingsBody {
+  @JSONSchema({
+    description:
+      'Whether students can send feedback forms in study mode (how phones answer).',
+    type: 'boolean',
+  })
+  @IsBoolean()
+  studyModeFeedback: boolean;
+}
+
 class GetFeedbackSummaryQuery {
   @JSONSchema({description: 'Only responses from this cohort', type: 'string'})
   @IsOptional()
@@ -1338,6 +1348,7 @@ class csvResponse {
 }
 
 export {
+  UpdateFeedbackSettingsBody,
   CreateItemBody,
   UpdateItemBody,
   MoveItemBody,

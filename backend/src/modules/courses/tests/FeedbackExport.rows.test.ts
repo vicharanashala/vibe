@@ -174,6 +174,7 @@ const subs: ExportSubmission[] = [
     details: {Year: '1st'},
     createdAt: new Date('2026-11-01T12:00:00Z'),
     isCurrentVersion: true,
+    mode: 'study',
   },
 ];
 
@@ -190,6 +191,7 @@ describe('formSheet', () => {
       'About lesson',
       'Submitted (IST)',
       'Submitted (ISO)',
+      'Mode',
       'How useful was it?',
       'Which topics helped?',
       'Pace',
@@ -199,7 +201,7 @@ describe('formSheet', () => {
       'old_enum',
     ]);
     expect(sheet.rows).toHaveLength(2);
-    expect(sheet.rows[0].slice(0, 10)).toEqual([
+    expect(sheet.rows[0].slice(0, 11)).toEqual([
       'Asha Rao',
       'asha@example.com',
       'Batch A',
@@ -209,16 +211,19 @@ describe('formSheet', () => {
       'Intro video (renamed)',
       '2026-11-02 15:35',
       '2026-11-02T10:05:00.000Z',
+      'Strict',
       'Very useful',
     ]);
     // A general form (first in its section) is about no lesson.
     expect(sheet.rows[1][6]).toBe('');
+    // Answers sent in study mode (e.g. from a phone) say so.
+    expect(sheet.rows[1][9]).toBe('Study');
   });
 
   it('includes replaced answers with a Version column on request', () => {
     const sheet = formSheet(form, subs, students, itemNames, 'all');
-    expect(sheet.header[9]).toBe('Version');
-    expect(sheet.rows.map(r => [r[0], r[9]])).toEqual([
+    expect(sheet.header[10]).toBe('Version');
+    expect(sheet.rows.map(r => [r[0], r[10]])).toEqual([
       ['Asha Rao', 'Current'],
       ['Ravi Kumar', 'Current'],
       ['Asha Rao', 'Replaced'],
@@ -337,7 +342,7 @@ describe('files', () => {
     expect(sheets[1][1]).toEqual(['dup <&> name']);
     const xml = files.get('xl/worksheets/sheet1.xml')!.toString();
     expect(xml).toContain('state="frozen"');
-    expect(xml).toContain('<autoFilter ref="A1:P3"/>');
+    expect(xml).toContain('<autoFilter ref="A1:Q3"/>');
   });
 
   it('cleans sheet names and names files by course and date', () => {

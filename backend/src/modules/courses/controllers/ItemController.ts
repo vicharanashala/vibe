@@ -39,6 +39,7 @@ import {
   GetFeedbackSummaryQuery,
   FeedbackExportQuery,
   CourseVersionFeedbackParams,
+  UpdateFeedbackSettingsBody,
   CSVItemBody,
   CourseVersionModuleSectionParams,
   csvResponse,
@@ -52,6 +53,9 @@ import {ItemService} from '#courses/services/ItemService.js';
 import {injectable, inject} from 'inversify';
 import {VersionModuleSectionParams} from '../classes/index.js';
 import {ItemActions, getItemAbility} from '../abilities/itemAbilities.js';
+import {getContainer} from '#root/bootstrap/loadModules.js';
+import {SETTING_TYPES} from '#root/modules/setting/types.js';
+import type {SettingRepository} from '#root/shared/database/providers/mongo/repositories/SettingRepository.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
 import {
@@ -998,6 +1002,63 @@ Access control logic:
     return {
       forms: await this.feedbackExportService.listForms(versionId, cohortIds),
     };
+  }
+
+  @OpenAPI({
+    summary: "Read a course version's feedback settings",
+    description:
+      'Whether students can send feedback forms in study mode (how phones answer, since strict mode is PC-only). Course staff only.',
+  })
+  @Authorized()
+  @Get('/:courseId/versions/:versionId/feedback/settings')
+  @HttpCode(200)
+  async getFeedbackSettings(
+    @Params() params: CourseVersionFeedbackParams,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
+  ): Promise<{studyModeFeedback: boolean}> {
+    const {courseId, versionId} = params;
+    this.courseFeedbackScope(ability, authenticatedUser, courseId, versionId);
+    return {
+      studyModeFeedback: await this.settingRepo().isStudyModeFeedbackAllowed(
+        courseId,
+        versionId,
+      ),
+    };
+  }
+
+  @OpenAPI({
+    summary: "Change a course version's feedback settings",
+    description:
+      'Turns study-mode feedback on or off. Off means students on phones cannot send feedback. Requires permission to edit the course content.',
+  })
+  @Authorized()
+  @Put('/:courseId/versions/:versionId/feedback/settings')
+  @HttpCode(200)
+  async updateFeedbackSettings(
+    @Params() params: CourseVersionFeedbackParams,
+    @Body() body: UpdateFeedbackSettingsBody,
+    @Ability(getItemAbility) {ability},
+  ): Promise<{studyModeFeedback: boolean}> {
+    const {courseId, versionId} = params;
+    if (!ability.can(ItemActions.Modify, subject('Item', {versionId}))) {
+      throw new ForbiddenError(
+        "You do not have permission to change this course's feedback settings",
+      );
+    }
+    await this.settingRepo().updateStudyModeFeedback(
+      courseId,
+      versionId,
+      body.studyModeFeedback,
+    );
+    return {studyModeFeedback: body.studyModeFeedback};
+  }
+
+  /** Resolved lazily so the controller doesn't depend on the settings module at construction. */
+  private settingRepo(): Pick<
+    SettingRepository,
+    'isStudyModeFeedbackAllowed' | 'updateStudyModeFeedback'
+  > {
+    return getContainer().get<SettingRepository>(SETTING_TYPES.SettingRepo);
   }
 
   /** Course staff only; returns the caller's cohort scope for the version. */

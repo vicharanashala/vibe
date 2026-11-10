@@ -52,6 +52,8 @@ export interface ExportSubmission {
   createdAt: Date;
   isCurrentVersion: boolean;
   cohortId?: string | null;
+  /** Missing on older submissions, which were all strict. */
+  mode?: 'strict' | 'study';
 }
 
 const IST = new Intl.DateTimeFormat('en-GB', {
@@ -91,7 +93,13 @@ export const FIXED_COLUMNS = [
   'About lesson',
   'Submitted (IST)',
   'Submitted (ISO)',
+  'Mode',
 ];
+
+/** "Study" or "Strict" (older answers, before study mode could answer, were strict). */
+export function modeLabel(mode: string | null | undefined): string {
+  return mode === 'study' ? 'Study' : 'Strict';
+}
 
 const UNKNOWN_STUDENT: ExportStudent = {name: '', email: '', cohort: ''};
 
@@ -118,6 +126,7 @@ function fixedCells(
     about,
     formatIST(sub.createdAt),
     formatISO(sub.createdAt),
+    modeLabel(sub.mode),
     ...(history === 'all'
       ? [sub.isCurrentVersion ? 'Current' : 'Replaced']
       : []),
@@ -413,6 +422,7 @@ export class FeedbackExportService {
       createdAt: s.createdAt,
       isCurrentVersion: !!s.isCurrentVersion,
       cohortId: s.cohortId?.toString(),
+      mode: s.mode === 'study' ? 'study' : 'strict',
     }));
   }
 
@@ -567,6 +577,7 @@ export class FeedbackExportService {
               '')
             : '',
           formatIST(feedback?.createdAt),
+          feedback ? modeLabel(feedback.mode) : '',
           ...titles.map(t => answers.get(t) ?? ''),
         ]);
       }
@@ -588,6 +599,7 @@ export class FeedbackExportService {
         'Last watched (IST)',
         'Form',
         'Answered (IST)',
+        'Answer mode',
         ...titles,
       ],
       rows,

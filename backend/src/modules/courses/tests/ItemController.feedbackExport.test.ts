@@ -180,3 +180,57 @@ describe('per-form export routes', () => {
     );
   });
 });
+
+describe('feedback settings routes', () => {
+  function withSettings(staff: boolean) {
+    const {c, who} = setup(staff);
+    const repo = {
+      isStudyModeFeedbackAllowed: vi.fn(async () => true),
+      updateStudyModeFeedback: vi.fn(async () => true),
+    };
+    c.settingRepo = () => repo;
+    return {c, who, repo};
+  }
+
+  it('lets course staff read whether study-mode feedback is on', async () => {
+    const {c, who} = withSettings(true);
+    await expect(
+      c.getFeedbackSettings({courseId: COURSE, versionId: VERSION}, who),
+    ).resolves.toEqual({studyModeFeedback: true});
+  });
+
+  it('refuses students reading the settings', async () => {
+    const {c, who} = withSettings(false);
+    await expect(
+      c.getFeedbackSettings({courseId: COURSE, versionId: VERSION}, who),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('turns study-mode feedback off for someone who can edit the course', async () => {
+    const {c, repo} = withSettings(true);
+    await expect(
+      c.updateFeedbackSettings(
+        {courseId: COURSE, versionId: VERSION},
+        {studyModeFeedback: false},
+        {ability: {can: () => true}},
+      ),
+    ).resolves.toEqual({studyModeFeedback: false});
+    expect(repo.updateStudyModeFeedback).toHaveBeenCalledWith(
+      COURSE,
+      VERSION,
+      false,
+    );
+  });
+
+  it('refuses a change without permission to edit the course', async () => {
+    const {c, repo} = withSettings(true);
+    await expect(
+      c.updateFeedbackSettings(
+        {courseId: COURSE, versionId: VERSION},
+        {studyModeFeedback: false},
+        {ability: {can: () => false}},
+      ),
+    ).rejects.toThrow(ForbiddenError);
+    expect(repo.updateStudyModeFeedback).not.toHaveBeenCalled();
+  });
+});

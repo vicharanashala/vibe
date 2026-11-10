@@ -291,6 +291,7 @@ describe('FeedbackExportService -- real MongoDB', {timeout: 60000}, () => {
         'Intro video',
         '2026-11-01 15:00',
         '2026-11-01T09:30:00.000Z',
+        'Strict',
         'Very useful',
       ],
     ]);
@@ -299,7 +300,7 @@ describe('FeedbackExportService -- real MongoDB', {timeout: 60000}, () => {
       'Course feedback',
       '',
     ]);
-    expect(watch.header.slice(0, 14)).toEqual([
+    expect(watch.header.slice(0, 15)).toEqual([
       'Student',
       'Email',
       'Cohort',
@@ -314,6 +315,7 @@ describe('FeedbackExportService -- real MongoDB', {timeout: 60000}, () => {
       'Last watched (IST)',
       'Form',
       'Answered (IST)',
+      'Answer mode',
     ]);
     const ashaIntro = watch.rows.find(
       r => r[0] === 'Asha Rao' && r[5] === 'Intro video',
@@ -329,6 +331,7 @@ describe('FeedbackExportService -- real MongoDB', {timeout: 60000}, () => {
       '2026-11-01 15:00',
     ]);
     expect(ashaIntro[watch.header.indexOf('How useful?')]).toBe('Very useful');
+    expect(ashaIntro[watch.header.indexOf('Answer mode')]).toBe('Strict');
     expect(watch.rows.map(r => [r[0], r[5]])).toEqual([
       ['Asha Rao', 'Intro video'],
       ['Asha Rao', 'Deep dive'],
@@ -344,7 +347,7 @@ describe('FeedbackExportService -- real MongoDB', {timeout: 60000}, () => {
       ids.version.toString(),
       {history: 'all'},
     );
-    expect(all.sheets[1].rows.map(r => r[9])).toEqual(['Current', 'Replaced']);
+    expect(all.sheets[1].rows.map(r => r[10])).toEqual(['Current', 'Replaced']);
     const cohort = await service.buildCourseExport(
       ids.course.toString(),
       ids.version.toString(),

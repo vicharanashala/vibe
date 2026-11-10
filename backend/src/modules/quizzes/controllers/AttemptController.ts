@@ -293,7 +293,7 @@ class AttemptController {
     @Ability(getCourseAbility) {ability, user},
   ): Promise<{message: string}> {
     const {itemId} = params;
-    const {details, courseId, courseVersionId, sectionId, cohortId } = body;
+    const {details, courseId, courseVersionId, cohortId, mode} = body;
     const userId = user._id.toString();
     const message = await this.attemptService.submitFeedBackForm(
       userId,
@@ -302,7 +302,7 @@ class AttemptController {
       itemId,
       details,
       cohortId,
-      // isSkipped,
+      mode ?? 'strict',
     );
     return {message};
   }
@@ -320,7 +320,11 @@ class AttemptController {
     @Params() params: SubmitFeedbackParams,
     @Ability(getCourseAbility) {user},
   ): Promise<{
-    feedback: {details: Record<string, any>; createdAt: Date} | null;
+    feedback: {
+      details: Record<string, any>;
+      createdAt: Date;
+      mode: 'strict' | 'study';
+    } | null;
   }> {
     return {
       feedback: await this.attemptService.getMyFeedback(

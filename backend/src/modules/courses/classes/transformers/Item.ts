@@ -360,6 +360,10 @@ class FeedbackSubmissionItem {
   @Expose()
   isCurrent?: boolean;
 
+  /** The mode the student answered in. Missing on older submissions, which were all strict. */
+  @Expose()
+  mode?: 'strict' | 'study';
+
   @Expose()
   replacedAt?: Date;
 

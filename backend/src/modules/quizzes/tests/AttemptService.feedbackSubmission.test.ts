@@ -23,6 +23,8 @@ function makeService({
   ] as any[],
   videoDone = true,
   enrollmentCohort = undefined as string | undefined,
+  studyAllowed = true,
+  studied = false,
 } = {}) {
   const service: any = Object.create(AttemptService.prototype);
   const calls: string[] = [];
@@ -55,8 +57,27 @@ function makeService({
       createdAt: new Date('2026-11-01'),
     })),
   };
+  service.studyModeDeps = () => ({
+    settings: {isStudyModeFeedbackAllowed: vi.fn(async () => studyAllowed)},
+    studyViews: {
+      findViews: vi.fn(async () =>
+        studied ? [{userId: USER, itemId: VIDEO}] : [],
+      ),
+    },
+  });
   return {service, calls};
 }
+
+const submitStudy = (service: any) =>
+  service.submitFeedBackForm(
+    USER,
+    COURSE,
+    VERSION,
+    FORM,
+    {Q: 'A'},
+    undefined,
+    'study',
+  );
 
 const submit = (service: any, cohort?: string) =>
   service.submitFeedBackForm(USER, COURSE, VERSION, FORM, {Q: 'A'}, cohort);
@@ -142,6 +163,7 @@ describe('AttemptService.getMyFeedback', () => {
     expect(await service.getMyFeedback(USER, FORM)).toEqual({
       details: {Q: 'A'},
       createdAt: new Date('2026-11-01'),
+      mode: 'strict',
     });
     expect(service.feedbackRepository.findCurrentForUser).toHaveBeenCalledWith(
       USER,
@@ -153,5 +175,78 @@ describe('AttemptService.getMyFeedback', () => {
     const {service} = makeService();
     service.feedbackRepository.findCurrentForUser = async () => null;
     expect(await service.getMyFeedback(USER, FORM)).toBeNull();
+  });
+
+  it('stores strict answers with mode strict by default', async () => {
+    const {service} = makeService();
+    await submit(service);
+    expect(
+      service.feedbackRepository.createFeedback.mock.calls[0][0].mode,
+    ).toBe('strict');
+  });
+});
+
+describe('AttemptService.submitFeedBackForm in study mode', () => {
+  it('is refused when the course turned study-mode feedback off', async () => {
+    const {service} = makeService({studyAllowed: false, studied: true});
+    await expect(submitStudy(service)).rejects.toThrow(
+      'Your course team accepts feedback only in strict mode.',
+    );
+    expect(service.feedbackRepository.createFeedback).not.toHaveBeenCalled();
+  });
+
+  it('is refused after a video the student has not studied', async () => {
+    const {service} = makeService({studied: false});
+    await expect(submitStudy(service)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(submitStudy(service)).rejects.toThrow(
+      'Watch the previous video in study mode before sending this feedback.',
+    );
+    expect(service.feedbackRepository.createFeedback).not.toHaveBeenCalled();
+  });
+
+  it('is stored as a study answer once the video was studied, without reading strict progress', async () => {
+    const {service, calls} = makeService({studied: true, videoDone: false});
+    await submitStudy(service);
+    expect(calls).toEqual(['markReplaced', 'create']);
+    expect(
+      service.feedbackRepository.createFeedback.mock.calls[0][0],
+    ).toMatchObject({
+      mode: 'study',
+      isCurrent: true,
+    });
+    expect(service.progressRepository.isItemCompleted).not.toHaveBeenCalled();
+  });
+
+  it('needs no study view for a form first in its section', async () => {
+    const {service} = makeService({
+      items: [{_id: FORM, type: 'FEEDBACK', order: 'a'}],
+    });
+    await submitStudy(service);
+    expect(
+      service.feedbackRepository.createFeedback.mock.calls[0][0].mode,
+    ).toBe('study');
+  });
+
+  it('replaces an earlier strict answer (latest wins across modes)', async () => {
+    const {service} = makeService({studied: true});
+    await submit(service);
+    await submitStudy(service);
+    expect(service.feedbackRepository.markReplaced).toHaveBeenCalledTimes(2);
+    const modes = service.feedbackRepository.createFeedback.mock.calls.map(
+      (c: any) => c[0].mode,
+    );
+    expect(modes).toEqual(['strict', 'study']);
+  });
+
+  it("reports the current answer's mode", async () => {
+    const {service} = makeService();
+    service.feedbackRepository.findCurrentForUser = async () => ({
+      details: {},
+      createdAt: new Date(),
+      mode: 'study',
+    });
+    await expect(service.getMyFeedback(USER, FORM)).resolves.toMatchObject({
+      mode: 'study',
+    });
   });
 });

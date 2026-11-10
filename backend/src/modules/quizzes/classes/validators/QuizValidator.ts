@@ -478,6 +478,16 @@ class SubmitFeedbackBody {
   })
   courseVersionId: string;
 
+  @IsOptional()
+  @IsIn(['strict', 'study'])
+  @JSONSchema({
+    description:
+      "The mode the student answered in. Study-mode answers need the course to allow them and, after a video, a study view of it; they never change strict progress. Defaults to 'strict'.",
+    type: 'string',
+    enum: ['strict', 'study'],
+  })
+  mode?: 'strict' | 'study';
+
   // @IsOptional()
   // @IsBoolean()
   // @JSONSchema({
