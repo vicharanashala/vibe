@@ -1,7 +1,18 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { clampSeek, CROP_PX, formatTime, PLAYER_VARS, qualityOptions, YouTubePlayer, youTubeErrorMessage } from './youtube-player';
+import {
+  clampSeek,
+  CROP_PX,
+  formatTime,
+  NO_START_MESSAGE,
+  OFFLINE_MESSAGE,
+  PLAYER_VARS,
+  qualityOptions,
+  SLOW_LOAD_MESSAGE,
+  YouTubePlayer,
+  youTubeErrorMessage,
+} from './youtube-player';
 
 /** A stand-in for the YouTube IFrame API that records what the app asks of it. */
 function installFakeYouTube() {
@@ -44,6 +55,8 @@ function installFakeYouTube() {
     },
     playing: () => act(() => events.onStateChange?.({ data: 1 })),
     pausedEvent: () => act(() => events.onStateChange?.({ data: 2 })),
+    buffering: () => act(() => events.onStateChange?.({ data: 3 })),
+    created: () => (window.YT!.Player as unknown as { mock: { calls: unknown[] } }).mock.calls.length,
     error: (code: number) => act(() => events.onError?.({ data: code })),
   };
 }
@@ -85,6 +98,17 @@ describe('formatTime', () => {
   it('formats minutes and hours', () => {
     expect(formatTime(75)).toBe('1:15');
     expect(formatTime(3725)).toBe('1:02:05');
+  });
+});
+
+describe('youTubeErrorMessage', () => {
+  it('gives each YouTube error its own explanation, action and code', () => {
+    expect(youTubeErrorMessage(2)).toMatch(/start and end times aren’t valid.*course team.*error 2/);
+    expect(youTubeErrorMessage(5)).toMatch(/Your browser couldn’t play.*error 5.*another browser/);
+    expect(youTubeErrorMessage(100)).toMatch(/no longer available.*error 100/);
+    for (const code of [101, 150]) expect(youTubeErrorMessage(code)).toMatch(new RegExp(`error ${code}.*sign in or confirm you’re not a bot`));
+    for (const code of [152, 153]) expect(youTubeErrorMessage(code)).toMatch(new RegExp(`error ${code}.*privacy extension`));
+    expect(youTubeErrorMessage(999)).toMatch(/error 999.*another browser/);
   });
 });
 
@@ -204,7 +228,7 @@ describe('YouTubePlayer', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
-  it('says the video didn’t start when Play gets no response', async () => {
+  it('says YouTube held the video back, not the connection, when Play gets no response', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const yt = installFakeYouTube();
@@ -212,13 +236,82 @@ describe('YouTubePlayer', () => {
       await yt.ready();
       fireEvent.click(screen.getAllByRole('button', { name: 'Play' })[0]);
       await act(() => vi.advanceTimersByTimeAsync(8500));
-      expect(screen.getByRole('alert')).toHaveTextContent('The video didn’t start');
+      expect(screen.getByRole('alert')).toHaveTextContent(NO_START_MESSAGE);
+      expect(screen.getByRole('alert')).not.toHaveTextContent(/connection/);
       // Once it does play, the notice goes away.
       await yt.playing();
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('gives a video that is buffering longer, and only then blames the connection', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const yt = installFakeYouTube();
+      render(<YouTubePlayer videoId="QJNwK2uJyGs" start={0} end={300} allowSeekForward />);
+      await yt.ready();
+      fireEvent.click(screen.getAllByRole('button', { name: 'Play' })[0]);
+      await yt.buffering();
+      await act(() => vi.advanceTimersByTimeAsync(8500));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('Still loading the video…');
+      await act(() => vi.advanceTimersByTimeAsync(22000));
+      expect(screen.getByRole('alert')).toHaveTextContent(SLOW_LOAD_MESSAGE);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('says so when the browser is offline', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      const yt = installFakeYouTube();
+      render(<YouTubePlayer videoId="QJNwK2uJyGs" start={0} end={300} allowSeekForward />);
+      await yt.ready();
+      fireEvent.click(screen.getAllByRole('button', { name: 'Play' })[0]);
+      await act(() => vi.advanceTimersByTimeAsync(8500));
+      expect(screen.getByRole('alert')).toHaveTextContent(OFFLINE_MESSAGE);
+    } finally {
+      onLine.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('Try again recreates the player and starts it once ready', async () => {
+    const yt = installFakeYouTube();
+    render(<YouTubePlayer videoId="QJNwK2uJyGs" start={0} end={300} allowSeekForward />);
+    await yt.ready();
+    await yt.error(5);
+    expect(yt.created()).toBe(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await yt.ready();
+    expect(yt.created()).toBe(2);
+    expect(yt.player.destroy).toHaveBeenCalled();
+    expect(yt.player.playVideo).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('can show YouTube’s own message after a failure, and covers it again once playing', async () => {
+    const yt = installFakeYouTube();
+    render(<YouTubePlayer videoId="QJNwK2uJyGs" start={0} end={300} allowSeekForward />);
+    await yt.ready();
+    await yt.error(150);
+    expect(screen.getByTestId('player-shield')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Show YouTube’s message/ }));
+    expect(screen.queryByTestId('player-shield')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(/sign in or confirm you’re not a bot/);
+    await yt.playing();
+    expect(screen.getByTestId('player-shield')).toBeInTheDocument();
+  });
+
+  it('asks YouTube for whole-second start and end times', async () => {
+    const yt = installFakeYouTube();
+    render(<YouTubePlayer videoId="QJNwK2uJyGs" start={12.6} end={90.2} allowSeekForward />);
+    await yt.ready();
+    expect(yt.vars()).toMatchObject({ start: 12, end: 91 });
   });
 
   it('keeps subtitles off by default and toggles them with the CC button', async () => {
