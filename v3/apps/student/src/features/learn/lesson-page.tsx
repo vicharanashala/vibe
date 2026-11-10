@@ -83,6 +83,7 @@ import { cn } from '@/lib/utils';
 
 import {
   CameraBubble,
+  CameraPreview,
   useCameraPresence,
 } from './camera-presence';
 import { ConsentGate } from './consent-gate';
@@ -603,6 +604,7 @@ function useProctoring(
         <BlockingNotice
           title={blockNotice.title}
           message={blockNotice.message}
+          stream={camera.stream}
           action={
             blockNotice.showRetake
               ? {
@@ -624,14 +626,17 @@ function BlockingNotice({
   title,
   message,
   action,
+  stream,
 }: {
   title: string;
   message: string;
   action?: { label: string; onClick: () => void };
+  /** Shown as a clear live preview, so the student can see and fix how they appear. */
+  stream?: MediaStream | null;
 }) {
   return (
     <AlertDialog open>
-      <AlertDialogContent size="sm">
+      <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogMedia className="text-amber-600">
             <ShieldAlertIcon />
@@ -639,6 +644,7 @@ function BlockingNotice({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{message}</AlertDialogDescription>
         </AlertDialogHeader>
+        <CameraPreview stream={stream ?? null} />
         {action && (
           <AlertDialogFooter>
             <AlertDialogAction variant="outline" onClick={action.onClick}>
