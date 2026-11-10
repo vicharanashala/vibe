@@ -58,3 +58,17 @@ export function studyModeLevel(source: StudyModeSource): string {
   if (source === 'section') return 'this section';
   return 'this lesson';
 }
+
+/**
+ * Study mode doesn't show quizzes anywhere students browse: they're taken in
+ * strict mode only. One rule, so the course outline, the Continue target and
+ * the study track's Previous/Next all agree.
+ */
+export function hiddenInStudyMode(item: { type?: string }): boolean {
+  return item.type === 'QUIZ';
+}
+
+/** The items a track shows: everything in strict mode, no quizzes in study mode. */
+export function itemsForTrack<T extends { type?: string }>(items: T[], track: 'green' | 'blue'): T[] {
+  return track === 'blue' ? items.filter((item) => !hiddenInStudyMode(item)) : items;
+}

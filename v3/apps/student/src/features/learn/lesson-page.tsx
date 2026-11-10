@@ -119,6 +119,7 @@ import {
   type LockedLevel,
 } from '@/features/content-lock/content-lock';
 import {
+  itemsForTrack,
   studyModeLevel,
   studyModeRefusal,
   type StudyModeSource,
@@ -1246,7 +1247,8 @@ function BlueLesson({
   // It does record study views (not strict progress) for study progress.
   const onPlayingChange = useStudyViewRecorder(ref, item);
   const version = useCourseVersion(ref.versionId);
-  const { items } = useFlatSyllabus(version.data);
+  // Study mode's Previous/Next skip quizzes: they're taken in strict mode only.
+  const items = itemsForTrack(useFlatSyllabus(version.data).items, 'blue');
   const index = items.findIndex((i) => i._id === ref.itemId);
   const prev = index > 0 ? items[index - 1] : undefined;
   const next = index >= 0 ? items[index + 1] : undefined;
