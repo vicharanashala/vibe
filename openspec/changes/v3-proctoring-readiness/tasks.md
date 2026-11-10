@@ -29,6 +29,7 @@ All commands run from `v3/`. Each group's checks: `npx vitest run --root apps/st
 - [x] 4.1 Implement `features/learn/proctoring/diagnostics.ts` (`runDiagnostics` async iterable: browser features, camera/mic permission and device counts, host reachability with an 8 s timeout and latency, storage estimate, saved models, service worker state, browser and version) and `formatReport`; verify specs with stubbed browser APIs for pass/warning/fail per check, and that the report contains no image, sound or token data
 - [x] 4.2 Build the diagnostics view (results filling in as they arrive, a plain-language fix per warning/fail, Copy report with a sonner toast, the same clear options) and open it from the checklist's Run diagnostics as a Sheet; verify Testing Library specs
 - [x] 4.3 Add the `/check-device` route ("Check my device") under the signed-in layout, and a link to it from the profile page; verify a router spec, and that the profile page link navigates there
+- [x] 4.4 Open the diagnostics as a side pane from the account menu, the profile page and a strict-mode lesson's header; verify specs for each entry point
 
 ## 5. Integration check
 

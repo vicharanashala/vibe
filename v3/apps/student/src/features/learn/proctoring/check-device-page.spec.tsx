@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { renderApp } from '@/test/render-app';
@@ -26,10 +26,18 @@ describe('Check my device', () => {
     expect(await screen.findByRole('listitem', { name: 'WebGL graphics' })).toHaveTextContent('Turn on hardware acceleration.');
   });
 
-  it('is linked from the profile page', async () => {
-    const { router } = renderApp('/profile');
-    await userEvent.click(await screen.findByRole('link', { name: /Check my device/ }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/check-device'));
+  it('opens from the profile page', async () => {
+    renderApp('/profile');
+    await userEvent.click(await screen.findByRole('button', { name: /Check my device/ }));
     expect(await screen.findByRole('heading', { name: 'Check my device' })).toBeInTheDocument();
+    expect(await screen.findByRole('listitem', { name: 'WebGL graphics' })).toBeInTheDocument();
+  });
+
+  it('opens from the account menu on any page', async () => {
+    renderApp('/courses');
+    await userEvent.click(await screen.findByRole('button', { name: 'Account menu' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /Check my device/ }));
+    expect(await screen.findByRole('heading', { name: 'Check my device' })).toBeInTheDocument();
+    expect(await screen.findByRole('listitem', { name: 'WebGL graphics' })).toBeInTheDocument();
   });
 });

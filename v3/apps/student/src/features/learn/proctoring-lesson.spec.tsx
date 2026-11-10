@@ -148,6 +148,15 @@ describe('proctored lesson setup', () => {
     expect(await screen.findByRole('list', { name: 'Diagnostics results' })).toBeInTheDocument();
   });
 
+  it('reopens diagnostics from the lesson header once the lesson is open', async () => {
+    lessonWith('faceCountDetection', 'voiceDetection');
+    renderApp(lessonUrl);
+    await screen.findByRole('heading', { name: fixtures.itemBlog.item.name });
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Proctoring setup' })).not.toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'Check my device' }));
+    expect(await screen.findByRole('list', { name: 'Diagnostics results' })).toBeInTheDocument();
+  });
+
   it('shows no setup and opens no camera in study mode', async () => {
     lessonWith('faceCountDetection', 'voiceDetection');
     renderApp(`${lessonUrl}?track=blue`);

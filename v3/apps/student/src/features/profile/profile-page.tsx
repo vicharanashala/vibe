@@ -1,4 +1,4 @@
-import { Link, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { unwrap } from '@vibe/api';
 import { updateProfile } from 'firebase/auth';
 import { CheckCircle2Icon, LogOutIcon, StethoscopeIcon } from 'lucide-react';
@@ -6,12 +6,13 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 
 import { PasswordInput } from '@/components/password-input';
 import { AppearancePicker } from '@/components/appearance-picker';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
 import { GeneratedAvatar } from '@/components/generated-art';
 import { useAuth } from '@/features/auth/auth-provider';
+import { DiagnosticsSheet } from '@/features/learn/proctoring/diagnostics-view';
 import { NAME_PATTERN, PASSWORD_RULES } from '@/features/auth/signup-page';
 import { api } from '@/lib/api';
 import { auth } from '@/lib/firebase';
@@ -66,9 +67,7 @@ export function ProfilePage() {
           <AppearancePicker />
         </Panel>
         <Panel title="Proctored lessons" description="If a proctored lesson won’t start, check what your device and browser need.">
-          <Link to="/check-device" className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'w-full sm:w-auto')}>
-            <StethoscopeIcon /> Check my device
-          </Link>
+          <CheckDeviceButton />
         </Panel>
         <Panel title="Session">
           <Button
@@ -86,6 +85,18 @@ export function ProfilePage() {
         </Panel>
       </div>
     </div>
+  );
+}
+
+function CheckDeviceButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => setOpen(true)}>
+        <StethoscopeIcon /> Check my device
+      </Button>
+      <DiagnosticsSheet open={open} onOpenChange={setOpen} />
+    </>
   );
 }
 

@@ -13,6 +13,7 @@ import {
   MonitorIcon,
   ScanFaceIcon,
   ShieldAlertIcon,
+  StethoscopeIcon,
   UserCheckIcon,
   XIcon,
 } from 'lucide-react';
@@ -1340,6 +1341,7 @@ function LessonFrame({
   const other: Track = track === 'blue' ? 'green' : 'blue';
   const navigate = useNavigate();
   const [confirmExit, setConfirmExit] = useState(false);
+  const [checkingDevice, setCheckingDevice] = useState(false);
   const course = {
     to: '/courses/$courseId/$versionId' as const,
     params: { courseId: ref.courseId, versionId: ref.versionId },
@@ -1381,6 +1383,17 @@ function LessonFrame({
             {title}
           </span>
           <TrackBadge track={track} />
+          {track === 'green' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Check my device"
+              title="Check my device"
+              onClick={() => setCheckingDevice(true)}
+            >
+              <StethoscopeIcon />
+            </Button>
+          )}
           {!hideTrackSwitch && (
             <Link
               to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
@@ -1393,6 +1406,7 @@ function LessonFrame({
           )}
         </div>
       </header>
+      <DiagnosticsSheet open={checkingDevice} onOpenChange={setCheckingDevice} />
       <main
         id="main"
         className={cn(

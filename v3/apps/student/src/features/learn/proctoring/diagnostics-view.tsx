@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Spinner } from '@/components/ui/spinner';
 
 import { formatReport, runDiagnostics, type CheckResult, type CheckStatus } from './diagnostics';
+import { fixActions } from './fix-actions';
 import { FixMenu, type FixActions } from './proctoring-setup';
 
 const STATUS_LABEL: Record<CheckStatus, string> = { pass: 'Passed', warn: 'Warning', fail: 'Problem', info: 'Info' };
@@ -102,8 +103,20 @@ export function DiagnosticsPanel({ actions }: { actions: FixActions }) {
   );
 }
 
-/** The diagnostics, opened from the setup checklist without leaving the lesson. */
-export function DiagnosticsSheet({ open, onOpenChange, actions }: { open: boolean; onOpenChange: (open: boolean) => void; actions: FixActions }) {
+/**
+ * The diagnostics in a side pane, openable from anywhere: the setup checklist,
+ * the account menu, the profile page and the lesson header. Without `actions`,
+ * "Download models again" reloads the page to download them.
+ */
+export function DiagnosticsSheet({
+  open,
+  onOpenChange,
+  actions = fixActions(),
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  actions?: FixActions;
+}) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-lg">

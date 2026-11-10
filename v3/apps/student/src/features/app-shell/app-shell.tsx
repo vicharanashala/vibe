@@ -6,6 +6,7 @@ import {
   LogOutIcon,
   MoonIcon,
   ShieldIcon,
+  StethoscopeIcon,
   SunIcon,
   UserIcon,
   type LucideIcon,
@@ -38,6 +39,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useStudioAccess } from '@/features/admin/queries';
+import { DiagnosticsSheet } from '@/features/learn/proctoring/diagnostics-view';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 import { Wordmark } from '@/features/landing/wordmark';
 import { cn } from '@/lib/utils';
@@ -177,12 +179,15 @@ function AccountMenu() {
   // Admins and anyone teaching a course (instructor, manager, TA) can open the studio.
   const { canEnter: canTeach } = useStudioAccess();
 
+  const [checkingDevice, setCheckingDevice] = useState(false);
+
   async function onSignOut() {
     await signOut();
     await navigate({ to: '/login', replace: true });
   }
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="rounded-full p-0" aria-label="Account menu" />}>
         <GeneratedAvatar seed={user?.uid ?? user?.email ?? 'student'} size={36} />
@@ -201,6 +206,9 @@ function AccountMenu() {
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           {theme === 'dark' ? 'Light theme' : 'Dark theme'}
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setCheckingDevice(true)}>
+          <StethoscopeIcon /> Check my device
+        </DropdownMenuItem>
         {canTeach && (
           <DropdownMenuItem onClick={() => navigate({ to: '/admin' })}>
             <ShieldIcon /> Studio
@@ -212,5 +220,7 @@ function AccountMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    <DiagnosticsSheet open={checkingDevice} onOpenChange={setCheckingDevice} />
+    </>
   );
 }

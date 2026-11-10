@@ -88,7 +88,7 @@ Each SHALL come with its own plain-language fix. A denied permission SHALL expla
 - **THEN** the microphone entry says no microphone was found
 
 ### Requirement: Run diagnostics
-The setup checklist SHALL offer "Run diagnostics", and the same checks SHALL be available on a "Check my device" page that a student can open at any time from their profile. Diagnostics SHALL check:
+The setup checklist SHALL offer "Run diagnostics". The same checks SHALL be available at any time from a "Check my device" pane, opened from the account menu, the profile page or a strict-mode lesson's header, and on a "Check my device" page. Diagnostics SHALL check:
 - the browser's support for what proctoring needs (WebGL, WebAssembly, background workers, audio processing, on-device storage)
 - camera and microphone permission and devices
 - whether each model host can be reached, and how fast
@@ -113,6 +113,10 @@ Each result SHALL be pass, warning or fail, with a plain explanation and a sugge
 #### Scenario: Before starting a lesson
 - **WHEN** a student opens "Check my device" from their profile
 - **THEN** the same checks run there without opening a lesson
+
+#### Scenario: During a lesson
+- **WHEN** a student in a strict-mode lesson whose setup is complete presses "Check my device" in the lesson header
+- **THEN** the checks open in a side pane, and the student stays on the lesson
 
 ### Requirement: Students can clear saved files and retry
 The checklist and the "Check my device" page SHALL offer:
