@@ -2656,6 +2656,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/courses/{courseId}/item/{feedbackId}/feedback/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Summarise feedback responses
+         * @description Per-question counts, averages and latest text answers over each student's current answer to a feedback form. Course staff only.
+         */
+        get: operations["ItemController.getFeedbackSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses/{courseId}/item/{feedbackId}/feedback/submissions/export": {
         parameters: {
             query?: never;
@@ -2665,9 +2685,49 @@ export interface paths {
         };
         /**
          * Export feedback submissions as CSV
-         * @description Export all feedback submissions for a particular course item.
+         * @description One feedback form's current answers as CSV, with the student's account name and email, cohort, place in the course, the lesson it is about, IST and ISO times and a column per question. Course staff only.
          */
         get: operations["ItemController.exportFeedbackSubmissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/item/{feedbackId}/feedback/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export one feedback form
+         * @description One feedback form's answers as .xlsx or CSV (latest answers by default, or every version). Course staff only, within their cohorts.
+         */
+        get: operations["ItemController.exportFeedbackForm"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/feedback/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export all feedback in a course version
+         * @description Every feedback form in the course version, for any course. .xlsx: an Overview sheet, a sheet per form and a Watch + feedback sheet. CSV: every answer in one table (type=all) or one row per student per video (type=watch). Course staff only, within their cohorts.
+         */
+        get: operations["ItemController.exportCourseFeedback"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4144,6 +4204,26 @@ export interface paths {
          * @description Submits the feedback form response for a given item and stores the results.
          */
         post: operations["AttemptController.submitFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/{itemId}/feedback/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get my current feedback answer
+         * @description Returns the signed-in student's current answer to a feedback form (their latest submission), or null when they haven't answered it.
+         */
+        get: operations["AttemptController.getMyFeedback"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -9039,6 +9119,44 @@ export interface components {
             search: string;
             page: string;
             limit: string;
+            /** @description Only this student’s responses */
+            userId?: string;
+            /** @description Only responses from this cohort */
+            cohortId?: string;
+            /**
+             * @description 'latest' (default): each student's current answer only; 'all': include replaced answers
+             * @enum {string}
+             */
+            history?: "latest" | "all";
+        };
+        FeedbackExportQuery: {
+            /**
+             * @description File format: 'xlsx' (default) or 'csv'
+             * @enum {string}
+             */
+            format?: "xlsx" | "csv";
+            /**
+             * @description Course CSV only: 'all' (default, every answer) or 'watch' (one row per student per video)
+             * @enum {string}
+             */
+            type?: "all" | "watch";
+            /** @description Only this cohort */
+            cohortId?: string;
+            /**
+             * @description 'latest' (default): current answers only; 'all': include replaced answers
+             * @enum {string}
+             */
+            history?: "latest" | "all";
+        };
+        CourseVersionFeedbackParams: {
+            /** @description Course ID */
+            courseId: string;
+            /** @description Course version ID */
+            versionId: string;
+        };
+        GetFeedbackSummaryQuery: {
+            /** @description Only responses from this cohort */
+            cohortId?: string;
         };
         CSVRow: {
             /**
@@ -19328,6 +19446,9 @@ export interface operations {
                 search: string;
                 page: string;
                 limit: string;
+                userId?: string;
+                cohortId?: string;
+                history?: "latest" | "all";
             };
             header?: never;
             path: {
@@ -19367,6 +19488,31 @@ export interface operations {
             };
         };
     };
+    "ItemController.getFeedbackSummary": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                feedbackId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     "ItemController.exportFeedbackSubmissions": {
         parameters: {
             query?: never;
@@ -19374,6 +19520,62 @@ export interface operations {
             path: {
                 courseId: string;
                 feedbackId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ItemController.exportFeedbackForm": {
+        parameters: {
+            query?: {
+                format?: "xlsx" | "csv";
+                type?: "all" | "watch";
+                cohortId?: string;
+                history?: "latest" | "all";
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                feedbackId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ItemController.exportCourseFeedback": {
+        parameters: {
+            query?: {
+                format?: "xlsx" | "csv";
+                type?: "all" | "watch";
+                cohortId?: string;
+                history?: "latest" | "all";
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
             };
             cookie?: never;
         };
@@ -22281,7 +22483,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/html; charset=utf-8": components["schemas"]["CreateAttemptResponse"];
+                    "application/json": components["schemas"]["CreateAttemptResponse"];
                 };
             };
             /** @description Bad Request */
@@ -22290,7 +22492,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/html; charset=utf-8": components["schemas"]["BadRequestErrorResponse"];
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
                 };
             };
             /** @description Quiz not found */
@@ -22299,7 +22501,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/html; charset=utf-8": components["schemas"]["AttemptNotFoundErrorResponse"];
+                    "application/json": components["schemas"]["AttemptNotFoundErrorResponse"];
                 };
             };
         };
@@ -22427,6 +22629,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttemptNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "AttemptController.getMyFeedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

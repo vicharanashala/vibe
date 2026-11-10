@@ -16,7 +16,7 @@ Backend checks: `npx vitest run <files>` from `backend/`, `npx tsc --noEmit -p b
 - [x] 2.2 Move the Gurusetu watch + feedback aggregation into a shared repository method (generic for any course, "form directly after the video"), keep `getGuruSetuFeedbackRows` returning the same shape through it; verify the existing Gurusetu tests (or a new one) produce identical rows before and after
 - [x] 2.3 Add `GET /courses/:courseId/versions/:versionId/feedback/export?format=xlsx|csv&type=all|watch&cohortId=&history=` (Overview, a sheet per form, Watch + feedback; CSV variants with UTF-8 BOM), streamed with a dated filename and checked with the `EnrollmentActions.ViewAll` ability plus cohort scoping; verify with controller tests (staff gets a workbook with the expected sheets and headers, read back with a small test zip reader; student refused; cohort filter applied)
 - [x] 2.4 Add `GET /courses/:courseId/item/:feedbackId/feedback/export?format=…&history=` and make the existing `/submissions/export` return the new per-form CSV; verify with tests on headers and a choice/checkbox row
-- [ ] 2.5 Regenerate the v3 API types from the backend OpenAPI (as done for earlier endpoints in `@vibe/api`) and verify v3 typecheck still passes
+- [x] 2.5 Regenerate the v3 API types from the backend OpenAPI (as done for earlier endpoints in `@vibe/api`) and verify v3 typecheck still passes
 
 ## 3. v3: students
 

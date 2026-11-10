@@ -4991,6 +4991,24 @@
      },
      "limit": {
       "type": "string"
+     },
+     "userId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string",
+      "description": "Only this student’s responses"
+     },
+     "cohortId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string",
+      "description": "Only responses from this cohort"
+     },
+     "history": {
+      "type": "string",
+      "enum": [
+       "latest",
+       "all"
+      ],
+      "description": "'latest' (default): each student's current answer only; 'all': include replaced answers"
      }
     },
     "type": "object",
@@ -4999,6 +5017,69 @@
      "page",
      "limit"
     ]
+   },
+   "FeedbackExportQuery": {
+    "properties": {
+     "format": {
+      "type": "string",
+      "enum": [
+       "xlsx",
+       "csv"
+      ],
+      "description": "File format: 'xlsx' (default) or 'csv'"
+     },
+     "type": {
+      "type": "string",
+      "enum": [
+       "all",
+       "watch"
+      ],
+      "description": "Course CSV only: 'all' (default, every answer) or 'watch' (one row per student per video)"
+     },
+     "cohortId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string",
+      "description": "Only this cohort"
+     },
+     "history": {
+      "type": "string",
+      "enum": [
+       "latest",
+       "all"
+      ],
+      "description": "'latest' (default): current answers only; 'all': include replaced answers"
+     }
+    },
+    "type": "object"
+   },
+   "CourseVersionFeedbackParams": {
+    "properties": {
+     "courseId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string",
+      "description": "Course ID"
+     },
+     "versionId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string",
+      "description": "Course version ID"
+     }
+    },
+    "type": "object",
+    "required": [
+     "courseId",
+     "versionId"
+    ]
+   },
+   "GetFeedbackSummaryQuery": {
+    "properties": {
+     "cohortId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string",
+      "description": "Only responses from this cohort"
+     }
+    },
+    "type": "object"
    },
    "CSVRow": {
     "properties": {
@@ -25816,6 +25897,39 @@
       "schema": {
        "type": "string"
       }
+     },
+     {
+      "in": "query",
+      "name": "userId",
+      "required": false,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Only this student’s responses"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cohortId",
+      "required": false,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Only responses from this cohort"
+      }
+     },
+     {
+      "in": "query",
+      "name": "history",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "latest",
+        "all"
+       ],
+       "description": "'latest' (default): each student's current answer only; 'all': include replaced answers"
+      }
      }
     ],
     "responses": {
@@ -25855,6 +25969,59 @@
      "Course Items"
     ],
     "description": "Get the feedback submissions of a particular course item"
+   }
+  },
+  "/api/courses/{courseId}/item/{feedbackId}/feedback/summary": {
+   "get": {
+    "operationId": "ItemController.getFeedbackSummary",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Course ID",
+       "description": "ID of the course in which user is enrolled",
+       "example": "60d5ec49b3f1c8e4a8f8b8g9"
+      }
+     },
+     {
+      "in": "path",
+      "name": "feedbackId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Item ID",
+       "description": "ID of the item",
+       "example": "60d5ec49b3f1c8e4a8f8b8f8"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cohortId",
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Only responses from this cohort"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "Summarise feedback responses",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Per-question counts, averages and latest text answers over each student's current answer to a feedback form. Course staff only."
    }
   },
   "/api/courses/{courseId}/item/{feedbackId}/feedback/submissions/export": {
@@ -25898,7 +26065,181 @@
     "tags": [
      "Course Items"
     ],
-    "description": "Export all feedback submissions for a particular course item."
+    "description": "One feedback form's current answers as CSV, with the student's account name and email, cohort, place in the course, the lesson it is about, IST and ISO times and a column per question. Course staff only."
+   }
+  },
+  "/api/courses/{courseId}/item/{feedbackId}/feedback/export": {
+   "get": {
+    "operationId": "ItemController.exportFeedbackForm",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Course ID",
+       "description": "ID of the course in which user is enrolled",
+       "example": "60d5ec49b3f1c8e4a8f8b8g9"
+      }
+     },
+     {
+      "in": "path",
+      "name": "feedbackId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Item ID",
+       "description": "ID of the item",
+       "example": "60d5ec49b3f1c8e4a8f8b8f8"
+      }
+     },
+     {
+      "in": "query",
+      "name": "format",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "xlsx",
+        "csv"
+       ],
+       "description": "File format: 'xlsx' (default) or 'csv'"
+      }
+     },
+     {
+      "in": "query",
+      "name": "type",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "all",
+        "watch"
+       ],
+       "description": "Course CSV only: 'all' (default, every answer) or 'watch' (one row per student per video)"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cohortId",
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Only this cohort"
+      }
+     },
+     {
+      "in": "query",
+      "name": "history",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "latest",
+        "all"
+       ],
+       "description": "'latest' (default): current answers only; 'all': include replaced answers"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "Export one feedback form",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "One feedback form's answers as .xlsx or CSV (latest answers by default, or every version). Course staff only, within their cohorts."
+   }
+  },
+  "/api/courses/{courseId}/versions/{versionId}/feedback/export": {
+   "get": {
+    "operationId": "ItemController.exportCourseFeedback",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course ID"
+      }
+     },
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course version ID"
+      }
+     },
+     {
+      "in": "query",
+      "name": "format",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "xlsx",
+        "csv"
+       ],
+       "description": "File format: 'xlsx' (default) or 'csv'"
+      }
+     },
+     {
+      "in": "query",
+      "name": "type",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "all",
+        "watch"
+       ],
+       "description": "Course CSV only: 'all' (default, every answer) or 'watch' (one row per student per video)"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cohortId",
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Only this cohort"
+      }
+     },
+     {
+      "in": "query",
+      "name": "history",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "latest",
+        "all"
+       ],
+       "description": "'latest' (default): current answers only; 'all': include replaced answers"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "Export all feedback in a course version",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Every feedback form in the course version, for any course. .xlsx: an Overview sheet, a sheet per form and a Watch + feedback sheet. CSV: every answer in one table (type=all) or one row per student per video (type=watch). Course staff only, within their cohorts."
    }
   },
   "/api/courses/versions/{versionId}/items/{itemId}/optional": {
@@ -30548,7 +30889,7 @@
     "responses": {
      "200": {
       "content": {
-       "text/html; charset=utf-8": {
+       "application/json": {
         "schema": {
          "$ref": "#/components/schemas/CreateAttemptResponse"
         }
@@ -30558,7 +30899,7 @@
      },
      "400": {
       "content": {
-       "text/html; charset=utf-8": {
+       "application/json": {
         "schema": {
          "$ref": "#/components/schemas/BadRequestErrorResponse"
         }
@@ -30568,7 +30909,7 @@
      },
      "404": {
       "content": {
-       "text/html; charset=utf-8": {
+       "application/json": {
         "schema": {
          "$ref": "#/components/schemas/AttemptNotFoundErrorResponse"
         }
@@ -30781,6 +31122,38 @@
      "Quiz Attempts"
     ],
     "description": "Submits the feedback form response for a given item and stores the results."
+   }
+  },
+  "/api/quizzes/{itemId}/feedback/mine": {
+   "get": {
+    "operationId": "AttemptController.getMyFeedback",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "itemId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "description": "ID of the feedback form",
+       "example": "60d21b4667d0d8992e610c85"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "Get my current feedback answer",
+    "tags": [
+     "Quiz Attempts"
+    ],
+    "description": "Returns the signed-in student's current answer to a feedback form (their latest submission), or null when they haven't answered it."
    }
   },
   "/api/quizzes/{quizId}/attempt/{attemptId}": {
@@ -37294,7 +37667,7 @@
      "description": "Localhost for API server"
     },
     "port": {
-     "default": "4002",
+     "default": "4012",
      "description": "Port for the API server"
     }
    }

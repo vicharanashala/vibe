@@ -314,6 +314,7 @@ class AttemptController {
   })
   @Authorized()
   @Get('/:itemId/feedback/mine')
+  @ContentType('application/json')
   @HttpCode(200)
   async getMyFeedback(
     @Params() params: SubmitFeedbackParams,
