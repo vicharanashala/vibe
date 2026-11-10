@@ -46,7 +46,7 @@ Backend checks: `npx vitest run <files>` from `backend/`, `npx tsc --noEmit -p b
 - [x] 7.1 Backend: `studyModeFeedback` course setting (on unless false) with staff-only read and edit-permission change at `…/feedback/settings`; study-mode submissions refused when off or after an unstudied video, stored with `mode`, no strict progress, latest wins across modes; Mode columns in exports; verify with unit, controller and real-database tests
 - [x] 7.2 v3: study-mode form fillable and sendable when allowed (prefill, validation, refusal with a link), read-only with a note when off; Studio switch on the Feedback tab; Study/Strict badges in responses; verify with specs
 - [x] 7.3 Phones: survey every feedback screen at 390, 360 and 768 px and fix tap targets, the summary bars, the response pane width and wide tables; verify no sideways page scroll and controls of 40 px or more
-- [ ] 7.4 Local end-to-end on a 390 px phone viewport: refused before studying the video, sent after, reopened with answers; switch off makes the form read-only; strict on desktop unchanged; the export shows the Mode column. Record the results and phone screenshots in the PR
+- [x] 7.4 Local end-to-end on a 390 px phone viewport: refused before studying the video, sent after, reopened with answers; switch off makes the form read-only; strict on desktop unchanged; the export shows the Mode column. Record the results and phone screenshots in the PR
 
 ## Workflow follow-up
 
