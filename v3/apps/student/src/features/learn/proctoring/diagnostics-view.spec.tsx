@@ -39,6 +39,37 @@ describe('DiagnosticsPanel', () => {
     expect(toast.success).toHaveBeenCalled();
   });
 
+  it('groups checks into cards, problems first, each with a status badge, and confirms the copy', async () => {
+    diag.results = [
+      { id: 'wasm', label: 'WebAssembly', status: 'pass', detail: 'Supported.' },
+      { id: 'camera', label: 'Camera', status: 'pass', detail: 'Allowed.' },
+      { id: 'host-x', label: 'Model server: cdn.jsdelivr.net', status: 'fail', detail: 'Couldn’t be reached.', fix: 'Try another network.' },
+      { id: 'storage', label: 'Storage space', status: 'warn', detail: 'Low.', fix: 'Free up space.' },
+    ];
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => undefined) } });
+    render(<DiagnosticsPanel />);
+    await screen.findByText('2 things need your attention');
+    const cards = within(screen.getByRole('list', { name: 'Diagnostics results' })).getAllByRole('region');
+    expect(cards.map((c) => c.getAttribute('aria-label'))).toEqual([
+      'Connection to model servers',
+      'Storage & saved models',
+      'Browser',
+      'Camera & microphone',
+    ]);
+    expect(within(cards[0]).getByText('1 problem')).toBeInTheDocument();
+    expect(within(cards[1]).getByText('1 warning')).toBeInTheDocument();
+    expect(within(cards[2]).getByText('All good')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Copy report/ }));
+    expect(await screen.findByRole('button', { name: /Copied/ })).toBeInTheDocument();
+  });
+
+  it('says the device is ready when everything passes', async () => {
+    diag.results = [{ id: 'wasm', label: 'WebAssembly', status: 'pass', detail: 'Supported.' }];
+    render(<DiagnosticsPanel />);
+    expect(await screen.findByText('Your device is ready')).toBeInTheDocument();
+  });
+
   it('runs again on request', async () => {
     diag.results = [{ id: 'wasm', label: 'WebAssembly', status: 'pass', detail: 'Supported.' }];
     render(<DiagnosticsPanel />);

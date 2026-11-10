@@ -71,6 +71,18 @@ describe('ProctoringSetup', () => {
     expect(screen.queryByRole('listitem', { name: 'Microphone' })).not.toBeInTheDocument();
   });
 
+  it('shows a short “You’re all set” moment when everything is ready', () => {
+    render(
+      <ProctoringSetup
+        allSet
+        entries={[modelEntry('voice', 'Voice detection', r({ state: 'ready' }), vi.fn())]}
+        hint="This lesson is proctored."
+        actions={actions()}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'You’re all set' })).toBeInTheDocument();
+  });
+
   it('offers diagnostics and the fixes, confirming before clearing app files', async () => {
     const diagnose = vi.fn();
     const fix = show([modelEntry('voice', 'Voice detection', r({ state: 'checking' }), vi.fn())], actions(), diagnose);

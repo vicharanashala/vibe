@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Spinner } from '@/components/ui/spinner';
+import { cn } from '@/lib/utils';
 
 export type CameraState = 'starting' | 'on' | 'off' | 'denied';
 
@@ -158,6 +159,24 @@ export function CameraBubble({ stream }: { stream: MediaStream | null }) {
   return (
     <div className="fixed right-4 bottom-20 z-40 overflow-hidden rounded-2xl border-2 border-sky-500 bg-black shadow-lg sm:bottom-24">
       <video ref={ref} autoPlay playsInline muted aria-label="Your camera" className="h-24 w-32 -scale-x-100 object-cover sm:h-28 sm:w-40" />
+    </div>
+  );
+}
+
+/**
+ * A large, clear, mirrored live view of the camera, for notices that ask the
+ * student to fix how they appear (face not found, not matched…): the corner
+ * bubble sits behind those dialogs' dimmed backdrop, so it can't be used there.
+ */
+export function CameraPreview({ stream, className }: { stream: MediaStream | null; className?: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.srcObject = stream;
+  }, [stream]);
+  if (!stream) return null;
+  return (
+    <div className={cn('overflow-hidden rounded-xl border bg-black', className)}>
+      <video ref={ref} autoPlay playsInline muted aria-label="Your camera preview" className="aspect-video w-full -scale-x-100 object-cover" />
     </div>
   );
 }

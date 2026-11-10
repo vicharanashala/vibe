@@ -12,7 +12,7 @@ import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
 import { GeneratedAvatar } from '@/components/generated-art';
 import { useAuth } from '@/features/auth/auth-provider';
-import { DiagnosticsSheet } from '@/features/learn/proctoring/diagnostics-view';
+import { DiagnosticsDialog } from '@/features/learn/proctoring/diagnostics-view';
 import { NAME_PATTERN, PASSWORD_RULES } from '@/features/auth/signup-page';
 import { api } from '@/lib/api';
 import { auth } from '@/lib/firebase';
@@ -95,7 +95,7 @@ function CheckDeviceButton() {
       <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => setOpen(true)}>
         <StethoscopeIcon /> Check my device
       </Button>
-      <DiagnosticsSheet open={open} onOpenChange={setOpen} />
+      <DiagnosticsDialog open={open} onOpenChange={setOpen} />
     </>
   );
 }

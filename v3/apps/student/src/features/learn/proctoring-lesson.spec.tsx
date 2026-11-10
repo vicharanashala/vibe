@@ -12,12 +12,12 @@ vi.mock('@/lib/api', () => import('@/test/session').then((m) => m.apiModule));
 
 // Each check's readiness, set per test; the real hooks download models.
 const checks = vi.hoisted(() => ({
-  faceCount: { readiness: null as unknown, retry: vi.fn() },
+  faceCount: { readiness: null as unknown, retry: vi.fn(), count: 1 },
   voice: { readiness: null as unknown, retry: vi.fn() },
 }));
 vi.mock('./detectors/use-face-count-detector', () => ({
   useFaceCountDetector: (_ref: unknown, enabled: boolean) => ({
-    faceCount: 1,
+    faceCount: checks.faceCount.count,
     readiness: enabled ? checks.faceCount.readiness : { state: 'ready' },
     retry: checks.faceCount.retry,
   }),
@@ -73,6 +73,7 @@ beforeEach(() => {
   signInStudent();
   liveCamera();
   checks.faceCount.readiness = READY;
+  checks.faceCount.count = 1;
   checks.voice.readiness = READY;
   checks.faceCount.retry.mockClear();
   checks.voice.retry.mockClear();
@@ -155,6 +156,22 @@ describe('proctored lesson setup', () => {
     await waitFor(() => expect(screen.queryByRole('list', { name: 'Proctoring setup' })).not.toBeInTheDocument());
     await userEvent.click(screen.getByRole('button', { name: 'Check my device' }));
     expect(await screen.findByRole('list', { name: 'Diagnostics results' })).toBeInTheDocument();
+  });
+
+  it('shows a clear live camera preview in a face notice, in front of the dimmed lesson', async () => {
+    lessonWith('faceCountDetection');
+    checks.faceCount.count = 0;
+    renderApp(lessonUrl);
+    const notice = await screen.findByRole('alertdialog', { name: 'No face detected' });
+    expect(within(notice).getByLabelText('Your camera preview')).toBeInTheDocument();
+  });
+
+  it('shows the preview for more than one face too', async () => {
+    lessonWith('faceCountDetection');
+    checks.faceCount.count = 2;
+    renderApp(lessonUrl);
+    const notice = await screen.findByRole('alertdialog', { name: 'Multiple faces detected' });
+    expect(within(notice).getByLabelText('Your camera preview')).toBeInTheDocument();
   });
 
   it('shows no setup and opens no camera in study mode', async () => {
