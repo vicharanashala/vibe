@@ -366,7 +366,7 @@ function RegistrationLink({ versionId }: { versionId: string }) {
         />
         <InputGroupAddon align="inline-end">
           <InputGroupButton onClick={() => void copy()} aria-label="Copy link">
-            {copied ? <CheckIcon aria-hidden /> : <CopyIcon aria-hidden />}
+            {copied ? <CheckIcon aria-hidden className="text-emerald-600 animate-in zoom-in-50 duration-200" /> : <CopyIcon aria-hidden className="animate-in fade-in-0 duration-200" />}
             {copied ? 'Copied' : 'Copy'}
           </InputGroupButton>
         </InputGroupAddon>
