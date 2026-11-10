@@ -37,6 +37,8 @@ import {
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
   GetFeedbackSummaryQuery,
+  FeedbackExportQuery,
+  CourseVersionFeedbackParams,
   CSVItemBody,
   CourseVersionModuleSectionParams,
   csvResponse,
@@ -62,6 +64,32 @@ import {
 } from '#root/shared/functions/cohortScope.js';
 import type {AuthenticatedUser} from '#root/shared/interfaces/models.js';
 import {
+  FeedbackExportService,
+  exportFileName,
+  toCsv,
+} from '#courses/services/FeedbackExportService.js';
+import {writeXlsx} from '#courses/utils/xlsxWriter.js';
+
+const XLSX_TYPE =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/** Sends a download with a file name that survives non-ASCII course names. */
+function sendFile(
+  res: Response,
+  body: string | Buffer,
+  type: string,
+  name: string,
+) {
+  const ascii = name.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, "'");
+  res.setHeader('Content-Type', type);
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`,
+  );
+  res.setHeader('Cache-Control', 'no-cache');
+  return res.send(body);
+}
+import {
   ItemStudyModeResponse,
   StudyModeBody,
 } from '../classes/validators/StudyModeValidators.js';
@@ -73,7 +101,6 @@ import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {ItemType, IUser, IDetectorSettings} from '#shared/interfaces/models.js';
 import {HideModuleBody} from '../classes/index.js';
-import {createObjectCsvStringifier} from 'csv-writer';
 import {Response} from 'express';
 import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
 import {
@@ -101,6 +128,8 @@ export class ItemController {
     private readonly enrollmentService: EnrollmentService,
     @inject(CohortScopeService)
     private readonly cohortScopeService: CohortScopeService,
+    @inject(COURSES_TYPES.FeedbackExportService)
+    private readonly feedbackExportService: FeedbackExportService,
   ) {}
   @OpenAPI({
     summary: 'Create an item',
@@ -877,42 +906,138 @@ Access control logic:
 
   @OpenAPI({
     summary: 'Export feedback submissions as CSV',
-    description: `Export all feedback submissions for a particular course item.`,
+    description:
+      "One feedback form's current answers as CSV, with the student's account name and email, cohort, place in the course, the lesson it is about, IST and ISO times and a column per question. Course staff only.",
   })
   @Authorized()
   @Get('/:courseId/item/:feedbackId/feedback/submissions/export')
   async exportFeedbackSubmissions(
     @Params() params: GetFeedbackSubmissionsParams,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
     @Res() res: Response,
   ) {
+    return this.sendFormExport(
+      params,
+      {format: 'csv'},
+      ability,
+      authenticatedUser,
+      res,
+    );
+  }
+
+  @OpenAPI({
+    summary: 'Export one feedback form',
+    description:
+      "One feedback form's answers as .xlsx or CSV (latest answers by default, or every version). Course staff only, within their cohorts.",
+  })
+  @Authorized()
+  @Get('/:courseId/item/:feedbackId/feedback/export')
+  async exportFeedbackForm(
+    @Params() params: GetFeedbackSubmissionsParams,
+    @QueryParams() query: FeedbackExportQuery,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
+    @Res() res: Response,
+  ) {
+    return this.sendFormExport(params, query, ability, authenticatedUser, res);
+  }
+
+  private async sendFormExport(
+    params: GetFeedbackSubmissionsParams,
+    query: FeedbackExportQuery,
+    ability: any,
+    authenticatedUser: AuthenticatedUser,
+    res: Response,
+  ) {
     const {courseId, feedbackId} = params;
-    const result = await this.itemService.exportFeedbackSubmissions(
+    const {versionId, cohortIds} = await this.feedbackAccess(
+      ability,
+      authenticatedUser,
       courseId,
       feedbackId,
+      query.cohortId,
     );
+    const {courseName, sheet} =
+      await this.feedbackExportService.buildFormExport(
+        courseId,
+        versionId,
+        feedbackId,
+        {cohortIds, history: query.history},
+      );
+    const format = query.format ?? 'xlsx';
+    const name = exportFileName(
+      `${courseName} ${sheet.name}`,
+      'responses',
+      format,
+    );
+    return format === 'csv'
+      ? sendFile(res, toCsv(sheet), 'text/csv; charset=utf-8', name)
+      : sendFile(res, await writeXlsx([sheet]), XLSX_TYPE, name);
+  }
 
-    if (result.length === 0) {
-      return res.status(200).send('No submissions found');
+  @OpenAPI({
+    summary: 'Export all feedback in a course version',
+    description:
+      'Every feedback form in the course version, for any course. .xlsx: an Overview sheet, a sheet per form and a Watch + feedback sheet. CSV: every answer in one table (type=all) or one row per student per video (type=watch). Course staff only, within their cohorts.',
+  })
+  @Authorized()
+  @Get('/:courseId/versions/:versionId/feedback/export')
+  async exportCourseFeedback(
+    @Params() params: CourseVersionFeedbackParams,
+    @QueryParams() query: FeedbackExportQuery,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
+    @Res() res: Response,
+  ) {
+    const {courseId, versionId} = params;
+    const staff =
+      ability.can(
+        EnrollmentActions.ViewAll,
+        subject('Enrollment', {courseId}),
+      ) ||
+      ability.can(
+        EnrollmentActions.ViewAll,
+        subject('Enrollment', {courseId, versionId}),
+      );
+    if (!staff) {
+      throw new ForbiddenError('Only course staff can export feedback');
     }
-
-    const headers = Object.keys(result[0]).map(key => ({id: key, title: key}));
-
-    const csvStringifier = createObjectCsvStringifier({
-      header: headers,
-    });
-
-    const csvContent =
-      csvStringifier.getHeaderString() +
-      csvStringifier.stringifyRecords(result);
-
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="feedback_submissions_${feedbackId}.csv"`,
+    const scope = this.cohortScopeService.resolve(
+      authenticatedUser,
+      courseId,
+      versionId,
+      query.cohortId,
     );
-    res.setHeader('Cache-Control', 'no-cache');
-
-    return res.send(csvContent);
+    const ids = cohortScopeIds(scope);
+    const data = await this.feedbackExportService.buildCourseExport(
+      courseId,
+      versionId,
+      {
+        cohortIds: ids ? ids.map(id => id.toString()) : undefined,
+        history: query.history,
+      },
+    );
+    const format = query.format ?? 'xlsx';
+    if (format === 'csv') {
+      const watch = query.type === 'watch';
+      const sheet = watch
+        ? (data.watch ?? {name: 'Watch + feedback', header: [], rows: []})
+        : data.allAnswers;
+      return sendFile(
+        res,
+        toCsv(sheet),
+        'text/csv; charset=utf-8',
+        exportFileName(
+          data.courseName,
+          watch ? 'watch-feedback' : 'feedback',
+          'csv',
+        ),
+      );
+    }
+    return sendFile(
+      res,
+      await writeXlsx(data.sheets),
+      XLSX_TYPE,
+      exportFileName(data.courseName, 'feedback', 'xlsx'),
+    );
   }
 
   @OpenAPI({

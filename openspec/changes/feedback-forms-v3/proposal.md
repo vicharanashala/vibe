@@ -53,7 +53,7 @@ Teachers can't get a clear, complete picture of what students said, so this chan
   - `modules/quizzes` (AttemptService.submitFeedBackForm, FeedbackRepository): submission rules, own-answer endpoint, latest-answer queries.
   - `modules/courses` (ItemService/ItemController feedback submissions and export).
   - A new course export endpoint, with the Gurusetu watch-time join generalised from `EnrollmentRepository.getGuruSetuFeedbackRows`.
-  - New dependency: `exceljs`, to write .xlsx on the server.
+  - No new dependency: the .xlsx writer uses `archiver`, which the backend already has.
   - Needs a backend deploy, before the v3 deploy.
 - **v3:**
   - `features/learn/lesson-page.tsx` (GreenFeedback, the study-mode preview).

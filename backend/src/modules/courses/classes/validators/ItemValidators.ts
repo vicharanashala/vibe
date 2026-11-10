@@ -1196,6 +1196,52 @@ class GetFeedbackSubmissionsQuery {
   history?: 'latest' | 'all';
 }
 
+class FeedbackExportQuery {
+  @JSONSchema({
+    description: "File format: 'xlsx' (default) or 'csv'",
+    type: 'string',
+    enum: ['xlsx', 'csv'],
+  })
+  @IsOptional()
+  @IsIn(['xlsx', 'csv'])
+  format?: 'xlsx' | 'csv';
+
+  @JSONSchema({
+    description:
+      "Course CSV only: 'all' (default, every answer) or 'watch' (one row per student per video)",
+    type: 'string',
+    enum: ['all', 'watch'],
+  })
+  @IsOptional()
+  @IsIn(['all', 'watch'])
+  type?: 'all' | 'watch';
+
+  @JSONSchema({description: 'Only this cohort', type: 'string'})
+  @IsOptional()
+  @IsMongoId()
+  cohortId?: string;
+
+  @JSONSchema({
+    description:
+      "'latest' (default): current answers only; 'all': include replaced answers",
+    type: 'string',
+    enum: ['latest', 'all'],
+  })
+  @IsOptional()
+  @IsIn(['latest', 'all'])
+  history?: 'latest' | 'all';
+}
+
+class CourseVersionFeedbackParams {
+  @JSONSchema({description: 'Course ID', type: 'string'})
+  @IsMongoId()
+  courseId: string;
+
+  @JSONSchema({description: 'Course version ID', type: 'string'})
+  @IsMongoId()
+  versionId: string;
+}
+
 class GetFeedbackSummaryQuery {
   @JSONSchema({description: 'Only responses from this cohort', type: 'string'})
   @IsOptional()
@@ -1315,6 +1361,8 @@ export {
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
   GetFeedbackSummaryQuery,
+  FeedbackExportQuery,
+  CourseVersionFeedbackParams,
   CSVRow,
   csvResponse
 };
@@ -1341,6 +1389,8 @@ export const ITEM_VALIDATORS = [
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
   GetFeedbackSummaryQuery,
+  FeedbackExportQuery,
+  CourseVersionFeedbackParams,
   CSVRow,
   csvResponse
 ];

@@ -1202,32 +1202,6 @@ export class ItemService extends BaseService {
     });
   }
 
-  public async exportFeedbackSubmissions(courseId: string, itemId: string) {
-    return await this._withTransaction(async (session: ClientSession) => {
-      console.log('USING LABEL EXPORT');
-
-      const submissions = await this.feedbackRepo.getAllSubmissionsWithLabels(
-        itemId,
-        courseId,
-      );
-
-      return submissions.map(sub => {
-        const details = sub.details || {};
-        const previousItem = sub.previousItem || {};
-        const { Name, Email, ...otherDetails } = details;
-
-        return {
-          'Username': Name || 'Anonymous',
-          'Email': Email || 'N/A',
-          'Item Type': sub.previousItemType || 'FEEDBACK',
-          'Item Name': previousItem.name || 'N/A',
-          'Submitted At': sub.createdAt ? new Date(sub.createdAt).toLocaleString() : 'N/A',
-          ...otherDetails
-        };
-      });
-    });
-  }
-
   public async getFeedbackSubmissions(
     courseId: string,
     itemId: string,

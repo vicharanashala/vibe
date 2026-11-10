@@ -37,9 +37,9 @@ The motivation is in proposal.md, and the behaviour is in the two delta specs. T
 ## Decisions
 
 ### 1. "Current answer" is a flag on the submission, kept up to date on write
-**On submit:** inside the existing transaction, set `isCurrent: false, replacedAt: now` on the student's earlier submissions for the same `feedbackFormId` (scoped by cohort when present), then insert the new one with `isCurrent: true`.
+**On submit:** inside the existing transaction, set `isCurrent: false, replacedAt: now` on the student's earlier submissions for the same `feedbackFormId`, then insert the new one with `isCurrent: true`.
 
-**On read:** "current" means `isCurrent !== false`, combined with "latest per user and form". Old duplicates were all written without the flag, so reads pick the latest per `(userId, feedbackFormId[, cohortId])` with `$sort createdAt desc` + `$group $first`. No data migration is needed.
+**On read:** "current" is the latest submission per `(userId, feedbackFormId)`, ranked with `$setWindowFields` by `_id` (insertion order). Old duplicates were written without the flag, so this rule covers them too. Cohort isn't part of the identity, because older submissions have none. No data migration is needed.
 
 **Index:** add one on `{feedbackFormId, userId, createdAt}`.
 
@@ -82,7 +82,7 @@ The existing `/submissions/export` route is kept, now returning the new per-form
 The renamed-question case is handled by keying columns on the stored property key (`fieldName`) and titling them with the current label.
 
 **Formats:**
-- **xlsx:** `exceljs` streams the workbook with frozen header rows, auto-filter and column widths. Sheet names are the form names, truncated to 31 characters and de-duplicated.
+- **xlsx:** a small SpreadsheetML writer (`modules/courses/utils/xlsxWriter.ts`) zipped with `archiver`, which is already a backend dependency: bold frozen header row, auto-filter, column widths, numbers kept as numbers. Sheet names are the form names, cleaned of characters Excel forbids, truncated to 31 characters and de-duplicated. `exceljs` was planned but isn't installed, and adding it would mean a new dependency for a few hundred lines of XML.
 - **csv:** `csv-writer` (already a dependency) with a UTF-8 BOM, so Excel opens Indian-language text correctly.
   - The course CSV is one file: a row per answer across all forms, with the form name as a column and a union of question columns.
   - A separate `type=watch` CSV holds the Watch + feedback rows.
@@ -112,8 +112,8 @@ The renamed-question case is handled by keying columns on the stored property ke
 
 ## Risks / Trade-offs
 
-- **[Risk] Large courses (thousands of students × many videos) make big workbooks** → Stream with exceljs and project only needed fields. The Watch sheet uses the already-optimised Gurusetu approach. The cap is the HTTP timeout, so it's measured on the largest production course during implementation.
-- **[Risk] Old duplicates make "current" ambiguous when two submissions share a timestamp** → Break ties by `_id` (insertion order).
+- **[Risk] Large courses (thousands of students × many videos) make big workbooks** → Write the workbook with a lean XML writer and project only the needed fields. The Watch sheet uses the already-optimised Gurusetu approach. The cap is the HTTP timeout, so it's measured on the largest production course during implementation.
+- **[Risk] Old duplicates make "current" ambiguous when two submissions share a timestamp** → Rank by `_id` (insertion order, which follows insert time); MongoDB's `$documentNumber` takes a single sort key.
 - **[Risk] Old frontend shows the "Other" text field even when Other isn't picked** → Acceptable: it's optional and labelled.
 - **[Risk] Cohort lookup on submit adds a query** → It's one indexed enrollment read inside the existing transaction.
 - **[Trade-off] Exports use the student's account name, not the name typed in the form** → The spec asks for this. Typed Name/Email answers still appear as ordinary question columns when the form asks for them.
