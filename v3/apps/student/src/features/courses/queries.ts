@@ -70,6 +70,8 @@ export interface CourseVersion {
   modules: CourseModule[];
   totalItems?: number;
   itemCounts?: Partial<Record<'VIDEO' | 'QUIZ' | 'BLOG' | 'PROJECT' | 'FEEDBACK', number>>;
+  /** Present when the version has cohorts. */
+  cohortDetails?: { id: string; name: string }[];
 }
 
 export interface SectionItem {

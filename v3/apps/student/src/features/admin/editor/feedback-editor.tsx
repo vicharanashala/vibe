@@ -1,10 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
-import {
-  AlertTriangleIcon,
-  DownloadIcon,
-  SearchIcon,
-  TextIcon,
-} from 'lucide-react';
+import { AlertTriangleIcon, SearchIcon, TextIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -25,6 +20,13 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group';
 import { Progress } from '@/components/ui/progress';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -39,9 +41,12 @@ import { useSectionItems } from '@/features/courses/queries';
 import { FeedbackFormFields } from '@/features/feedback/feedback-form';
 import { FormBuilder } from '@/features/feedback/form-builder';
 import {
+  answerable,
   blankField,
   fieldName,
   fieldsToSchema,
+  OTHER,
+  otherName,
   formProblem,
   schemaToFields,
   type FormField,
@@ -50,14 +55,17 @@ import {
 
 import { ErrorText, formatDate } from '../studio-ui';
 import { EditorFrame, TitleFields, type SaveState } from './editor-frame';
+import { CohortSelect, FeedbackDownloadMenu } from './feedback-downloads';
 import {
-  downloadFeedbackCsv,
+  downloadFeedbackForm,
   useFeedbackResponses,
   useFeedbackSummary,
   useSaveLesson,
+  useStudentFeedbackHistory,
   type FeedbackResponse,
   type LessonItem,
   type LessonLocation,
+  type QuestionSummary,
 } from './lesson-api';
 
 /** A sensible starting form: one rating and one open question. */
@@ -229,9 +237,9 @@ export function FeedbackEditor({
           <TabsContent value="responses">
             <Responses
               courseId={loc.courseId}
+              versionId={loc.versionId}
               feedbackId={item._id}
               fields={fields}
-              formName={name}
             />
           </TabsContent>
         )}
@@ -265,49 +273,51 @@ function usePlacementProblem(
 
 function Responses({
   courseId,
+  versionId,
   feedbackId,
   fields,
-  formName,
 }: {
   courseId: string;
+  versionId: string;
   feedbackId: string;
   fields: FormField[];
-  formName: string;
 }) {
   const [view, setView] = useState<'summary' | 'individual'>('summary');
-  const [exporting, setExporting] = useState(false);
-  const summary = useFeedbackSummary(courseId, feedbackId);
+  const [cohortId, setCohortId] = useState('');
+  const summary = useFeedbackSummary(courseId, feedbackId, cohortId || undefined);
 
-  async function exportCsv() {
-    setExporting(true);
-    try {
-      await downloadFeedbackCsv(
-        courseId,
-        feedbackId,
-        `${formName.trim() || 'feedback'} responses.csv`,
-      );
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setExporting(false);
-    }
-  }
+  const toolbar = (
+    <div className="flex flex-wrap items-center gap-2">
+      <CohortSelect versionId={versionId} value={cohortId} onChange={setCohortId} />
+      <FeedbackDownloadMenu
+        cohortId={cohortId || undefined}
+        choices={[
+          { label: 'Excel (.xlsx)', description: 'One row per response, a column per question.', format: 'xlsx' },
+          { label: 'CSV', description: 'The same rows as plain text.', format: 'csv' },
+        ]}
+        download={(options) => downloadFeedbackForm(courseId, feedbackId, options)}
+      />
+    </div>
+  );
 
   if (summary.isPending) return <Skeleton className="h-48 rounded-2xl" />;
   if (summary.isError) return <ErrorText error={summary.error} />;
   if (summary.data.total === 0) {
     return (
-      <Empty className="rounded-2xl border border-dashed border-border bg-card">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <TextIcon />
-          </EmptyMedia>
-          <EmptyTitle>No responses yet</EmptyTitle>
-          <EmptyDescription>
-            Responses appear here as students send the form in strict mode.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <div className="grid gap-4">
+        <div className="flex justify-end">{toolbar}</div>
+        <Empty className="rounded-2xl border border-dashed border-border bg-card">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <TextIcon />
+            </EmptyMedia>
+            <EmptyTitle>No responses yet</EmptyTitle>
+            <EmptyDescription>
+              Responses appear here as students send the form in strict mode.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
     );
   }
 
@@ -328,25 +338,16 @@ function Responses({
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <Button
-          variant="outline"
-          onClick={() => void exportCsv()}
-          disabled={exporting}
-        >
-          <DownloadIcon aria-hidden /> Export CSV
-        </Button>
+        {toolbar}
       </div>
       {view === 'summary' ? (
-        <ResponseSummary
-          fields={fields}
-          rows={summary.data.rows}
-          total={summary.data.total}
-        />
+        <ResponseSummary questions={summary.data.questions} total={summary.data.total} />
       ) : (
         <IndividualResponses
           courseId={courseId}
           feedbackId={feedbackId}
           fields={fields}
+          cohortId={cohortId || undefined}
         />
       )}
     </div>
@@ -364,118 +365,90 @@ const showValue = (v: unknown) =>
         ? '—'
         : String(v);
 
-/** Google Forms-style summary: averages and distributions for ratings, counts for choices, recent written answers. */
+/** An answer as teachers read it, with any "Other (please specify)" text. */
+function answerText(f: FormField, details: Record<string, unknown>) {
+  const value = details[fieldName(f)];
+  const other = f.other ? details[otherName(f)] : undefined;
+  const text = showValue(value);
+  return typeof other === 'string' && other.trim()
+    ? text.replace(OTHER, `${OTHER}: ${other.trim()}`)
+    : text;
+}
+
+/**
+ * Google Forms-style summary from the server's counts over every current
+ * answer: averages for ratings, scales and numbers, distributions for
+ * choices, the latest written answers.
+ */
 function ResponseSummary({
-  fields,
-  rows,
+  questions,
   total,
 }: {
-  fields: FormField[];
-  rows: { details: Record<string, unknown> }[];
+  questions: QuestionSummary[];
   total: number;
 }) {
   return (
     <div className="grid gap-4">
-      {fields.map((f, i) => {
-        const name = fieldName(f);
-        const answers = rows
-          .map((r) => r.details[name])
-          .filter(
-            (v) =>
-              v !== undefined &&
-              v !== null &&
-              v !== '' &&
-              !(Array.isArray(v) && v.length === 0),
-          );
-        const choices =
-          f.kind === 'rating'
-            ? Array.from({ length: f.max ?? 5 }, (_, n) => String(n + 1))
-            : f.kind === 'checkbox'
-              ? ['Yes', 'No']
-              : ['radio', 'select', 'checkboxes'].includes(f.kind)
-                ? f.options
-                : null;
-        const countOf = (c: string) =>
-          answers.filter((v) =>
-            Array.isArray(v)
-              ? v.map(String).includes(c)
-              : f.kind === 'checkbox'
-                ? (v === true ? 'Yes' : 'No') === c
-                : String(v) === c,
-          ).length;
-        const ratings =
-          f.kind === 'rating'
-            ? answers.map(Number).filter(Number.isFinite)
-            : [];
-        const avg = ratings.length
-          ? ratings.reduce((a, b) => a + b, 0) / ratings.length
-          : null;
-
+      {questions.map((q, i) => {
+        const counts = q.counts ? Object.entries(q.counts) : null;
+        const counted = counts ? counts.reduce((sum, [, n]) => sum + n, 0) : 0;
         return (
-          <Card key={f.key} className="gap-4 px-5 py-5 sm:px-6">
+          <Card key={q.key} className="gap-4 px-5 py-5 sm:px-6">
             <div>
               <p className="text-xs text-muted-foreground">Question {i + 1}</p>
-              <p className="font-medium">{f.label.trim() || name}</p>
+              <p className="font-medium">{q.title}</p>
               <p className="text-xs text-muted-foreground">
-                {answers.length} of {total} answered
+                {q.answered} of {total} answered
               </p>
             </div>
-            {f.kind === 'rating' && avg !== null && (
+            {q.average !== undefined && (
               <p className="flex items-baseline gap-1.5">
                 <span className="text-3xl font-semibold tabular-nums">
-                  {avg.toFixed(1)}
+                  {q.average.toFixed(1)}
                 </span>
-                <span className="text-sm text-muted-foreground">
-                  average out of {f.max ?? 5}
-                </span>
+                <span className="text-sm text-muted-foreground">average</span>
               </p>
             )}
-            {choices ? (
+            {counts && (
               <ul className="grid gap-2.5">
-                {choices.map((c) => {
-                  const count = countOf(c);
-                  const pct = answers.length
-                    ? Math.round((count / answers.length) * 100)
-                    : 0;
+                {counts.map(([choice, count]) => {
+                  const pct = counted ? Math.round((count / counted) * 100) : 0;
                   return (
                     <li
-                      key={c}
+                      key={choice}
                       className="grid grid-cols-[minmax(0,8rem)_1fr_auto] items-center gap-3 text-sm"
                     >
-                      <span className="truncate">{c}</span>
-                      <Progress
-                        value={pct}
-                        aria-label={`${c}: ${pct}%`}
-                        className="h-2"
-                      />
-                      <span className="w-16 text-right text-muted-foreground tabular-nums">
+                      <span className="truncate">{choice}</span>
+                      <Progress value={pct} aria-label={`${choice}: ${pct}%`} className="h-2" />
+                      <span className="w-20 text-right text-muted-foreground tabular-nums">
                         {count} · {pct}%
                       </span>
                     </li>
                   );
                 })}
               </ul>
-            ) : (
-              <ul className="grid gap-2">
-                {answers.slice(0, 5).map((a, ai) => (
-                  <li
-                    key={ai}
-                    className="rounded-lg bg-muted/60 px-3 py-2 text-sm"
-                  >
-                    {showValue(a)}
-                  </li>
-                ))}
-                {answers.length > 5 && (
-                  <li className="text-xs text-muted-foreground">
-                    and {answers.length - 5} more in Individual
-                  </li>
+            )}
+            {q.latestTexts && (
+              <div className="grid gap-2">
+                {counts && (
+                  <p className="text-xs text-muted-foreground">“Other” answers</p>
                 )}
-                {answers.length === 0 && (
-                  <li className="text-sm text-muted-foreground">
-                    No answers yet.
-                  </li>
-                )}
-              </ul>
+                <ul className="grid gap-2">
+                  {q.latestTexts.slice(0, 5).map((t, ti) => (
+                    <li key={ti} className="rounded-lg bg-muted/60 px-3 py-2 text-sm">
+                      {t}
+                    </li>
+                  ))}
+                  {q.latestTexts.length > 5 && (
+                    <li className="text-xs text-muted-foreground">
+                      and more in Individual
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+            {!counts && !q.latestTexts && q.average === undefined && (
+              <p className="text-sm text-muted-foreground">No answers yet.</p>
             )}
           </Card>
         );
@@ -488,34 +461,36 @@ function IndividualResponses({
   courseId,
   feedbackId,
   fields,
+  cohortId,
 }: {
   courseId: string;
   feedbackId: string;
   fields: FormField[];
+  cohortId?: string;
 }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [open, setOpen] = useState<FeedbackResponse | null>(null);
   const responses = useFeedbackResponses(
     courseId,
     feedbackId,
     page,
     search.trim(),
+    cohortId,
   );
-  const columns = fields
-    .map((f) => ({ name: fieldName(f), label: f.label.trim() || fieldName(f) }))
-    .filter((c) => c.name);
+  const questions = answerable(fields).filter((f) => fieldName(f));
   const person = (r: FeedbackResponse) =>
     [r.user.firstName, r.user.lastName].filter(Boolean).join(' ') || 'Student';
 
   return (
     <div className="grid gap-4">
-      <InputGroup className="bg-card sm:w-72">
+      <InputGroup className="bg-card sm:w-80">
         <InputGroupAddon>
           <SearchIcon aria-hidden />
         </InputGroupAddon>
         <InputGroupInput
-          aria-label="Search by first name"
-          placeholder="Search by first name…"
+          aria-label="Search by name or email"
+          placeholder="Search by name or email…"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -537,7 +512,15 @@ function IndividualResponses({
           {/* Phones: one card per response. */}
           <div className="grid gap-3 md:hidden">
             {responses.data.responses.map((r) => (
-              <Card key={r._id} className="gap-3 px-4 py-4">
+              <Card
+                key={r._id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open ${person(r)}’s answers`}
+                onClick={() => setOpen(r)}
+                onKeyDown={(e) => e.key === 'Enter' && setOpen(r)}
+                className="cursor-pointer gap-3 px-4 py-4"
+              >
                 <div className="flex items-center gap-2.5">
                   <GeneratedAvatar seed={r.user._id} size={32} />
                   <div className="min-w-0 flex-1">
@@ -550,33 +533,21 @@ function IndividualResponses({
                     {formatDate(r.createdAt)}
                   </span>
                 </div>
-                <dl className="grid gap-2 border-t border-border pt-3">
-                  {columns.map((c) => (
-                    <div key={c.name}>
-                      <dt className="text-xs text-muted-foreground">
-                        {c.label}
-                      </dt>
-                      <dd className="text-sm">
-                        {showValue(r.details[c.name])}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
               </Card>
             ))}
           </div>
-          {/* Larger screens: a table. */}
+          {/* Larger screens: a table; a row opens that student's answers. */}
           <div className="overflow-x-auto rounded-2xl border border-border bg-card max-md:hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="pl-4">Student</TableHead>
-                  {columns.map((c) => (
+                  {questions.map((f) => (
                     <TableHead
-                      key={c.name}
+                      key={f.key}
                       className="max-w-56 min-w-32 whitespace-normal"
                     >
-                      {c.label}
+                      {f.label.trim() || fieldName(f)}
                     </TableHead>
                   ))}
                   <TableHead className="pr-4 text-right">Sent</TableHead>
@@ -584,24 +555,36 @@ function IndividualResponses({
               </TableHeader>
               <TableBody>
                 {responses.data.responses.map((r) => (
-                  <TableRow key={r._id}>
+                  <TableRow
+                    key={r._id}
+                    className="cursor-pointer"
+                    onClick={() => setOpen(r)}
+                  >
                     <TableCell className="pl-4">
-                      <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        className="flex items-center gap-2.5 text-left"
+                        aria-label={`Open ${person(r)}’s answers`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpen(r);
+                        }}
+                      >
                         <GeneratedAvatar seed={r.user._id} size={28} />
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{person(r)}</p>
-                          <p className="truncate text-xs text-muted-foreground">
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{person(r)}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
                             {r.user.email}
-                          </p>
-                        </div>
-                      </div>
+                          </span>
+                        </span>
+                      </button>
                     </TableCell>
-                    {columns.map((c) => (
+                    {questions.map((f) => (
                       <TableCell
-                        key={c.name}
+                        key={f.key}
                         className="max-w-56 align-top whitespace-normal"
                       >
-                        {showValue(r.details[c.name])}
+                        {answerText(f, r.details)}
                       </TableCell>
                     ))}
                     <TableCell className="pr-4 text-right whitespace-nowrap text-muted-foreground">
@@ -638,6 +621,89 @@ function IndividualResponses({
           </Button>
         </div>
       )}
+
+      <ResponseSheet
+        courseId={courseId}
+        feedbackId={feedbackId}
+        fields={fields}
+        response={open}
+        onClose={() => setOpen(null)}
+        person={open ? person(open) : ''}
+      />
     </div>
+  );
+}
+
+/** One student's answers to every question, the lesson it was about, and earlier versions. */
+function ResponseSheet({
+  courseId,
+  feedbackId,
+  fields,
+  response,
+  person,
+  onClose,
+}: {
+  courseId: string;
+  feedbackId: string;
+  fields: FormField[];
+  response: FeedbackResponse | null;
+  person: string;
+  onClose: () => void;
+}) {
+  const history = useStudentFeedbackHistory(courseId, feedbackId, response?.user._id);
+  const earlier = (history.data ?? []).filter((h) => !h.isCurrent);
+  const questions = answerable(fields).filter((f) => fieldName(f));
+  return (
+    <Sheet open={!!response} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-lg">
+        {response && (
+          <>
+            <SheetHeader>
+              <SheetTitle>{person}</SheetTitle>
+              <SheetDescription>
+                {response.user.email} · sent {formatDate(response.createdAt)}
+                {response.previousItem?.name ? ` · about “${response.previousItem.name}”` : ''}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="grid gap-6 px-4 pb-8">
+              <dl className="grid gap-3" aria-label="Answers">
+                {questions.map((f) => (
+                  <div key={f.key} className="rounded-xl border border-border px-4 py-3">
+                    <dt className="text-xs text-muted-foreground">{f.label.trim() || fieldName(f)}</dt>
+                    <dd className="mt-0.5 text-sm">{answerText(f, response.details)}</dd>
+                  </div>
+                ))}
+              </dl>
+              <section aria-label="Earlier versions" className="grid gap-2">
+                <h3 className="text-sm font-medium">Earlier versions</h3>
+                {history.isPending ? (
+                  <Skeleton className="h-16 rounded-xl" />
+                ) : earlier.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    None. This is the only answer they sent.
+                  </p>
+                ) : (
+                  earlier.map((h) => (
+                    <details key={h._id} className="rounded-xl border border-border px-4 py-3 text-sm">
+                      <summary className="cursor-pointer">
+                        Replaced answer from {formatDate(h.createdAt)}
+                      </summary>
+                      <dl className="mt-2 grid gap-2">
+                        {questions.map((f) => (
+                          <div key={f.key}>
+                            <dt className="text-xs text-muted-foreground">{f.label.trim() || fieldName(f)}</dt>
+                            <dd>{answerText(f, h.details)}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </details>
+                  ))
+                )}
+              </section>
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }

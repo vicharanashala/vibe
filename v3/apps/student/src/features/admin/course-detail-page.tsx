@@ -33,15 +33,22 @@ import { DETECTORS } from './course-proctoring';
 import { CourseRegistration } from './course-registration';
 import { useCourse, useCourseEnrollmentStats } from './queries';
 import { useRecordCourseVisit } from './recent-courses';
+import { CourseFeedback } from './course-feedback';
 import { ErrorText, SectionHeading, StatStrip, StudioPage } from './studio-ui';
 
 export type CourseTab =
-  'overview' | 'content' | 'people' | 'registration' | 'proctoring';
+  | 'overview'
+  | 'content'
+  | 'people'
+  | 'registration'
+  | 'feedback'
+  | 'proctoring';
 export const COURSE_TABS: CourseTab[] = [
   'overview',
   'content',
   'people',
   'registration',
+  'feedback',
   'proctoring',
 ];
 
@@ -155,6 +162,9 @@ export function CourseDetailPage({
           <TabsTrigger value="registration" className="flex-none px-0.5">
             Registration
           </TabsTrigger>
+          <TabsTrigger value="feedback" className="flex-none px-0.5">
+            Feedback
+          </TabsTrigger>
           <TabsTrigger value="proctoring" className="flex-none px-0.5">
             Proctoring
           </TabsTrigger>
@@ -191,6 +201,9 @@ export function CourseDetailPage({
             versionId={versionId}
             registrationLink={<RegistrationLink versionId={versionId} />}
           />
+        </TabsContent>
+        <TabsContent value="feedback" className="pt-6">
+          <CourseFeedback courseId={courseId} versionId={versionId} />
         </TabsContent>
         <TabsContent value="proctoring" className="pt-6">
           <CourseIntegrity courseId={courseId} versionId={versionId} />

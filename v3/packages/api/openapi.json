@@ -26157,6 +26157,55 @@
     "description": "One feedback form's answers as .xlsx or CSV (latest answers by default, or every version). Course staff only, within their cohorts."
    }
   },
+  "/api/courses/{courseId}/versions/{versionId}/feedback/forms": {
+   "get": {
+    "operationId": "ItemController.listFeedbackForms",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course ID"
+      }
+     },
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course version ID"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cohortId",
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Only responses from this cohort"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "List the feedback forms in a course version",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Every feedback form in course order with its module, section, the lesson it is about and how many students' current answers it has. Course staff only, within their cohorts."
+   }
+  },
   "/api/courses/{courseId}/versions/{versionId}/feedback/export": {
    "get": {
     "operationId": "ItemController.exportCourseFeedback",

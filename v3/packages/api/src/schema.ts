@@ -2716,6 +2716,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/courses/{courseId}/versions/{versionId}/feedback/forms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the feedback forms in a course version
+         * @description Every feedback form in course order with its module, section, the lesson it is about and how many students' current answers it has. Course staff only, within their cohorts.
+         */
+        get: operations["ItemController.listFeedbackForms"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses/{courseId}/versions/{versionId}/feedback/export": {
         parameters: {
             query?: never;
@@ -19548,6 +19568,31 @@ export interface operations {
             path: {
                 courseId: string;
                 feedbackId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ItemController.listFeedbackForms": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
             };
             cookie?: never;
         };

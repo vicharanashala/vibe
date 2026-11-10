@@ -31,10 +31,10 @@ Backend checks: `npx vitest run <files>` from `backend/`, `npx tsc --noEmit -p b
 
 ## 5. v3: Studio responses and downloads
 
-- [ ] 5.1 Responses tab: server search by name or email, cohort filter for cohort courses, and a response Sheet with the student's full answers, time sent and earlier versions; verify with specs in `features/admin/editor/editors.spec.tsx` (or a new feedback spec)
-- [ ] 5.2 Summary uses the new summary endpoint (no 1,000 cap) and shows scale/rating averages and Other texts; verify with a spec where totals exceed 1,000
-- [ ] 5.3 Per-form download menu (CSV / Excel, Latest or Include earlier versions) with progress, toast and error state; verify with specs that the right request and filename are used
-- [ ] 5.4 Course "Feedback" tab: list every form (module, section, about lesson, current responses, link to responses) from a new `GET /courses/:courseId/versions/:versionId/feedback/forms` backend endpoint (with backend tests) and a "Download feedback" menu (Excel workbook, CSV, Watch + feedback CSV, history and cohort options); add the tab to `router.tsx` search params and `course-detail-page.tsx`; verify with specs for the list and each download option
+- [x] 5.1 Responses tab: server search by name or email, cohort filter for cohort courses, and a response Sheet with the student's full answers, time sent and earlier versions; verify with specs in `features/admin/editor/editors.spec.tsx` (or a new feedback spec)
+- [x] 5.2 Summary uses the new summary endpoint (no 1,000 cap) and shows scale/rating averages and Other texts; verify with a spec where totals exceed 1,000
+- [x] 5.3 Per-form download menu (CSV / Excel, Latest or Include earlier versions) with progress, toast and error state; verify with specs that the right request and filename are used
+- [x] 5.4 Course "Feedback" tab: list every form (module, section, about lesson, current responses, link to responses) from a new `GET /courses/:courseId/versions/:versionId/feedback/forms` backend endpoint (with backend tests) and a "Download feedback" menu (Excel workbook, CSV, Watch + feedback CSV, history and cohort options); add the tab to `router.tsx` search params and `course-detail-page.tsx`; verify with specs for the list and each download option
 
 ## 6. Integration check
 

@@ -303,6 +303,8 @@ export class FeedbackExportService {
     >();
     const formPlaces: {
       id: string;
+      moduleId?: string;
+      sectionId?: string;
       moduleName: string;
       sectionName: string;
       aboutName: string;
@@ -327,6 +329,8 @@ export class FeedbackExportService {
         if (item.type === 'FEEDBACK') {
           formPlaces.push({
             id,
+            moduleId: module.moduleId?.toString() ?? '',
+            sectionId: section.sectionId?.toString() ?? '',
             name: item.name ?? 'Feedback',
             moduleName: module.name ?? '',
             sectionName: section.name ?? '',
@@ -598,6 +602,8 @@ export class FeedbackExportService {
     {
       id: string;
       name: string;
+      moduleId: string;
+      sectionId: string;
       moduleName: string;
       sectionName: string;
       aboutName: string;
@@ -606,6 +612,7 @@ export class FeedbackExportService {
   > {
     const {formPlaces} = await this.structure(versionId);
     const forms = await this.loadForms(formPlaces);
+    const placeOf = new Map(formPlaces.map(p => [p.id, p]));
     const counts = await this.feedbackRepo.countCurrentByForm(
       forms.map(f => f.id),
       versionId,
@@ -614,6 +621,8 @@ export class FeedbackExportService {
     return forms.map(f => ({
       id: f.id,
       name: f.name,
+      moduleId: placeOf.get(f.id)?.moduleId ?? '',
+      sectionId: placeOf.get(f.id)?.sectionId ?? '',
       moduleName: f.moduleName,
       sectionName: f.sectionName,
       aboutName: f.aboutName,

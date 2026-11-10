@@ -373,6 +373,8 @@ describe('FeedbackExportService -- real MongoDB', {timeout: 60000}, () => {
       ['Deep dive feedback', 'Module 1', 'Basics', 'Deep dive', 0],
       ['Course feedback', 'Module 1', 'Wrap up', '', 1],
     ]);
+    // Module and section ids, for links to each form's editor.
+    expect(forms.every(f => f.moduleId && f.sectionId)).toBe(true);
     const cohort = await service.listForms(ids.version.toString(), [
       ids.cohort.toString(),
     ]);
