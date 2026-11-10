@@ -183,11 +183,15 @@ function StudyModeFeedbackSwitch({ courseId, versionId }: { courseId: string; ve
             answers never change strict progress.
           </span>
         </span>
+        {settings.isPending ? (
+          // The real value, not the default, so it never flashes "on" while loading.
+          <Skeleton className="mt-1 h-[18px] w-8 rounded-full" aria-label="Loading the setting" />
+        ) : (
         <Switch
           id="study-mode-feedback"
           className="mt-1"
           checked={on}
-          disabled={settings.isPending || update.isPending}
+          disabled={update.isPending}
           onCheckedChange={(checked) =>
             update.mutate(checked === true, {
               onSuccess: (data) =>
@@ -200,6 +204,7 @@ function StudyModeFeedbackSwitch({ courseId, versionId }: { courseId: string; ve
             })
           }
         />
+        )}
       </label>
       {settings.isError && <ErrorText error={settings.error} />}
     </Card>

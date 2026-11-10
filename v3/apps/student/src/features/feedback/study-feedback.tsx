@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { unwrap } from '@vibe/api';
 import { CheckCircle2Icon, InfoIcon } from 'lucide-react';
@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { courseKeys, visibleInOrder, type SectionItem } from '@/features/courses/queries';
 import { useCourseSettings, type LessonRef } from '@/features/learn/queries';
 import { api } from '@/lib/api';
 
@@ -30,6 +31,28 @@ export interface PreviousLessonLink {
  * (on by default), never touching strict progress. When the course doesn't
  * allow it, the questions stay read-only with the student's current answer.
  */
+/**
+ * The lesson right before the form in its own section (the one it is about):
+ * one request, instead of waiting for the whole course syllabus.
+ */
+function usePreviousInSection(ref: LessonRef): PreviousLessonLink | null {
+  const items = useQuery({
+    queryKey: courseKeys.sectionItems(ref.versionId, ref.moduleId, ref.sectionId),
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items', {
+          params: { path: { versionId: ref.versionId, moduleId: ref.moduleId, sectionId: ref.sectionId } },
+        }),
+      ) as unknown as SectionItem[],
+  });
+  const list = visibleInOrder(items.data ?? []);
+  const index = list.findIndex((i) => i._id === ref.itemId);
+  const before = index > 0 ? list[index - 1] : undefined;
+  return before
+    ? { courseId: ref.courseId, versionId: ref.versionId, moduleId: ref.moduleId, sectionId: ref.sectionId, itemId: before._id }
+    : null;
+}
+
 export function StudyFeedbackForm({
   lessonRef: ref,
   jsonSchema,
@@ -39,8 +62,11 @@ export function StudyFeedbackForm({
   lessonRef: LessonRef;
   jsonSchema: unknown;
   uiSchema: unknown;
-  previous: PreviousLessonLink | null;
+  /** Optional; otherwise looked up in the form's own section. */
+  previous?: PreviousLessonLink | null;
 }) {
+  const inSection = usePreviousInSection(ref);
+  const previousLesson = inSection ?? previous ?? null;
   const fields = useMemo(() => schemaToFields(jsonSchema as never, uiSchema as never), [jsonSchema, uiSchema]);
   const settings = useCourseSettings(ref.courseId, ref.versionId);
   const allowed = settings.data?.settings.studyModeFeedback !== false;
@@ -144,10 +170,10 @@ export function StudyFeedbackForm({
           <InfoIcon />
           <AlertDescription>
             <p>{refusal} Your answers are kept.</p>
-            {previous && (
+            {previousLesson && (
               <Link
                 to="/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId"
-                params={previous}
+                params={previousLesson}
                 search={{ track: 'blue' }}
                 className="font-medium underline underline-offset-4"
               >
