@@ -60,7 +60,7 @@ describe('runDiagnostics', () => {
   it('names an unreachable host and suggests another network or turning off an ad blocker', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string) => (url.includes('storage.googleapis.com') ? Promise.reject(new TypeError('blocked')) : new Response('{}'))),
+      vi.fn(async (url: string) => (new URL(url).hostname === 'storage.googleapis.com' ? Promise.reject(new TypeError('blocked')) : new Response('{}'))),
     );
     const host = find(await all(), 'host-storage.googleapis.com');
     expect(host).toMatchObject({ status: 'fail', detail: 'Couldn’t be reached.' });

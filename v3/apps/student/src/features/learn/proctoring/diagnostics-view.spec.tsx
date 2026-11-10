@@ -79,7 +79,7 @@ describe('DiagnosticsPanel', () => {
   it('shows which model couldn’t be downloaded', async () => {
     diag.results = [];
     vi.mocked(loadAssets).mockImplementation(async (assets) => {
-      if (assets.some((a) => a.url.includes('jsdelivr'))) throw new Error('Couldn’t reach the model server.');
+      if (assets.some((a) => new URL(a.url).hostname === 'cdn.jsdelivr.net')) throw new Error('Couldn’t reach the model server.');
       return { files: {}, fromCache: false, saved: true };
     });
     render(<DiagnosticsPanel />);

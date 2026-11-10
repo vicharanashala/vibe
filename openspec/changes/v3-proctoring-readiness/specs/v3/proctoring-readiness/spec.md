@@ -7,15 +7,7 @@ How the v3 student app gets a proctored lesson ready (camera, microphone and pro
 ## ADDED Requirements
 
 ### Requirement: Setup checklist while a proctored lesson gets ready
-While a strict-mode lesson is blocked because proctoring isn't ready, the app SHALL show a setup checklist instead of a bare spinner. The checklist SHALL list the camera, the microphone (when the lesson uses it), and each proctoring check the lesson enables that needs a model. Each entry SHALL show one status: waiting, checking the device, downloading, ready, failed or stalled. Checks the lesson doesn't enable SHALL NOT appear. When every entry is ready, the checklist SHALL close and the lesson SHALL continue as it does today.
-
-#### Scenario: First proctored lesson
-- **WHEN** a student opens a strict-mode lesson with face count and voice detection on, and nothing is saved on the device yet
-- **THEN** the checklist shows camera, microphone, face detection and voice detection, each with its own status, until all are ready
-
-#### Scenario: Only the camera is needed
-- **WHEN** a lesson enables only the camera check
-- **THEN** the checklist shows only the camera and lists no models
+While a strict-mode lesson is blocked because proctoring isn't ready, the app SHALL show a setup checklist instead of a bare spinner. Each entry SHALL show one status: waiting, checking the device, downloading, ready, failed or stalled. When every entry is ready, the checklist SHALL close and the lesson SHALL continue as it does today.
 
 #### Scenario: Everything ready
 - **WHEN** the camera is on and every model the lesson needs has loaded
@@ -24,6 +16,17 @@ While a strict-mode lesson is blocked because proctoring isn't ready, the app SH
 #### Scenario: Study mode
 - **WHEN** a student opens a lesson in study mode
 - **THEN** no checklist appears and no proctoring model is downloaded
+
+### Requirement: The checklist lists what the lesson needs
+The checklist SHALL list the camera, the microphone (when the lesson uses it), and each proctoring check the lesson enables that needs a model. Checks the lesson doesn't enable SHALL NOT appear.
+
+#### Scenario: First proctored lesson
+- **WHEN** a student opens a strict-mode lesson with face count and voice detection on, and nothing is saved on the device yet
+- **THEN** the checklist shows camera, microphone, face detection and voice detection, each with its own status, until all are ready
+
+#### Scenario: Only the camera is needed
+- **WHEN** a lesson enables only the camera check
+- **THEN** the checklist shows only the camera and lists no models
 
 ### Requirement: Accurate download progress
 While a model downloads, its entry SHALL show the megabytes downloaded, the total and a percentage, all based on the bytes actually received. When the total size is unknown, the entry SHALL show megabytes downloaded with an indeterminate bar, never an invented percentage. A model made of several files SHALL show combined progress across all its files.
@@ -51,16 +54,12 @@ After a proctoring model and its runtime files download successfully, the app SH
 - **WHEN** the device refuses to store a downloaded model
 - **THEN** the model still loads for this lesson, and its entry says it couldn't be saved and will download again next time
 
-### Requirement: Failures and stalls are reported, not waited on forever
-When a model fails to load, its entry SHALL show "Failed" with a plain reason (for example, it couldn't reach the model host, the browser lacks a needed feature, or the download was interrupted) and offer to try again. When a download receives no data for 20 seconds, its entry SHALL show "Stalled" with the same options, without cancelling a download that resumes. A check whose model failed SHALL NOT leave the lesson waiting indefinitely: the checklist stays open with the failure shown. Face recognition SHALL NOT show "Checking it's you…" while its model has not loaded.
+### Requirement: Failed downloads are reported, not waited on forever
+When a model fails to load, its entry SHALL show "Failed" with a plain reason (such as an unreachable model host, a missing browser feature or an interrupted download) and offer to try again. The checklist SHALL stay open with the failure shown, instead of leaving the lesson waiting indefinitely. Face recognition SHALL NOT show "Checking it's you…" while its model has not loaded.
 
 #### Scenario: Model host blocked
 - **WHEN** a student's network blocks the model host and the voice model can't be fetched
 - **THEN** the voice entry shows "Failed: couldn't reach the model server", with Try again and Run diagnostics
-
-#### Scenario: Slow network
-- **WHEN** a download receives no data for 20 seconds
-- **THEN** its entry shows "Stalled", and returns to showing progress if data starts arriving again
 
 #### Scenario: Face recognition model fails
 - **WHEN** the face recognition model can't load
@@ -69,6 +68,13 @@ When a model fails to load, its entry SHALL show "Failed" with a plain reason (f
 #### Scenario: Try again
 - **WHEN** a student presses Try again on a failed entry
 - **THEN** only that entry restarts loading, and the entries already ready stay ready
+
+### Requirement: Stalled downloads are reported
+When a download receives no data for 20 seconds, its entry SHALL show "Stalled" with Try again, without cancelling a download that resumes.
+
+#### Scenario: Slow network
+- **WHEN** a download receives no data for 20 seconds
+- **THEN** its entry shows "Stalled", and returns to showing progress if data starts arriving again
 
 ### Requirement: Camera and microphone problems are explained
 The camera and microphone entries SHALL distinguish:
@@ -88,15 +94,18 @@ Each SHALL come with its own plain-language fix. A denied permission SHALL expla
 - **THEN** the microphone entry says no microphone was found
 
 ### Requirement: Run diagnostics
-The setup checklist SHALL offer "Run diagnostics". The same checks SHALL be available at any time from a "Check my device" pane, opened from the account menu, the profile page or a strict-mode lesson's header, and on a "Check my device" page. Diagnostics SHALL check:
-- the browser's support for what proctoring needs (WebGL, WebAssembly, background workers, audio processing, on-device storage)
-- camera and microphone permission and devices
-- whether each model host can be reached, and how fast
-- available storage
-- which models are saved on the device
-- whether the app's offline files are installed
+The setup checklist SHALL offer "Run diagnostics". The same checks SHALL be available at any time from a "Check my device" pane, opened from the account menu, the profile page or a strict-mode lesson's header, and on a "Check my device" page.
 
-Each result SHALL be pass, warning or fail, with a plain explanation and a suggested fix. The student SHALL be able to copy the full report as text to send to support. Diagnostics SHALL NOT send anything to ViBe's servers, and SHALL NOT record or keep any image or sound.
+#### Scenario: Before starting a lesson
+- **WHEN** a student opens "Check my device" from their profile
+- **THEN** the same checks run there without opening a lesson
+
+#### Scenario: During a lesson
+- **WHEN** a student in a strict-mode lesson whose setup is complete presses "Check my device" in the lesson header
+- **THEN** the checks open in a side pane, and the student stays on the lesson
+
+### Requirement: What diagnostics check
+Diagnostics SHALL check the browser's support for what proctoring needs (WebGL, WebAssembly, background workers, audio processing, on-device storage), camera and microphone permission and devices, whether each model host can be reached and how fast, available storage, which models are saved on the device, and whether the app's offline files are installed. Each result SHALL be pass, warning or fail, with a plain explanation and a suggested fix.
 
 #### Scenario: Unsupported browser
 - **WHEN** a student's browser lacks WebAssembly or WebGL
@@ -106,17 +115,12 @@ Each result SHALL be pass, warning or fail, with a plain explanation and a sugge
 - **WHEN** a model host doesn't respond
 - **THEN** diagnostics names the host as unreachable, and suggests another network or turning off an ad blocker or VPN for this site
 
+### Requirement: Diagnostics report stays with the student
+The student SHALL be able to copy the full report as text to send to support. Diagnostics SHALL NOT send anything to ViBe's servers, and SHALL NOT record or keep any image or sound.
+
 #### Scenario: Copy report
 - **WHEN** a student presses Copy report
 - **THEN** a text report with every check, its result, the browser and its version is copied, with no image, sound or personal data beyond what the student can see on screen
-
-#### Scenario: Before starting a lesson
-- **WHEN** a student opens "Check my device" from their profile
-- **THEN** the same checks run there without opening a lesson
-
-#### Scenario: During a lesson
-- **WHEN** a student in a strict-mode lesson whose setup is complete presses "Check my device" in the lesson header
-- **THEN** the checks open in a side pane, and the student stays on the lesson
 
 ### Requirement: Students can clear saved files and retry
 The checklist and the "Check my device" page SHALL offer:
