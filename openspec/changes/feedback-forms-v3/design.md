@@ -51,7 +51,7 @@ The motivation is in proposal.md, and the behaviour is in the two delta specs. T
 `submitFeedBackForm` looks up the student's enrollment for the course version and uses its `cohortId`. A client-sent value is ignored if it disagrees. Other endpoints already resolve cohort this way through `CohortScopeService`/enrollment.
 
 ### 3. Forms first in a section
-When there's no item before the form, store `previousItemId: null, previousItemType: null` and skip the video check. The FEEDBACK-after-FEEDBACK refusal stays. Exports show "About lesson" as empty for these.
+Studio refuses to create a feedback form as the first item of a section, but hiding or deleting the lesson before one makes it first. Visible items are read in section order, the same way course progression reads them. When there's no visible item before the form, store `previousItemId: null, previousItemType: null` and skip the video check. The FEEDBACK-after-FEEDBACK refusal stays. Exports show "About lesson" as empty for these.
 
 ### 4. Own-answer endpoint
 `GET /quizzes/:itemId/feedback/mine` returns `{ details, createdAt } | null` for the signed-in user, filtered by `userId` from the token. v3 loads it in `GreenFeedback` and in the study preview.

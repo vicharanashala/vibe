@@ -322,7 +322,9 @@ class FeedbackRepository {
           }
           // Older forms: enum only
           if (fieldSchema.enum) {
-            fieldSchema.enum.forEach((val: string) => {
+            // Values may be numbers (a linear scale's enum is 1..N).
+            fieldSchema.enum.forEach((raw: unknown) => {
+              const val = String(raw);
               labelMap[fieldName][val] = val
                 .replace(/[_-]/g, ' ')
                 .replace(/\b\w/g, (l: string) => l.toUpperCase());

@@ -196,6 +196,39 @@ describe(
       ).toHaveLength(2);
     });
 
+    it('lists answers to forms with a numeric scale (integer enum)', async () => {
+      const {courseId, courseVersionId, asha} = await seed();
+      const formId = new ObjectId();
+      await (
+        await db.getCollection('feedback_forms')
+      ).insertOne({
+        _id: formId,
+        details: {
+          jsonSchema: {
+            properties: {Pace: {type: 'integer', enum: [1, 2, 3, 4, 5]}},
+          },
+        },
+      } as any);
+      await (
+        await db.getCollection('feedback_submission')
+      ).insertOne({
+        userId: asha,
+        courseId,
+        courseVersionId,
+        feedbackFormId: formId,
+        details: {Pace: 4},
+        createdAt: new Date(),
+      } as any);
+      const page = await repo.getFeedbackSubmissionById(
+        formId.toString(),
+        courseId.toString(),
+        '',
+        1,
+        20,
+      );
+      expect(page.submissions.map((s: any) => s.details.Pace)).toEqual(['4']);
+    });
+
     it('returns null when a student has not answered', async () => {
       const {formId} = await seed();
       expect(

@@ -38,8 +38,8 @@ Backend checks: `npx vitest run <files>` from `backend/`, `npx tsc --noEmit -p b
 
 ## 6. Integration check
 
-- [ ] 6.1 Run the full backend suite for the touched modules, `npx tsc --noEmit -p backend` and the format check, plus the full v3 checks (`npx vitest run --root apps/student --maxWorkers=2`, tsc, `NX_DAEMON=false npx nx run-many -t lint typecheck --projects=student --parallel=1`) and `openspec validate --all --strict`; confirm all pass
-- [ ] 6.2 On the local stack (backend :4002, v3), with a course of two videos each followed by a form plus a form first in a section: answer, reopen and update as a student; check Studio responses, search, the history Sheet and the summary; download the course workbook and CSVs and the per-form files and open them, confirming sheets, headers, labels, IST times and latest-vs-history rows; time the export on a production-sized local copy if available. Record the results in the PR, with screenshots
+- [x] 6.1 Run the full backend suite for the touched modules, `npx tsc --noEmit -p backend` and the format check, plus the full v3 checks (`npx vitest run --root apps/student --maxWorkers=2`, tsc, `NX_DAEMON=false npx nx run-many -t lint typecheck --projects=student --parallel=1`) and `openspec validate --all --strict`; confirm all pass
+- [x] 6.2 On the local stack (backend :4002, v3), with a course of two videos each followed by a form plus a form first in a section: answer, reopen and update as a student; check Studio responses, search, the history Sheet and the summary; download the course workbook and CSVs and the per-form files and open them, confirming sheets, headers, labels, IST times and latest-vs-history rows; time the export on a production-sized local copy if available. Record the results in the PR, with screenshots
 
 ## Workflow follow-up
 
