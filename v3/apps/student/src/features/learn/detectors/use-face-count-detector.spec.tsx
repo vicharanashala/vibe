@@ -2,11 +2,11 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const loader = vi.hoisted(() => ({ loadAssets: vi.fn() }));
-vi.mock('../proctoring/model-loader', async (orig) => ({ ...(await orig<object>()), loadAssets: loader.loadAssets }));
-
 import { ModelLoadError } from '../proctoring/model-loader';
 import { useFaceCountDetector } from './use-face-count-detector';
+
+const loader = vi.hoisted(() => ({ loadAssets: vi.fn() }));
+vi.mock('../proctoring/model-loader', async (orig) => ({ ...(await orig<object>()), loadAssets: loader.loadAssets }));
 
 class FakeWorker {
   static instances: FakeWorker[] = [];

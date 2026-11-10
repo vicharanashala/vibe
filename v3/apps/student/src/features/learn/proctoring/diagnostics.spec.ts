@@ -25,6 +25,7 @@ function healthyBrowser({ permissions = 'granted', devices = ['videoinput', 'aud
   Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { getRegistration: vi.fn(async () => ({})) } });
   const saved = new Set<string>();
   vi.stubGlobal('caches', {
+    has: vi.fn(async () => saved.size > 0),
     open: vi.fn(async () => ({ keys: async () => [...saved].map((url) => new Request(url)) })),
     keys: vi.fn(async () => [MODEL_CACHE, 'vibe-assets', 'vibe-shell-3']),
   });
@@ -86,6 +87,12 @@ describe('runDiagnostics', () => {
     const { faceCountAssets } = await import('./assets');
     faceCountAssets().forEach((a) => saved.add(new URL(a.url).href));
     expect(find(await all(), 'saved-models').detail).toBe('Saved on this device: Face detection.');
+  });
+
+  it('reports no saved models without creating the model cache', async () => {
+    const result = find(await all(), 'saved-models');
+    expect(result.detail).toMatch(/^None saved yet/);
+    expect((caches as unknown as { open: ReturnType<typeof vi.fn> }).open).not.toHaveBeenCalledWith(MODEL_CACHE);
   });
 
   it('never opens the camera or microphone', async () => {

@@ -2,6 +2,8 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+import { DiagnosticsPanel } from './diagnostics-view';
+
 const diag = vi.hoisted(() => ({ results: [] as unknown[] }));
 vi.mock('./diagnostics', async (orig) => ({
   ...(await orig<object>()),
@@ -11,8 +13,6 @@ vi.mock('./diagnostics', async (orig) => ({
 }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
-
-import { DiagnosticsPanel } from './diagnostics-view';
 
 const actions = () => ({ downloadAgain: vi.fn(), clearAppFiles: vi.fn(), reload: vi.fn() });
 

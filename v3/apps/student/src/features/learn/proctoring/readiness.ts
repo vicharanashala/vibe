@@ -65,13 +65,18 @@ export function useReadiness(): { readiness: Readiness; attempt: number; retry: 
     () => ({
       begin: () => setReadiness({ ...IDLE_READINESS, state: 'checking' }),
       progress: ({ state, received, total }) =>
-        setReadiness((r) => ({
-          ...r,
-          state: state === 'cached' || state === 'done' ? 'starting' : state,
-          received,
-          total,
-          fromCache: state === 'cached',
-        })),
+        setReadiness((r) =>
+          // A failure stands until the next attempt (begin), whatever late progress arrives.
+          r.state === 'failed'
+            ? r
+            : {
+                ...r,
+                state: state === 'cached' || state === 'done' ? 'starting' : state,
+                received,
+                total,
+                fromCache: state === 'cached',
+              },
+        ),
       loaded: ({ fromCache, saved }) => setReadiness((r) => ({ ...r, state: 'starting', fromCache, saved })),
       ready: () => setReadiness((r) => ({ ...r, state: 'ready', error: null })),
       fail: (error) => setReadiness((r) => ({ ...r, state: 'failed', error: describeLoadError(error) })),

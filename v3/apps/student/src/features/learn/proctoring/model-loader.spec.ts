@@ -224,6 +224,39 @@ describe('loadAssets', () => {
   });
 });
 
+describe('loadAssets failure', () => {
+  it('fails the check on the first failed file, cancels the others and stops reporting their progress', async () => {
+    const slow = controllableBody();
+    let slowSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.endsWith('blocked')) throw new TypeError('Failed to fetch');
+        slowSignal = init?.signal ?? undefined;
+        return new Response(slow.stream);
+      }),
+    );
+    const progress: { state: string }[] = [];
+    const loading = loadAssets(
+      [
+        { id: 'slow', url: 'https://cdn.example/slow', size: 100 },
+        { id: 'blocked', url: 'https://cdn.example/blocked', size: 100 },
+      ],
+      (p) => progress.push(p),
+    );
+    await expect(loading).rejects.toMatchObject({ reason: 'network' });
+    expect(slowSignal?.aborted).toBe(true);
+    const after = progress.length;
+    try {
+      slow.push(50);
+    } catch {
+      // The cancelled stream may refuse more data.
+    }
+    await flush();
+    expect(progress.length).toBe(after);
+  });
+});
+
 describe('clearing', () => {
   it('"Download models again" deletes only the model cache', async () => {
     await storage.open(MODEL_CACHE);

@@ -46,6 +46,18 @@ describe('useReadiness', () => {
   });
 });
 
+describe('useReadiness after a failure', () => {
+  it('keeps the failure when late progress arrives, until the next attempt begins', () => {
+    const { result } = renderHook(() => useReadiness());
+    act(() => result.current.track.fail(new ModelLoadError('network', 'Couldn’t reach the model server.')));
+    act(() => result.current.track.progress({ state: 'downloading', received: 10, total: 100 }));
+    expect(result.current.readiness.state).toBe('failed');
+    act(() => result.current.track.begin());
+    act(() => result.current.track.progress({ state: 'downloading', received: 10, total: 100 }));
+    expect(result.current.readiness.state).toBe('downloading');
+  });
+});
+
 describe('describeLoadError', () => {
   it('explains browser feature failures', () => {
     expect(describeLoadError(new Error('WebGL is not supported on this device'))).toMatch(/up-to-date Chrome, Edge or Firefox/);

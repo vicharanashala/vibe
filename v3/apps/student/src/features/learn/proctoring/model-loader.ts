@@ -221,18 +221,35 @@ export async function loadAssets(
     onProgress({ state, received, total });
   };
 
-  const results = await Promise.all(
-    assets.map((asset) =>
-      loadAsset(
-        asset,
-        (progress) => {
-          each.set(asset.id, progress);
-          report();
-        },
-        options,
+  // One failed file fails the check: cancel the rest, and stop reporting their progress.
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  options.signal?.addEventListener('abort', abort, { once: true });
+  let failed = false;
+  let results: LoadedFile[];
+  try {
+    results = await Promise.all(
+      assets.map((asset) =>
+        loadAsset(
+          asset,
+          (progress) => {
+            if (failed) return;
+            each.set(asset.id, progress);
+            report();
+          },
+          { ...options, signal: controller.signal },
+        ).catch((error: unknown) => {
+          if (!failed) {
+            failed = true;
+            controller.abort();
+          }
+          throw error;
+        }),
       ),
-    ),
-  );
+    );
+  } finally {
+    options.signal?.removeEventListener('abort', abort);
+  }
   return {
     files: Object.fromEntries(assets.map((a, i) => [a.id, results[i].bytes])),
     fromCache: results.every((r) => r.fromCache),

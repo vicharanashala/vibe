@@ -32,8 +32,8 @@ All commands run from `v3/`. Each group's checks: `npx vitest run --root apps/st
 
 ## 5. Integration check
 
-- [ ] 5.1 Run the full v3 checks (`npx vitest run --root apps/student --maxWorkers=2`, tsc, and `NX_DAEMON=false npx nx run-many -t lint typecheck --projects=student --parallel=1`) and confirm they pass
-- [ ] 5.2 Manually in the local stack (v3 :4310 against the backend :4002) on a proctored lesson with every detector on: the first visit shows real download progress per model; a reload shows every model as "Saved on this device"; blocking jsdelivr in DevTools shows Failed and diagnostics names the host; "Download models again" re-downloads with progress; "Clear app files and reload" keeps the student signed in. Record the results in the PR
+- [x] 5.1 Run the full v3 checks (`npx vitest run --root apps/student --maxWorkers=2`, tsc, and `NX_DAEMON=false npx nx run-many -t lint typecheck --projects=student --parallel=1`) and confirm they pass
+- [x] 5.2 Manually in the local stack (v3 :4310 against the backend :4002) on a proctored lesson with every detector on: the first visit shows real download progress per model; a reload shows every model as "Saved on this device"; blocking jsdelivr in DevTools shows Failed and diagnostics names the host; "Download models again" re-downloads with progress; "Clear app files and reload" keeps the student signed in. Record the results in the PR
 
 ## Workflow follow-up
 

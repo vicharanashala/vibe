@@ -1,12 +1,12 @@
 import { waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { fixActions } from './fix-actions';
+
 const loader = vi.hoisted(() => ({ clearProctoringCache: vi.fn(async () => undefined), clearAppFiles: vi.fn(async () => undefined) }));
 vi.mock('./model-loader', async (orig) => ({ ...(await orig<object>()), ...loader }));
 const face = vi.hoisted(() => ({ resetFaceModels: vi.fn() }));
 vi.mock('../detectors/use-face-recognition', () => face);
-
-import { fixActions } from './fix-actions';
 
 describe('fixActions', () => {
   it('“Download models again” clears the saved models, forgets loaded ones and restarts the checks', async () => {

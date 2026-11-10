@@ -1,6 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ModelLoadError } from '../proctoring/model-loader';
+import { useVoiceDetector } from './use-voice-detector';
+
 const mediapipe = vi.hoisted(() => ({
   FilesetResolver: { isSimdSupported: vi.fn(async () => true) },
   AudioClassifier: { createFromOptions: vi.fn() },
@@ -9,9 +12,6 @@ vi.mock('@mediapipe/tasks-audio', () => mediapipe);
 
 const loader = vi.hoisted(() => ({ loadAssets: vi.fn() }));
 vi.mock('../proctoring/model-loader', async (orig) => ({ ...(await orig<object>()), loadAssets: loader.loadAssets }));
-
-import { ModelLoadError } from '../proctoring/model-loader';
-import { useVoiceDetector } from './use-voice-detector';
 
 const files = { 'wasm-loader': new Uint8Array(1), 'wasm-binary': new Uint8Array(2), model: new Uint8Array(3) };
 

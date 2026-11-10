@@ -52,7 +52,7 @@ async function permission(name: 'camera' | 'microphone'): Promise<PermissionStat
 
 function browserChecks(): CheckResult[] {
   const results: CheckResult[] = [{ id: 'browser', label: 'Browser', status: 'info', detail: describeBrowser() }];
-  const secure = typeof isSecureContext === 'boolean' ? isSecureContext : location.protocol === 'https:';
+  const secure = typeof isSecureContext === 'boolean' ? isSecureContext : window.location.protocol === 'https:';
   results.push(
     secure
       ? { id: 'secure', label: 'Secure connection', status: 'pass', detail: 'The page is on a secure (https) connection.' }
@@ -161,6 +161,9 @@ async function savedModelsCheck(): Promise<CheckResult> {
       fix: 'Leave private or incognito browsing, or allow this site to store data.',
     };
   try {
+    // has() first: open() would create the cache just by looking.
+    if (!(await caches.has(MODEL_CACHE)))
+      return { id: 'saved-models', label: 'Saved models', status: 'info', detail: 'None saved yet. They download the first time a lesson needs them.' };
     const cache = await caches.open(MODEL_CACHE);
     const saved = new Set((await cache.keys()).map((request) => request.url));
     const complete = Object.entries(assetsByCheck())

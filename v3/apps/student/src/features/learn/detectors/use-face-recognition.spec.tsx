@@ -2,6 +2,9 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ModelLoadError } from '../proctoring/model-loader';
+import { resetFaceModels, useFaceRecognition } from './use-face-recognition';
+
 const faceapi = vi.hoisted(() => ({
   nets: {
     tinyFaceDetector: { loadFromWeightMap: vi.fn() },
@@ -14,9 +17,6 @@ vi.mock('@vladmandic/face-api', () => faceapi);
 
 const loader = vi.hoisted(() => ({ loadAssets: vi.fn() }));
 vi.mock('../proctoring/model-loader', async (orig) => ({ ...(await orig<object>()), loadAssets: loader.loadAssets }));
-
-import { ModelLoadError } from '../proctoring/model-loader';
-import { resetFaceModels, useFaceRecognition } from './use-face-recognition';
 
 const manifest = new TextEncoder().encode(JSON.stringify([{ paths: ['x.bin'], weights: [{ name: 'w', shape: [1], dtype: 'float32' }] }]));
 function files() {
