@@ -54,6 +54,7 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group';
 import { Progress } from '@/components/ui/progress';
+import { enterClass, stagger } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -300,8 +301,8 @@ export function CoursePeople({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {shown.map((e) => (
-                  <TableRow key={`${e.user._id}:${e.role}`}>
+                {shown.map((e, i) => (
+                  <TableRow key={`${e.user._id}:${e.role}`} className={enterClass} style={stagger(i)}>
                     <TableCell className="pl-4">
                       <div className="flex items-center gap-3">
                         <GeneratedAvatar seed={e.user._id} size={30} />

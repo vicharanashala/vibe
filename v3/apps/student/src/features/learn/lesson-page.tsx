@@ -83,6 +83,7 @@ import { cn } from '@/lib/utils';
 
 import {
   CameraBubble,
+  CameraPreview,
   useCameraPresence,
 } from './camera-presence';
 import { ConsentGate } from './consent-gate';
@@ -124,7 +125,7 @@ import { QuizRunner } from './quiz';
 import { useIncidentReporter } from './incident-reporter';
 import { useAfterQuizSubmit } from './quiz-api';
 import { MODEL_CHECK_LABELS } from './proctoring/assets';
-import { DiagnosticsSheet } from './proctoring/diagnostics-view';
+import { DiagnosticsDialog } from './proctoring/diagnostics-view';
 import { fixActions } from './proctoring/fix-actions';
 import { deviceEntries, modelEntry, ProctoringSetup, type SetupEntry } from './proctoring/proctoring-setup';
 import { YouTubePlayer } from './youtube-player';
@@ -545,6 +546,20 @@ function useProctoring(
       ]
     : [];
   const setupReady = setupEntries.every((e) => e.state === 'ready');
+  // A short "You're all set" moment when a checklist that was shown completes.
+  const setupWasShown = useRef(false);
+  const [allSet, setAllSet] = useState(false);
+  useEffect(() => {
+    if (!setupReady) {
+      setupWasShown.current = true;
+      return undefined;
+    }
+    if (!setupWasShown.current) return undefined;
+    setupWasShown.current = false;
+    setAllSet(true);
+    const id = window.setTimeout(() => setAllSet(false), 900);
+    return () => window.clearTimeout(id);
+  }, [setupReady]);
   const restartChecks = () => modelChecks.forEach((m) => m.on && m.check.retry());
   const [diagnosing, setDiagnosing] = useState(false);
 
@@ -568,15 +583,16 @@ function useProctoring(
             aria-hidden="true"
           />
           <CameraBubble stream={camera.stream} />
-          {!setupReady && !diagnosing && (
+          {(!setupReady || allSet) && !diagnosing && (
             <ProctoringSetup
+              allSet={setupReady && allSet}
               entries={setupEntries}
               hint="This lesson is proctored and needs your camera and microphone on. Nothing is recorded unless a check flags something; then a still photo is saved for your course team, as in the consent form."
               actions={fixActions(restartChecks)}
               onRunDiagnostics={() => setDiagnosing(true)}
             />
           )}
-          <DiagnosticsSheet open={diagnosing} onOpenChange={setDiagnosing} restartChecks={restartChecks} />
+          <DiagnosticsDialog open={diagnosing} onOpenChange={setDiagnosing} restartChecks={restartChecks} />
         </>
       )}
       {setupReady && showEnrollment && (
@@ -603,6 +619,7 @@ function useProctoring(
         <BlockingNotice
           title={blockNotice.title}
           message={blockNotice.message}
+          stream={camera.stream}
           action={
             blockNotice.showRetake
               ? {
@@ -624,14 +641,17 @@ function BlockingNotice({
   title,
   message,
   action,
+  stream,
 }: {
   title: string;
   message: string;
   action?: { label: string; onClick: () => void };
+  /** Shown as a clear live preview, so the student can see and fix how they appear. */
+  stream?: MediaStream | null;
 }) {
   return (
     <AlertDialog open>
-      <AlertDialogContent size="sm">
+      <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogMedia className="text-amber-600">
             <ShieldAlertIcon />
@@ -639,6 +659,7 @@ function BlockingNotice({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{message}</AlertDialogDescription>
         </AlertDialogHeader>
+        <CameraPreview stream={stream ?? null} />
         {action && (
           <AlertDialogFooter>
             <AlertDialogAction variant="outline" onClick={action.onClick}>
@@ -869,7 +890,7 @@ function GreenFeedback({
               <span className="text-destructive">{error}</span>
             ) : alreadyDone ? (
               <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2Icon className="size-4" aria-hidden /> Completed
+                <CheckCircle2Icon className="size-4 animate-in zoom-in-50 duration-300" aria-hidden /> Completed
               </span>
             ) : fields.length > 0 ? (
               `${fields.filter((f) => isAnswered(f, values[fieldName(f)])).length} of ${fields.length} answered`
@@ -1095,7 +1116,7 @@ function GreenLesson({
           >
             {alreadyDone ? (
               <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2Icon className="size-4" aria-hidden /> Completed
+                <CheckCircle2Icon className="size-4 animate-in zoom-in-50 duration-300" aria-hidden /> Completed
               </span>
             ) : startError ? (
               <span className="text-destructive">{startError}</span>
@@ -1406,7 +1427,7 @@ function LessonFrame({
           )}
         </div>
       </header>
-      <DiagnosticsSheet open={checkingDevice} onOpenChange={setCheckingDevice} />
+      <DiagnosticsDialog open={checkingDevice} onOpenChange={setCheckingDevice} />
       <main
         id="main"
         className={cn(

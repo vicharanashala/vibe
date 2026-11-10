@@ -11,6 +11,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { CourseCover } from '@/features/courses/course-ui';
+import { enterClass, stagger } from '@/lib/motion';
 
 import { publicKey, usePendingLookup, usePublicCourses, type PublicCourse } from './queries';
 
@@ -59,8 +60,8 @@ export function ExplorePage() {
         ) : query.data.length > 0 ? (
           <>
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {query.data.map((c) => (
-                <li key={publicKey(c)}>
+              {query.data.map((c, i) => (
+                <li key={publicKey(c)} className={enterClass} style={stagger(i)}>
                   <PublicCourseCard course={c} requested={isPending(c)} />
                 </li>
               ))}
@@ -103,7 +104,7 @@ export function PublicCourseCard({ course: c, compact = false, requested = false
       aria-label={`${requested ? 'Request sent' : 'Register'} for ${c.courseName}${c.cohortName ? `, ${c.cohortName}` : ''}`}
       className="group block h-full rounded-3xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
-      <Card size="sm" className="h-full transition-shadow group-hover:shadow-md">
+      <Card size="sm" className="h-full transition-[transform,box-shadow] duration-200 ease-out group-hover:-translate-y-0.5 group-hover:shadow-md">
         <CardContent className="flex h-full flex-col">
           <CourseCover name={c.courseName} seed={c.courseId} className={compact ? 'h-28 w-full' : 'h-36 w-full'} />
           <div className="mt-4 flex flex-wrap items-center gap-1.5">
