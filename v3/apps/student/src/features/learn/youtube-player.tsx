@@ -1,6 +1,8 @@
 import {
   CaptionsIcon,
   CaptionsOffIcon,
+  EyeIcon,
+  EyeOffIcon,
   MaximizeIcon,
   MinimizeIcon,
   PauseIcon,
@@ -49,7 +51,7 @@ interface YTNamespace {
       events: { onStateChange?: (e: { data: number }) => void; onReady?: () => void; onError?: (e: { data: number }) => void };
     },
   ) => YTPlayer;
-  PlayerState: { ENDED: 0; PLAYING: 1; PAUSED: 2 };
+  PlayerState: { ENDED: 0; PLAYING: 1; PAUSED: 2; BUFFERING?: 3 };
 }
 declare global {
   interface Window {
@@ -123,21 +125,43 @@ export function qualityOptions(available: readonly string[]) {
 }
 
 const SKIP_SECONDS = 10;
-/** How long Play may take before we say the video didn't start. */
-const START_TIMEOUT_MS = 8000;
+/** How long Play may take before we check what YouTube is doing. */
+export const START_TIMEOUT_MS = 8000;
+/** How long a video may keep loading (buffering) before we blame the connection. */
+export const SLOW_LOAD_MS = 30000;
+const BUFFERING = 3;
 
 /**
- * Our words for YouTube's error codes. YouTube's own error screen is under the
- * cover (it carries a "Watch on YouTube" link), so the player says it instead.
+ * Our words for YouTube's error codes, each with what the student can do and
+ * the code for support. YouTube's own error screen sits under the cover; the
+ * player offers to show it, since some of these need the student to act there.
  */
 export function youTubeErrorMessage(code: number): string {
-  // YouTube also uses 150 when it wants the viewer to prove they aren't a bot,
-  // so this can't blame the video's owner.
-  if (code === 101 || code === 150 || code === 152 || code === 153)
-    return 'YouTube won’t play this video here right now. Try again later, or tell your instructor if it keeps happening.';
-  if (code === 100) return 'This video is no longer available on YouTube.';
-  return 'YouTube couldn’t play this video.';
+  switch (code) {
+    case 2:
+      return `This video’s link or start and end times aren’t valid, so YouTube won’t play it. Tell your course team. (YouTube error ${code})`;
+    case 5:
+      return `Your browser couldn’t play this video (YouTube error ${code}). Try again. If it keeps happening, reload the page, turn off ad blockers or other extensions for this site, or try another browser.`;
+    case 100:
+      return `This video is no longer available on YouTube. Tell your course team. (YouTube error ${code})`;
+    case 101:
+    case 150:
+      // YouTube also uses these when it wants the viewer to sign in or prove
+      // they aren't a bot, so this can't simply blame the video's owner.
+      return `YouTube won’t play this video inside ViBe (YouTube error ${code}). The owner may not allow it, or YouTube wants you to sign in or confirm you’re not a bot. Show YouTube’s message to see which, or try another browser.`;
+    case 152:
+    case 153:
+      return `YouTube couldn’t tell which site is playing the video (YouTube error ${code}). A privacy extension or browser setting that hides the site you’re on usually causes this. Turn it off for this site and reload, or try another browser.`;
+    default:
+      return `YouTube couldn’t play this video (YouTube error ${code}). Try again, reload the page, or try another browser.`;
+  }
 }
+
+/** Play got no response at all: not a connection problem, YouTube is holding it back. */
+export const NO_START_MESSAGE =
+  'YouTube didn’t start the video. It may be asking you to sign in or confirm something, or an extension may be blocking it. Show YouTube’s message to see, or try again.';
+export const SLOW_LOAD_MESSAGE = 'The video is taking a long time to load. Check your connection, then try again.';
+export const OFFLINE_MESSAGE = 'You’re offline. Check your connection, then try again.';
 
 /**
  * Where a seek to `target` (seconds in the video) may land: inside the clip,
@@ -211,7 +235,40 @@ export function YouTubePlayer({
   const captionsRef = useRef(false);
   captionsRef.current = captions;
   const [problem, setProblem] = useState<string | null>(null);
+  const [loadingSlowly, setLoadingSlowly] = useState(false);
+  /** After a failure: lift the cover so YouTube's own message (and any sign-in or check) can be seen and used. */
+  const [reveal, setReveal] = useState(false);
+  /** Bumped by Try again: recreates the player from scratch. */
+  const [attempt, setAttempt] = useState(0);
+  const playWhenReady = useRef(false);
+  const stateRef = useRef(-1);
   const startTimer = useRef(0);
+
+  /**
+   * Asks YouTube to play, then checks on it. Buffering means it is loading:
+   * give it longer before blaming the connection. No response at all is not a
+   * connection problem: YouTube is holding it back (a sign-in or bot check, or
+   * an extension blocking it), which the cover would otherwise hide.
+   */
+  const startPlayback = useRef<() => void>(() => undefined);
+  startPlayback.current = () => {
+    const player = playerRef.current;
+    if (!player) return;
+    setProblem(null);
+    setLoadingSlowly(false);
+    player.playVideo();
+    window.clearTimeout(startTimer.current);
+    startTimer.current = window.setTimeout(() => {
+      if (stateRef.current === 1) return;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return setProblem(OFFLINE_MESSAGE);
+      if (stateRef.current !== BUFFERING) return setProblem(NO_START_MESSAGE);
+      setLoadingSlowly(true);
+      startTimer.current = window.setTimeout(() => {
+        setLoadingSlowly(false);
+        if (stateRef.current !== 1) setProblem(SLOW_LOAD_MESSAGE);
+      }, SLOW_LOAD_MS - START_TIMEOUT_MS);
+    }, START_TIMEOUT_MS);
+  };
 
   useEffect(() => {
     let player: YTPlayer | null = null;
@@ -223,8 +280,11 @@ export function YouTubePlayer({
     setCurrent(start);
     setFurthest(start);
     setProblem(null);
+    setLoadingSlowly(false);
+    setReveal(false);
     setQuality('auto');
     setAvailableQualities([]);
+    stateRef.current = -1;
 
     void loadYouTubeApi().then((YT) => {
       if (cancelled || !hostRef.current) return;
@@ -232,19 +292,27 @@ export function YouTubePlayer({
       hostRef.current.replaceChildren(mount);
       player = new YT.Player(mount, {
         videoId,
-        playerVars: { ...PLAYER_VARS, start, ...(end > start ? { end } : {}) },
+        // Whole seconds: YouTube's start and end take integers.
+        playerVars: { ...PLAYER_VARS, start: Math.floor(start), ...(end > start ? { end: Math.ceil(end) } : {}) },
         events: {
           onReady: () => {
             setReady(true);
             const duration = player?.getDuration?.() ?? 0;
             setClipEnd(end > start ? end : Math.max(duration, start));
+            if (playWhenReady.current) {
+              playWhenReady.current = false;
+              startPlayback.current();
+            }
           },
           onStateChange: (e) => {
+            stateRef.current = e.data;
             if (e.data === YT.PlayerState.PLAYING && pausedRef.current) player?.pauseVideo();
             const isPlaying = e.data === YT.PlayerState.PLAYING;
             if (isPlaying) {
               window.clearTimeout(startTimer.current);
               setProblem(null);
+              setLoadingSlowly(false);
+              setReveal(false);
               setAvailableQualities(player?.getAvailableQualityLevels?.() ?? []);
               // YouTube may switch captions on by itself when playback starts.
               if (!captionsRef.current) player?.unloadModule?.('captions');
@@ -255,6 +323,7 @@ export function YouTubePlayer({
           },
           onError: (e) => {
             window.clearTimeout(startTimer.current);
+            setLoadingSlowly(false);
             setProblem(youTubeErrorMessage(e.data));
           },
         },
@@ -284,7 +353,7 @@ export function YouTubePlayer({
       player?.destroy();
       playerRef.current = null;
     };
-  }, [videoId, start, end, allowSeekForward]);
+  }, [videoId, start, end, allowSeekForward, attempt]);
 
   useEffect(() => {
     if (paused) playerRef.current?.pauseVideo?.();
@@ -306,8 +375,16 @@ export function YouTubePlayer({
     [start, clipEnd, allowSeekForward],
   );
 
+  /** Try again after a failure: a fresh player, which starts as soon as it's ready. */
+  const retry = useCallback(() => {
+    if (pausedRef.current) return;
+    playWhenReady.current = true;
+    setAttempt((n) => n + 1);
+  }, []);
+
   const togglePlay = useCallback(() => {
     const player = playerRef.current;
+    if (problem) return retry();
     if (!player || !ready) return;
     if (playing) {
       player.pauseVideo();
@@ -316,16 +393,8 @@ export function YouTubePlayer({
     if (pausedRef.current) return;
     // At the end of the clip, play starts it again.
     if (clipEnd > start && current >= clipEnd - 0.5) player.seekTo(start, true);
-    setProblem(null);
-    player.playVideo();
-    // YouTube can refuse silently (e.g. a "confirm you're not a bot" check),
-    // which the cover would hide; say so instead of leaving Play doing nothing.
-    window.clearTimeout(startTimer.current);
-    startTimer.current = window.setTimeout(
-      () => setProblem('The video didn’t start. Check your connection and try again.'),
-      START_TIMEOUT_MS,
-    );
-  }, [ready, playing, clipEnd, start, current]);
+    startPlayback.current();
+  }, [ready, playing, clipEnd, start, current, problem, retry]);
 
   const toggleCaptions = () => {
     const player = playerRef.current;
@@ -389,17 +458,20 @@ export function YouTubePlayer({
         <div
           ref={hostRef}
           className="absolute inset-x-0 [&_iframe]:size-full"
-          style={{ top: -CROP_PX, bottom: -CROP_PX }}
+          style={reveal ? { top: 0, bottom: 0 } : { top: -CROP_PX, bottom: -CROP_PX }}
         />
         {/* Covers the embed so nothing inside YouTube (title, channel, "Watch on
-            YouTube", related videos) can be hovered or clicked. */}
-        <div
-          data-testid="player-shield"
-          className="absolute inset-0 z-10 cursor-pointer"
-          onClick={togglePlay}
-          aria-hidden
-        />
-        {!playing && (
+            YouTube", related videos) can be hovered or clicked. Lifted only
+            after a failure, when the student asks to see YouTube's message. */}
+        {!reveal && (
+          <div
+            data-testid="player-shield"
+            className="absolute inset-0 z-10 cursor-pointer"
+            onClick={togglePlay}
+            aria-hidden
+          />
+        )}
+        {!playing && !reveal && (
           // YouTube shows its title and links whenever the video isn't playing,
           // so the thumbnail and our play button cover it then.
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center">
@@ -411,22 +483,45 @@ export function YouTubePlayer({
             />
             <div className={cn('absolute inset-0', problem ? 'bg-black/70' : 'bg-black/30')} />
             {problem && (
-              <p role="alert" className="relative mx-6 mb-3 max-w-sm text-center text-sm text-white">
+              <p role="alert" className="relative mx-6 mb-3 max-w-md text-center text-sm text-white">
                 {problem}
+              </p>
+            )}
+            {!problem && loadingSlowly && (
+              <p role="status" className="relative mx-6 mb-3 max-w-sm text-center text-sm text-white">
+                Still loading the video…
               </p>
             )}
             <Button
               size="icon-lg"
               className="relative size-16 rounded-full shadow-lg"
               onClick={togglePlay}
-              disabled={!ready || paused}
+              disabled={problem ? paused : !ready || paused}
               aria-label={problem ? 'Try again' : 'Play'}
             >
-              <PlayIcon className="size-7 fill-current" aria-hidden />
+              {problem ? <RotateCwIcon className="size-7" aria-hidden /> : <PlayIcon className="size-7 fill-current" aria-hidden />}
             </Button>
+            {problem && (
+              <Button variant="secondary" size="sm" className="relative mt-3" onClick={() => setReveal(true)}>
+                <EyeIcon aria-hidden /> Show YouTube’s message
+              </Button>
+            )}
           </div>
         )}
       </div>
+      {reveal && problem && (
+        <div className="flex flex-wrap items-center gap-2 border-b bg-card px-3 py-2 text-sm text-card-foreground">
+          <p role="alert" className="min-w-0 flex-1">
+            This is YouTube’s own player. Do what it asks (for example, sign in or confirm you’re not a bot), then try again.
+          </p>
+          <Button size="sm" onClick={retry} disabled={paused}>
+            <RotateCwIcon aria-hidden /> Try again
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setReveal(false)}>
+            <EyeOffIcon aria-hidden /> Hide
+          </Button>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-x-1 gap-y-2 bg-card px-2 py-2 text-card-foreground sm:flex-nowrap">
         <Button variant="ghost" size="icon" onClick={togglePlay} disabled={!ready || (paused && !playing)} aria-label={playing ? 'Pause' : 'Play'}>
