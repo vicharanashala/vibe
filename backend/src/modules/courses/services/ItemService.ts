@@ -1,3 +1,7 @@
+import {
+  parseFeedbackFields,
+  summarizeAnswers,
+} from '#courses/utils/feedbackFormFields.js';
 import {StudyModeError} from '#courses/errors/StudyModeError.js';
 import {ContentLockService} from './ContentLockService.js';
 import { injectable, inject } from 'inversify';
@@ -1198,48 +1202,57 @@ export class ItemService extends BaseService {
     });
   }
 
-  public async exportFeedbackSubmissions(courseId: string, itemId: string) {
-    return await this._withTransaction(async (session: ClientSession) => {
-      console.log('USING LABEL EXPORT');
-
-      const submissions = await this.feedbackRepo.getAllSubmissionsWithLabels(
-        itemId,
-        courseId,
-      );
-
-      return submissions.map(sub => {
-        const details = sub.details || {};
-        const previousItem = sub.previousItem || {};
-        const { Name, Email, ...otherDetails } = details;
-
-        return {
-          'Username': Name || 'Anonymous',
-          'Email': Email || 'N/A',
-          'Item Type': sub.previousItemType || 'FEEDBACK',
-          'Item Name': previousItem.name || 'N/A',
-          'Submitted At': sub.createdAt ? new Date(sub.createdAt).toLocaleString() : 'N/A',
-          ...otherDetails
-        };
-      });
-    });
-  }
-
   public async getFeedbackSubmissions(
     courseId: string,
     itemId: string,
     search: string,
     page: number,
     limit: number,
+    options: {
+      userId?: string;
+      cohortIds?: string[];
+      history?: 'latest' | 'all';
+    } = {},
   ) {
-    return await this._withTransaction(async (session: ClientSession) => {
-      return await this.feedbackRepo.getFeedbackSubmissionById(
-        itemId,
-        courseId,
-        search,
-        page,
-        limit,
-      );
-    });
+    return await this.feedbackRepo.getFeedbackSubmissionById(
+      itemId,
+      courseId,
+      search,
+      page,
+      limit,
+      options,
+    );
+  }
+
+  /** The course version an item belongs to (for permission checks), or 404. */
+  public async findItemVersionId(itemId: string): Promise<string> {
+    const group = await this.itemRepo.findItemsGroupByItemId(itemId);
+    const place = group
+      ? await this.courseRepo.getItemGroupInfo(group._id)
+      : null;
+    if (!place) throw new NotFoundError('Item not found');
+    return place.courseVersionId.toString();
+  }
+
+  /** Counts, averages and latest texts over each student's current answer. */
+  public async getFeedbackSummary(
+    courseId: string,
+    itemId: string,
+    cohortIds?: string[],
+  ) {
+    const [form, answers] = await Promise.all([
+      this.feedbackRepo.getFormById(itemId),
+      this.feedbackRepo.getCurrentAnswerDetails(itemId, courseId, cohortIds),
+    ]);
+    if (!form) throw new NotFoundError('Feedback form not found');
+    const fields = parseFeedbackFields(
+      (form as any).details?.jsonSchema,
+      (form as any).details?.uiSchema,
+    );
+    return {
+      total: answers.length,
+      questions: summarizeAnswers(fields, answers),
+    };
   }
 
   /**

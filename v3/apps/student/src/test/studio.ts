@@ -12,6 +12,8 @@ import enrollmentStats from './fixtures/studio/enrollment-stats.json';
 import feedbackItem from './fixtures/studio/feedback-item.json';
 import feedbackSectionItems from './fixtures/studio/feedback-section-items.json';
 import feedbackSubmissions from './fixtures/studio/feedback-submissions.json';
+import feedbackSummary from './fixtures/studio/feedback-summary.json';
+import feedbackForms from './fixtures/studio/feedback-forms.json';
 import feedbackVersion from './fixtures/studio/feedback-version.json';
 import quizBank from './fixtures/studio/quiz-bank.json';
 import quizBankRefs from './fixtures/studio/quiz-bank-refs.json';
@@ -40,6 +42,8 @@ export const studio = {
   feedbackItem,
   feedbackSectionItems,
   feedbackSubmissions,
+  feedbackSummary,
+  feedbackForms,
   feedbackVersion,
   quizBank,
   quizBankRefs,
@@ -261,6 +265,10 @@ export function studioGet(path: string, opts?: Params) {
     }
     case '/api/courses/{courseId}/item/{feedbackId}/feedback/submissions':
       return ok(feedbackSubmissions);
+    case '/api/courses/{courseId}/item/{feedbackId}/feedback/summary':
+      return ok(feedbackSummary);
+    case '/api/courses/{courseId}/versions/{versionId}/feedback/forms':
+      return ok(feedbackForms);
     default:
       return respond(path);
   }

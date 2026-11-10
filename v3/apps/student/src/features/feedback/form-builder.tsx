@@ -7,6 +7,7 @@ import {
   CircleDotIcon,
   CopyIcon,
   HashIcon,
+  HeadingIcon,
   LinkIcon,
   ListIcon,
   MailIcon,
@@ -14,6 +15,7 @@ import {
   PencilIcon,
   PhoneIcon,
   PlusIcon,
+  SlidersHorizontalIcon,
   StarIcon,
   TextIcon,
   ToggleLeftIcon,
@@ -71,6 +73,8 @@ import {
 
 const KIND_ICONS: Record<FieldKind, LucideIcon> = {
   rating: StarIcon,
+  scale: SlidersHorizontalIcon,
+  heading: HeadingIcon,
   text: TypeIcon,
   textarea: TextIcon,
   radio: CircleDotIcon,
@@ -85,6 +89,7 @@ const KIND_ICONS: Record<FieldKind, LucideIcon> = {
 };
 const KIND_ORDER: FieldKind[] = [
   'rating',
+  'scale',
   'text',
   'textarea',
   'radio',
@@ -96,6 +101,7 @@ const KIND_ORDER: FieldKind[] = [
   'url',
   'tel',
   'date',
+  'heading',
 ];
 const HAS_OPTIONS: FieldKind[] = ['radio', 'select', 'checkboxes'];
 const HAS_PLACEHOLDER: FieldKind[] = [
@@ -118,12 +124,15 @@ export function FormBuilder({
   onChange,
   initialActiveKey = null,
   kinds = KIND_ORDER,
+  allowOther = false,
 }: {
   fields: FormField[];
   onChange: (next: FormField[]) => void;
   initialActiveKey?: string | null;
   /** Question types on offer (e.g. registration forms support fewer). */
   kinds?: FieldKind[];
+  /** Offer "Other (please specify)" on multiple choice and checkboxes. */
+  allowOther?: boolean;
 }) {
   const [activeKey, setActiveKey] = useState<string | null>(initialActiveKey);
 
@@ -143,6 +152,7 @@ export function FormBuilder({
           <FieldCard
             key={f.key}
             kinds={kinds}
+            allowOther={allowOther}
             active={activeKey === f.key}
             onActivate={() => setActiveKey(f.key)}
             field={f}
@@ -158,6 +168,7 @@ export function FormBuilder({
                   ...f,
                   key: fieldKey(),
                   name: undefined,
+                  otherName: undefined,
                   label: `${f.label} (copy)`,
                 },
                 ...fields.slice(i + 1),
@@ -208,6 +219,7 @@ export function FormBuilder({
 
 function FieldCard({
   kinds,
+  allowOther,
   field: f,
   index,
   count,
@@ -219,6 +231,7 @@ function FieldCard({
   onDelete,
 }: {
   kinds: FieldKind[];
+  allowOther: boolean;
   active: boolean;
   onActivate: () => void;
   field: FormField;
@@ -309,6 +322,9 @@ function FieldCard({
                         : [],
                       min: base.min,
                       max: base.max,
+                      minLabel: base.minLabel,
+                      maxLabel: base.maxLabel,
+                      ...(k === 'heading' ? { required: false } : {}),
                     });
                   }}
                 >
@@ -319,6 +335,7 @@ function FieldCard({
           </DropdownMenuContent>
         </DropdownMenu>
         <CardAction className="ml-auto flex items-center gap-3 self-center">
+          {f.kind !== 'heading' && (
           <Field orientation="horizontal" className="w-auto">
             <FieldLabel
               htmlFor={`${f.key}-req`}
@@ -332,6 +349,7 @@ function FieldCard({
               onCheckedChange={(c) => onChange({ required: c === true })}
             />
           </Field>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -372,12 +390,18 @@ function FieldCard({
       <CardContent className="py-5">
         <FieldGroup className="gap-4">
           <Field>
-            <FieldLabel htmlFor={`${f.key}-label`}>Question</FieldLabel>
+            <FieldLabel htmlFor={`${f.key}-label`}>
+              {f.kind === 'heading' ? 'Heading' : 'Question'}
+            </FieldLabel>
             <Input
               id={`${f.key}-label`}
               value={f.label}
               onChange={(e) => onChange({ label: e.target.value })}
-              placeholder="What do you want to ask?"
+              placeholder={
+                f.kind === 'heading'
+                  ? 'e.g. About the video'
+                  : 'What do you want to ask?'
+              }
               className="text-base"
             />
           </Field>
@@ -386,7 +410,7 @@ function FieldCard({
               htmlFor={`${f.key}-help`}
               className="font-normal text-muted-foreground"
             >
-              Help text (optional)
+              {f.kind === 'heading' ? 'Description (optional)' : 'Help text (optional)'}
             </FieldLabel>
             <Input
               id={`${f.key}-help`}
@@ -466,7 +490,74 @@ function FieldCard({
               >
                 <PlusIcon aria-hidden /> Add option
               </Button>
+              {allowOther && (f.kind === 'radio' || f.kind === 'checkboxes') && (
+                <Field orientation="horizontal" className="w-fit">
+                  <Switch
+                    id={`${f.key}-other`}
+                    checked={!!f.other}
+                    onCheckedChange={(c) => onChange({ other: c === true })}
+                  />
+                  <FieldLabel htmlFor={`${f.key}-other`} className="font-normal">
+                    Add “Other (please specify)”
+                  </FieldLabel>
+                </Field>
+              )}
             </FieldSet>
+          )}
+
+          {f.kind === 'scale' && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor={`${f.key}-from`}>From</FieldLabel>
+                <NativeSelect
+                  id={`${f.key}-from`}
+                  value={String(f.min ?? 1)}
+                  onChange={(e) => onChange({ min: Number(e.target.value) })}
+                >
+                  {[0, 1].map((m) => (
+                    <NativeSelectOption key={m} value={m}>
+                      {m}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`${f.key}-to`}>To</FieldLabel>
+                <NativeSelect
+                  id={`${f.key}-to`}
+                  value={String(f.max ?? 5)}
+                  onChange={(e) => onChange({ max: Number(e.target.value) })}
+                >
+                  {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((m) => (
+                    <NativeSelectOption key={m} value={m}>
+                      {m}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`${f.key}-minlabel`} className="font-normal text-muted-foreground">
+                  Label for {f.min ?? 1} (optional)
+                </FieldLabel>
+                <Input
+                  id={`${f.key}-minlabel`}
+                  value={f.minLabel ?? ''}
+                  onChange={(e) => onChange({ minLabel: e.target.value })}
+                  placeholder="e.g. Not useful"
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`${f.key}-maxlabel`} className="font-normal text-muted-foreground">
+                  Label for {f.max ?? 5} (optional)
+                </FieldLabel>
+                <Input
+                  id={`${f.key}-maxlabel`}
+                  value={f.maxLabel ?? ''}
+                  onChange={(e) => onChange({ maxLabel: e.target.value })}
+                  placeholder="e.g. Very useful"
+                />
+              </Field>
+            </div>
           )}
 
           {f.kind === 'rating' && (

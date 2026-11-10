@@ -1,0 +1,27 @@
+{
+  "total": 2,
+  "questions": [
+    {
+      "key": "How useful was the previous lesson?",
+      "title": "How useful was the previous lesson?",
+      "kind": "rating",
+      "answered": 2,
+      "counts": { "1": 0, "2": 0, "3": 0, "4": 1, "5": 1 },
+      "average": 4.5
+    },
+    {
+      "key": "What could make it better?",
+      "title": "What could make it better?",
+      "kind": "text",
+      "answered": 1,
+      "latestTexts": ["More diagrams please."]
+    },
+    {
+      "key": "Which part was hardest?",
+      "title": "Which part was hardest?",
+      "kind": "choice",
+      "answered": 2,
+      "counts": { "Hashing": 1, "Collisions": 1 }
+    }
+  ]
+}
