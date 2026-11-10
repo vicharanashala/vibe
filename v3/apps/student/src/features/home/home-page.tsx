@@ -16,6 +16,7 @@ import { publicKey, usePendingLookup, usePublicCourses } from '@/features/explor
 import { readOnboarding } from '@/features/onboarding/onboarding-state';
 import { usePendingRegistrations } from '@/features/registration/queries';
 import { cn } from '@/lib/utils';
+import { enterClass, stagger } from '@/lib/motion';
 
 export function HomePage() {
   const { user } = useAuth();
@@ -58,14 +59,14 @@ export function HomePage() {
               </Link>
             </div>
             <ul className="grid gap-4 sm:grid-cols-2">
-              {others.slice(0, 4).map((e) => (
-                <li key={e._id}>
+              {others.slice(0, 4).map((e, i) => (
+                <li key={e._id} className={enterClass} style={stagger(i)}>
                   <Link
                     to="/courses/$courseId/$versionId"
                     params={{ courseId: e.courseId, versionId: e.courseVersionId }}
                     className="group block rounded-3xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                   >
-                    <Card size="sm" className="transition-shadow group-hover:shadow-md">
+                    <Card size="sm" className="transition-[transform,box-shadow] duration-200 ease-out group-hover:-translate-y-0.5 group-hover:shadow-md">
                       <CardContent>
                         <CourseCover name={e.course.name} seed={e.courseId} className="h-28 w-full" />
                         <p className="mt-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Course</p>
@@ -98,7 +99,7 @@ function ResumeCard({ enrollment: e }: { enrollment: EnrollmentSummary }) {
   const left = Math.max(0, total - (e.completedItems ?? 0));
 
   return (
-    <div className="relative">
+    <div className={cn('relative', enterClass)}>
       {/* Uxcel's stacked-card hint that there's more behind this one */}
       <div aria-hidden className="absolute inset-x-4 -bottom-2 h-full rounded-3xl bg-muted/60 ring-1 ring-foreground/10" />
       <Card className="relative grid gap-5 p-4 sm:grid-cols-[220px_1fr] sm:p-5">
@@ -182,8 +183,8 @@ function ExploreStrip() {
         </Link>
       </div>
       <ul className="grid gap-4 sm:grid-cols-2">
-        {shown.map((c) => (
-          <li key={publicKey(c)}>
+        {shown.map((c, i) => (
+          <li key={publicKey(c)} className={enterClass} style={stagger(i)}>
             <PublicCourseCard course={c} compact requested={isPending(c)} />
           </li>
         ))}

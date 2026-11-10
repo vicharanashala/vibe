@@ -890,7 +890,7 @@ function GreenFeedback({
               <span className="text-destructive">{error}</span>
             ) : alreadyDone ? (
               <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2Icon className="size-4" aria-hidden /> Completed
+                <CheckCircle2Icon className="size-4 animate-in zoom-in-50 duration-300" aria-hidden /> Completed
               </span>
             ) : fields.length > 0 ? (
               `${fields.filter((f) => isAnswered(f, values[fieldName(f)])).length} of ${fields.length} answered`
@@ -1116,7 +1116,7 @@ function GreenLesson({
           >
             {alreadyDone ? (
               <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2Icon className="size-4" aria-hidden /> Completed
+                <CheckCircle2Icon className="size-4 animate-in zoom-in-50 duration-300" aria-hidden /> Completed
               </span>
             ) : startError ? (
               <span className="text-destructive">{startError}</span>

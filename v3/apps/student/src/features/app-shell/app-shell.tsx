@@ -42,6 +42,7 @@ import { useStudioAccess } from '@/features/admin/queries';
 import { DiagnosticsDialog } from '@/features/learn/proctoring/diagnostics-view';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 import { Wordmark } from '@/features/landing/wordmark';
+import { useEnterOnChange } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 const NAV: { label: string; to: '/home' | '/courses' | '/explore' | '/profile'; icon: LucideIcon }[] = [
@@ -55,6 +56,8 @@ const COLLAPSE_KEY = 'sidebar-collapsed';
 
 /** Uxcel-style shell on shadcn Sidebar: collapses to icons (⌘/Ctrl+B), slim top bar, account menu. */
 export function AppShell() {
+  // Each page fades in softly when you move between pages.
+  const pageRef = useEnterOnChange<HTMLDivElement>(useRouterState({ select: (st) => st.location.pathname }));
   const [open, setOpen] = useState(() => {
     try {
       return localStorage.getItem(COLLAPSE_KEY) !== '1';
@@ -110,7 +113,7 @@ export function AppShell() {
         <div id="main" className="relative flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">
           {/* Soft Luma-style tint behind the top of every app page */}
           <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-primary/8 to-transparent" />
-          <div className="relative">
+          <div ref={pageRef} className="relative">
             <Outlet />
           </div>
         </div>
