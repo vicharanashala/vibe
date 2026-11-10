@@ -26,15 +26,15 @@ Backend checks: `npx vitest run <files>` from `backend/`, `npx tsc --noEmit -p b
 
 ## 4. v3: form builder
 
-- [ ] 4.1 Add section heading, linear scale (range, end labels) and "Other (please specify)" to `form-schema.ts` with the rjsf-compatible encoding from design §7, round-tripping existing forms unchanged; verify with `form-schema.spec.ts` cases for each kind and an old-frontend-shaped form
-- [ ] 4.2 Render the new kinds in `FeedbackFormFields` (heading, scale with end labels, Other text shown when Other is picked) and offer them in the builder UI with shadcn controls; verify with Testing Library specs for filling and validation
+- [x] 4.1 Add section heading, linear scale (range, end labels) and "Other (please specify)" to `form-schema.ts` with the rjsf-compatible encoding from design §7, round-tripping existing forms unchanged; verify with `form-schema.spec.ts` cases for each kind and an old-frontend-shaped form
+- [x] 4.2 Render the new kinds in `FeedbackFormFields` (heading, scale with end labels, Other text shown when Other is picked) and offer them in the builder UI with shadcn controls; verify with Testing Library specs for filling and validation
 
 ## 5. v3: Studio responses and downloads
 
 - [ ] 5.1 Responses tab: server search by name or email, cohort filter for cohort courses, and a response Sheet with the student's full answers, time sent and earlier versions; verify with specs in `features/admin/editor/editors.spec.tsx` (or a new feedback spec)
 - [ ] 5.2 Summary uses the new summary endpoint (no 1,000 cap) and shows scale/rating averages and Other texts; verify with a spec where totals exceed 1,000
 - [ ] 5.3 Per-form download menu (CSV / Excel, Latest or Include earlier versions) with progress, toast and error state; verify with specs that the right request and filename are used
-- [ ] 5.4 Course "Feedback" tab: list every form (module, section, about lesson, current responses, link to responses) and a "Download feedback" menu (Excel workbook, CSV, Watch + feedback CSV, history and cohort options); add the tab to `router.tsx` search params and `course-detail-page.tsx`; verify with specs for the list and each download option
+- [ ] 5.4 Course "Feedback" tab: list every form (module, section, about lesson, current responses, link to responses) from a new `GET /courses/:courseId/versions/:versionId/feedback/forms` backend endpoint (with backend tests) and a "Download feedback" menu (Excel workbook, CSV, Watch + feedback CSV, history and cohort options); add the tab to `router.tsx` search params and `course-detail-page.tsx`; verify with specs for the list and each download option
 
 ## 6. Integration check
 

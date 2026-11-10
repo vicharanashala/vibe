@@ -102,7 +102,7 @@ The renamed-question case is handled by keying columns on the stored property ke
 `form-schema.ts` round-trips all three. Exports render the "Other" text with its choice.
 
 ### 8. Studio: Feedback tab and per-form downloads
-- **Course page:** a new "Feedback" tab lists every feedback form (module, section, about lesson, current responses) with links to its responses, and a "Download feedback" menu (Excel workbook / CSV / Watch + feedback CSV, Latest or Include earlier versions, cohort select).
+- **Course page:** a new "Feedback" tab lists every feedback form (module, section, about lesson, current responses) with links to its responses. The list comes from one endpoint, `GET /courses/:courseId/versions/:versionId/feedback/forms` (staff only, cohort-scoped), which reuses the export service's course structure and counts current answers in one aggregation, instead of one request per form, and a "Download feedback" menu (Excel workbook / CSV / Watch + feedback CSV, Latest or Include earlier versions, cohort select).
 - **Feedback editor responses tab:**
   - search goes to the backend, which now matches first name, last name or email
   - a cohort filter

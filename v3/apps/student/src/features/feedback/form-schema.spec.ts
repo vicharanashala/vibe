@@ -202,3 +202,80 @@ describe('feedback form schema', () => {
     ).toEqual({ Name: 'Asha', Year: '1st year', Experience: 3 });
   });
 });
+
+describe('new field kinds', () => {
+  const heading: FormField = { ...blankField('heading'), label: 'About the video', help: 'A few quick questions.' };
+  const scale: FormField = { ...blankField('scale'), label: 'How useful?', min: 1, max: 10, minLabel: 'Not useful', maxLabel: 'Very useful', required: true };
+  const radio: FormField = { ...blankField('radio'), label: 'Hardest part?', options: ['Theory', 'Code'], other: true };
+  const boxes: FormField = { ...blankField('checkboxes'), label: 'Topics?', options: ['Arrays', 'Loops'], other: true };
+
+  it('encodes them so the old frontend (rjsf) still renders them', () => {
+    const { jsonSchema: schema, uiSchema } = fieldsToSchema([heading, scale, radio, boxes]);
+    const jsonSchema = { ...schema, properties: schema.properties ?? {} };
+    expect(jsonSchema.properties['About the video']).toEqual({ type: 'null', title: 'About the video', description: 'A few quick questions.' });
+    expect(jsonSchema.properties['How useful?']).toEqual({
+      type: 'integer',
+      minimum: 1,
+      maximum: 10,
+      enum: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    });
+    expect(uiSchema['How useful?']).toEqual({
+      'ui:widget': 'radio',
+      'ui:options': { inline: true, display: 'scale', minLabel: 'Not useful', maxLabel: 'Very useful' },
+    });
+    expect(jsonSchema.properties['Hardest part?'].enum).toEqual(['Theory', 'Code', 'Other']);
+    expect(jsonSchema.properties['Hardest part? (other)']).toEqual({ type: 'string', title: 'Hardest part?: other (please specify)' });
+    expect(uiSchema['Hardest part? (other)']['ui:options']).toEqual({ otherFor: 'Hardest part?' });
+    expect(jsonSchema.properties['Topics?'].items?.enum).toEqual(['Arrays', 'Loops', 'Other']);
+    expect(uiSchema['ui:order']).toEqual([
+      'About the video',
+      'How useful?',
+      'Hardest part?',
+      'Hardest part? (other)',
+      'Topics?',
+      'Topics? (other)',
+    ]);
+    expect(jsonSchema.required).toEqual(['How useful?']);
+  });
+
+  it('reads them back to the same fields', () => {
+    const { jsonSchema, uiSchema } = fieldsToSchema([heading, scale, radio, boxes]);
+    const read = schemaToFields(jsonSchema, uiSchema);
+    expect(read.map((f) => [f.kind, f.label])).toEqual([
+      ['heading', 'About the video'],
+      ['scale', 'How useful?'],
+      ['radio', 'Hardest part?'],
+      ['checkboxes', 'Topics?'],
+    ]);
+    expect(read[0].help).toBe('A few quick questions.');
+    expect(read[1]).toMatchObject({ min: 1, max: 10, minLabel: 'Not useful', maxLabel: 'Very useful', required: true });
+    expect(read[2]).toMatchObject({ options: ['Theory', 'Code'], other: true, otherName: 'Hardest part? (other)' });
+    // And writing again changes nothing.
+    expect(fieldsToSchema(read)).toEqual({ jsonSchema, uiSchema });
+  });
+
+  it('asks for the Other text, and sends it only while Other is picked', () => {
+    const fields = [heading, scale, radio, boxes];
+    expect(validate(fields, { 'How useful?': 7, 'Hardest part?': 'Other' })).toEqual({
+      'Hardest part?': 'Please say what “Other” is.',
+    });
+    expect(
+      toSubmission(fields, {
+        'How useful?': '7',
+        'Hardest part?': 'Other',
+        'Hardest part? (other)': ' Debugging ',
+        'Topics?': ['Arrays'],
+        'Topics? (other)': 'stale text',
+      }),
+    ).toEqual({
+      'How useful?': 7,
+      'Hardest part?': 'Other',
+      'Hardest part? (other)': 'Debugging',
+      'Topics?': ['Arrays'],
+    });
+  });
+
+  it('needs a label on a heading, like any question', () => {
+    expect(formProblem([{ ...heading, label: '' }, scale])).toBe('Question 1 needs a label.');
+  });
+});

@@ -40,6 +40,7 @@ import {
 import { RichContent } from '@/components/rich-content';
 import { FeedbackFormFields } from '@/features/feedback/feedback-form';
 import {
+  answerable,
   fieldName,
   isAnswered,
   schemaToFields,
@@ -899,8 +900,8 @@ function GreenFeedback({
               <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
                 <CheckCircle2Icon className="size-4" aria-hidden /> Completed
               </span>
-            ) : fields.length > 0 ? (
-              `${fields.filter((f) => isAnswered(f, values[fieldName(f)])).length} of ${fields.length} answered`
+            ) : answerable(fields).length > 0 ? (
+              `${fields.filter((f) => isAnswered(f, values[fieldName(f)])).length} of ${answerable(fields).length} answered`
             ) : null}
           </p>
           <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">

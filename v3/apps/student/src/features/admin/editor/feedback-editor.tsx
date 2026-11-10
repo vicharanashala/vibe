@@ -215,6 +215,7 @@ export function FeedbackEditor({
             />
           ) : (
             <FormBuilder
+              allowOther
               fields={fields}
               onChange={(next) => {
                 setFields(next);
