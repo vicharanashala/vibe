@@ -69,9 +69,12 @@ function ResultIcon({ status, className }: { status: CheckStatus; className?: st
   return <InfoIcon {...props} />;
 }
 
+/** A group's overall status: its worst result, with info-only rows counting as fine. */
 function worst(results: CheckResult[]): CheckStatus | null {
   if (!results.length) return null;
-  return [...results].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])[0].status;
+  if (results.some((r) => r.status === 'fail')) return 'fail';
+  if (results.some((r) => r.status === 'warn')) return 'warn';
+  return 'pass';
 }
 
 /** "1 problem", "2 warnings", "All good" — the badge on a group's card. */
@@ -276,7 +279,7 @@ export function DiagnosticsPanel({ restartChecks }: { restartChecks?: () => void
         </Button>
       </section>
 
-      <div className="grid gap-5 md:grid-cols-[11rem_1fr]">
+      <div className="grid gap-5 md:grid-cols-[14rem_1fr]">
         {/* Jump list (wider screens) */}
         <nav aria-label="Check areas" className="hidden md:block">
           <ul className="sticky top-0 flex flex-col gap-1">
@@ -291,7 +294,7 @@ export function DiagnosticsPanel({ restartChecks }: { restartChecks?: () => void
                     className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-muted"
                   >
                     <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                    <span className="flex-1 truncate">{g.title}</span>
+                    <span className="flex-1 leading-snug">{g.title}</span>
                     {status ? <PopIcon status={status} className="size-3.5" /> : <Spinner className="size-3.5" />}
                   </button>
                 </li>
