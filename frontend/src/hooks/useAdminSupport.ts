@@ -43,10 +43,27 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error('You do not have permission to view the support queue.');
   }
   if (!response.ok) {
-    throw new Error(`Support request failed: ${response.statusText}`);
+    throw new Error(`Support request failed: ${await failureReason(response)}`);
   }
 
   return response.json() as Promise<T>;
+}
+
+/**
+ * The server's own message when it sent one. `statusText` alone is empty over
+ * HTTP/2, which is why a rejected reply used to read just
+ * "Support request failed:" with nothing after it.
+ */
+async function failureReason(response: Response): Promise<string> {
+  try {
+    const body = await response.json();
+    if (typeof body?.message === 'string' && body.message) {
+      return body.message;
+    }
+  } catch {
+    // Not a JSON body; fall back to the status line.
+  }
+  return response.statusText || `HTTP ${response.status}`;
 }
 
 export const supportAdminKeys = {
