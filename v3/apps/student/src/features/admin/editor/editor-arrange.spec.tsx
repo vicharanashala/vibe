@@ -84,12 +84,30 @@ describe('placing lessons from the editor', () => {
     expect(request.body).toEqual({ beforeItemId: reading._id });
   });
 
-  it('offers “add a lesson below” on each lesson in the outline', async () => {
+  it('adds a lesson above or below from a lesson’s menu in the outline', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     const { router } = renderApp(lessonUrl(`item=${reading._id}`));
-    await user.click(await screen.findByRole('button', { name: `Add a lesson below ${reading.name}` }));
+    await user.click(await screen.findByRole('button', { name: `${feedback.name}: actions` }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Add above' }));
     (await screen.findByRole('menuitem', { name: 'Quiz' })).focus();
     await user.keyboard('{Enter}');
-    await waitFor(() => expect(router.state.location.search).toMatchObject({ type: 'QUIZ', after: reading._id }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ type: 'QUIZ', before: feedback._id }));
+    await user.click(await screen.findByRole('button', { name: `${reading.name}: actions` }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Add below' }));
+    (await screen.findByRole('menuitem', { name: 'Video' })).focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ type: 'VIDEO', after: reading._id }));
+  });
+
+  it('moves a lesson up or down a place from its menu in the outline', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    renderApp(lessonUrl(`item=${reading._id}`));
+    await user.click(await screen.findByRole('button', { name: `${reading.name}: actions` }));
+    expect(await screen.findByRole('menuitem', { name: 'Move up' })).toHaveAttribute('aria-disabled', 'true');
+    await user.click(screen.getByRole('menuitem', { name: 'Move down' }));
+    await waitFor(() => expect(api.PUT.mock.calls.filter(([p]) => p === MOVE)).toHaveLength(1));
+    const [, request] = api.PUT.mock.calls.filter(([p]) => p === MOVE)[0];
+    expect(request.params.path.itemId).toBe(reading._id);
+    expect(request.body).toEqual({ afterItemId: feedback._id });
   });
 });

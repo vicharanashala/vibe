@@ -1,12 +1,23 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { PlusIcon } from 'lucide-react';
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  BetweenHorizontalEndIcon,
+  BetweenHorizontalStartIcon,
+  MoreHorizontalIcon,
+  PlusIcon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -32,7 +43,7 @@ import {
   type CourseSection,
 } from '@/features/courses/queries';
 
-import { DragHandle, SortableList, draggingClass, useSortableRow, type Position } from '../arrange';
+import { DragHandle, SortableList, draggingClass, stepPosition, useSortableRow, type Position } from '../arrange';
 import { ITEM_TYPES } from '../course-content';
 import { useMoveItem } from '../queries';
 import {
@@ -127,6 +138,13 @@ function OutlineSection({
   const { isMobile, setOpenMobile } = useSidebar();
   const moveItem = useMoveItem();
   const lessons = items.data ? [...items.data].sort((a, b) => a.order.localeCompare(b.order)) : [];
+  const move = (itemId: string, position: Position, next?: typeof lessons) => {
+    // Ignored, not disabled, while a move is saving: disabling would drop keyboard focus.
+    if (moveItem.isPending) return;
+    moveItem
+      .mutateAsync({ versionId: loc.versionId, moduleId: loc.moduleId, sectionId: loc.sectionId, itemId, to: toItem(position), next })
+      .catch((e: Error) => toast.error(`The lesson wasn’t moved: ${e.message}`));
+  };
   // Load a lesson as soon as the pointer or focus lands on it, so opening it is instant.
   const prefetch = (id: string, type: string) => {
     void queryClient.prefetchQuery(lessonQueryOptions(loc, id));
@@ -182,14 +200,9 @@ function OutlineSection({
               items={lessons}
               getId={(i) => i._id}
               getLabel={(i) => i.name}
-              onMove={(id, position, next) => {
-                if (moveItem.isPending) return;
-                moveItem
-                  .mutateAsync({ versionId: loc.versionId, moduleId: loc.moduleId, sectionId: loc.sectionId, itemId: id, to: toItem(position), next })
-                  .catch((e: Error) => toast.error(`The lesson wasn’t moved: ${e.message}`));
-              }}
+              onMove={move}
             >
-              {lessons.map((item) => (
+              {lessons.map((item, index) => (
                 <OutlineLesson
                   key={item._id}
                   loc={loc}
@@ -197,13 +210,19 @@ function OutlineSection({
                   isActive={item._id === itemId}
                   onPrefetch={() => prefetch(item._id, item.type)}
                   onNavigate={() => isMobile && setOpenMobile(false)}
-                  onAddBelow={(type) => {
+                  onAdd={(type, where) => {
                     if (isMobile) setOpenMobile(false);
                     void navigate({
                       to: '/admin/courses/$courseId/$versionId/lesson',
                       params: { courseId: loc.courseId, versionId: loc.versionId },
-                      search: { module: loc.moduleId, section: loc.sectionId, type, after: item._id },
+                      search: { module: loc.moduleId, section: loc.sectionId, type, ...(where === 'above' ? { before: item._id } : { after: item._id }) },
                     });
+                  }}
+                  isFirst={index === 0}
+                  isLast={index === lessons.length - 1}
+                  onStep={(dir) => {
+                    const to = stepPosition(lessons.map((l) => l._id), index, dir);
+                    if (to) move(item._id, to);
                   }}
                 />
               ))}
@@ -232,21 +251,27 @@ const toItem = (p: Position) => ('beforeId' in p ? { beforeItemId: p.beforeId } 
 
 type OutlineItem = { _id: string; name: string; type: string; order: string };
 
-/** One lesson in the editor outline: drag handle, link, and "add a lesson below" on hover/focus. */
+/** One lesson in the editor outline: drag handle, link, and a "⋯" menu to add a lesson above/below or move it a place. */
 function OutlineLesson({
   loc,
   item,
   isActive,
   onPrefetch,
   onNavigate,
-  onAddBelow,
+  onAdd,
+  onStep,
+  isFirst,
+  isLast,
 }: {
   loc: LessonLocation;
   item: OutlineItem;
   isActive: boolean;
   onPrefetch: () => void;
   onNavigate: () => void;
-  onAddBelow: (type: LessonType) => void;
+  onAdd: (type: LessonType, where: 'above' | 'below') => void;
+  onStep: (dir: -1 | 1) => void;
+  isFirst: boolean;
+  isLast: boolean;
 }) {
   const row = useSortableRow(item._id);
   const t = ITEM_TYPES[item.type];
@@ -281,21 +306,46 @@ function OutlineLesson({
         <span>{item.name}</span>
       </SidebarMenuButton>
       <DropdownMenu>
-        <DropdownMenuTrigger render={<SidebarMenuAction showOnHover title={`Add a lesson below ${item.name}`} />}>
-          <PlusIcon />
-          <span className="sr-only">Add a lesson below {item.name}</span>
+        <DropdownMenuTrigger render={<SidebarMenuAction showOnHover title={`${item.name}: actions`} />}>
+          <MoreHorizontalIcon />
+          <span className="sr-only">{item.name}: actions</span>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" side="right" className="w-40">
-          {NEW_TYPES.map(({ type, label }) => {
-            const nt = ITEM_TYPES[type];
-            return (
-              <DropdownMenuItem key={type} onClick={() => onAddBelow(type)}>
-                <nt.icon /> {label}
+        <DropdownMenuContent align="start" side="right" className="w-44">
+          <AddLessonSub label="Add above" icon={BetweenHorizontalStartIcon} onPick={(type) => onAdd(type, 'above')} />
+          <AddLessonSub label="Add below" icon={BetweenHorizontalEndIcon} onPick={(type) => onAdd(type, 'below')} />
+          {!(isFirst && isLast) && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled={isFirst} onClick={() => onStep(-1)}>
+                <ArrowUpIcon /> Move up
               </DropdownMenuItem>
-            );
-          })}
+              <DropdownMenuItem disabled={isLast} onClick={() => onStep(1)}>
+                <ArrowDownIcon /> Move down
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </SidebarMenuItem>
+  );
+}
+
+function AddLessonSub({ label, icon: Icon, onPick }: { label: string; icon: typeof PlusIcon; onPick: (type: LessonType) => void }) {
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <Icon /> {label}
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="w-40">
+        {NEW_TYPES.map(({ type, label: typeLabel }) => {
+          const t = ITEM_TYPES[type];
+          return (
+            <DropdownMenuItem key={type} onClick={() => onPick(type)}>
+              <t.icon /> {typeLabel}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
   );
 }

@@ -66,8 +66,12 @@ Each row SHALL offer Add above and Add below in its menu and a "+" on hover or f
 - **THEN** it offers Add lesson, and the lesson is created in that section
 
 ### Requirement: The lesson editor outline matches
-The lesson editor's outline SHALL offer the same dragging and add-above/below for lessons in each section as the course outline.
+The lesson editor's outline SHALL offer the same dragging, add-above/below and Move up/down for lessons in each section as the course outline, from a "⋯" menu on each lesson.
 
 #### Scenario: Reorder from the editor
 - **WHEN** a teacher drags a lesson in the editor's outline
 - **THEN** the order changes and is saved as in the course outline
+
+#### Scenario: Moving a lesson from the editor outline's menu
+- **WHEN** a teacher picks Move up on a lesson in the editor's outline
+- **THEN** it swaps with the lesson above and the order is saved; Move up is unavailable on the first lesson and Move down on the last

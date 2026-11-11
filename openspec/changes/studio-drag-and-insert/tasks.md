@@ -17,7 +17,7 @@ All commands from `v3/`: `npx vitest run --root apps/student` and `npx tsc -b ap
 ## 3. Lesson editor
 
 - [x] 3.1 Lesson route accepts `after`/`before` search params into `loc.position`, and creating a lesson sends `afterItemId`/`beforeItemId`; verify a spec that saving a new lesson from "Add below" posts the position
-- [x] 3.2 Editor outline: sortable lessons with handles and "Add below" per lesson using the shared pieces; verify a keyboard-drag spec in the editor outline
+- [x] 3.2 Editor outline: sortable lessons with handles and a "⋯" menu per lesson (Add above, Add below, Move up, Move down) using the shared pieces; verify keyboard-drag, add-above/below and move specs in the editor outline
 
 ## 4. Integration check
 
