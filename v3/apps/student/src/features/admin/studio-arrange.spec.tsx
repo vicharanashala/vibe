@@ -11,6 +11,7 @@ vi.mock('@/lib/api', () => import('@/test/session').then((m) => m.apiModule));
 
 const content = `/admin/courses/${SAMPLE.courseId}/${SAMPLE.versionId}?tab=content`;
 const VERSION = '/api/courses/versions/{versionId}';
+const SETTINGS = '/api/setting/course-setting/{courseId}/{versionId}';
 const MOVE_MODULE = '/api/courses/versions/{versionId}/modules/{moduleId}/move';
 const MOVE_SECTION = '/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/move';
 const MODULES = '/api/courses/versions/{versionId}/modules';
@@ -50,10 +51,21 @@ async function keyboardDrag(user: ReturnType<typeof userEvent.setup>, handleName
 
 const calls = (path: string, method: 'PUT' | 'POST') => api[method].mock.calls.filter(([p]) => p === path);
 
+/** The backend reorders sections and modules only when the course's linear progression is off. */
+function withLinearProgression(on: boolean) {
+  const fallback = api.GET.getMockImplementation()!;
+  api.GET.mockImplementation(async (p: string, ...rest: unknown[]) =>
+    p === SETTINGS
+      ? ok({ ...fixtures.courseSettings, settings: { ...fixtures.courseSettings.settings, linearProgressionEnabled: on } })
+      : fallback(p, ...rest),
+  );
+}
+
 beforeEach(() => {
   resetSession();
   signInAdmin();
   layoutRows();
+  withLinearProgression(false);
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -139,5 +151,19 @@ describe('arranging sections', () => {
     renderApp(content);
     await keyboardDrag(user, `Drag to reorder section ${sectionB.name}`, 'ArrowUp');
     expect(await screen.findByText(/The section wasn’t moved: Server unavailable/)).toBeInTheDocument();
+  });
+});
+
+describe('with linear progression on', () => {
+  it('keeps sections and modules in place and says why, while lessons can still move', async () => {
+    withLinearProgression(true);
+    const user = userEvent.setup();
+    renderApp(content);
+    const moduleHandle = await screen.findByRole('button', { name: new RegExp(`^Drag to reorder module ${moduleB.name} \\(Turn off linear progression`) });
+    expect(moduleHandle).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: `Module ${moduleA.name}: actions` }));
+    expect(await screen.findByRole('menuitem', { name: 'Move down' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByText(/Turn off linear progression in the course settings to reorder sections and modules/)).toBeInTheDocument();
+    expect(calls(MOVE_MODULE, 'PUT')).toHaveLength(0);
   });
 });

@@ -21,6 +21,17 @@ Studio SHALL let teachers drag a lesson within its section, a section within its
 - **WHEN** a teacher drops a row back in its own place
 - **THEN** nothing is saved
 
+### Requirement: Sections and modules move only with linear progression off
+The backend reorders sections and modules only when the course's linear progression is off (unset counts as on). While it is on, Studio SHALL keep section and module drag handles and Move up/down disabled with that explanation, and lessons SHALL stay movable.
+
+#### Scenario: Linear progression on
+- **WHEN** a teacher opens the outline of a course with linear progression on
+- **THEN** section and module handles are disabled with a hint to turn off linear progression, and lessons can still be dragged
+
+#### Scenario: Linear progression off
+- **WHEN** the course has linear progression off
+- **THEN** sections and modules can be dragged and moved from their menus
+
 ### Requirement: A failed move is undone
 When saving a new order fails, Studio SHALL put the previous order back and say the item wasn't moved and why.
 

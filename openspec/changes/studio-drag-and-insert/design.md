@@ -53,6 +53,9 @@ Lessons, sections and modules each use one list; the editor outline uses the sam
 - **Lessons:** Add opens the existing type picker, then navigates to the lesson editor with `after=<id>` or `before=<id>` search params. The route passes them as `loc.position`, and the create call sends `afterItemId`/`beforeItemId`. An empty section shows "Add lesson" at the top.
 - **Sections and modules:** Add opens the existing name dialog, which now carries the position into create.
 
+### 4b. Sections and modules follow the backend's linear-progression rule
+`SectionService.moveSection` and `ModuleService.moveModule` refuse with "Cannot re-order … because Linear progression is enabled" whenever the course's linear progression is on. Lesson moves aren't restricted. Studio reads the course settings (`useCourseSettings`; unset counts as on). While linear progression is on, it disables the section and module handles and their Move up/down items, with the hint "Turn off linear progression in the course settings to reorder sections and modules". Adding sections or modules above or below is unaffected. Found during the browser check.
+
 ### 5. Motion and reduced motion
 dnd-kit's transforms carry a short transition (the `easeOut` timing from `lib/motion.ts`). Under reduced motion, transitions are disabled and the drop happens without animation. The drop indicator is the dragged row's placeholder outline, plus a `ring` on the drop target.
 

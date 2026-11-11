@@ -170,12 +170,11 @@ describe('adding lessons in place', () => {
     await waitFor(() => expect(router.state.location.search).toMatchObject({ type: 'BLOG', after: first._id }));
   });
 
-  it('an empty section offers “Add lesson” right where the lessons would be', async () => {
+  it('an empty section offers a single “Add lesson”', async () => {
     withItems([]);
     const user = userEvent.setup();
     await open(user);
-    expect((await screen.findAllByText('No lessons yet.')).length).toBeGreaterThan(0);
-    const empty = screen.getAllByText('No lessons yet.')[0];
-    expect(within(empty).getByRole('button', { name: /Add lesson/ })).toBeInTheDocument();
+    const empties = await screen.findAllByText('No lessons yet.');
+    expect(screen.getAllByRole('button', { name: 'Add lesson' })).toHaveLength(empties.length);
   });
 });

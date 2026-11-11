@@ -8,6 +8,7 @@ import {
   useSensors,
   type Announcements,
   type DragEndEvent,
+  type Modifier,
 } from '@dnd-kit/core';
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import {
@@ -57,6 +58,13 @@ export function stepPosition(ids: string[], index: number, step: -1 | 1): Positi
   return positionFor(ids, index, index + step);
 }
 
+/**
+ * Keeps a pointer or touch drag inside its list. Not for keyboard drags: there
+ * the clamp stops the keyboard sensor from reaching the neighbouring row.
+ */
+const restrictPointerToParent: Modifier = (args) =>
+  args.activatorEvent instanceof KeyboardEvent ? args.transform : restrictToParentElement(args);
+
 export function SortableList<T>({
   items,
   getId,
@@ -102,7 +110,7 @@ export function SortableList<T>({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+      modifiers={[restrictToVerticalAxis, restrictPointerToParent]}
       accessibility={{
         announcements,
         screenReaderInstructions: {
@@ -118,10 +126,10 @@ export function SortableList<T>({
   );
 }
 
-/** A sortable row: ref and style for the row, props for its drag handle. */
-export function useSortableRow(id: string) {
+/** A sortable row: ref and style for the row, props for its drag handle. `disabled` rows can't be picked up. */
+export function useSortableRow(id: string, disabled = false) {
   const reduce = useReducedMotion();
-  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging, isOver } = useSortable({ id });
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging, isOver } = useSortable({ id, disabled });
   const style: CSSProperties = {
     transform: CSS.Translate.toString(transform),
     transition: reduce ? undefined : transition,
@@ -136,12 +144,23 @@ export function DragHandle({
   name,
   handle,
   className,
+  disabledReason,
 }: {
   name: string;
   handle: ReturnType<typeof useSortableRow>['handle'];
   className?: string;
+  /** Why this row can't be moved right now; shown as the handle's tooltip and the handle is disabled. */
+  disabledReason?: string;
 }) {
   const { ref, ...props } = handle;
+  if (disabledReason)
+    return (
+      <span title={disabledReason} className={cn('inline-flex shrink-0', className)}>
+        <Button variant="ghost" size="icon-xs" disabled aria-label={`Drag to reorder ${name} (${disabledReason})`} className="text-muted-foreground/50">
+          <GripVerticalIcon aria-hidden />
+        </Button>
+      </span>
+    );
   return (
     <Button
       ref={ref}
@@ -155,6 +174,9 @@ export function DragHandle({
     </Button>
   );
 }
+
+/** The backend only reorders sections and modules when the course's linear progression is off. */
+export const LINEAR_REORDER_HINT = 'Turn off linear progression in the course settings to reorder sections and modules';
 
 /** Classes for a row while it's being dragged: lifted, with an outline where it will land. */
 export function draggingClass(isDragging: boolean) {

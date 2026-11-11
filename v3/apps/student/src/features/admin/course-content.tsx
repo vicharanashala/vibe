@@ -53,7 +53,8 @@ import { resolveContentLock, type ContentLockNode } from '@/features/content-loc
 import { resolveStudyMode, type StudyModeNode } from '@/features/study-mode/study-mode';
 import { cn } from '@/lib/utils';
 
-import { DragHandle, SortableList, draggingClass, stepPosition, useSortableRow, type Position } from './arrange';
+import { DragHandle, LINEAR_REORDER_HINT, SortableList, draggingClass, stepPosition, useSortableRow, type Position } from './arrange';
+import { useCourseSettings } from '@/features/learn/queries';
 import {
   useCreateModule,
   useCreateSection,
@@ -114,6 +115,9 @@ export function CourseContent({ courseId, versionId }: Ids) {
   const [moduleDialog, setModuleDialog] = useState<false | { position?: ModulePosition }>(false);
   const outline = useOutline();
   const moveModule = useMoveModule();
+  // The backend reorders sections and modules only with linear progression off (unset counts as on).
+  const settings = useCourseSettings(courseId, versionId);
+  const lockedReason = settings.data?.settings.linearProgressionEnabled === false ? undefined : LINEAR_REORDER_HINT;
 
   if (version.isPending) {
     return (
@@ -196,6 +200,7 @@ export function CourseContent({ courseId, versionId }: Ids) {
                 module={m}
                 index={i}
                 outline={outline}
+                lockedReason={lockedReason}
                 step={(dir) => {
                   const to = stepPosition(modules.map((x) => x.moduleId), i, dir);
                   if (!to || moveModule.isPending) return;
@@ -238,6 +243,8 @@ type Arrange = {
   isFirst: boolean;
   isLast: boolean;
   onInsert: (where: 'above' | 'below') => void;
+  /** Why this row can't be reordered right now (sections and modules, with linear progression on). */
+  lockedReason?: string;
 };
 
 const modulePosition = (p: Position): ModulePosition => ('beforeId' in p ? { beforeModuleId: p.beforeId } : { afterModuleId: p.afterId });
@@ -245,10 +252,13 @@ const sectionPosition = (p: Position): SectionPosition => ('beforeId' in p ? { b
 const itemPosition = (p: Position): ItemPosition => ('beforeId' in p ? { beforeItemId: p.beforeId } : { afterItemId: p.afterId });
 
 function SortableModule(props: Ids & { module: CourseModule; index: number; outline: Outline } & Arrange) {
-  const row = useSortableRow(props.module.moduleId);
+  const row = useSortableRow(props.module.moduleId, !!props.lockedReason);
   return (
     <li ref={row.setNodeRef} style={row.style} className={cn('group/row', draggingClass(row.isDragging))}>
-      <ModuleBlock {...props} handle={<DragHandle name={`module ${props.module.name}`} handle={row.handle} className="mt-0.5" />} />
+      <ModuleBlock
+        {...props}
+        handle={<DragHandle name={`module ${props.module.name}`} handle={row.handle} className="mt-0.5" disabledReason={props.lockedReason} />}
+      />
     </li>
   );
 }
@@ -264,6 +274,7 @@ function ModuleBlock({
   isFirst,
   isLast,
   onInsert,
+  lockedReason,
 }: Ids & { module: CourseModule; index: number; outline: Outline; handle: ReactNode } & Arrange) {
   const open = outline.isOpen(module.moduleId, true);
   const setOpen = (value: boolean) => outline.setOpen(module.moduleId, value);
@@ -307,7 +318,7 @@ function ModuleBlock({
           label={`Module ${module.name}`}
           onEdit={() => setEditing(true)}
           onAdd={{ label: 'Add section', run: () => setAddingSection({}) }}
-          arrange={{ step, isFirst, isLast, insert: onInsert, noun: 'module' }}
+          arrange={{ step, isFirst, isLast, insert: onInsert, noun: 'module', lockedReason }}
           onDelete={() => setDeleting(true)}
           studyMode={{ target: { level: 'module', versionId, moduleId: module.moduleId }, node: module, parents: [] }}
           contentLock={{ target: { level: 'module', versionId, moduleId: module.moduleId }, node: module, parents: [] }}
@@ -332,6 +343,7 @@ function ModuleBlock({
                 section={s}
                 label={`${index + 1}.${si + 1}`}
                 outline={outline}
+                lockedReason={lockedReason}
                 step={(dir) => {
                   const to = stepPosition(sections.map((x) => x.sectionId), si, dir);
                   if (to) moveSectionTo(s.sectionId, to);
@@ -385,10 +397,13 @@ function ModuleBlock({
 }
 
 function SortableSection(props: Ids & { module: CourseModule; section: CourseSection; label: string; outline: Outline } & Arrange) {
-  const row = useSortableRow(props.section.sectionId);
+  const row = useSortableRow(props.section.sectionId, !!props.lockedReason);
   return (
     <div ref={row.setNodeRef} style={row.style} className={cn('min-w-0', draggingClass(row.isDragging))}>
-      <SectionBlock {...props} handle={<DragHandle name={`section ${props.section.name}`} handle={row.handle} />} />
+      <SectionBlock
+        {...props}
+        handle={<DragHandle name={`section ${props.section.name}`} handle={row.handle} disabledReason={props.lockedReason} />}
+      />
     </div>
   );
 }
@@ -405,6 +420,7 @@ function SectionBlock({
   isFirst,
   isLast,
   onInsert,
+  lockedReason,
 }: Ids & { module: CourseModule; section: CourseSection; label: string; outline: Outline; handle: ReactNode } & Arrange) {
   const moduleId = module.moduleId;
   const open = outline.isOpen(section.sectionId, false);
@@ -438,7 +454,7 @@ function SectionBlock({
         <RowMenu
           label={`Section ${section.name}`}
           onEdit={() => setEditing(true)}
-          arrange={{ step, isFirst, isLast, insert: onInsert, noun: 'section' }}
+          arrange={{ step, isFirst, isLast, insert: onInsert, noun: 'section', lockedReason }}
           onDelete={() => setDeleting(true)}
           studyMode={{ target: { level: 'section', versionId, moduleId, sectionId: section.sectionId }, node: section, parents: [module] }}
           contentLock={{ target: { level: 'section', versionId, moduleId, sectionId: section.sectionId }, node: section, parents: [module] }}
@@ -483,13 +499,8 @@ function ItemRows({ courseId, versionId, module, section, itemsGroupId }: Ids & 
 
   if (items.isPending) return <div className="border-t border-border px-3.5 py-3"><Skeleton className="h-5 w-1/2" /></div>;
   if (items.isError) return <ErrorText error={items.error} className="border-t border-border px-3.5 py-3" />;
-  if (items.data.length === 0)
-    return (
-      <div className="flex flex-wrap items-center gap-2 border-t border-border px-3.5 py-3 text-sm text-muted-foreground">
-        No lessons yet.
-        <AddLessonMenu courseId={courseId} versionId={versionId} moduleId={moduleId} sectionId={sectionId} />
-      </div>
-    );
+  // The section's own "Add lesson" sits right below, so the empty state is just text.
+  if (items.data.length === 0) return <p className="border-t border-border px-3.5 py-3 text-sm text-muted-foreground">No lessons yet.</p>;
 
   const lessons = [...items.data].sort((a, b) => a.order.localeCompare(b.order));
   const move = (itemId: string, to: Position, next?: typeof lessons) => {
@@ -704,6 +715,8 @@ type RowArrange = {
   insert?: (where: 'above' | 'below') => void;
   /** Add a lesson of a type next to this one. */
   insertLesson?: (type: NewLessonType, where: 'above' | 'below') => void;
+  /** Why Move up/down are unavailable right now. */
+  lockedReason?: string;
 };
 
 function InsertItems({ arrange, where }: { arrange: RowArrange; where: 'above' | 'below' }) {
@@ -778,12 +791,13 @@ function RowMenu({
             {!(arrange.isFirst && arrange.isLast) && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem disabled={arrange.isFirst} onClick={() => arrange.step(-1)}>
+                <DropdownMenuItem disabled={arrange.isFirst || !!arrange.lockedReason} onClick={() => arrange.step(-1)}>
                   <ArrowUpIcon /> Move up
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled={arrange.isLast} onClick={() => arrange.step(1)}>
+                <DropdownMenuItem disabled={arrange.isLast || !!arrange.lockedReason} onClick={() => arrange.step(1)}>
                   <ArrowDownIcon /> Move down
                 </DropdownMenuItem>
+                {arrange.lockedReason && <p className="px-2 pb-1.5 text-xs text-muted-foreground">{arrange.lockedReason}.</p>}
               </>
             )}
             <DropdownMenuSeparator />

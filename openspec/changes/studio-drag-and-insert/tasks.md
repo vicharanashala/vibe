@@ -22,4 +22,4 @@ All commands from `v3/`: `npx vitest run --root apps/student` and `npx tsc -b ap
 ## 4. Integration check
 
 - [x] 4.1 Run the full v3 suite, tsc, `NX_DAEMON=false npx nx run-many -t lint typecheck --projects=student --parallel=1` and `openspec validate --all --strict`; confirm all pass
-- [ ] 4.2 In the browser against the local stack as an instructor: drag a lesson, a section and a module with the mouse and confirm the order after reload; add a lesson below and above, and a section above; check keyboard drag and a tablet-width long-press; record the PR GIFs and screenshots
+- [x] 4.2 In the browser against the local stack as an instructor: drag a lesson, a section and a module with the mouse and confirm the order after reload; add a lesson below and above, and a section above; check keyboard drag and a tablet-width long-press; record the PR GIFs and screenshots
