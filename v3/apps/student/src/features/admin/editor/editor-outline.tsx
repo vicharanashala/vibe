@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { PlusIcon } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   DropdownMenu,
@@ -17,19 +18,23 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSkeleton,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import {
   useCourseVersion,
   useSectionItems,
   type CourseSection,
 } from '@/features/courses/queries';
 
+import { DragHandle, SortableList, draggingClass, useSortableRow, type Position } from '../arrange';
 import { ITEM_TYPES } from '../course-content';
+import { useMoveItem } from '../queries';
 import {
   lessonQueryOptions,
   quizQuestionsQueryOptions,
@@ -120,6 +125,8 @@ function OutlineSection({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isMobile, setOpenMobile } = useSidebar();
+  const moveItem = useMoveItem();
+  const lessons = items.data ? [...items.data].sort((a, b) => a.order.localeCompare(b.order)) : [];
   // Load a lesson as soon as the pointer or focus lands on it, so opening it is instant.
   const prefetch = (id: string, type: string) => {
     void queryClient.prefetchQuery(lessonQueryOptions(loc, id));
@@ -170,46 +177,38 @@ function OutlineSection({
       <SidebarGroupContent>
         <SidebarMenu>
           {items.isPending && <SidebarMenuSkeleton showIcon />}
-          {items.data &&
-            [...items.data]
-              .sort((a, b) => a.order.localeCompare(b.order))
-              .map((item) => {
-                const t = ITEM_TYPES[item.type];
-                const Icon = t?.icon;
-                const editable = EDITABLE.includes(item.type);
-                return (
-                  <SidebarMenuItem key={item._id}>
-                    <SidebarMenuButton
-                      isActive={item._id === itemId}
-                      disabled={!editable}
-                      tooltip={
-                        editable
-                          ? undefined
-                          : 'Can’t be edited in the studio yet'
-                      }
-                      render={
-                        editable ? (
-                          <Link
-                            to="/admin/courses/$courseId/$versionId/lesson"
-                            params={loc}
-                            search={{
-                              module: loc.moduleId,
-                              section: loc.sectionId,
-                              item: item._id,
-                            }}
-                            onPointerEnter={() => prefetch(item._id, item.type)}
-                            onFocus={() => prefetch(item._id, item.type)}
-                            onClick={() => isMobile && setOpenMobile(false)}
-                          />
-                        ) : undefined
-                      }
-                    >
-                      {Icon && <Icon />}
-                      <span>{item.name}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+          {items.data && (
+            <SortableList
+              items={lessons}
+              getId={(i) => i._id}
+              getLabel={(i) => i.name}
+              onMove={(id, position, next) => {
+                if (moveItem.isPending) return;
+                moveItem
+                  .mutateAsync({ versionId: loc.versionId, moduleId: loc.moduleId, sectionId: loc.sectionId, itemId: id, to: toItem(position), next })
+                  .catch((e: Error) => toast.error(`The lesson wasn’t moved: ${e.message}`));
+              }}
+            >
+              {lessons.map((item) => (
+                <OutlineLesson
+                  key={item._id}
+                  loc={loc}
+                  item={item}
+                  isActive={item._id === itemId}
+                  onPrefetch={() => prefetch(item._id, item.type)}
+                  onNavigate={() => isMobile && setOpenMobile(false)}
+                  onAddBelow={(type) => {
+                    if (isMobile) setOpenMobile(false);
+                    void navigate({
+                      to: '/admin/courses/$courseId/$versionId/lesson',
+                      params: { courseId: loc.courseId, versionId: loc.versionId },
+                      search: { module: loc.moduleId, section: loc.sectionId, type, after: item._id },
+                    });
+                  }}
+                />
+              ))}
+            </SortableList>
+          )}
           {items.data && items.data.length === 0 && !isNewHere && (
             <p className="px-2 py-1 text-xs text-muted-foreground">
               No lessons yet.
@@ -226,5 +225,77 @@ function OutlineSection({
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
+  );
+}
+
+const toItem = (p: Position) => ('beforeId' in p ? { beforeItemId: p.beforeId } : { afterItemId: p.afterId });
+
+type OutlineItem = { _id: string; name: string; type: string; order: string };
+
+/** One lesson in the editor outline: drag handle, link, and "add a lesson below" on hover/focus. */
+function OutlineLesson({
+  loc,
+  item,
+  isActive,
+  onPrefetch,
+  onNavigate,
+  onAddBelow,
+}: {
+  loc: LessonLocation;
+  item: OutlineItem;
+  isActive: boolean;
+  onPrefetch: () => void;
+  onNavigate: () => void;
+  onAddBelow: (type: LessonType) => void;
+}) {
+  const row = useSortableRow(item._id);
+  const t = ITEM_TYPES[item.type];
+  const Icon = t?.icon;
+  const editable = EDITABLE.includes(item.type);
+  return (
+    <SidebarMenuItem ref={row.setNodeRef} style={row.style} className={cn('flex items-center gap-0.5', draggingClass(row.isDragging))}>
+      <DragHandle
+        name={item.name}
+        handle={row.handle}
+        className="size-6 opacity-60 group-hover/menu-item:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+      />
+      <SidebarMenuButton
+        isActive={isActive}
+        disabled={!editable}
+        className="min-w-0 flex-1 pr-7"
+        tooltip={editable ? undefined : 'Can’t be edited in the studio yet'}
+        render={
+          editable ? (
+            <Link
+              to="/admin/courses/$courseId/$versionId/lesson"
+              params={{ courseId: loc.courseId, versionId: loc.versionId }}
+              search={{ module: loc.moduleId, section: loc.sectionId, item: item._id }}
+              onPointerEnter={onPrefetch}
+              onFocus={onPrefetch}
+              onClick={onNavigate}
+            />
+          ) : undefined
+        }
+      >
+        {Icon && <Icon />}
+        <span>{item.name}</span>
+      </SidebarMenuButton>
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<SidebarMenuAction showOnHover title={`Add a lesson below ${item.name}`} />}>
+          <PlusIcon />
+          <span className="sr-only">Add a lesson below {item.name}</span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="right" className="w-40">
+          {NEW_TYPES.map(({ type, label }) => {
+            const nt = ITEM_TYPES[type];
+            return (
+              <DropdownMenuItem key={type} onClick={() => onAddBelow(type)}>
+                <nt.icon /> {label}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SidebarMenuItem>
   );
 }

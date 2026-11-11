@@ -27,6 +27,8 @@ export interface LessonLocation {
   versionId: string;
   moduleId: string;
   sectionId: string;
+  /** Where a new lesson goes (from "Add above/below"); without it, at the end of the section. */
+  position?: { afterItemId: string } | { beforeItemId: string };
 }
 
 export interface VideoDetails {
@@ -210,6 +212,7 @@ export function useSaveLesson(loc: LessonLocation, itemId?: string) {
                 description: input.description,
                 type: input.type,
                 ...typed,
+                ...loc.position,
               } as any,
             },
           ),
