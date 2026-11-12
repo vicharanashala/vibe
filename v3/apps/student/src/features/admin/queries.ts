@@ -280,11 +280,22 @@ export function useSetStudyMode() {
 export function useCreateModule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ versionId, name, description }: { versionId: string; name: string; description: string }) =>
+    mutationFn: async ({
+      versionId,
+      name,
+      description,
+      position,
+    }: {
+      versionId: string;
+      name: string;
+      description: string;
+      /** Create it next to this module instead of at the end. */
+      position?: { beforeModuleId: string } | { afterModuleId: string };
+    }) =>
       unwrap(
         await api.POST('/api/courses/versions/{versionId}/modules', {
           params: { path: { versionId } },
-          body: { name, description },
+          body: { name, description, ...position },
         }),
       ),
     onSuccess: (_data, { versionId }) => invalidateVersion(queryClient, versionId),
@@ -333,11 +344,19 @@ export function useCreateSection() {
       moduleId,
       name,
       description,
-    }: { versionId: string; moduleId: string; name: string; description: string }) =>
+      position,
+    }: {
+      versionId: string;
+      moduleId: string;
+      name: string;
+      description: string;
+      /** Create it next to this section instead of at the end. */
+      position?: { beforeSectionId: string } | { afterSectionId: string };
+    }) =>
       unwrap(
         await api.POST('/api/courses/versions/{versionId}/modules/{moduleId}/sections', {
           params: { path: { versionId, moduleId } },
-          body: { name, description },
+          body: { name, description, ...position },
         }),
       ),
     onSuccess: (_data, { versionId }) => invalidateVersion(queryClient, versionId),
@@ -402,6 +421,22 @@ export function useDeleteItem() {
 }
 
 /** Moves a lesson within its section: right before or right after another lesson. */
+/** Gives `next` (a list in its new order) the list's existing order keys, so sorting by `order` shows the new order. */
+export function withOrders<T extends { order: string }>(next: T[]): T[] {
+  const keys = next.map((x) => x.order).sort((x, y) => x.localeCompare(y));
+  return next.map((x, i) => ({ ...x, order: keys[i] }));
+}
+
+/** Replaces the entries of `list` that appear in `next` (matched by `key`), keeping the rest. */
+function mergeBy<T>(list: T[], next: T[], key: (x: T) => string): T[] {
+  const byId = new Map(next.map((x) => [key(x), x]));
+  return list.map((x) => byId.get(key(x)) ?? x);
+}
+
+/**
+ * Moves a lesson within its section. With `next` (the section's lessons in
+ * their new order) the new order shows at once and is put back if saving fails.
+ */
 export function useMoveItem() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -417,6 +452,7 @@ export function useMoveItem() {
       sectionId: string;
       itemId: string;
       to: { beforeItemId: string } | { afterItemId: string };
+      next?: { order: string }[];
     }) =>
       unwrap(
         await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}/move', {
@@ -424,8 +460,104 @@ export function useMoveItem() {
           body: to,
         }),
       ),
-    onSuccess: (_data, { versionId, moduleId, sectionId }) =>
+    onMutate: async ({ versionId, moduleId, sectionId, next }) => {
+      if (!next) return undefined;
+      const key = courseKeys.sectionItems(versionId, moduleId, sectionId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData(key);
+      queryClient.setQueryData(key, withOrders(next));
+      return { key, previous };
+    },
+    onError: (_e, _vars, context) => {
+      if (context) queryClient.setQueryData(context.key, context.previous);
+    },
+    onSettled: (_data, _e, { versionId, moduleId, sectionId }) =>
       queryClient.invalidateQueries({ queryKey: courseKeys.sectionItems(versionId, moduleId, sectionId) }),
+  });
+}
+
+type VersionData = { modules: { moduleId: string; order: string; sections: { sectionId: string; order: string }[] }[] };
+
+/** Moves a module within the course; `next` (the modules in their new order) shows it at once. */
+export function useMoveModule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      versionId,
+      moduleId,
+      to,
+    }: {
+      versionId: string;
+      moduleId: string;
+      to: { beforeModuleId: string } | { afterModuleId: string };
+      next?: VersionData['modules'];
+    }) =>
+      unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/move', {
+          params: { path: { versionId, moduleId } },
+          body: to,
+        }),
+      ),
+    onMutate: async ({ versionId, next }) => {
+      if (!next) return undefined;
+      const key = courseKeys.version(versionId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData(key);
+      queryClient.setQueryData(key, (v: VersionData | undefined) =>
+        v ? { ...v, modules: mergeBy(v.modules, withOrders(next), (m) => m.moduleId) } : v,
+      );
+      return { key, previous };
+    },
+    onError: (_e, _vars, context) => {
+      if (context) queryClient.setQueryData(context.key, context.previous);
+    },
+    onSettled: (_data, _e, { versionId }) => invalidateVersion(queryClient, versionId),
+  });
+}
+
+/** Moves a section within its module; `next` (the module's sections in their new order) shows it at once. */
+export function useMoveSection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      versionId,
+      moduleId,
+      sectionId,
+      to,
+    }: {
+      versionId: string;
+      moduleId: string;
+      sectionId: string;
+      to: { beforeSectionId: string } | { afterSectionId: string };
+      next?: VersionData['modules'][number]['sections'];
+    }) =>
+      unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/move', {
+          params: { path: { versionId, moduleId, sectionId } },
+          body: to,
+        }),
+      ),
+    onMutate: async ({ versionId, moduleId, next }) => {
+      if (!next) return undefined;
+      const key = courseKeys.version(versionId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData(key);
+      queryClient.setQueryData(key, (v: VersionData | undefined) =>
+        v
+          ? {
+              ...v,
+              modules: v.modules.map((m) =>
+                m.moduleId === moduleId ? { ...m, sections: mergeBy(m.sections, withOrders(next), (s) => s.sectionId) } : m,
+              ),
+            }
+          : v,
+      );
+      return { key, previous };
+    },
+    onError: (_e, _vars, context) => {
+      if (context) queryClient.setQueryData(context.key, context.previous);
+    },
+    onSettled: (_data, _e, { versionId }) => invalidateVersion(queryClient, versionId),
   });
 }
 

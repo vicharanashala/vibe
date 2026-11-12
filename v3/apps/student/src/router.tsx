@@ -193,16 +193,22 @@ const LESSON_TYPES: LessonType[] = ['VIDEO', 'BLOG', 'QUIZ', 'FEEDBACK'];
 const lessonEditorRoute = createRoute({
   getParentRoute: () => studioEditorLayoutRoute,
   path: '/admin/courses/$courseId/$versionId/lesson',
-  validateSearch: (search: Record<string, unknown>): { module: string; section: string; item?: string; type?: LessonType } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { module: string; section: string; item?: string; type?: LessonType; after?: string; before?: string } => ({
     module: typeof search.module === 'string' ? search.module : '',
     section: typeof search.section === 'string' ? search.section : '',
     item: typeof search.item === 'string' && search.item ? search.item : undefined,
     type: LESSON_TYPES.includes(search.type as LessonType) ? (search.type as LessonType) : undefined,
+    // A new lesson from "Add above/below": create it next to this lesson instead of at the end.
+    after: typeof search.after === 'string' && search.after ? search.after : undefined,
+    before: typeof search.before === 'string' && search.before ? search.before : undefined,
   }),
   component: function LessonEditorRoute() {
     const { courseId, versionId } = lessonEditorRoute.useParams();
-    const { module, section, item, type } = lessonEditorRoute.useSearch();
-    return <LessonEditorPage loc={{ courseId, versionId, moduleId: module, sectionId: section }} itemId={item} type={type} />;
+    const { module, section, item, type, after, before } = lessonEditorRoute.useSearch();
+    const position = !item && after ? { afterItemId: after } : !item && before ? { beforeItemId: before } : undefined;
+    return <LessonEditorPage loc={{ courseId, versionId, moduleId: module, sectionId: section, position }} itemId={item} type={type} />;
   },
 });
 
