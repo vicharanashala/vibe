@@ -1175,6 +1175,7 @@ function TeacherCourseContent() {
             startTime: videoData.details.startTime,
             endTime: videoData.details.endTime,
             points: videoData.details.points,
+            isLensEnabled: videoData.details.isLensEnabled,
           }
         }
       }).then((res) => {

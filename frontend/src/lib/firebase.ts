@@ -11,6 +11,7 @@ import { getAuth,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   confirmPasswordReset,
   verifyPasswordResetCode,
+  connectAuthEmulator,
   fetchSignInMethodsForEmail } from "firebase/auth";
 import { useAuthStore } from "../store/auth-store";
 import { useLoginWithGoogle } from "@/hooks/hooks";
@@ -34,6 +35,9 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+if (import.meta.env.DEV || import.meta.env.VITE_FIREBASE_AUTH_DOMAIN === 'localhost') {
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+}
 export const provider = new GoogleAuthProvider();
 
 // Firebase authentication functions

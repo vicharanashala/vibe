@@ -1,10 +1,8 @@
 import {ContainerModule} from 'inversify';
-import {
-  MongoDatabase,
-  UserRepository,
-  HttpErrorHandler,
-  SettingRepository,
-} from '#shared/index.js';
+import { MongoDatabase } from '#shared/database/providers/mongo/MongoDatabase.js';
+import { UserRepository } from '#shared/database/providers/mongo/repositories/UserRepository.js';
+import { HttpErrorHandler } from './shared/middleware/errorHandler.js';
+import { SettingRepository } from '#shared/database/providers/mongo/repositories/SettingRepository.js';
 import { AuditTrailsHandler } from './shared/middleware/auditTrails.js';
 import {GLOBAL_TYPES} from './types.js';
 import {dbConfig} from './config/db.js';
