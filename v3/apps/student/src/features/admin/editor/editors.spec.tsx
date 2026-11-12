@@ -262,13 +262,20 @@ describe('quiz editor', () => {
         (c) => c[0] === '/api/quizzes/questions/{questionId}',
       ),
     ).toHaveLength(0);
-    // The item update carries the bank links back, since it replaces details.
+    // The item update carries the bank links back, since it replaces details,
+    // with each bank id as a hex string. The GET serialises it as
+    // { buffer: { data } }; sending that back stores an object the backend
+    // can't read, and the quiz then fails to load (BSONError) for everyone.
     const itemPut = api.PUT.mock.calls.find(
       (c) =>
         c[0] === '/api/courses/{courseId}/versions/{versionId}/items/{itemId}',
     )!;
-    expect(itemPut[1].body.details.questionBankRefs).toEqual(
-      studio.quizItem.item.details.questionBankRefs,
+    const [ref] = studio.quizItem.item.details.questionBankRefs;
+    expect(itemPut[1].body.details.questionBankRefs).toEqual([
+      { ...ref, bankId: hex(ref.bankId) },
+    ]);
+    expect(itemPut[1].body.details.questionBankRefs[0].bankId).toMatch(
+      /^[0-9a-f]{24}$/,
     );
   });
 });
@@ -511,14 +518,9 @@ describe('feedback editor', () => {
     renderApp(lessonUrl(`item=${loc.itemId}`));
     await user.click(await screen.findByRole('tab', { name: 'Responses' }));
     const submissions = studio.feedbackSubmissions.submissions;
-    const ratings = submissions.map((s) =>
-      Number(s.details['How useful was the previous lesson?']),
-    );
-    const avg = (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(
-      1,
-    );
-    expect(await screen.findByText(avg)).toBeInTheDocument();
-    expect(screen.getByText('average out of 5')).toBeInTheDocument();
+    // The server's summary over every current answer.
+    expect(await screen.findByText('4.5')).toBeInTheDocument();
+    expect(screen.getByText('average')).toBeInTheDocument();
     expect(screen.getByText('More diagrams please.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: /Individual/ }));

@@ -11,8 +11,9 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle }
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrackBadge } from '@/features/learn/lesson-page';
-import { resolveStudyMode, type StudyModeNode } from '@/features/study-mode/study-mode';
-import { TRACKS, useCourseTrack, type Track } from '@/features/learn/tracks';
+import { resolveContentLock, type ContentLockNode } from '@/features/content-lock/content-lock';
+import { hiddenInStudyMode, itemsForTrack, resolveStudyMode, type StudyModeNode } from '@/features/study-mode/study-mode';
+import { TRACKS, useCourseTrack, useFlatSyllabus, type FlatItem, type Track } from '@/features/learn/tracks';
 import { cn } from '@/lib/utils';
 
 import { CourseCover, ProgressBar, ProgressMeter, STRICT_PROGRESS_HINT, StudyProgressSummary, itemTypeMeta } from './course-ui';
@@ -42,6 +43,9 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
   const studied = new Set(study.data?.studiedItemIds ?? []);
   // The course name/description live on the enrolment, not the version.
   const enrollment = useEnrollments('active').data?.enrollments.find((e) => e.courseVersionId === versionId);
+  // Study mode hides quizzes; the whole syllabus tells which sections hold
+  // only quizzes and what to continue with instead of a quiz.
+  const syllabus = useFlatSyllabus(track === 'blue' ? version.data : undefined);
 
   if (version.isPending) {
     return (
@@ -66,11 +70,24 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
 
   const modules = visibleInOrder(version.data.modules);
   const pct = percentage.data?.percentCompleted ?? 0;
-  const totalItems = percentage.data?.totalItems ?? version.data.totalItems ?? 0;
+  const quizCount = version.data.itemCounts?.QUIZ ?? 0;
+  const strictTotal = percentage.data?.totalItems ?? version.data.totalItems ?? 0;
+  const totalItems = track === 'blue' ? Math.max(0, (version.data.totalItems ?? strictTotal) - quizCount) : strictTotal;
   const name = enrollment?.course.name ?? 'Course';
-  const counts = Object.entries(version.data.itemCounts ?? {}).filter(([, n]) => n);
+  const counts = Object.entries(version.data.itemCounts ?? {}).filter(([type, n]) => n && !(track === 'blue' && type === 'QUIZ'));
 
-  const next = path.data?.item && path.data.module && path.data.section ? path.data : null;
+  // Sections (and modules) with nothing but quizzes don't appear in study mode.
+  const hiddenSections = new Set<string>();
+  if (track === 'blue' && !syllabus.pending) {
+    const bySection = new Map<string, boolean>();
+    for (const item of syllabus.items) bySection.set(item.sectionId, (bySection.get(item.sectionId) ?? false) || !hiddenInStudyMode(item));
+    for (const [sectionId, hasStudyContent] of bySection) if (!hasStudyContent) hiddenSections.add(sectionId);
+  }
+  const shownModules = modules.filter((m) => !visibleInOrder(m.sections).length || visibleInOrder(m.sections).some((sec) => !hiddenSections.has(sec.sectionId)));
+
+  const pathNext = path.data?.item && path.data.module && path.data.section ? path.data : null;
+  // In study mode, "where you left off" is never a quiz: the next lesson after it instead.
+  const next = track === 'blue' && pathNext?.item?.type === 'QUIZ' ? studyContinueTarget(syllabus.items, pathNext.item.id) : pathNext;
   const continueLabel = track === 'blue' ? 'Study where you left off' : pct > 0 ? 'Continue where you left off' : 'Start course';
   const continueLink = next && {
     to: '/learn/$courseId/$versionId/$moduleId/$sectionId/$itemId' as const,
@@ -104,7 +121,7 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
           </p>
         )}
         <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          <li>{modules.length} modules</li>
+          <li>{shownModules.length} modules</li>
           <li>{totalItems} lessons</li>
           {counts.map(([type, n]) => (
             <li key={type}>
@@ -155,10 +172,10 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
             Syllabus
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {modules.length} modules · {totalItems} lessons
+            {shownModules.length} modules · {totalItems} lessons
           </p>
           <ol className="mt-6 flex flex-col gap-8">
-            {modules.map((m, i) => (
+            {shownModules.map((m, i) => (
               <ModuleBlock
                 key={m.moduleId}
                 index={i}
@@ -167,7 +184,8 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
                 versionId={versionId}
                 track={track}
                 studied={studied}
-                currentPath={path.data}
+                currentPath={track === 'blue' ? (next ?? undefined) : path.data}
+                hiddenSections={hiddenSections}
                 progress={moduleProgress.data?.find((p) => p.moduleId === m.moduleId)}
               />
             ))}
@@ -221,6 +239,7 @@ function ModuleBlock({
   track,
   studied,
   currentPath,
+  hiddenSections,
   progress,
 }: {
   index: number;
@@ -230,9 +249,11 @@ function ModuleBlock({
   track: Track;
   studied: Set<string>;
   currentPath?: CurrentPath;
+  /** Sections not shown in this track (study mode: sections with only quizzes). */
+  hiddenSections: Set<string>;
   progress?: { totalItems: number; completedItems: number };
 }) {
-  const sections = visibleInOrder(m.sections);
+  const sections = visibleInOrder(m.sections).filter((s) => !hiddenSections.has(s.sectionId));
   const pct = progress && progress.totalItems ? (progress.completedItems / progress.totalItems) * 100 : 0;
   const containsCurrent = currentPath?.module?.id === m.moduleId;
 
@@ -240,7 +261,12 @@ function ModuleBlock({
     <li>
       <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Module {index + 1}</p>
       <div className="mt-1 flex items-start justify-between gap-4">
-        <h3 className="text-lg font-semibold">{m.name}</h3>
+        <h3 className="flex items-center gap-2 text-lg font-semibold">
+          {m.name}
+          {resolveContentLock(undefined, undefined, m).locked && (
+            <LockIcon className="size-4 shrink-0 text-muted-foreground" aria-label="Locked by your instructor" />
+          )}
+        </h3>
         {progress && (
           <span className="flex shrink-0 items-center gap-2 pt-1 text-xs text-muted-foreground">
             <ProgressBar value={pct} className="w-16" label={`${m.name} progress`} />
@@ -290,7 +316,7 @@ function SectionBlock({
   moduleId: string;
   sectionId: string;
   /** The section and module, for resolving each item's study-mode setting. */
-  studyParents: { module: StudyModeNode; section: StudyModeNode };
+  studyParents: { module: StudyModeNode & ContentLockNode; section: StudyModeNode & ContentLockNode };
   name: string;
   defaultOpen: boolean;
   currentItemId?: string;
@@ -298,14 +324,19 @@ function SectionBlock({
   const [open, setOpen] = useState(defaultOpen);
   useEffect(() => setOpen(defaultOpen), [defaultOpen]);
   const items = useSectionItems(versionId, moduleId, sectionId, open);
-  const list = visibleInOrder(items.data ?? []);
+  const list = itemsForTrack(visibleInOrder(items.data ?? []), track);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border border-border">
       <CollapsibleTrigger
         render={<Button variant="ghost" className="h-auto w-full justify-between gap-3 rounded-xl px-4 py-3 text-left whitespace-normal" />}
       >
-        {name}
+        <span className="flex min-w-0 items-center gap-2">
+          {name}
+          {resolveContentLock(undefined, studyParents.section, studyParents.module).locked && (
+            <LockIcon className="size-4 shrink-0 text-muted-foreground" aria-label="Locked by your instructor" />
+          )}
+        </span>
         <ChevronDownIcon className={cn('text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -326,6 +357,7 @@ function SectionBlock({
             const strictOnly =
               track === 'blue' &&
               (item.type === 'QUIZ' || !resolveStudyMode(item, studyParents.section, studyParents.module).allowed);
+            const locked = resolveContentLock(item, studyParents.section, studyParents.module).locked;
             const row = (
               <>
                 <ItemMedia variant="icon">
@@ -333,9 +365,16 @@ function SectionBlock({
                 </ItemMedia>
                 <ItemContent className="min-w-0">
                   <ItemTitle className="w-full truncate">{item.name}</ItemTitle>
-                  <ItemDescription>{strictOnly ? `${meta.label} · Strict mode only` : meta.label}</ItemDescription>
+                  <ItemDescription>
+                    {locked
+                      ? `${meta.label} · Locked by your instructor`
+                      : strictOnly
+                        ? `${meta.label} · Strict mode only`
+                        : meta.label}
+                  </ItemDescription>
                 </ItemContent>
                 <ItemActions>
+                {locked && <LockIcon className="size-4 text-muted-foreground" aria-label="Locked by your instructor" />}
                 {item.isCompleted ? (
                   <span className="grid size-6 place-items-center rounded-full bg-emerald-600 text-white" title="Completed">
                     <CheckIcon className="size-3.5" aria-hidden />
@@ -346,7 +385,7 @@ function SectionBlock({
                     <CheckIcon className="size-3.5" aria-hidden />
                     <span className="sr-only">Studied</span>
                   </span>
-                ) : strictOnly ? (
+                ) : locked ? null : strictOnly ? (
                   <LockIcon className="size-4 text-muted-foreground/60" aria-label="Strict mode only" />
                 ) : !isCurrent ? (
                   <CircleIcon className="size-5 text-muted-foreground/50" aria-label="Not started" />
@@ -409,4 +448,21 @@ function TrackSwitcher({ track, onChange }: { track: Track; onChange: (t: Track)
       </CardContent>
     </Card>
   );
+}
+
+/**
+ * Study mode's Continue target when the student's current item is a quiz: the
+ * next non-quiz lesson after it in the syllabus, else the last one before it.
+ */
+function studyContinueTarget(items: FlatItem[], quizId: string): CurrentPath | null {
+  const at = items.findIndex((i) => i._id === quizId);
+  if (at < 0) return null;
+  const pick = items.slice(at + 1).find((i) => !hiddenInStudyMode(i)) ?? [...items.slice(0, at)].reverse().find((i) => !hiddenInStudyMode(i));
+  return pick
+    ? {
+        module: { id: pick.moduleId, name: '' },
+        section: { id: pick.sectionId, name: '' },
+        item: { id: pick._id, name: pick.name, type: pick.type },
+      }
+    : null;
 }

@@ -16,6 +16,7 @@ import { NAME_PATTERN } from '@/features/auth/signup-page';
 import { useAuth } from '@/features/auth/auth-provider';
 import { api } from '@/lib/api';
 import { auth } from '@/lib/firebase';
+import { enterClass } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 import { MediaCheck, type MediaCheckStatus } from './media-check';
@@ -119,7 +120,8 @@ export function OnboardingPage({ redirect, mediaOnly = false }: { redirect?: str
       </header>
 
       <main className="flex flex-1 justify-center px-4 pt-14 pb-32 sm:pt-20">
-        <div className={cn('flex w-full flex-col items-center text-center', step === 'look' ? 'max-w-xl' : 'max-w-md')}>
+        {/* Each step slides in softly as the student moves through onboarding. */}
+        <div key={step} className={cn('flex w-full flex-col items-center text-center', enterClass, step === 'look' ? 'max-w-xl' : 'max-w-md')}>
           {step === 'name' && (
             <>
               <h1 className="font-aleo text-3xl tracking-tight">What should we call you?</h1>

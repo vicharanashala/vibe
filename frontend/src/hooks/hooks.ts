@@ -2135,7 +2135,7 @@ async function putStudyMode(path: string, pathParams: Record<string, string>, st
   }
 }
 
-/** Refetch whatever shows study-mode settings: the version tree, section item lists and open items. */
+/** Refetch whatever shows study-mode or lock settings: the version tree, section item lists and open items. */
 function invalidateStudyMode(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({
     predicate: query =>
@@ -2183,6 +2183,55 @@ export function useUpdateItemStudyMode() {
   return useMutation({
     mutationFn: ({ versionId, itemId, studyModeEnabled }: { versionId: string; itemId: string; studyModeEnabled: boolean | null }) =>
       putStudyMode('/courses/versions/{versionId}/items/{itemId}/study-mode', { versionId, itemId }, studyModeEnabled),
+    onSuccess: () => invalidateStudyMode(queryClient),
+  });
+}
+
+// PUT …/lock for a module, section or item. `isLocked: null` clears the setting
+// so it inherits again (item → section → module; open when nothing is set).
+// Newer than src/types/schema.ts, so the path is passed untyped, like study mode.
+async function putLock(path: string, pathParams: Record<string, string>, isLocked: boolean | null) {
+  const { error, response } = await (fetchClient as any).PUT(path, {
+    params: { path: pathParams },
+    body: { isLocked },
+  });
+  if (error || !response.ok) {
+    throw new Error((error as { message?: string } | undefined)?.message || `Request failed (${response.status})`);
+  }
+}
+
+export function useUpdateModuleLock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ versionId, moduleId, isLocked }: { versionId: string; moduleId: string; isLocked: boolean | null }) =>
+      putLock('/courses/versions/{versionId}/modules/{moduleId}/lock', { versionId, moduleId }, isLocked),
+    onSuccess: () => invalidateStudyMode(queryClient),
+  });
+}
+
+export function useUpdateSectionLock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      versionId,
+      moduleId,
+      sectionId,
+      isLocked,
+    }: { versionId: string; moduleId: string; sectionId: string; isLocked: boolean | null }) =>
+      putLock(
+        '/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/lock',
+        { versionId, moduleId, sectionId },
+        isLocked,
+      ),
+    onSuccess: () => invalidateStudyMode(queryClient),
+  });
+}
+
+export function useUpdateItemLock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ versionId, itemId, isLocked }: { versionId: string; itemId: string; isLocked: boolean | null }) =>
+      putLock('/courses/versions/{versionId}/items/{itemId}/lock', { versionId, itemId }, isLocked),
     onSuccess: () => invalidateStudyMode(queryClient),
   });
 }

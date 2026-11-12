@@ -388,6 +388,11 @@ class CourseSetting implements ICourseSetting {
       linearProgressionEnabled: {type: 'boolean'},
       seekForwardEnabled: {type: 'boolean'},
       isLensEnabled: {type: 'boolean'},
+      studyModeFeedback: {
+        type: 'boolean',
+        description:
+          'Whether students can send feedback forms in study mode (how phones answer). Default true.',
+      },
       hpSystem: {type: 'boolean'},
       caseStudiesEnabled: {
         type: 'boolean',
@@ -441,7 +446,12 @@ class CourseSetting implements ICourseSetting {
     };
     linearProgressionEnabled: boolean;
     seekForwardEnabled: boolean;
+<<<<<<< HEAD
     isLensEnabled?: boolean;
+=======
+    /** Students may send feedback forms in study mode. Default true. */
+    studyModeFeedback?: boolean;
+>>>>>>> upstream/main
     hpSystem?: boolean;
     isPublic?: boolean;
     baseHp?: number;

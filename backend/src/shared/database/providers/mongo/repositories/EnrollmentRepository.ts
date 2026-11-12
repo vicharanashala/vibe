@@ -4134,58 +4134,78 @@ export class EnrollmentRepository {
       .next();
   }
 
-  async getGuruSetuFeedbackRows(
+  /**
+   * Everything a watch + feedback export needs for one course version, in a
+   * few bulk, index-friendly queries assembled in memory: the enrolled
+   * students (optionally limited to cohorts), their names and emails, the
+   * version's videos with durations, watch time per (student, video) with
+   * each session clamped to the video's length, the latest feedback per
+   * (student, video) for the form directly after it, and form names.
+   *
+   * (The original single aggregation did a correlated watchTime/feedback lookup
+   * per student × video, which scanned each student's watch history once per
+   * video and timed out the remote connection.)
+   */
+  async getWatchFeedbackData(
     courseId: string,
     versionId: string,
-    cohortId?: string,
-  ): Promise<any[]> {
+    cohortIds?: string[] | null,
+  ): Promise<{
+    enrollments: any[];
+    userMap: Map<string, any>;
+    videos: {
+      videoId: ObjectId;
+      videoName: string;
+      videoDurationSeconds: number;
+    }[];
+    watchMap: Map<string, any>;
+    feedbackMap: Map<string, any>;
+    formMap: Map<string, string>;
+  }> {
     await this.init();
 
     if (!ObjectId.isValid(courseId) || !ObjectId.isValid(versionId)) {
       throw new BadRequestError('Invalid courseId or versionId');
     }
-
-    const guruSetuCourseId = new ObjectId(courseId);
-    const guruSetuVersionId = new ObjectId(versionId);
-    const parsedCohortId = cohortId && ObjectId.isValid(cohortId)
-      ? new ObjectId(cohortId)
+    const courseObjectId = new ObjectId(courseId);
+    const versionObjectId = new ObjectId(versionId);
+    const cohortObjectIds = cohortIds
+      ? cohortIds.filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id))
       : null;
 
-    // The original single-aggregation approach did a correlated watchTime/feedback
-    // lookup per (student × video), which scanned each student's watch history once
-    // per video and timed out the remote connection. Instead we run a few bulk,
-    // index-friendly aggregations (once each) and assemble the rows in memory.
+    const empty = {
+      enrollments: [],
+      userMap: new Map(),
+      videos: [],
+      watchMap: new Map(),
+      feedbackMap: new Map(),
+      formMap: new Map(),
+    };
 
     // 1. enrolled students
     const enrollments = await this.enrollmentCollection
       .find({
-        courseId: guruSetuCourseId,
-        courseVersionId: guruSetuVersionId,
+        courseId: courseObjectId,
+        courseVersionId: versionObjectId,
         role: 'STUDENT',
-        isDeleted: { $ne: true },
-        ...(parsedCohortId ? { cohortId: parsedCohortId } : {}),
+        isDeleted: {$ne: true},
+        ...(cohortObjectIds ? {cohortId: {$in: cohortObjectIds}} : {}),
       })
       .toArray();
-
-    if (!enrollments.length) {
-      return [];
-    }
+    if (!enrollments.length) return empty;
 
     const userIds = enrollments.map(e => e.userId as ObjectId);
-
     const usersCollection = await this.db.getCollection<any>('users');
-    const feedbackFormCollection = await this.db.getCollection<any>(
-      'feedback_forms',
-    );
+    const feedbackFormCollection =
+      await this.db.getCollection<any>('feedback_forms');
 
     // 2. video list once (needed up front to clamp per-session watch time)
-    const videos = await this.courseVersionCollection
-      .aggregate(buildGuruSetuVideoListPipeline(guruSetuVersionId), {
+    const videos = (await this.courseVersionCollection
+      .aggregate(buildGuruSetuVideoListPipeline(versionObjectId), {
         allowDiskUse: true,
         maxTimeMS: 60000,
       })
-      .toArray();
-
+      .toArray()) as any[];
     const videoDurations = videos.map(v => ({
       itemId: v.videoId as ObjectId,
       durationSeconds: v.videoDurationSeconds as number,
@@ -4195,29 +4215,29 @@ export class EnrollmentRepository {
     const [users, watchAgg, feedbackAgg] = await Promise.all([
       usersCollection
         .find(
-          { _id: { $in: userIds } },
-          { projection: { email: 1, firstName: 1, lastName: 1 } },
+          {_id: {$in: userIds}},
+          {projection: {email: 1, firstName: 1, lastName: 1}},
         )
         .toArray(),
       this.watchTimeCollection
         .aggregate(
           buildGuruSetuWatchAggPipeline(
-            guruSetuVersionId,
+            versionObjectId,
             userIds,
             videoDurations,
           ),
-          { allowDiskUse: true, maxTimeMS: 120000 },
+          {allowDiskUse: true, maxTimeMS: 120000},
         )
         .toArray(),
       this.feedbackCollection
-        .aggregate(
-          buildGuruSetuFeedbackAggPipeline(guruSetuVersionId, userIds),
-          { allowDiskUse: true, maxTimeMS: 120000 },
-        )
+        .aggregate(buildGuruSetuFeedbackAggPipeline(versionObjectId, userIds), {
+          allowDiskUse: true,
+          maxTimeMS: 120000,
+        })
         .toArray(),
     ]);
 
-    // 3. resolve feedback form names (one query)
+    // 4. feedback form names (one query)
     const formIds = Array.from(
       new Set(
         feedbackAgg
@@ -4228,24 +4248,54 @@ export class EnrollmentRepository {
     ).map(id => new ObjectId(id));
     const forms = formIds.length
       ? await feedbackFormCollection
-          .find(
-            { _id: { $in: formIds } },
-            { projection: { name: 1 } },
-          )
+          .find({_id: {$in: formIds}}, {projection: {name: 1}})
           .toArray()
       : [];
 
-    // 4. build lookup maps
-    const userMap = new Map(users.map(u => [u._id.toString(), u]));
-    const formMap = new Map(forms.map(f => [f._id.toString(), f.name]));
-    const watchMap = new Map(
-      watchAgg.map(w => [`${w._id.userId}|${w._id.itemId}`, w]),
-    );
-    const feedbackMap = new Map(
-      feedbackAgg.map(f => [`${f._id.userId}|${f._id.itemId}`, f]),
-    );
+    return {
+      enrollments,
+      userMap: new Map(users.map(u => [u._id.toString(), u])),
+      videos,
+      watchMap: new Map(
+        watchAgg.map(w => [`${w._id.userId}|${w._id.itemId}`, w]),
+      ),
+      feedbackMap: new Map(
+        feedbackAgg.map(f => [`${f._id.userId}|${f._id.itemId}`, f]),
+      ),
+      formMap: new Map(forms.map(f => [f._id.toString(), f.name])),
+    };
+  }
 
-    // 5. assemble one row per (enrolled student × video)
+  /** Watch seconds capped at the video's length, and the watch percentage. */
+  static watchFigures(watch: any, durationSeconds: number) {
+    const summedSeconds = watch?.rawWatchedSeconds || 0;
+    const cappedSeconds =
+      durationSeconds > 0
+        ? Math.min(summedSeconds, durationSeconds)
+        : summedSeconds;
+    const rawWatchedSeconds = Math.round(cappedSeconds * 100) / 100;
+    const watchPercentage =
+      durationSeconds > 0
+        ? Math.round((rawWatchedSeconds / durationSeconds) * 100 * 100) / 100
+        : 0;
+    return {rawWatchedSeconds, watchPercentage};
+  }
+
+  async getGuruSetuFeedbackRows(
+    courseId: string,
+    versionId: string,
+    cohortId?: string,
+  ): Promise<any[]> {
+    const parsedCohortId =
+      cohortId && ObjectId.isValid(cohortId) ? cohortId : null;
+    const {enrollments, userMap, videos, watchMap, feedbackMap, formMap} =
+      await this.getWatchFeedbackData(
+        courseId,
+        versionId,
+        parsedCohortId ? [parsedCohortId] : null,
+      );
+
+    // one row per (enrolled student × video)
     const rows: any[] = [];
     for (const enrollment of enrollments) {
       const uid = (enrollment.userId as ObjectId).toString();
@@ -4255,23 +4305,11 @@ export class EnrollmentRepository {
         const vid = video.videoId.toString();
         const watch = watchMap.get(`${uid}|${vid}`);
         const feedback = feedbackMap.get(`${uid}|${vid}`);
-
-        // cap the total at the video duration so watch % maxes out at 100%
-        const summedSeconds = watch?.rawWatchedSeconds || 0;
-        const cappedSeconds =
-          video.videoDurationSeconds > 0
-            ? Math.min(summedSeconds, video.videoDurationSeconds)
-            : summedSeconds;
-        const rawWatchedSeconds = Math.round(cappedSeconds * 100) / 100;
-        const watchPercentage =
-          video.videoDurationSeconds > 0
-            ? Math.round(
-                (rawWatchedSeconds / video.videoDurationSeconds) * 100 * 100,
-              ) / 100
-            : 0;
+        const {rawWatchedSeconds, watchPercentage} =
+          EnrollmentRepository.watchFigures(watch, video.videoDurationSeconds);
 
         const details = feedback?.details || {};
-        const { Name, Email, ...feedbackAnswers } = details as Record<
+        const {Name, Email, ...feedbackAnswers} = details as Record<
           string,
           unknown
         >;

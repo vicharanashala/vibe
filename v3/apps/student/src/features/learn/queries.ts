@@ -44,6 +44,8 @@ export interface CourseSettings {
     seekForwardEnabled?: boolean;
     /** Listed in the course catalogue (GET /courses/public). */
     isPublic?: boolean;
+    /** Students can send feedback forms in study mode (how phones answer). On unless false. */
+    studyModeFeedback?: boolean;
     proctors?: { detectors?: DetectorSetting[] };
   };
 }

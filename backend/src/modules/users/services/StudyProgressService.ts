@@ -8,14 +8,18 @@ import {ProgressRepository} from '#root/shared/database/providers/mongo/reposito
 import {StudyViewRepository} from '#root/shared/database/providers/mongo/repositories/StudyViewRepository.js';
 import {EnrollmentRepository} from '#root/shared/database/providers/mongo/repositories/EnrollmentRepository.js';
 import {StudyModeError} from '#courses/errors/StudyModeError.js';
+import {ContentLockedError} from '#courses/errors/ContentLockedError.js';
 import {
   BadRequestError,
   ForbiddenError,
   NotFoundError,
 } from 'routing-controllers';
 import {
+  ContentLockSource,
+  IResolvedContentLock,
   IResolvedStudyMode,
   ItemType,
+  resolveContentLock,
   resolveStudyMode,
 } from '#root/shared/interfaces/models.js';
 
@@ -35,6 +39,7 @@ export const STUDY_PROGRESS_TYPES = new Set<string>([
 
 type Node = {
   studyModeEnabled?: boolean | null;
+  isLocked?: boolean | null;
   isHidden?: boolean;
   isDeleted?: boolean;
 };
@@ -55,6 +60,7 @@ export interface LessonPlace {
   sectionId: string;
   type: string;
   studyMode: IResolvedStudyMode;
+  lock: IResolvedContentLock;
 }
 
 /**
@@ -79,6 +85,7 @@ export function lessonsOf(
           sectionId: String(s.sectionId),
           type: String(ref.type),
           studyMode: resolveStudyMode(ref, s, m),
+          lock: resolveContentLock(ref, s, m),
         });
       }
     }
@@ -180,6 +187,11 @@ export class StudyProgressService {
     }
     // Study progress is tracked for students only.
     if (enrollment.role !== 'STUDENT') return {recorded: false};
+    if (place.lock.locked) {
+      throw new ContentLockedError(
+        place.lock.source as Exclude<ContentLockSource, 'default'>,
+      );
+    }
     await this.studyViewRepo.recordView({
       userId,
       courseId,

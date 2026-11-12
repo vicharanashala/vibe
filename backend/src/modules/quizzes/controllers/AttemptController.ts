@@ -65,6 +65,9 @@ class AttemptController {
   })
   @Authorized()
   @Post('/:quizId/attempt')
+  // This controller isn't a JsonController, so without this the app's default
+  // error handler answers with text, and clients can't read a refusal's `name`.
+  @ContentType('application/json')
   @HttpCode(200)
   @ResponseSchema(CreateAttemptResponse, {
     description: 'Attempt created successfully',
@@ -290,7 +293,7 @@ class AttemptController {
     @Ability(getCourseAbility) {ability, user},
   ): Promise<{message: string}> {
     const {itemId} = params;
-    const {details, courseId, courseVersionId, sectionId, cohortId } = body;
+    const {details, courseId, courseVersionId, cohortId, mode} = body;
     const userId = user._id.toString();
     const message = await this.attemptService.submitFeedBackForm(
       userId,
@@ -299,9 +302,36 @@ class AttemptController {
       itemId,
       details,
       cohortId,
-      // isSkipped,
+      mode ?? 'strict',
     );
     return {message};
+  }
+
+  @OpenAPI({
+    summary: 'Get my current feedback answer',
+    description:
+      "Returns the signed-in student's current answer to a feedback form (their latest submission), or null when they haven't answered it.",
+  })
+  @Authorized()
+  @Get('/:itemId/feedback/mine')
+  @ContentType('application/json')
+  @HttpCode(200)
+  async getMyFeedback(
+    @Params() params: SubmitFeedbackParams,
+    @Ability(getCourseAbility) {user},
+  ): Promise<{
+    feedback: {
+      details: Record<string, any>;
+      createdAt: Date;
+      mode: 'strict' | 'study';
+    } | null;
+  }> {
+    return {
+      feedback: await this.attemptService.getMyFeedback(
+        user._id.toString(),
+        params.itemId,
+      ),
+    };
   }
 
   @OpenAPI({

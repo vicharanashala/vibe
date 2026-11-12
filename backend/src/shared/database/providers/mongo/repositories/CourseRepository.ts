@@ -649,6 +649,7 @@ export class CourseRepository implements ICourseRepository {
                 // proctoring for every item in that module.
                 proctoringDetectors: '$$mod.proctoringDetectors',
                 studyModeEnabled: '$$mod.studyModeEnabled',
+                isLocked: '$$mod.isLocked',
                 sections: {
                   $filter: {
                     input: '$$mod.sections',
@@ -724,6 +725,7 @@ export class CourseRepository implements ICourseRepository {
                 // field here silently drops it from every module.
                 proctoringDetectors: '$$mod.proctoringDetectors',
                 studyModeEnabled: '$$mod.studyModeEnabled',
+                isLocked: '$$mod.isLocked',
                 sections: {
                   $filter: {
                     input: '$$mod.sections',

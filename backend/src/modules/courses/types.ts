@@ -5,6 +5,8 @@
   ModuleService: Symbol.for('ModuleService'),
   SectionService: Symbol.for('SectionService'),
   ItemService: Symbol.for('ItemService'),
+  FeedbackExportService: Symbol.for('FeedbackExportService'),
+  ContentLockService: Symbol.for('ContentLockService'),
   CourseTransferService: Symbol.for('CourseTransferService'),
   DeleteCronService: Symbol.for('DeleteCronService'),
 

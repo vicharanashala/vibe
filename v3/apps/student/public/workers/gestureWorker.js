@@ -6,34 +6,45 @@ class GestureWorkerHandler {
     this.isProcessing = false;
   }
 
-  async initialize() {
+  /**
+   * The page downloads MediaPipe's library, runtime and model through the
+   * proctoring loader (pinned, saved on the device, with progress) and sends
+   * the files here, so this worker fetches nothing itself. It stays a classic
+   * worker: MediaPipe's runtime loader calls importScripts, which module
+   * workers don't have.
+   */
+  async initialize(files, urls) {
+    const blobUrl = (bytes, type) => URL.createObjectURL(new Blob([bytes], { type }));
     try {
-      
-      // Import MediaPipe dynamically
-      const { GestureRecognizer, FilesetResolver } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm');
+      let vision;
+      try {
+        vision = await import(blobUrl(files.library, 'text/javascript'));
+      } catch {
+        // Some browsers refuse to import a module from a blob URL: use the same pinned file from the CDN.
+        vision = await import(urls.library);
+      }
+      const { GestureRecognizer } = vision;
 
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+      this.gestureRecognizer = await GestureRecognizer.createFromOptions(
+        {
+          wasmLoaderPath: blobUrl(files.wasmLoader, 'text/javascript'),
+          wasmBinaryPath: blobUrl(files.wasmBinary, 'application/wasm'),
+        },
+        {
+          baseOptions: {
+            modelAssetBuffer: new Uint8Array(files.model),
+            delegate: "CPU",
+          },
+          runningMode: "IMAGE",
+          numHands: 2,
+          minHandDetectionConfidence: 0.5,
+          minHandPresenceConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        },
       );
 
-      this.gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
-          delegate: "CPU",
-        },
-        runningMode: "IMAGE",
-        numHands: 2,
-        minHandDetectionConfidence: 0.5,
-        minHandPresenceConfidence: 0.5,
-        minTrackingConfidence: 0.5,
-      });
-
       this.isInitialized = true;
-      
-      this.postMessage({
-        type: 'INIT_SUCCESS'
-      });
+      this.postMessage({ type: 'INIT_SUCCESS' });
     } catch (error) {
       console.error("[GestureWorker] ❌ Failed to load Gesture Recognizer:", error);
       this.postMessage({
@@ -112,11 +123,11 @@ const workerHandler = new GestureWorkerHandler();
 
 // Handle messages from main thread
 self.onmessage = async (event) => {
-  const { type, imageData, timestamp } = event.data;
+  const { type, imageData, timestamp, files, urls } = event.data;
 
   switch (type) {
     case 'INIT':
-      await workerHandler.initialize();
+      await workerHandler.initialize(files, urls);
       break;
     
     case 'PROCESS_FRAME':

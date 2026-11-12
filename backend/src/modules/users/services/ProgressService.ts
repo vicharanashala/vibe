@@ -1,10 +1,11 @@
-import { Item, ItemsGroup } from '#courses/classes/transformers/Item.js';
-import { COURSES_TYPES } from '#courses/types.js';
-import { BaseService } from '#root/shared/classes/BaseService.js';
-import { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
-import { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
-import { IUserRepository } from '#root/shared/database/interfaces/IUserRepository.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {Item, ItemsGroup} from '#courses/classes/transformers/Item.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {ContentLockService} from '#courses/services/ContentLockService.js';
+import {BaseService} from '#root/shared/classes/BaseService.js';
+import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
+import {IUserRepository} from '#root/shared/database/interfaces/IUserRepository.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
 import {
   ICourseVersion,
   IWatchTime,
@@ -148,6 +149,9 @@ class ProgressService extends BaseService {
 
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase, // inject the database provider
+
+    @inject(COURSES_TYPES.ContentLockService)
+    private readonly contentLockService: ContentLockService,
   ) {
     super(database);
   }
@@ -1851,6 +1855,9 @@ class ProgressService extends BaseService {
     itemId: string,
     cohortId?: string,
   ): Promise<string> {
+    await this.contentLockService.assertOpenForUser(userId, itemId);
+    await this.assertNoRewatchPending(userId, itemId, cohortId);
+
     // Guru Setu Progress Override
     if (isGuruSetuProgressCourse(courseId, courseVersionId)) {
       await this.updateEnrollmentProgressPercent(userId, courseId, courseVersionId, undefined, false, undefined, undefined, cohortId);
@@ -1874,7 +1881,17 @@ class ProgressService extends BaseService {
         session,
       );
 
-      if (isItemCompleted) {
+      const requiredRewatch =
+        isItemCompleted &&
+        (await this.isRequiredRewatch(
+          userId,
+          courseId,
+          courseVersionId,
+          itemId,
+          cohortId,
+        ));
+
+      if (isItemCompleted && !requiredRewatch) {
         // Item is already completed, skip watchTime creation and return existing watchTime or null
         const existingWatchTime = await this.progressRepository.getWatchTime(
           userId,
@@ -2384,6 +2401,185 @@ class ProgressService extends BaseService {
   }
 
 
+  /**
+   * In a linear course, failing a quiz (with attempts left) sends the student
+   * back to the video before it. That video is already complete, so it is
+   * normally neither tracked nor able to move the student on. While it is the
+   * student's current item it is a required rewatch: it is tracked again,
+   * and finishing it moves them back to the quiz.
+   */
+  private isRewatchOfCurrentVideo(
+    progress: IProgress | null,
+    item: {type?: string} | null,
+    linearProgressionEnabled: boolean,
+    itemId: string,
+  ): boolean {
+    return (
+      linearProgressionEnabled &&
+      !!progress &&
+      !progress.completed &&
+      item?.type === 'VIDEO' &&
+      progress.currentItem?.toString() === itemId
+    );
+  }
+
+  private async isRequiredRewatch(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    itemId: string,
+    cohortId?: string,
+  ): Promise<boolean> {
+    const [progress, item, linearProgressionEnabled] = await Promise.all([
+      this.progressRepository.findProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        cohortId,
+      ),
+      this.itemRepo.readItemById(itemId),
+      this.getCourseSettingService().isLinearProgressionEnabled(
+        courseId,
+        courseVersionId,
+      ),
+    ]);
+    return this.isRewatchOfCurrentVideo(
+      progress,
+      item,
+      linearProgressionEnabled,
+      itemId,
+    );
+  }
+
+  /**
+   * Closes the rewatch's watch time, checks enough of the video was watched,
+   * and moves the student on to the next item. Completion and percentage are
+   * unchanged: the video was already counted.
+   */
+  private async finishRewatch(
+    progress: IProgress,
+    courseVersion: ICourseVersion,
+    item: Item,
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    moduleId: string,
+    sectionId: string,
+    itemId: string,
+    watchItemId: string,
+    cohortId?: string,
+  ): Promise<void> {
+    await this.contentLockService.assertOpenForUser(userId, itemId);
+
+    await this._withTransaction(async session => {
+      const stoppedWatchTime =
+        await this.progressRepository.stopItemTrackingForItem(
+          watchItemId,
+          userId,
+          courseId,
+          courseVersionId,
+          itemId,
+          cohortId,
+          session,
+        );
+      if (!stoppedWatchTime) {
+        throw new BadRequestError(
+          'Your progress on this lesson was not saved. Please reload the page and play it again.',
+        );
+      }
+      this.validateWatchTime(item, stoppedWatchTime);
+
+      const nextItem = await this.getNextItemInSequence(
+        courseVersion,
+        moduleId,
+        sectionId,
+        itemId,
+      );
+      if (!nextItem) return;
+
+      await this.progressRepository.updateProgress(
+        userId,
+        courseId,
+        courseVersionId,
+        {
+          currentModule: nextItem.moduleId,
+          currentSection: nextItem.sectionId,
+          currentItem: nextItem.itemId,
+          ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
+        },
+        cohortId,
+        session,
+      );
+    });
+  }
+
+  /**
+   * Refuses to start a quiz while the student still has to rewatch the video
+   * before it (see isRewatchOfCurrentVideo). Applies to students in linear
+   * courses only.
+   */
+  async assertNoRewatchPending(
+    userId: string,
+    quizId: string,
+    cohortId?: string,
+  ): Promise<void> {
+    const group = await this.itemRepo.findItemsGroupByItemId(quizId);
+    const ref = group?.items?.find(i => i._id?.toString() === quizId);
+    if (!group || !ref || ref.type !== 'QUIZ') return;
+
+    const place = await this.courseRepo.getItemGroupInfo(group._id);
+    if (!place) return;
+    const courseVersionId = place.courseVersionId.toString();
+    const courseVersion = await this.courseRepo.readVersion(courseVersionId);
+    if (!courseVersion) return;
+    const courseId = courseVersion.courseId.toString();
+
+    const progress = await this.progressRepository.findProgress(
+      userId,
+      courseId,
+      courseVersionId,
+      cohortId,
+    );
+    if (!progress || progress.completed) return;
+
+    const previousVideo = await this.getPreviousVideoItem(
+      courseVersion,
+      place.moduleId.toString(),
+      place.sectionId.toString(),
+      quizId,
+    );
+    if (!previousVideo) return;
+    if (progress.currentItem?.toString() !== previousVideo.itemId.toString()) {
+      return;
+    }
+
+    // Not yet completed means the student hasn't watched it the first time;
+    // the usual order checks refuse that case.
+    const videoCompleted = await this.progressRepository.isItemCompleted(
+      userId,
+      courseId,
+      courseVersionId,
+      previousVideo.itemId.toString(),
+      cohortId,
+    );
+    if (!videoCompleted) return;
+
+    // Last, so an ordinary attempt never needs the course settings.
+    const linearProgressionEnabled =
+      await this.getCourseSettingService().isLinearProgressionEnabled(
+        courseId,
+        courseVersionId,
+      );
+    if (!linearProgressionEnabled) return;
+
+    const video = await this.itemRepo.readItemById(
+      previousVideo.itemId.toString(),
+    );
+    throw new BadRequestError(
+      `Watch "${video?.name ?? 'the previous video'}" again before retaking this quiz.`,
+    );
+  }
+
   async stopItem(
     userId: string,
     courseId: string,
@@ -2443,6 +2639,29 @@ class ProgressService extends BaseService {
         cohortId,
       )
     ) {
+      if (
+        !isSkipped &&
+        this.isRewatchOfCurrentVideo(
+          progress,
+          item,
+          linearProgressionEnabled,
+          itemId,
+        )
+      ) {
+        await this.finishRewatch(
+          progress,
+          courseVersion,
+          item,
+          userId,
+          courseId,
+          courseVersionId,
+          moduleId,
+          sectionId,
+          itemId,
+          watchItemId,
+          cohortId,
+        );
+      }
       return;
     }
 
@@ -2454,6 +2673,17 @@ class ProgressService extends BaseService {
       throw new ForbiddenError(
         "This course version is inactive, you can't stop item",
       );
+    }
+
+    // A video locked mid-watch doesn't complete. Finishing a quiz that was
+    // already submitted is the exception: an attempt started before the lock
+    // may finish, and the production app stops the lesson after submitting.
+    const finishingSubmittedQuiz =
+      item.type === 'QUIZ' &&
+      !!attemptId &&
+      !!(await this.submissionRepository.get(itemId, userId, attemptId));
+    if (!finishingSubmittedQuiz) {
+      await this.contentLockService.assertOpenForUser(userId, itemId);
     }
 
     /**
@@ -3878,29 +4108,41 @@ class ProgressService extends BaseService {
         );
       }
     } else {
-      const previousDetails = await this.getPreviousItemInSequence(
-        courseVersion,
-        progress.currentModule.toString(),
-        progress.currentSection.toString(),
-        quizId,
-      );
+        // Back to the video before the quiz, which the student must watch
+        // again before retaking it (see isRewatchOfCurrentVideo). Matches the
+        // send-back in resolveQuizProgressOutcome.
+        const quizModule = quizModuleId || progress.currentModule.toString();
+        const quizSection = quizSectionId || progress.currentSection.toString();
+        const previousDetails =
+          (await this.getPreviousVideoItem(
+            courseVersion,
+            quizModule,
+            quizSection,
+            quizId,
+          )) ??
+          (await this.getPreviousItemInSequence(
+            courseVersion,
+            quizModule,
+            quizSection,
+            quizId,
+          ));
 
-      if (previousDetails) {
-        const previousProgress = {
-          currentModule: previousDetails.moduleId,
-          currentSection: previousDetails.sectionId,
-          currentItem: previousDetails.itemId,
-        };
+        if (previousDetails) {
+          const previousProgress = {
+            currentModule: previousDetails.moduleId,
+            currentSection: previousDetails.sectionId,
+            currentItem: previousDetails.itemId,
+          };
 
-        await this.progressRepository.updateProgress(
-          userId,
-          courseId,
-          courseVersionId,
-          previousProgress,
-          cohortId,
-          session,
-        );
-      }
+          await this.progressRepository.updateProgress(
+            userId,
+            courseId,
+            courseVersionId,
+            previousProgress,
+            cohortId,
+            session,
+          );
+        }
     }
     // if we refresh the quiz page after passing then the student will land on next item
     //  and as the stop item is not called for that quiz endtime will never be created
@@ -4491,6 +4733,8 @@ class ProgressService extends BaseService {
     cohortId?: string,
     session?: ClientSession,
   ): Promise<{ message: String; alreadyCompleted: Boolean }> {
+    await this.contentLockService.assertOpenForUser(userId, itemId);
+
     const item = await this.itemRepo.readItem(courseVersionId, itemId);
     if (!item) {
       throw new NotFoundError(`Item ${itemId} not found`);

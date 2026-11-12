@@ -327,11 +327,12 @@ class FeedbackSubmissionItem {
   @Expose()
   courseVersionId: ID;
 
+  /** The lesson the form is about; null for a form that is first in its section. */
   @Expose()
-  previousItemId: ID;
+  previousItemId: ID | null;
 
   @Expose()
-  previousItemType: ItemType;
+  previousItemType: ItemType | null;
 
   @Expose()
   feedbackFormId: ID;
@@ -350,6 +351,21 @@ class FeedbackSubmissionItem {
 
   @Expose()
   cohortId?: ID;
+
+  /**
+   * False once the student sent a newer answer to the same form. Missing on
+   * submissions from before this flag existed: readers treat the latest
+   * submission per student and form as the current one.
+   */
+  @Expose()
+  isCurrent?: boolean;
+
+  /** The mode the student answered in. Missing on older submissions, which were all strict. */
+  @Expose()
+  mode?: 'strict' | 'study';
+
+  @Expose()
+  replacedAt?: Date;
 
   constructor(
     userId: string,
@@ -560,6 +576,11 @@ class ItemRef {
   // resolveStudyMode in shared/interfaces/models.ts.
   @Expose()
   studyModeEnabled?: boolean | null;
+
+  // The item's own lock setting, on the ref for the same reason. Absent/null
+  // means "inherit" — see resolveContentLock in shared/interfaces/models.ts.
+  @Expose()
+  isLocked?: boolean | null;
 
   @Expose()
   name: string;
