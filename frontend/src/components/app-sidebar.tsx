@@ -70,6 +70,11 @@ export function AppSidebar() {
         url: "/teacher/announcements",
         icon: Megaphone,
       },
+      {
+        title: "Review Scheduler",
+        url: "/teacher/spaced-repetition",
+        icon: Bot,
+      },
       // The HP System is opt-in per course, so this only appears once the
       // instructor has a course that uses it.
       ...(hasHpCourses

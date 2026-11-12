@@ -34,6 +34,12 @@ export const appConfig = {
   // deliberately per environment after a dry run rather than on deploy.
   ENABLE_WATCHTIME_RECOVERY_JOB:
     env('ENABLE_WATCHTIME_RECOVERY_JOB') === 'true',
+// Default OFF: spaced-repetition review reminder notifications.
+  // Fires every hour (Asia/Kolkata) and emails students whose review
+  // items are due. Off by default so dev environments stay quiet —
+  // set ENABLE_SPACED_REPETITION_JOB='true' to enable.
+  ENABLE_SPACED_REPETITION_JOB:
+    env('ENABLE_SPACED_REPETITION_JOB') === 'true',
   // Default ON: precomputes the average watch hours shown on the teacher
   // statistics panel, which otherwise has to be aggregated per request. It
   // only writes a cached display figure and touches no student progress, so

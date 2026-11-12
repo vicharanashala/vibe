@@ -16,9 +16,10 @@
 		"vibe": "pnpx ts-node cli/src/cli.ts"
 	},
 	"lint-staged": {
-		"backend/**/*.{js,jsx,ts,tsx}": [
-			"pnpm --filter backend lint"
-		]
+		"frontend/**/*.{js,jsx,ts,tsx}": [
+			"pnpm -F frontend lint"
+		],
+		"_backendLintDisabledReason": "Backend ESLint temporarily disabled. gts v6 pins eslint@8.57.1, but eslint@9.20.0 is hoisted from frontend devDeps and rejects the legacy .eslintrc.json on Node 22 ESM (ERR_IMPORT_ATTRIBUTE_MISSING). Re-enable after migrating backend/.eslintrc.json to eslint.config.js flat config. See PR description, husky hook limitation."
 	},
 	"dependencies": {
 		"vibe": "link:cli"

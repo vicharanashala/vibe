@@ -350,3 +350,25 @@
   .animate-vibe-bar2,
   .animate-vibe-bar3 { animation: none; }
 }
+
+/* Motivation system — golden button pulse */
+@keyframes golden-pulse {
+  0%, 100% {
+    box-shadow: 0 0 24px rgba(255, 215, 0, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 36px rgba(255, 215, 0, 0.9);
+  }
+}
+
+.animate-golden-pulse { animation: golden-pulse 3s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-golden-pulse { animation: none; }
+}
+
+/* Motivation system — print-to-PDF (ExportButtons.tsx) */
+@media print {
+  html.motivation-printing body > * { display: none !important; }
+  html.motivation-printing #motivation-print-area { display: block !important; }
+}

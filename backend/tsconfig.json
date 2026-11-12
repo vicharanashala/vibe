@@ -31,7 +31,10 @@
       "#users/*": ["./modules/users/*"],
       "#quizzes/*": ["./modules/quizzes/*"],
       "#settings/*": ["./modules/settings/*"],
-      "#ejectionPolicy/*": ["./modules/ejectionPolicy/*"]
+      "#ejectionPolicy/*": ["./modules/ejectionPolicy/*"],
+      "#spacedRepetition/*": ["./modules/spacedRepetition/*"],
+      "#notifications/*": ["./modules/notifications/*"],
+      "#motivation/*": ["./modules/motivation/*"]
     },
 
     "types": ["node", "express"],

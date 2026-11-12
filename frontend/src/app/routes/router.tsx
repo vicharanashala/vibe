@@ -70,6 +70,10 @@ import StudentLedgerPage from '../pages/teacher/hp-system/student-ledger'
 import StudentSubmissionsPage from '../pages/teacher/hp-system/student-submissions'
 import SubmissionDetailsPage from '../pages/teacher/hp-system/submission-details'
 import StudentCohorts from '@/app/pages/student/hp-system/cohorts'
+import ReviewPage from '@/app/pages/student/ReviewPage'
+import RetentionDashboard from '@/app/pages/student/RetentionDashboard'
+import TeacherSRDashboard from '@/app/pages/teacher/TeacherSRDashboard'
+import CourseMentorsPage from '@/app/pages/teacher/course-mentors'
 import StudentActivities from '@/app/pages/student/hp-system/activities'
 import StudentSubmissions from '@/app/pages/student/hp-system/submissions'
 import StudentMyLedgerPage from '@/app/pages/student/hp-system/student-ledger'
@@ -317,6 +321,25 @@ const teacherNotificationsRoute = new Route({
   getParentRoute: () => teacherLayoutRoute,
   path: '/notifications',
   component: NotificationsPage,
+});
+
+// Teacher spaced-repetition cohort dashboard (Phase 3, 2026-08-09).
+// Shows per-student per-course SM-2 state and bulk teacher controls
+// (boost, exam-prep, pause, reset, sr-disabled, assign). Replaced the
+// single-student ReviewScheduler view on 2026-08-09.
+const teacherSRDashboardRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/spaced-repetition',
+  component: TeacherSRDashboard,
+});
+
+// Teacher course mentors management page (PATCH /api/courses/:id/mentors).
+// Admins can add or remove mentor user IDs for a course; mentors then
+// gain read-access to the course's spaced-repetition dashboard.
+const teacherCourseMentorsRoute = new Route({
+  getParentRoute: () => teacherLayoutRoute,
+  path: '/courses/mentors',
+  component: CourseMentorsPage,
 });
 
 // Teacher courses page route
@@ -571,6 +594,27 @@ const studentMySubmissionsRoute = new Route({
   component: StudentMySubmissions,
 });
 
+// Student review session screen — powers the SM-2 spaced-repetition
+// review flow. Optional `?courseId=...` narrows the queue to a single
+// course when the user clicked "Start review for this course" on the
+// retention dashboard.
+const studentReviewRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/review',
+  component: ReviewPage,
+  validateSearch: (search: Record<string, unknown>): {courseId?: string} => ({
+    courseId: typeof search.courseId === 'string' ? search.courseId : undefined,
+  }),
+});
+
+// Student review retention dashboard — per-course retention cards
+// with opt-out toggles and links into the review session.
+const studentReviewDashboardRoute = new Route({
+  getParentRoute: () => studentLayoutRoute,
+  path: '/review/dashboard',
+  component: RetentionDashboard,
+});
+
 // Every learner HP page sits behind the per-course opt-in, so each one is
 // wrapped rather than relying on the sidebar to keep learners away.
 const guardStudentHp = (Page: () => React.JSX.Element) => () => (
@@ -762,6 +806,8 @@ const routeTree = rootRoute.addChildren([
     teacherAuditRoute,
     teacherSupportRoute,
     teacherConfigureCohortsRoute,
+    teacherSRDashboardRoute,
+    teacherCourseMentorsRoute,
       teacherEjectionPoliciesRoute, 
     teacherHpSystemVersionsRoute,
     teacherHpSystemCohortsRoute,
@@ -783,6 +829,8 @@ const routeTree = rootRoute.addChildren([
     studentLeaderboardRoute,
     studentAnnouncementsRoute,
     studentMySubmissionsRoute,
+    studentReviewRoute,
+    studentReviewDashboardRoute,
     studentHpSystemCohortsRoute,
     studentHpSystemActivitiesRoute,
     studentHpSystemActivitiesDetailRoute,

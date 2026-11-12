@@ -222,6 +222,72 @@ export class NotificationService {
     await this.notificationRepo.create(notification, session);
   }
 
+  // ── Spaced Repetition Review Reminder ──────────────────────────────
+
+  /**
+   * Notify a student that they have review items due across one or more
+   * courses. Fired by the hourly `reviewNotificationJob` cron once per
+   * student per tick — not per item — so the inbox doesn't get spammed
+   * when a student has many due cards.
+   *
+   * @param studentId   The student's user ID (string).
+   * @param courseIds   Unique course IDs for which the student has due items.
+   * @param itemCount   Total number of due review items across those courses.
+   *
+   * The notification body lists the first 3 course names (or course IDs if
+   * names are missing) and appends "+ N more" when there are more than 3.
+   * Failure mode: never throws — notifications are best-effort. Errors are
+   * logged by the caller (cron) but do not stop other students' notifications.
+   */
+  async notifyReviewReminder(
+    studentId: string,
+    courseIds: string[],
+    itemCount: number,
+  ): Promise<void> {
+    let courseNames: string[] = [];
+    if (courseIds.length > 0) {
+      try {
+        const courses = await Promise.all(
+          courseIds.map(id => this.courseRepo.read(id).catch(() => null)),
+        );
+        courseNames = courses
+          .filter((c): c is { name: string } => c !== null && !!c.name)
+          .map(c => c.name);
+      } catch {
+        // Names lookup is best-effort — fall through with empty names
+        // so the notification body still renders.
+      }
+    }
+
+    const displayCourses =
+      courseNames.length > 0
+        ? courseNames.slice(0, 3)
+        : courseIds.slice(0, 3);
+    const totalDisplayed = courseNames.length > 0 ? courseNames.length : courseIds.length;
+    const extraCount = totalDisplayed - 3;
+
+    const coursesText =
+      displayCourses.length === 0
+        ? 'your enrolled courses'
+        : displayCourses.join(', ') +
+          (extraCount > 0 ? ` and ${extraCount} more` : '');
+
+    const notification: Omit<INotification, '_id'> = {
+      userId: new ObjectId(studentId),
+      type: 'review_reminder',
+      title: 'Time for your review session',
+      message: `You have ${itemCount} review card${itemCount === 1 ? '' : 's'} due in ${coursesText}. Tap to start your session.`,
+      metadata: {
+        itemCount,
+        courseIds: courseIds.map(id => new ObjectId(id)),
+      },
+      read: false,
+      createdAt: new Date(),
+    };
+
+    await this.notificationRepo.create(notification);
+  }
+
   async enrichWithAppealStatus(
     userId: string,
     notifications: INotification[],

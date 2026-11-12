@@ -246,4 +246,12 @@ export const logout = () => {
   useAuthStore.getState().clearUser();
 };
 
-export const analytics = getAnalytics(app);
+// Analytics requires a valid Firebase project and crashes with emulator/stub
+// config — guard it so the rest of the app still works in local dev.
+let analytics: ReturnType<typeof getAnalytics> | null = null;
+try {
+  analytics = getAnalytics(app);
+} catch {
+  // Silently skip — analytics is non-critical (e.g. stub config in local dev).
+}
+export { analytics };
