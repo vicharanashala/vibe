@@ -391,7 +391,10 @@ async function apiFetch<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`API error ${response.status}: ${await response.text()}`);
+    const errorText = await response.text();
+    const err = new Error(`API error ${response.status}: ${errorText}`) as Error & { status?: number };
+    err.status = response.status;
+    throw err;
   }
 
   return response.json();
@@ -1432,7 +1435,7 @@ export async function assignReview(args: {
     }
 
     const inserted: ReviewItem = {
-      _id: `mock-assign-${Date.now()}`,
+      _id: `mock-assign-${args.studentId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       student_id: args.studentId,
       course_id: args.courseId,
       question_id: args.questionId,

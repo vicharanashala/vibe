@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, type ReactNode } from "react"
-import { useQueries } from "@tanstack/react-query"
+import { useQueries, useQueryClient } from "@tanstack/react-query"
 import {
   useBoostReview,
   useSetExamPrepMode,
@@ -12,11 +12,11 @@ import {
   useBulkUpdateNotifications,
   useBulkSetStudentSRDisabled,
   useGetAssignableQuestions,
-  useAssignReview,
+
   useSetRemediationHint,
 } from "@/hooks/spaced-repetition-hooks"
 import { spacedRepetitionKeys } from "@/hooks/spaced-repetition-hooks"
-import { studentDisplay, courseDisplay, getQuestionSummary, getSchedule, bulkUpdateExamPrepMode } from "@/lib/spaced-repetition-api"
+import { studentDisplay, courseDisplay, getQuestionSummary, getSchedule, bulkUpdateExamPrepMode, assignReview } from "@/lib/spaced-repetition-api"
 import { CourseMultiSelectCard } from "@/components/sr-teacher/CourseMultiSelectCard"
 import { StudentListPanel } from "@/components/sr-teacher/StudentListPanel"
 import { StudentCourseCardList } from "@/components/sr-teacher/StudentCourseCardList"
@@ -370,7 +370,10 @@ export default function TeacherSRDashboard() {
   // place). Pre-populates the dialog with the current `selectedStudents`
   // - the teacher can uncheck any they want to skip before submitting.
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
+  const queryClient = useQueryClient()
+  const [assignCandidateStudents, setAssignCandidateStudents] = useState<string[]>([])
   const [assignForStudents, setAssignForStudents] = useState<string[]>([])
+  const [isAssigning, setIsAssigning] = useState(false)
   const [selectedQuestionId, setSelectedQuestionId] = useState<string>("")
 
   // Fetch the assignable question catalogue for the primary selected
@@ -382,7 +385,7 @@ export default function TeacherSRDashboard() {
 
   // The assign mutation is per-student (backend `/assign` is single-
   // student), so `submitAssign` fans out via `Promise.allSettled`.
-  const assignMutation = useAssignReview()
+
 
   // ── Per-card Set Hint (ported 2026-08-09 from ReviewScheduler) ──────
   // Tracks which (studentId × questionId) is currently being edited
@@ -446,6 +449,7 @@ export default function TeacherSRDashboard() {
       return toast.error("Select at least one student to assign a review to.")
     }
     // Pre-populate with the current cohort selection.
+    setAssignCandidateStudents(selectedStudents)
     setAssignForStudents(selectedStudents)
     setSelectedQuestionId("")
     setAssignDialogOpen(true)
@@ -466,60 +470,73 @@ export default function TeacherSRDashboard() {
     if (!selectedQuestionId) return toast.error("Pick a question first.")
     if (!primaryCourseId) return
 
-    // Fan-out via Promise.allSettled so each student's failure is
-    // isolated. Backend `/assign` is idempotent on (student_id,
-    // question_id), so a 409 collision is safely reported as
-    // "skipped" without retrying.
-    const results = await Promise.allSettled(
-      assignForStudents.map((studentId) =>
-        assignMutation.mutateAsync({
-          studentId,
-          questionId: selectedQuestionId,
-          courseId: primaryCourseId,
-        }),
-      ),
-    )
-
-    const succeeded = results.filter((r) => r.status === "fulfilled").length
-    const failed = results.length - succeeded
-
-    // Summary toasts match the ReviewScheduler pattern: single-student
-    // case keeps the autoEnabled-aware wording; multi-student case
-    // uses a simple succeeded/failed count.
-    if (assignForStudents.length === 1) {
-      const only = results[0]
-      if (only.status === "fulfilled") {
-        const data = only.value as { autoEnabled?: boolean }
-        if (data.autoEnabled) {
-          toast.success(
-            "Spaced repetition was paused for this student — resumed automatically so the assignment takes effect.",
-          )
-        } else {
-          toast.success(`Assigned "${selectedQuestionId}" to the student's queue.`)
-        }
-      } else {
-        const err = only.reason as Error & { status?: number }
-        if (err.status === 409) {
-          toast.warning(
-            "This question is already on the student's review queue. Use 'Make due now' on the per-card row to push it to the front instead.",
-          )
-        } else {
-          toast.error(`Assign failed: ${err.message}`)
-        }
-      }
-    } else if (failed === 0) {
-      toast.success(`Assigned to all ${succeeded} students.`)
-    } else if (succeeded === 0) {
-      toast.error(`Failed to add the review question for any of the ${failed} student${failed === 1 ? "" : "s"}.`)
-    } else {
-      toast.warning(
-        `Assigned to ${succeeded}. ${failed} skipped (already in queue or error).`,
+    setIsAssigning(true)
+    try {
+      // Direct assignReview call per student via Promise.allSettled.
+      // Bypasses React Query's single-observer collision so multi-student
+      // tagging runs cleanly in parallel without aborting concurrent calls.
+      const results = await Promise.allSettled(
+        assignForStudents.map((studentId) =>
+          assignReview({
+            studentId,
+            questionId: selectedQuestionId,
+            courseId: primaryCourseId,
+          }),
+        ),
       )
-    }
 
-    setAssignDialogOpen(false)
-    setSelectedQuestionId("")
-    setAssignForStudents([])
+      const succeeded = results.filter((r) => r.status === "fulfilled").length
+      const failed = results.length - succeeded
+
+      // Invalidate queries for ALL affected students so their queues update
+      for (const studentId of assignForStudents) {
+        queryClient.invalidateQueries({
+          queryKey: spacedRepetitionKeys.schedule(studentId),
+        })
+        queryClient.invalidateQueries({
+          queryKey: spacedRepetitionKeys.srStatus(studentId),
+        })
+      }
+
+      // Summary toasts: single-student vs multi-student
+      if (assignForStudents.length === 1) {
+        const only = results[0]
+        if (only.status === "fulfilled") {
+          const data = only.value as { autoEnabled?: boolean }
+          if (data.autoEnabled) {
+            toast.success(
+              "Spaced repetition was paused for this student — resumed automatically so the assignment takes effect.",
+            )
+          } else {
+            toast.success(`Assigned "${selectedQuestionId}" to the student's queue.`)
+          }
+        } else {
+          const err = only.reason as Error & { status?: number }
+          if (err.status === 409 || err.message?.includes("409")) {
+            toast.warning(
+              "This question is already on the student's review queue. Use 'Make due now' on the per-card row to push it to the front instead.",
+            )
+          } else {
+            toast.error(`Assign failed: ${err.message}`)
+          }
+        }
+      } else if (failed === 0) {
+        toast.success(`Assigned to all ${succeeded} students.`)
+      } else if (succeeded === 0) {
+        toast.error(`Failed to add the review question for any of the ${failed} student${failed === 1 ? "" : "s"}.`)
+      } else {
+        toast.warning(
+          `Assigned to ${succeeded}. ${failed} skipped (already in queue or error).`,
+        )
+      }
+
+      setAssignDialogOpen(false)
+      setSelectedQuestionId("")
+      setAssignForStudents([])
+      setAssignCandidateStudents([])
+    } finally {
+      setIsAssigning(false)
+    }
   }
 
   async function bulkToggleExamPrep(enabled: boolean) {
@@ -1374,49 +1391,56 @@ export default function TeacherSRDashboard() {
           </DialogHeader>
 
           {/* Student checkbox strip (multi-student case). Pre-fills with
-              the cohort selection; the teacher can drop any before
-              submitting. Renders only when there are 2+ students
-              (single-student case is already conveyed in the
-              description above). */}
-          {assignForStudents.length > 1 && (
+              the cohort selection; the teacher can toggle students on or off
+              before submitting without items vanishing from the list. */}
+          {assignCandidateStudents.length > 1 && (
             <div
               className="rounded-md border border-border bg-muted/30 p-3 space-y-1.5"
               data-testid="assign-student-strip"
             >
-              {/* F4 audit fix (2026-08-11): header now carries a "Clear"
-                  link so a teacher can wipe all recipients in one click
-                  instead of unchecking each row. Saves tedious clicking
-                  for cohorts of 20+ students. */}
               <div className="flex items-center justify-between pb-1">
                 <span className="text-xs font-medium text-muted-foreground">
-                  Recipients ({assignForStudents.length})
+                  Recipients ({assignForStudents.length} of {assignCandidateStudents.length})
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setAssignForStudents([])}
-                  className="text-xs font-medium text-primary underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
-                  aria-label="Remove all recipients"
-                  data-testid="assign-clear-all-recipients"
-                >
-                  Clear
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAssignForStudents(assignCandidateStudents)}
+                    className="text-xs font-medium text-primary underline-offset-2 hover:underline focus:outline-none rounded-sm"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-muted-foreground text-xs">·</span>
+                  <button
+                    type="button"
+                    onClick={() => setAssignForStudents([])}
+                    className="text-xs font-medium text-primary underline-offset-2 hover:underline focus:outline-none rounded-sm"
+                    aria-label="Remove all recipients"
+                    data-testid="assign-clear-all-recipients"
+                  >
+                    Clear
+                  </button>
+                </div>
               </div>
               <div className="max-h-[140px] overflow-y-auto space-y-1 pr-1">
-                {assignForStudents.map((studentId) => (
-                  <label
-                    key={studentId}
-                    className="flex items-center gap-2 rounded-sm px-2 py-1 cursor-pointer hover:bg-background/60"
-                  >
-                    <Checkbox
-                      checked
-                      onCheckedChange={() => toggleAssignStudent(studentId)}
-                      aria-label={`Remove ${studentDisplay(studentId).name} from assignment`}
-                    />
-                    <span className="text-sm">
-                      {studentDisplay(studentId).name}
-                    </span>
-                  </label>
-                ))}
+                {assignCandidateStudents.map((studentId) => {
+                  const isChecked = assignForStudents.includes(studentId);
+                  return (
+                    <label
+                      key={studentId}
+                      className="flex items-center gap-2 rounded-sm px-2 py-1 cursor-pointer hover:bg-background/60"
+                    >
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => toggleAssignStudent(studentId)}
+                        aria-label={`Toggle ${studentDisplay(studentId).name} for assignment`}
+                      />
+                      <span className="text-sm">
+                        {studentDisplay(studentId).name}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1492,19 +1516,21 @@ export default function TeacherSRDashboard() {
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
+              disabled={isAssigning}
               onClick={() => {
                 setAssignDialogOpen(false)
                 setSelectedQuestionId('')
                 setAssignForStudents([])
+                setAssignCandidateStudents([])
               }}
             >
               Cancel
             </Button>
             <Button
               onClick={submitAssign}
-              disabled={!selectedQuestionId || assignForStudents.length === 0 || assignMutation.isPending}
+              disabled={!selectedQuestionId || assignForStudents.length === 0 || isAssigning}
             >
-              {assignMutation.isPending ? (
+              {isAssigning ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" /> Adding…
                 </>
