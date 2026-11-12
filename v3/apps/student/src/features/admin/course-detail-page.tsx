@@ -26,20 +26,29 @@ import { useCourseSettings } from '@/features/learn/queries';
 
 import { CourseContent, ITEM_TYPES } from './course-content';
 import { CoursePeople } from './course-people';
+import { FinishedStudents } from './finished-students';
+import { DEFAULT_PEOPLE_SORT, isDefaultSort, type PeopleSort } from './people-sort';
 import { CourseIntegrity } from './course-integrity';
 import { DETECTORS } from './course-proctoring';
 import { CourseRegistration } from './course-registration';
 import { useCourse, useCourseEnrollmentStats } from './queries';
 import { useRecordCourseVisit } from './recent-courses';
+import { CourseFeedback } from './course-feedback';
 import { ErrorText, SectionHeading, StatStrip, StudioPage } from './studio-ui';
 
 export type CourseTab =
-  'overview' | 'content' | 'people' | 'registration' | 'proctoring';
+  | 'overview'
+  | 'content'
+  | 'people'
+  | 'registration'
+  | 'feedback'
+  | 'proctoring';
 export const COURSE_TABS: CourseTab[] = [
   'overview',
   'content',
   'people',
   'registration',
+  'feedback',
   'proctoring',
 ];
 
@@ -54,10 +63,13 @@ export function CourseDetailPage({
   courseId,
   versionId,
   tab = 'overview',
+  peopleSort = DEFAULT_PEOPLE_SORT,
 }: {
   courseId: string;
   versionId: string;
   tab?: CourseTab;
+  /** People's order, kept in the URL so links (and a reload) keep it. */
+  peopleSort?: PeopleSort;
 }) {
   const course = useCourse(courseId);
   const version = useCourseVersion(versionId);
@@ -70,6 +82,15 @@ export function CourseDetailPage({
       to: '/admin/courses/$courseId/$versionId',
       params: { courseId, versionId },
       search: next === 'overview' ? {} : { tab: next },
+      replace: true,
+    });
+  }
+
+  function sortPeople(sort: PeopleSort) {
+    void navigate({
+      to: '/admin/courses/$courseId/$versionId',
+      params: { courseId, versionId },
+      search: isDefaultSort(sort) ? { tab: 'people' } : { tab: 'people', sort: sort.by, order: sort.order },
       replace: true,
     });
   }
@@ -141,6 +162,9 @@ export function CourseDetailPage({
           <TabsTrigger value="registration" className="flex-none px-0.5">
             Registration
           </TabsTrigger>
+          <TabsTrigger value="feedback" className="flex-none px-0.5">
+            Feedback
+          </TabsTrigger>
           <TabsTrigger value="proctoring" className="flex-none px-0.5">
             Proctoring
           </TabsTrigger>
@@ -151,6 +175,7 @@ export function CourseDetailPage({
             versionId={versionId}
             description={course.data?.description}
             onGo={goTo}
+            onSeeFinished={() => sortPeople({ by: 'progress', order: 'desc' })}
             onInvite={() => {
               goTo('people');
               setInviteOpen(true);
@@ -166,6 +191,8 @@ export function CourseDetailPage({
             versionId={versionId}
             inviteOpen={inviteOpen}
             onInviteOpenChange={setInviteOpen}
+            sort={peopleSort}
+            onSortChange={sortPeople}
           />
         </TabsContent>
         <TabsContent value="registration" className="pt-6">
@@ -174,6 +201,9 @@ export function CourseDetailPage({
             versionId={versionId}
             registrationLink={<RegistrationLink versionId={versionId} />}
           />
+        </TabsContent>
+        <TabsContent value="feedback" className="pt-6">
+          <CourseFeedback courseId={courseId} versionId={versionId} />
         </TabsContent>
         <TabsContent value="proctoring" className="pt-6">
           <CourseIntegrity courseId={courseId} versionId={versionId} />
@@ -189,12 +219,14 @@ function CourseOverview({
   description,
   onGo,
   onInvite,
+  onSeeFinished,
 }: {
   courseId: string;
   versionId: string;
   description?: string;
   onGo: (tab: CourseTab) => void;
   onInvite: () => void;
+  onSeeFinished: () => void;
 }) {
   const version = useCourseVersion(versionId);
   const stats = useCourseEnrollmentStats(courseId, versionId);
@@ -234,6 +266,8 @@ function CourseOverview({
           ]}
         />
       </section>
+
+      <FinishedStudents courseId={courseId} versionId={versionId} onSeeAll={onSeeFinished} />
 
       <section className="grid gap-3 sm:grid-cols-3">
         <ActionTile
@@ -345,7 +379,7 @@ function RegistrationLink({ versionId }: { versionId: string }) {
         />
         <InputGroupAddon align="inline-end">
           <InputGroupButton onClick={() => void copy()} aria-label="Copy link">
-            {copied ? <CheckIcon aria-hidden /> : <CopyIcon aria-hidden />}
+            {copied ? <CheckIcon aria-hidden className="text-emerald-600 animate-in zoom-in-50 duration-200" /> : <CopyIcon aria-hidden className="animate-in fade-in-0 duration-200" />}
             {copied ? 'Copied' : 'Copy'}
           </InputGroupButton>
         </InputGroupAddon>

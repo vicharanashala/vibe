@@ -9,9 +9,15 @@
  *   - the widget in uiSchema[label]['ui:widget']; help/placeholder in ui:help/ui:placeholder
  *   - field order in uiSchema['ui:order'] (rjsf honours it; property order is the fallback)
  *
- * Two kinds the old builder lacked are encoded so rjsf still renders them:
- * a rating is a radio over "1".."N" (marked with ui:options.display = 'rating'),
- * and checkboxes are an array of unique enum strings with the 'checkboxes' widget.
+ * Kinds the old builder lacked are encoded so rjsf still renders them:
+ * - a rating is a radio over "1".."N" (ui:options.display = 'rating')
+ * - checkboxes are an array of unique enum strings with the 'checkboxes' widget
+ * - a section heading is a `type: 'null'` property (rjsf shows its title and
+ *   description and asks for nothing)
+ * - a linear scale is an integer with enum min..max and the radio widget
+ *   (ui:options.display = 'scale', minLabel, maxLabel)
+ * - "Other (please specify)" adds an "Other" choice plus a sibling string
+ *   property "<key> (other)" whose ui:options.otherFor names the question
  */
 
 export type FieldKind =
@@ -26,6 +32,8 @@ export type FieldKind =
   | 'select'
   | 'checkboxes'
   | 'rating'
+  | 'scale'
+  | 'heading'
   | 'checkbox';
 
 export interface FormField {
@@ -49,6 +57,26 @@ export interface FormField {
   name?: string;
   /** Stored as JSON Schema "integer" rather than "number". */
   integer?: boolean;
+  /** Linear scale: labels for the two ends. */
+  minLabel?: string;
+  maxLabel?: string;
+  /** radio / checkboxes: offer "Other (please specify)". */
+  other?: boolean;
+  /** Where the "Other" text is stored, when the form came from storage. */
+  otherName?: string;
+}
+
+/** The choice that reveals the "please specify" text box. */
+export const OTHER = 'Other';
+
+/** The key the "Other (please specify)" text is stored under. */
+export function otherName(f: FormField) {
+  return f.otherName ?? `${fieldName(f)} (other)`;
+}
+
+/** Questions that take an answer (section headings don't). */
+export function answerable(fields: FormField[]) {
+  return fields.filter((f) => f.kind !== 'heading');
 }
 
 /** The key a field's answer is stored under. */
@@ -85,6 +113,8 @@ export const KIND_LABELS: Record<FieldKind, string> = {
   text: 'Short answer',
   textarea: 'Paragraph',
   rating: 'Rating',
+  scale: 'Linear scale',
+  heading: 'Section heading',
   radio: 'Multiple choice',
   checkboxes: 'Checkboxes',
   select: 'Dropdown',
@@ -109,6 +139,7 @@ export function blankField(kind: FieldKind = 'rating'): FormField {
         ? ['Option 1', 'Option 2']
         : [],
     ...(kind === 'rating' ? { min: 1, max: 5 } : {}),
+    ...(kind === 'scale' ? { min: 1, max: 5, minLabel: '', maxLabel: '' } : {}),
   };
 }
 
@@ -129,10 +160,17 @@ export function schemaToFields(
   const order: string[] = Array.isArray(ui['ui:order'])
     ? ui['ui:order'].filter((k: string) => k in props)
     : [];
-  const names = [
+  const allNames = [
     ...order,
     ...Object.keys(props).filter((k) => !order.includes(k)),
   ];
+  // "Other (please specify)" text properties belong to their question.
+  const otherOf: Record<string, string> = {};
+  for (const n of allNames) {
+    const target = ui[n]?.['ui:options']?.otherFor;
+    if (typeof target === 'string' && target in props) otherOf[target] = n;
+  }
+  const names = allNames.filter((n) => !Object.values(otherOf).includes(n));
 
   return names.map((name) => {
     const p = props[name] ?? {};
@@ -140,7 +178,9 @@ export function schemaToFields(
     const widget: string | undefined = u['ui:widget'];
     const display: string | undefined = u['ui:options']?.display;
     let kind: FieldKind = 'text';
-    if (display === 'rating') kind = 'rating';
+    if (p.type === 'null') kind = 'heading';
+    else if (display === 'scale') kind = 'scale';
+    else if (display === 'rating') kind = 'rating';
     else if (p.type === 'array') kind = 'checkboxes';
     else if (p.type === 'boolean') kind = 'checkbox';
     else if (p.type === 'number' || p.type === 'integer') kind = 'number';
@@ -152,10 +192,13 @@ export function schemaToFields(
     else if (p.format === 'date' || widget === 'date') kind = 'date';
     else if (u['ui:options']?.inputType === 'tel') kind = 'tel';
 
-    const options =
+    const hasOther = name in otherOf;
+    const options = (
       kind === 'checkboxes'
         ? (p.items?.enum ?? []).map(String)
-        : choiceValues(p);
+        : choiceValues(p)
+    ).filter((o: string) => !(hasOther && o === OTHER));
+    const uo = u['ui:options'] ?? {};
     return {
       key: fieldKey(),
       kind,
@@ -165,9 +208,18 @@ export function schemaToFields(
       help: u['ui:help'] ?? p.description ?? '',
       placeholder: u['ui:placeholder'] ?? '',
       required: required.has(name),
-      options: kind === 'rating' ? [] : options,
+      options: kind === 'rating' || kind === 'scale' ? [] : options,
       ...(kind === 'rating' ? { min: 1, max: options.length || 5 } : {}),
       ...(kind === 'number' ? { min: p.minimum, max: p.maximum } : {}),
+      ...(kind === 'scale'
+        ? {
+            min: p.minimum ?? 1,
+            max: p.maximum ?? 5,
+            minLabel: uo.minLabel ?? '',
+            maxLabel: uo.maxLabel ?? '',
+          }
+        : {}),
+      ...(hasOther ? { other: true, otherName: otherOf[name] } : {}),
     };
   });
 }
@@ -201,15 +253,44 @@ export function fieldsToSchema(fields: FormField[]): {
 } {
   const properties: Record<string, PropertySchema> = {};
   const required: string[] = [];
-  const uiSchema: UiSchema = { 'ui:order': fields.map(fieldName) };
+  const order: string[] = [];
+  const uiSchema: UiSchema = { 'ui:order': order };
 
   for (const f of fields) {
     const name = fieldName(f);
     const label = f.label.trim();
     const options = f.options.map((o) => o.trim()).filter(Boolean);
+    const withOther =
+      f.other && (f.kind === 'radio' || f.kind === 'select' || f.kind === 'checkboxes');
+    if (withOther && !options.includes(OTHER)) options.push(OTHER);
     const ui: Record<string, unknown> = {};
     let p: PropertySchema;
+    order.push(name);
     switch (f.kind) {
+      case 'heading':
+        p = { type: 'null', title: label };
+        if (f.help.trim()) p.description = f.help.trim();
+        properties[name] = p;
+        uiSchema[name] = ui;
+        continue;
+      case 'scale': {
+        const min = f.min ?? 1;
+        const max = Math.max(min + 1, f.max ?? 5);
+        p = {
+          type: 'integer',
+          minimum: min,
+          maximum: max,
+          enum: Array.from({ length: max - min + 1 }, (_, i) => min + i),
+        };
+        ui['ui:widget'] = 'radio';
+        ui['ui:options'] = {
+          inline: true,
+          display: 'scale',
+          ...(f.minLabel?.trim() ? { minLabel: f.minLabel.trim() } : {}),
+          ...(f.maxLabel?.trim() ? { maxLabel: f.maxLabel.trim() } : {}),
+        };
+        break;
+      }
       case 'textarea':
         p = { type: 'string' };
         ui['ui:widget'] = 'textarea';
@@ -285,6 +366,12 @@ export function fieldsToSchema(fields: FormField[]): {
     properties[name] = p;
     uiSchema[name] = ui;
     if (f.required) required.push(name);
+    if (withOther) {
+      const other = otherName(f);
+      properties[other] = { type: 'string', title: `${label}: other (please specify)` };
+      uiSchema[other] = { 'ui:options': { otherFor: name }, 'ui:placeholder': 'Please specify' };
+      order.push(other);
+    }
   }
   return { jsonSchema: { type: 'object', properties, required }, uiSchema };
 }
@@ -292,6 +379,7 @@ export function fieldsToSchema(fields: FormField[]): {
 export type FormValues = Record<string, unknown>;
 
 export function isAnswered(f: FormField, v: unknown) {
+  if (f.kind === 'heading') return false;
   if (f.kind === 'checkbox') return v === true;
   return !(v === undefined || v === '' || (Array.isArray(v) && v.length === 0));
 }
@@ -303,8 +391,15 @@ export function validate(
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const f of fields) {
+    if (f.kind === 'heading') continue;
     const name = fieldName(f);
     const v = values[name];
+    const pickedOther =
+      f.other && (v === OTHER || (Array.isArray(v) && v.includes(OTHER)));
+    if (pickedOther && !String(values[otherName(f)] ?? '').trim()) {
+      errors[name] = 'Please say what “Other” is.';
+      continue;
+    }
     const empty =
       v === undefined ||
       v === '' ||
@@ -343,13 +438,19 @@ export function toSubmission(
 ): FormValues {
   const out: FormValues = {};
   for (const f of fields) {
+    if (f.kind === 'heading') continue;
     const name = fieldName(f);
     const v = values[name];
     if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) {
       if (f.kind === 'checkbox') out[name] = false;
       continue;
     }
-    out[name] = f.kind === 'number' ? Number(v) : v;
+    out[name] = f.kind === 'number' || f.kind === 'scale' ? Number(v) : v;
+    // The "please specify" text is kept only while "Other" is picked.
+    const pickedOther =
+      f.other && (v === OTHER || (Array.isArray(v) && v.includes(OTHER)));
+    const otherText = String(values[otherName(f)] ?? '').trim();
+    if (pickedOther && otherText) out[otherName(f)] = otherText;
   }
   return out;
 }

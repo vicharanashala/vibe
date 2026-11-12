@@ -22,8 +22,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 
 import {
+  answerable,
   fieldName,
   isAnswered,
+  OTHER,
+  otherName,
   type FormField,
   type FormValues,
 } from './form-schema';
@@ -50,11 +53,16 @@ export function FeedbackFormFields({
   /** One card per question with "1 of n" (the student lesson); plain fields otherwise. */
   cards?: boolean;
 }) {
+  // Section headings aren't questions: they don't count in "Question 1 of n".
+  const questionCount = answerable(fields).length;
+  const questionNumber = new Map(
+    answerable(fields).map((f, n) => [f.key, n + 1]),
+  );
   return (
     <FieldGroup className={cards ? 'gap-4' : 'gap-8'}>
       {fields.map((f, i) => {
         const node = renderField(f, i);
-        if (!cards) return node;
+        if (!cards || f.kind === 'heading') return node;
         const answered = isAnswered(
           f,
           values[fieldName(f) || `Question ${i + 1}`],
@@ -67,7 +75,7 @@ export function FeedbackFormFields({
           >
             <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
               <span className={answered ? 'text-primary' : undefined}>
-                Question {i + 1} of {fields.length}
+                Question {questionNumber.get(f.key)} of {questionCount}
               </span>
               {answered && (
                 <CheckCircle2Icon
@@ -102,11 +110,87 @@ export function FeedbackFormFields({
     const help = f.help ? <FieldDescription>{f.help}</FieldDescription> : null;
     const err = error ? <FieldError>{error}</FieldError> : null;
 
+    if (f.kind === 'heading') {
+      return (
+        <div key={f.key} className="pt-2">
+          <h2 className="font-aleo text-xl tracking-tight">
+            {f.label.trim() || 'Section'}
+          </h2>
+          {f.help && (
+            <p className="mt-1 text-sm text-muted-foreground">{f.help}</p>
+          )}
+        </div>
+      );
+    }
+
+    // "Other (please specify)": a text box shown while Other is picked.
+    const otherKey = otherName(f);
+    const pickedOther =
+      f.other && (value === OTHER || (Array.isArray(value) && value.includes(OTHER)));
+    const otherInput = pickedOther ? (
+      <Input
+        id={`${id}-other`}
+        aria-label={`${f.label.trim() || `Question ${i + 1}`}: other (please specify)`}
+        value={typeof values[otherKey] === 'string' ? (values[otherKey] as string) : ''}
+        onChange={(e) => onChange(otherKey, e.target.value)}
+        placeholder="Please specify"
+        disabled={disabled}
+        className="h-11 sm:h-10"
+      />
+    ) : null;
+
+    if (f.kind === 'scale') {
+      const min = f.min ?? 1;
+      const max = f.max ?? 5;
+      const steps = Array.from({ length: max - min + 1 }, (_, n) => String(min + n));
+      return (
+        <FieldSet key={f.key} data-invalid={!!error || undefined}>
+          <FieldLegend variant="label">{label}</FieldLegend>
+          {help}
+          <RadioGroup
+            value={value === undefined || value === '' ? '' : String(value)}
+            onValueChange={(v) => onChange(name, Number(v))}
+            disabled={disabled}
+            aria-invalid={!!error || undefined}
+            className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-2"
+          >
+            {steps.map((opt, oi) => (
+              <FieldLabel
+                key={opt}
+                htmlFor={`${id}-${oi}`}
+                className="w-auto! transition-colors has-data-checked:border-primary has-data-checked:bg-primary has-data-checked:text-primary-foreground"
+              >
+                <Field orientation="horizontal" className="relative h-11 p-0!">
+                  <RadioGroupItem value={opt} id={`${id}-${oi}`} className="sr-only" />
+                  <FieldTitle className="absolute inset-0 h-full w-full items-center justify-center text-base tabular-nums">
+                    {opt}
+                  </FieldTitle>
+                </Field>
+              </FieldLabel>
+            ))}
+          </RadioGroup>
+          <FieldDescription className="flex justify-between gap-4 text-xs">
+            <span>
+              {min}
+              {f.minLabel ? ` = ${f.minLabel}` : ''}
+            </span>
+            <span className="text-right">
+              {max}
+              {f.maxLabel ? ` = ${f.maxLabel}` : ''}
+            </span>
+          </FieldDescription>
+          {err}
+        </FieldSet>
+      );
+    }
+
     if (f.kind === 'radio' || f.kind === 'rating') {
       const scale =
         f.kind === 'rating'
           ? Array.from({ length: f.max ?? 5 }, (_, n) => String(n + 1))
-          : f.options;
+          : f.other
+            ? [...f.options.filter((o) => o !== OTHER), OTHER]
+            : f.options;
       return (
         <FieldSet key={f.key} data-invalid={!!error || undefined}>
           <FieldLegend variant="label">{label}</FieldLegend>
@@ -119,7 +203,7 @@ export function FeedbackFormFields({
             className={
               f.kind === 'rating'
                 ? 'grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-2'
-                : undefined
+                : 'gap-0.5'
             }
           >
             {scale.map((opt, oi) =>
@@ -144,9 +228,10 @@ export function FeedbackFormFields({
                   </Field>
                 </FieldLabel>
               ) : (
-                <Field key={opt} orientation="horizontal">
+                <Field key={opt} orientation="horizontal" className="items-center">
                   <RadioGroupItem value={opt} id={`${id}-${oi}`} />
-                  <FieldLabel htmlFor={`${id}-${oi}`} className="font-normal">
+                  {/* The whole row is the tap target: at least 40px tall on phones. */}
+                  <FieldLabel htmlFor={`${id}-${oi}`} className="min-h-10 flex-1 items-center font-normal">
                     {opt}
                   </FieldLabel>
                 </Field>
@@ -159,6 +244,7 @@ export function FeedbackFormFields({
               <span>{f.max ?? 5} = highest</span>
             </FieldDescription>
           )}
+          {otherInput}
           {err}
         </FieldSet>
       );
@@ -170,9 +256,9 @@ export function FeedbackFormFields({
         <FieldSet key={f.key} data-invalid={!!error || undefined}>
           <FieldLegend variant="label">{label}</FieldLegend>
           {help}
-          <FieldGroup data-slot="checkbox-group" className="gap-3">
-            {f.options.map((opt, oi) => (
-              <Field key={opt} orientation="horizontal">
+          <FieldGroup data-slot="checkbox-group" className="gap-0.5">
+            {(f.other ? [...f.options.filter((o) => o !== OTHER), OTHER] : f.options).map((opt, oi) => (
+              <Field key={opt} orientation="horizontal" className="items-center">
                 <Checkbox
                   id={`${id}-${oi}`}
                   checked={selected.includes(opt)}
@@ -186,12 +272,13 @@ export function FeedbackFormFields({
                     )
                   }
                 />
-                <FieldLabel htmlFor={`${id}-${oi}`} className="font-normal">
+                <FieldLabel htmlFor={`${id}-${oi}`} className="min-h-10 flex-1 items-center font-normal">
                   {opt}
                 </FieldLabel>
               </Field>
             ))}
           </FieldGroup>
+          {otherInput}
           {err}
         </FieldSet>
       );

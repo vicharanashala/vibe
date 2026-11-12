@@ -1,6 +1,8 @@
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  BetweenHorizontalEndIcon,
+  BetweenHorizontalStartIcon,
   BookOpenTextIcon,
   GraduationCapIcon,
   LockIcon,
@@ -21,7 +23,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -51,11 +53,15 @@ import { resolveContentLock, type ContentLockNode } from '@/features/content-loc
 import { resolveStudyMode, type StudyModeNode } from '@/features/study-mode/study-mode';
 import { cn } from '@/lib/utils';
 
+import { DragHandle, LINEAR_REORDER_HINT, SortableList, draggingClass, stepPosition, useSortableRow, type Position } from './arrange';
+import { useCourseSettings } from '@/features/learn/queries';
 import {
   useCreateModule,
   useCreateSection,
   useDeleteItem,
   useMoveItem,
+  useMoveModule,
+  useMoveSection,
   useDeleteModule,
   useDeleteSection,
   useSetContentLock,
@@ -105,8 +111,13 @@ function useOutline(): Outline & { setAll: (ids: string[], open: boolean) => voi
 /** Uxcel-style course outline: numbered modules, their sections, and each section's lessons. */
 export function CourseContent({ courseId, versionId }: Ids) {
   const version = useCourseVersion(versionId);
-  const [moduleDialog, setModuleDialog] = useState(false);
+  // Open with no position adds at the end; with one, next to that module.
+  const [moduleDialog, setModuleDialog] = useState<false | { position?: ModulePosition }>(false);
   const outline = useOutline();
+  const moveModule = useMoveModule();
+  // The backend reorders sections and modules only with linear progression off (unset counts as on).
+  const settings = useCourseSettings(courseId, versionId);
+  const lockedReason = settings.data?.settings.linearProgressionEnabled === false ? undefined : LINEAR_REORDER_HINT;
 
   if (version.isPending) {
     return (
@@ -149,7 +160,7 @@ export function CourseContent({ courseId, versionId }: Ids) {
               </Button>
             </>
           )}
-          <Button onClick={() => setModuleDialog(true)}>
+          <Button onClick={() => setModuleDialog({})}>
             <PlusIcon aria-hidden /> Add module
           </Button>
         </div>
@@ -165,26 +176,56 @@ export function CourseContent({ courseId, versionId }: Ids) {
             <EmptyDescription>Courses are made of modules, modules of sections, and sections of lessons. Start with a module.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button onClick={() => setModuleDialog(true)}>Add module</Button>
+            <Button onClick={() => setModuleDialog({})}>Add module</Button>
           </EmptyContent>
         </Empty>
       ) : (
-        <ol className="mt-4 grid gap-4 [&>*]:min-w-0">
-          {modules.map((m, i) => (
-            <li key={m.moduleId}>
-              <ModuleBlock courseId={courseId} versionId={versionId} module={m} index={i} outline={outline} />
-            </li>
-          ))}
-        </ol>
+        <SortableList
+          items={modules}
+          getId={(m) => m.moduleId}
+          getLabel={(m) => `Module ${m.name}`}
+          onMove={(moduleId, position, next) => {
+            if (moveModule.isPending) return;
+            moveModule
+              .mutateAsync({ versionId, moduleId, to: modulePosition(position), next })
+              .catch((e: Error) => toast.error(`The module wasn’t moved: ${e.message}`));
+          }}
+        >
+          <ol className="mt-4 grid gap-4 [&>*]:min-w-0">
+            {modules.map((m, i) => (
+              <SortableModule
+                key={m.moduleId}
+                courseId={courseId}
+                versionId={versionId}
+                module={m}
+                index={i}
+                outline={outline}
+                lockedReason={lockedReason}
+                step={(dir) => {
+                  const to = stepPosition(modules.map((x) => x.moduleId), i, dir);
+                  if (!to || moveModule.isPending) return;
+                  moveModule
+                    .mutateAsync({ versionId, moduleId: m.moduleId, to: modulePosition(to) })
+                    .catch((e: Error) => toast.error(`The module wasn’t moved: ${e.message}`));
+                }}
+                isFirst={i === 0}
+                isLast={i === modules.length - 1}
+                onInsert={(where) =>
+                  setModuleDialog({ position: where === 'above' ? { beforeModuleId: m.moduleId } : { afterModuleId: m.moduleId } })
+                }
+              />
+            ))}
+          </ol>
+        </SortableList>
       )}
 
       <NameDialog
-        open={moduleDialog}
-        onOpenChange={setModuleDialog}
+        open={moduleDialog !== false}
+        onOpenChange={(o) => !o && setModuleDialog(false)}
         title="New module"
         description="A module is a chapter of the course, e.g. “Getting started”."
         kind="module"
-        create={(name, description) => ({ versionId, name, description })}
+        create={(name, description) => ({ versionId, name, description, position: moduleDialog ? moduleDialog.position : undefined })}
       />
     </div>
   );
@@ -194,18 +235,67 @@ export function CourseContent({ courseId, versionId }: Ids) {
 // Module / section blocks
 // ---------------------------------------------------------------------------
 
-function ModuleBlock({ courseId, versionId, module, index, outline }: Ids & { module: CourseModule; index: number; outline: Outline }) {
+type ModulePosition = { beforeModuleId: string } | { afterModuleId: string };
+type SectionPosition = { beforeSectionId: string } | { afterSectionId: string };
+type ItemPosition = { beforeItemId: string } | { afterItemId: string };
+type Arrange = {
+  step: (dir: -1 | 1) => void;
+  isFirst: boolean;
+  isLast: boolean;
+  onInsert: (where: 'above' | 'below') => void;
+  /** Why this row can't be reordered right now (sections and modules, with linear progression on). */
+  lockedReason?: string;
+};
+
+const modulePosition = (p: Position): ModulePosition => ('beforeId' in p ? { beforeModuleId: p.beforeId } : { afterModuleId: p.afterId });
+const sectionPosition = (p: Position): SectionPosition => ('beforeId' in p ? { beforeSectionId: p.beforeId } : { afterSectionId: p.afterId });
+const itemPosition = (p: Position): ItemPosition => ('beforeId' in p ? { beforeItemId: p.beforeId } : { afterItemId: p.afterId });
+
+function SortableModule(props: Ids & { module: CourseModule; index: number; outline: Outline } & Arrange) {
+  const row = useSortableRow(props.module.moduleId, !!props.lockedReason);
+  return (
+    <li ref={row.setNodeRef} style={row.style} className={cn('group/row', draggingClass(row.isDragging))}>
+      <ModuleBlock
+        {...props}
+        handle={<DragHandle name={`module ${props.module.name}`} handle={row.handle} className="mt-0.5" disabledReason={props.lockedReason} />}
+      />
+    </li>
+  );
+}
+
+function ModuleBlock({
+  courseId,
+  versionId,
+  module,
+  index,
+  outline,
+  handle,
+  step,
+  isFirst,
+  isLast,
+  onInsert,
+  lockedReason,
+}: Ids & { module: CourseModule; index: number; outline: Outline; handle: ReactNode } & Arrange) {
   const open = outline.isOpen(module.moduleId, true);
   const setOpen = (value: boolean) => outline.setOpen(module.moduleId, value);
   const [editing, setEditing] = useState(false);
-  const [addingSection, setAddingSection] = useState(false);
+  // Open with no position adds at the end; with one, next to that section.
+  const [addingSection, setAddingSection] = useState<false | { position?: SectionPosition }>(false);
   const [deleting, setDeleting] = useState(false);
   const deleteModule = useDeleteModule();
+  const moveSection = useMoveSection();
   const sections = ordered(module.sections);
+  const moveSectionTo = (sectionId: string, to: Position, next?: CourseSection[]) => {
+    if (moveSection.isPending) return;
+    moveSection
+      .mutateAsync({ versionId, moduleId: module.moduleId, sectionId, to: sectionPosition(to), next })
+      .catch((e: Error) => toast.error(`The section wasn’t moved: ${e.message}`));
+  };
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="flex items-start gap-3 p-4 sm:p-5">
+      <div className="flex items-start gap-2 p-4 sm:gap-3 sm:p-5">
+        {handle}
         <CollapsibleTrigger
           className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           aria-label={open ? `Collapse ${module.name}` : `Expand ${module.name}`}
@@ -223,10 +313,12 @@ function ModuleBlock({ courseId, versionId, module, index, outline }: Ids & { mo
           {/* Two lines, then "Show more" (tap, so it works on phones). */}
           {module.description && <ClampedText className="mt-0.5">{module.description}</ClampedText>}
         </div>
+        <InsertButton label={`Add a module below ${module.name}`} onClick={() => onInsert('below')} className="mt-0.5" />
         <RowMenu
           label={`Module ${module.name}`}
           onEdit={() => setEditing(true)}
-          onAdd={{ label: 'Add section', run: () => setAddingSection(true) }}
+          onAdd={{ label: 'Add section', run: () => setAddingSection({}) }}
+          arrange={{ step, isFirst, isLast, insert: onInsert, noun: 'module', lockedReason }}
           onDelete={() => setDeleting(true)}
           studyMode={{ target: { level: 'module', versionId, moduleId: module.moduleId }, node: module, parents: [] }}
           contentLock={{ target: { level: 'module', versionId, moduleId: module.moduleId }, node: module, parents: [] }}
@@ -236,18 +328,35 @@ function ModuleBlock({ courseId, versionId, module, index, outline }: Ids & { mo
       <CollapsibleContent>
         <div className="grid gap-3 border-t border-border bg-background/60 p-3 sm:p-4 [&>*]:min-w-0">
           {sections.length === 0 && <p className="px-1 text-sm text-muted-foreground">No sections yet.</p>}
-          {sections.map((s, si) => (
-            <SectionBlock
-              key={s.sectionId}
-              courseId={courseId}
-              versionId={versionId}
-              module={module}
-              section={s}
-              label={`${index + 1}.${si + 1}`}
-              outline={outline}
-            />
-          ))}
-          <Button variant="ghost" size="sm" className="w-fit text-muted-foreground" onClick={() => setAddingSection(true)}>
+          <SortableList
+            items={sections}
+            getId={(x) => x.sectionId}
+            getLabel={(x) => `Section ${x.name}`}
+            onMove={(sectionId, position, next) => moveSectionTo(sectionId, position, next)}
+          >
+            {sections.map((s, si) => (
+              <SortableSection
+                key={s.sectionId}
+                courseId={courseId}
+                versionId={versionId}
+                module={module}
+                section={s}
+                label={`${index + 1}.${si + 1}`}
+                outline={outline}
+                lockedReason={lockedReason}
+                step={(dir) => {
+                  const to = stepPosition(sections.map((x) => x.sectionId), si, dir);
+                  if (to) moveSectionTo(s.sectionId, to);
+                }}
+                isFirst={si === 0}
+                isLast={si === sections.length - 1}
+                onInsert={(where) =>
+                  setAddingSection({ position: where === 'above' ? { beforeSectionId: s.sectionId } : { afterSectionId: s.sectionId } })
+                }
+              />
+            ))}
+          </SortableList>
+          <Button variant="ghost" size="sm" className="w-fit text-muted-foreground" onClick={() => setAddingSection({})}>
             <PlusIcon aria-hidden /> Add section
           </Button>
         </div>
@@ -262,12 +371,18 @@ function ModuleBlock({ courseId, versionId, module, index, outline }: Ids & { mo
         update={(name, description) => ({ versionId, moduleId: module.moduleId, name, description })}
       />
       <NameDialog
-        open={addingSection}
-        onOpenChange={setAddingSection}
+        open={addingSection !== false}
+        onOpenChange={(o) => !o && setAddingSection(false)}
         title="New section"
         description={`Sections group lessons inside “${module.name}”.`}
         kind="section"
-        create={(name, description) => ({ versionId, moduleId: module.moduleId, name, description })}
+        create={(name, description) => ({
+          versionId,
+          moduleId: module.moduleId,
+          name,
+          description,
+          position: addingSection ? addingSection.position : undefined,
+        })}
       />
       <ConfirmDialog
         open={deleting}
@@ -281,6 +396,18 @@ function ModuleBlock({ courseId, versionId, module, index, outline }: Ids & { mo
   );
 }
 
+function SortableSection(props: Ids & { module: CourseModule; section: CourseSection; label: string; outline: Outline } & Arrange) {
+  const row = useSortableRow(props.section.sectionId, !!props.lockedReason);
+  return (
+    <div ref={row.setNodeRef} style={row.style} className={cn('min-w-0', draggingClass(row.isDragging))}>
+      <SectionBlock
+        {...props}
+        handle={<DragHandle name={`section ${props.section.name}`} handle={row.handle} disabledReason={props.lockedReason} />}
+      />
+    </div>
+  );
+}
+
 function SectionBlock({
   courseId,
   versionId,
@@ -288,7 +415,13 @@ function SectionBlock({
   section,
   label,
   outline,
-}: Ids & { module: CourseModule; section: CourseSection; label: string; outline: Outline }) {
+  handle,
+  step,
+  isFirst,
+  isLast,
+  onInsert,
+  lockedReason,
+}: Ids & { module: CourseModule; section: CourseSection; label: string; outline: Outline; handle: ReactNode } & Arrange) {
   const moduleId = module.moduleId;
   const open = outline.isOpen(section.sectionId, false);
   const [editing, setEditing] = useState(false);
@@ -302,7 +435,8 @@ function SectionBlock({
       onOpenChange={(value) => outline.setOpen(section.sectionId, value)}
       className="rounded-xl border border-border bg-card"
     >
-      <div className="flex items-center gap-2 px-2.5 py-2.5">
+      <div className="group/row flex items-center gap-1.5 px-2 py-2.5 sm:gap-2">
+        {handle}
         <CollapsibleTrigger
           className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           aria-label={open ? `Collapse ${section.name}` : `Expand ${section.name}`}
@@ -316,9 +450,11 @@ function SectionBlock({
           <StudyModeBadge node={section} parents={[module]} className="ml-2" />
           <LockBadge node={section} parents={[module]} className="ml-2" />
         </p>
+        <InsertButton label={`Add a section below ${section.name}`} onClick={() => onInsert('below')} />
         <RowMenu
           label={`Section ${section.name}`}
           onEdit={() => setEditing(true)}
+          arrange={{ step, isFirst, isLast, insert: onInsert, noun: 'section', lockedReason }}
           onDelete={() => setDeleting(true)}
           studyMode={{ target: { level: 'section', versionId, moduleId, sectionId: section.sectionId }, node: section, parents: [module] }}
           contentLock={{ target: { level: 'section', versionId, moduleId, sectionId: section.sectionId }, node: section, parents: [module] }}
@@ -363,85 +499,47 @@ function ItemRows({ courseId, versionId, module, section, itemsGroupId }: Ids & 
 
   if (items.isPending) return <div className="border-t border-border px-3.5 py-3"><Skeleton className="h-5 w-1/2" /></div>;
   if (items.isError) return <ErrorText error={items.error} className="border-t border-border px-3.5 py-3" />;
+  // The section's own "Add lesson" sits right below, so the empty state is just text.
   if (items.data.length === 0) return <p className="border-t border-border px-3.5 py-3 text-sm text-muted-foreground">No lessons yet.</p>;
 
-  const ordered = [...items.data].sort((a, b) => a.order.localeCompare(b.order));
-  const move = (itemId: string, to: { beforeItemId: string } | { afterItemId: string }) => {
+  const lessons = [...items.data].sort((a, b) => a.order.localeCompare(b.order));
+  const move = (itemId: string, to: Position, next?: typeof lessons) => {
     // Ignored, not disabled, while a move is saving: disabling would drop keyboard focus.
     if (moveItem.isPending) return;
-    moveItem.mutate(
-      { versionId, moduleId, sectionId, itemId, to },
-      { onError: (e) => toast.error(`The lesson wasn’t moved: ${e.message}`) },
-    );
+    // mutateAsync, not mutate's onError: TanStack Query skips per-call callbacks after unmount.
+    moveItem
+      .mutateAsync({ versionId, moduleId, sectionId, itemId, to: itemPosition(to), next })
+      .catch((e: Error) => toast.error(`The lesson wasn’t moved: ${e.message}`));
   };
 
   return (
     <>
-      <ul className="divide-y divide-border border-t border-border">
-        {ordered.map((item, index) => {
-          const t = itemType(item.type);
-          const previous = ordered[index - 1];
-          const next = ordered[index + 1];
-          const editable = EDITABLE.includes(item.type);
-          const open = () =>
-            void navigate({ to: '/admin/courses/$courseId/$versionId/lesson', params: { courseId, versionId }, search: { module: moduleId, section: sectionId, item: item._id } });
-          return (
-            <li key={item._id} className="group flex items-center gap-3 px-3.5 py-2 transition-colors hover:bg-muted/40">
-              {ordered.length > 1 && (
-                <span className="flex shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Move ${item.name} up`}
-                    disabled={!previous}
-                    onClick={() => move(item._id, { beforeItemId: previous._id })}
-                  >
-                    <ArrowUpIcon aria-hidden />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Move ${item.name} down`}
-                    disabled={!next}
-                    onClick={() => move(item._id, { afterItemId: next._id })}
-                  >
-                    <ArrowDownIcon aria-hidden />
-                  </Button>
-                </span>
-              )}
-              <span className={cn('grid size-7 shrink-0 place-items-center rounded-md', t.tone)}>
-                <t.icon className="size-3.5" aria-hidden />
-              </span>
-              {editable ? (
-                <button type="button" onClick={open} className="min-w-0 flex-1 truncate text-left text-sm hover:underline hover:underline-offset-4">
-                  {item.name}
-                </button>
-              ) : (
-                <span className="min-w-0 flex-1 truncate text-sm">{item.name}</span>
-              )}
-              <span className="hidden text-xs text-muted-foreground sm:inline">{t.label}</span>
-              {item.isOptional && <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">Optional</span>}
-              <StudyModeBadge node={item} parents={[section, module]} />
-              <LockBadge node={item} parents={[section, module]} />
-              <RowMenu
-                label={`Lesson ${item.name}`}
-                onEdit={editable ? open : undefined}
-                onDelete={itemsGroupId ? () => setDeleting({ id: item._id, name: item.name }) : undefined}
-                studyMode={{
-                  target: { level: 'item', versionId, moduleId, sectionId, itemId: item._id },
-                  node: item,
-                  parents: [section, module],
-                }}
-                contentLock={{
-                  target: { level: 'item', versionId, moduleId, sectionId, itemId: item._id },
-                  node: item,
-                  parents: [section, module],
-                }}
-              />
-            </li>
-          );
-        })}
-      </ul>
+      <SortableList items={lessons} getId={(i) => i._id} getLabel={(i) => i.name} onMove={(id, position, next) => move(id, position, next)}>
+        <ul className="divide-y divide-border border-t border-border">
+          {lessons.map((item, index) => (
+            <LessonRow
+              key={item._id}
+              courseId={courseId}
+              versionId={versionId}
+              module={module}
+              section={section}
+              item={item}
+              arrange={{
+                step: (dir) => {
+                  const to = stepPosition(lessons.map((l) => l._id), index, dir);
+                  if (to) move(item._id, to);
+                },
+                isFirst: index === 0,
+                isLast: index === lessons.length - 1,
+              }}
+              onOpen={() =>
+                void navigate({ to: '/admin/courses/$courseId/$versionId/lesson', params: { courseId, versionId }, search: { module: moduleId, section: sectionId, item: item._id } })
+              }
+              onDelete={itemsGroupId ? () => setDeleting({ id: item._id, name: item.name }) : undefined}
+            />
+          ))}
+        </ul>
+      </SortableList>
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
@@ -454,27 +552,142 @@ function ItemRows({ courseId, versionId, module, section, itemsGroupId }: Ids & 
   );
 }
 
+type SectionItem = NonNullable<ReturnType<typeof useSectionItems>['data']>[number];
+
+function LessonRow({
+  courseId,
+  versionId,
+  module,
+  section,
+  item,
+  arrange,
+  onOpen,
+  onDelete,
+}: Ids & {
+  module: CourseModule;
+  section: CourseSection;
+  item: SectionItem;
+  arrange: Omit<Arrange, 'onInsert'>;
+  onOpen: () => void;
+  onDelete?: () => void;
+}) {
+  const moduleId = module.moduleId;
+  const sectionId = section.sectionId;
+  const row = useSortableRow(item._id);
+  const navigate = useNavigate();
+  const t = itemType(item.type);
+  const editable = EDITABLE.includes(item.type);
+  const addLesson = (type: NewLessonType, where: 'above' | 'below') =>
+    void navigate({
+      to: '/admin/courses/$courseId/$versionId/lesson',
+      params: { courseId, versionId },
+      search: { module: moduleId, section: sectionId, type, ...(where === 'above' ? { before: item._id } : { after: item._id }) },
+    });
+  return (
+    <li
+      ref={row.setNodeRef}
+      style={row.style}
+      className={cn('group/row flex items-center gap-1.5 bg-card px-2 py-2 transition-colors hover:bg-muted/40 sm:gap-2.5 sm:px-3', draggingClass(row.isDragging))}
+    >
+      <DragHandle name={item.name} handle={row.handle} />
+      <span className={cn('grid size-7 shrink-0 place-items-center rounded-md', t.tone)}>
+        <t.icon className="size-3.5" aria-hidden />
+      </span>
+      {editable ? (
+        <button type="button" onClick={onOpen} className="min-w-0 flex-1 truncate text-left text-sm hover:underline hover:underline-offset-4">
+          {item.name}
+        </button>
+      ) : (
+        <span className="min-w-0 flex-1 truncate text-sm">{item.name}</span>
+      )}
+      <span className="hidden text-xs text-muted-foreground sm:inline">{t.label}</span>
+      {item.isOptional && <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">Optional</span>}
+      <StudyModeBadge node={item} parents={[section, module]} />
+      <LockBadge node={item} parents={[section, module]} />
+      <AddLessonMenu
+        courseId={courseId}
+        versionId={versionId}
+        moduleId={moduleId}
+        sectionId={sectionId}
+        position={{ after: item._id }}
+        trigger={<InsertTrigger label={`Add a lesson below ${item.name}`} />}
+      />
+      <RowMenu
+        label={`Lesson ${item.name}`}
+        onEdit={editable ? onOpen : undefined}
+        onDelete={onDelete}
+        arrange={{ ...arrange, insertLesson: addLesson, noun: 'lesson' }}
+        studyMode={{
+          target: { level: 'item', versionId, moduleId, sectionId, itemId: item._id },
+          node: item,
+          parents: [section, module],
+        }}
+        contentLock={{
+          target: { level: 'item', versionId, moduleId, sectionId, itemId: item._id },
+          node: item,
+          parents: [section, module],
+        }}
+      />
+    </li>
+  );
+}
+
 /** Lesson types the studio editors handle. */
 const EDITABLE = ['VIDEO', 'BLOG', 'QUIZ', 'FEEDBACK'];
+type NewLessonType = 'VIDEO' | 'BLOG' | 'QUIZ' | 'FEEDBACK';
+const NEW_LESSONS: readonly (readonly [NewLessonType, string])[] = [
+  ['VIDEO', 'A YouTube video, or a clip of one'],
+  ['BLOG', 'Text with headings, images and links'],
+  ['QUIZ', 'Questions to check understanding'],
+  ['FEEDBACK', 'A short form about the lesson before it'],
+];
+const lessonLabel = (type: NewLessonType) => (itemType(type).label === 'Reading' ? 'Article' : itemType(type).label);
 
-function AddLessonMenu({ courseId, versionId, moduleId, sectionId }: Ids & { moduleId: string; sectionId: string }) {
+/** The "+" shown on a row on hover or keyboard focus (always on touch screens), adding below it. */
+const insertClass =
+  'shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-within/row:opacity-100 focus-visible:opacity-100 data-[popup-open]:opacity-100 [@media(hover:none)]:opacity-100';
+
+function InsertTrigger({ label, className, ...props }: { label: string; className?: string } & React.ComponentProps<typeof Button>) {
+  return (
+    <Button variant="ghost" size="icon-xs" aria-label={label} title={label} className={cn(insertClass, className)} {...props}>
+      <PlusIcon aria-hidden />
+    </Button>
+  );
+}
+
+function InsertButton({ label, onClick, className }: { label: string; onClick: () => void; className?: string }) {
+  return <InsertTrigger label={label} onClick={onClick} className={className} />;
+}
+
+function AddLessonMenu({
+  courseId,
+  versionId,
+  moduleId,
+  sectionId,
+  position,
+  trigger,
+}: Ids & {
+  moduleId: string;
+  sectionId: string;
+  /** Create next to this lesson instead of at the end. */
+  position?: { after: string } | { before: string };
+  /** A custom trigger (e.g. a row's "+"); defaults to an "Add lesson" button. */
+  trigger?: React.ReactElement;
+}) {
   const navigate = useNavigate();
-  const go = (type: 'VIDEO' | 'BLOG' | 'QUIZ' | 'FEEDBACK') =>
-    void navigate({ to: '/admin/courses/$courseId/$versionId/lesson', params: { courseId, versionId }, search: { module: moduleId, section: sectionId, type } });
+  const go = (type: NewLessonType) =>
+    void navigate({ to: '/admin/courses/$courseId/$versionId/lesson', params: { courseId, versionId }, search: { module: moduleId, section: sectionId, type, ...position } });
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="text-muted-foreground" />}>
-        <PlusIcon aria-hidden /> Add lesson
+      <DropdownMenuTrigger render={trigger ?? <Button variant="ghost" size="sm" className="text-muted-foreground" />}>
+        {trigger ? undefined : (
+          <>
+            <PlusIcon aria-hidden /> Add lesson
+          </>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        {(
-          [
-            ['VIDEO', 'A YouTube video, or a clip of one'],
-            ['BLOG', 'Text with headings, images and links'],
-            ['QUIZ', 'Questions to check understanding'],
-            ['FEEDBACK', 'A short form about the lesson before it'],
-          ] as const
-        ).map(([type, help]) => {
+        {NEW_LESSONS.map(([type, help]) => {
           const t = itemType(type);
           return (
             <DropdownMenuItem key={type} onClick={() => go(type)} className="items-start gap-3 py-2">
@@ -482,7 +695,7 @@ function AddLessonMenu({ courseId, versionId, moduleId, sectionId }: Ids & { mod
                 <t.icon className="size-3.5" />
               </span>
               <span>
-                <span className="block font-medium">{t.label === 'Reading' ? 'Article' : t.label}</span>
+                <span className="block font-medium">{lessonLabel(type)}</span>
                 <span className="block text-xs text-muted-foreground">{help}</span>
               </span>
             </DropdownMenuItem>
@@ -493,11 +706,57 @@ function AddLessonMenu({ courseId, versionId, moduleId, sectionId }: Ids & { mod
   );
 }
 
+type RowArrange = {
+  step: (dir: -1 | 1) => void;
+  isFirst: boolean;
+  isLast: boolean;
+  noun: 'module' | 'section' | 'lesson';
+  /** Add a module/section next to this one. */
+  insert?: (where: 'above' | 'below') => void;
+  /** Add a lesson of a type next to this one. */
+  insertLesson?: (type: NewLessonType, where: 'above' | 'below') => void;
+  /** Why Move up/down are unavailable right now. */
+  lockedReason?: string;
+};
+
+function InsertItems({ arrange, where }: { arrange: RowArrange; where: 'above' | 'below' }) {
+  const label = where === 'above' ? 'Add above' : 'Add below';
+  const Icon = where === 'above' ? BetweenHorizontalStartIcon : BetweenHorizontalEndIcon;
+  if (arrange.insertLesson) {
+    const insertLesson = arrange.insertLesson;
+    return (
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <Icon /> {label}
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent className="w-40">
+          {NEW_LESSONS.map(([type]) => {
+            const t = itemType(type);
+            return (
+              <DropdownMenuItem key={type} onClick={() => insertLesson(type, where)}>
+                <t.icon /> {lessonLabel(type)}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    );
+  }
+  if (!arrange.insert) return null;
+  const insert = arrange.insert;
+  return (
+    <DropdownMenuItem onClick={() => insert(where)}>
+      <Icon /> {label}
+    </DropdownMenuItem>
+  );
+}
+
 function RowMenu({
   label,
   onEdit,
   onAdd,
   onDelete,
+  arrange,
   studyMode,
   contentLock,
 }: {
@@ -505,6 +764,7 @@ function RowMenu({
   onEdit?: () => void;
   onAdd?: { label: string; run: () => void };
   onDelete?: () => void;
+  arrange?: RowArrange;
   studyMode?: StudyModeMenuProps;
   contentLock?: ContentLockMenuProps;
 }) {
@@ -513,7 +773,7 @@ function RowMenu({
       <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`${label}: actions`} className="shrink-0 text-muted-foreground" />}>
         <MoreHorizontalIcon aria-hidden />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuContent align="end" className="w-48">
         {onEdit && (
           <DropdownMenuItem onClick={onEdit}>
             <PencilIcon /> Edit
@@ -523,6 +783,25 @@ function RowMenu({
           <DropdownMenuItem onClick={onAdd.run}>
             <PlusIcon /> {onAdd.label}
           </DropdownMenuItem>
+        )}
+        {arrange && (
+          <>
+            <InsertItems arrange={arrange} where="above" />
+            <InsertItems arrange={arrange} where="below" />
+            {!(arrange.isFirst && arrange.isLast) && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled={arrange.isFirst || !!arrange.lockedReason} onClick={() => arrange.step(-1)}>
+                  <ArrowUpIcon /> Move up
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={arrange.isLast || !!arrange.lockedReason} onClick={() => arrange.step(1)}>
+                  <ArrowDownIcon /> Move down
+                </DropdownMenuItem>
+                {arrange.lockedReason && <p className="px-2 pb-1.5 text-xs text-muted-foreground">{arrange.lockedReason}.</p>}
+              </>
+            )}
+            <DropdownMenuSeparator />
+          </>
         )}
         {studyMode && <StudyModeSubmenu {...studyMode} />}
         {contentLock && <ContentLockSubmenu {...contentLock} />}
@@ -692,10 +971,10 @@ function ContentLockSubmenu({ target, node, parents }: ContentLockMenuProps) {
 // Dialogs
 // ---------------------------------------------------------------------------
 
-type ModuleArgs = { versionId: string; name: string; description: string };
-type ModuleUpdateArgs = ModuleArgs & { moduleId: string };
-type SectionArgs = ModuleUpdateArgs;
-type SectionUpdateArgs = SectionArgs & { sectionId: string };
+type ModuleArgs = { versionId: string; name: string; description: string; position?: ModulePosition };
+type ModuleUpdateArgs = { versionId: string; name: string; description: string; moduleId: string };
+type SectionArgs = ModuleUpdateArgs & { position?: SectionPosition };
+type SectionUpdateArgs = ModuleUpdateArgs & { sectionId: string };
 
 /** Create or rename a module/section (both are just a name and a description). */
 function NameDialog(

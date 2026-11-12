@@ -10,6 +10,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { enterClass, stagger } from '@/lib/motion';
 
 import { CourseCover, ProgressMeter, StudyProgressSummary, percentOf } from './course-ui';
 import { useEnrollments } from './queries';
@@ -76,17 +77,17 @@ export function CoursesPage() {
             </Alert>
           ) : data && data.enrollments.length > 0 ? (
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {data.enrollments.map((e) => {
+              {data.enrollments.map((e, i) => {
                 const pct = percentOf(e);
                 const total = e.contentCounts?.totalItems ?? 0;
                 return (
-                  <li key={e._id}>
+                  <li key={e._id} className={enterClass} style={stagger(i)}>
                     <Link
                       to="/courses/$courseId/$versionId"
                       params={{ courseId: e.courseId, versionId: e.courseVersionId }}
                       className="group block h-full rounded-3xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     >
-                      <Card size="sm" className="h-full transition-shadow group-hover:shadow-md">
+                      <Card size="sm" className="h-full transition-[transform,box-shadow] duration-200 ease-out group-hover:-translate-y-0.5 group-hover:shadow-md">
                         <CardContent className="flex h-full flex-col">
                           <CourseCover name={e.course.name} seed={e.courseId} className="h-36 w-full" />
                           <p className="mt-4 flex justify-between gap-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">

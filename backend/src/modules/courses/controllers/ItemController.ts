@@ -36,6 +36,10 @@ import {
   ItemProctoringBody,
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
+  GetFeedbackSummaryQuery,
+  FeedbackExportQuery,
+  CourseVersionFeedbackParams,
+  UpdateFeedbackSettingsBody,
   CSVItemBody,
   CourseVersionModuleSectionParams,
   csvResponse,
@@ -49,8 +53,46 @@ import {ItemService} from '#courses/services/ItemService.js';
 import {injectable, inject} from 'inversify';
 import {VersionModuleSectionParams} from '../classes/index.js';
 import {ItemActions, getItemAbility} from '../abilities/itemAbilities.js';
+import {getContainer} from '#root/bootstrap/loadModules.js';
+import {SETTING_TYPES} from '#root/modules/setting/types.js';
+import type {SettingRepository} from '#root/shared/database/providers/mongo/repositories/SettingRepository.js';
 import {Ability} from '#root/shared/functions/AbilityDecorator.js';
 import {subject} from '@casl/ability';
+import {
+  EnrollmentActions,
+  getEnrollmentAbility,
+} from '#root/modules/users/abilities/enrollmentAbilities.js';
+import {
+  CohortScopeService,
+  cohortScopeIds,
+} from '#root/shared/functions/cohortScope.js';
+import type {AuthenticatedUser} from '#root/shared/interfaces/models.js';
+import {
+  FeedbackExportService,
+  exportFileName,
+  toCsv,
+} from '#courses/services/FeedbackExportService.js';
+import {writeXlsx} from '#courses/utils/xlsxWriter.js';
+
+const XLSX_TYPE =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/** Sends a download with a file name that survives non-ASCII course names. */
+function sendFile(
+  res: Response,
+  body: string | Buffer,
+  type: string,
+  name: string,
+) {
+  const ascii = name.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, "'");
+  res.setHeader('Content-Type', type);
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`,
+  );
+  res.setHeader('Cache-Control', 'no-cache');
+  return res.send(body);
+}
 import {
   ItemStudyModeResponse,
   StudyModeBody,
@@ -63,7 +105,6 @@ import {QuizService} from '#root/modules/quizzes/services/QuizService.js';
 import {QUIZZES_TYPES} from '#root/modules/quizzes/types.js';
 import {ItemType, IUser, IDetectorSettings} from '#shared/interfaces/models.js';
 import {HideModuleBody} from '../classes/index.js';
-import {createObjectCsvStringifier} from 'csv-writer';
 import {Response} from 'express';
 import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
 import {
@@ -89,6 +130,10 @@ export class ItemController {
     private readonly quizService: QuizService,
     @inject(USERS_TYPES.EnrollmentService)
     private readonly enrollmentService: EnrollmentService,
+    @inject(CohortScopeService)
+    private readonly cohortScopeService: CohortScopeService,
+    @inject(COURSES_TYPES.FeedbackExportService)
+    private readonly feedbackExportService: FeedbackExportService,
   ) {}
   @OpenAPI({
     summary: 'Create an item',
@@ -781,57 +826,335 @@ Access control logic:
   async getFeedackSubmissions(
     @Params() params: GetFeedbackSubmissionsParams,
     @QueryParams() query: GetFeedbackSubmissionsQuery,
-    // @Ability(getItemAbility) { ability },
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
   ) {
     const {courseId, feedbackId} = params;
-    const {search = '', page = 1, limit = 1} = query;
+    const {search = '', page = 1, limit = 1, userId, cohortId, history} = query;
+    const {cohortIds} = await this.feedbackAccess(
+      ability,
+      authenticatedUser,
+      courseId,
+      feedbackId,
+      cohortId,
+    );
     return await this.itemService.getFeedbackSubmissions(
       courseId,
       feedbackId,
       search,
       Number(page),
       Number(limit),
+      {userId, cohortIds, history},
     );
+  }
+
+  /**
+   * Course staff only (instructor, manager, TA, admin), and only within the
+   * cohorts they can see. Returns the item's version and that cohort scope.
+   */
+  private async feedbackAccess(
+    ability: any,
+    authenticatedUser: AuthenticatedUser,
+    courseId: string,
+    itemId: string,
+    requestedCohortId?: string,
+  ): Promise<{versionId: string; cohortIds?: string[]}> {
+    const versionId = await this.itemService.findItemVersionId(itemId);
+    const staff =
+      ability.can(
+        EnrollmentActions.ViewAll,
+        subject('Enrollment', {courseId}),
+      ) ||
+      ability.can(
+        EnrollmentActions.ViewAll,
+        subject('Enrollment', {courseId, versionId}),
+      );
+    if (!staff) {
+      throw new ForbiddenError('Only course staff can see feedback responses');
+    }
+    const scope = this.cohortScopeService.resolve(
+      authenticatedUser,
+      courseId,
+      versionId,
+      requestedCohortId,
+    );
+    const ids = cohortScopeIds(scope);
+    return {
+      versionId,
+      cohortIds: ids ? ids.map(id => id.toString()) : undefined,
+    };
+  }
+
+  @OpenAPI({
+    summary: 'Summarise feedback responses',
+    description:
+      "Per-question counts, averages and latest text answers over each student's current answer to a feedback form. Course staff only.",
+  })
+  @Authorized()
+  @Get('/:courseId/item/:feedbackId/feedback/summary')
+  @HttpCode(200)
+  async getFeedbackSummary(
+    @Params() params: GetFeedbackSubmissionsParams,
+    @QueryParams() query: GetFeedbackSummaryQuery,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
+  ) {
+    const {courseId, feedbackId} = params;
+    const {cohortIds} = await this.feedbackAccess(
+      ability,
+      authenticatedUser,
+      courseId,
+      feedbackId,
+      query.cohortId,
+    );
+    return this.itemService.getFeedbackSummary(courseId, feedbackId, cohortIds);
   }
 
   @OpenAPI({
     summary: 'Export feedback submissions as CSV',
-    description: `Export all feedback submissions for a particular course item.`,
+    description:
+      "One feedback form's current answers as CSV, with the student's account name and email, cohort, place in the course, the lesson it is about, IST and ISO times and a column per question. Course staff only.",
   })
   @Authorized()
   @Get('/:courseId/item/:feedbackId/feedback/submissions/export')
   async exportFeedbackSubmissions(
     @Params() params: GetFeedbackSubmissionsParams,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
     @Res() res: Response,
   ) {
+    return this.sendFormExport(
+      params,
+      {format: 'csv'},
+      ability,
+      authenticatedUser,
+      res,
+    );
+  }
+
+  @OpenAPI({
+    summary: 'Export one feedback form',
+    description:
+      "One feedback form's answers as .xlsx or CSV (latest answers by default, or every version). Course staff only, within their cohorts.",
+  })
+  @Authorized()
+  @Get('/:courseId/item/:feedbackId/feedback/export')
+  async exportFeedbackForm(
+    @Params() params: GetFeedbackSubmissionsParams,
+    @QueryParams() query: FeedbackExportQuery,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
+    @Res() res: Response,
+  ) {
+    return this.sendFormExport(params, query, ability, authenticatedUser, res);
+  }
+
+  private async sendFormExport(
+    params: GetFeedbackSubmissionsParams,
+    query: FeedbackExportQuery,
+    ability: any,
+    authenticatedUser: AuthenticatedUser,
+    res: Response,
+  ) {
     const {courseId, feedbackId} = params;
-    const result = await this.itemService.exportFeedbackSubmissions(
+    const {versionId, cohortIds} = await this.feedbackAccess(
+      ability,
+      authenticatedUser,
       courseId,
       feedbackId,
+      query.cohortId,
     );
+    const {courseName, sheet} =
+      await this.feedbackExportService.buildFormExport(
+        courseId,
+        versionId,
+        feedbackId,
+        {cohortIds, history: query.history},
+      );
+    const format = query.format ?? 'xlsx';
+    const name = exportFileName(
+      `${courseName} ${sheet.name}`,
+      'responses',
+      format,
+    );
+    return format === 'csv'
+      ? sendFile(res, toCsv(sheet), 'text/csv; charset=utf-8', name)
+      : sendFile(res, await writeXlsx([sheet]), XLSX_TYPE, name);
+  }
 
-    if (result.length === 0) {
-      return res.status(200).send('No submissions found');
+  @OpenAPI({
+    summary: 'List the feedback forms in a course version',
+    description:
+      "Every feedback form in course order with its module, section, the lesson it is about and how many students' current answers it has. Course staff only, within their cohorts.",
+  })
+  @Authorized()
+  @Get('/:courseId/versions/:versionId/feedback/forms')
+  @HttpCode(200)
+  async listFeedbackForms(
+    @Params() params: CourseVersionFeedbackParams,
+    @QueryParams() query: GetFeedbackSummaryQuery,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
+  ) {
+    const {courseId, versionId} = params;
+    const cohortIds = this.courseFeedbackScope(
+      ability,
+      authenticatedUser,
+      courseId,
+      versionId,
+      query.cohortId,
+    );
+    return {
+      forms: await this.feedbackExportService.listForms(versionId, cohortIds),
+    };
+  }
+
+  @OpenAPI({
+    summary: "Read a course version's feedback settings",
+    description:
+      'Whether students can send feedback forms in study mode (how phones answer, since strict mode is PC-only). Course staff only.',
+  })
+  @Authorized()
+  @Get('/:courseId/versions/:versionId/feedback/settings')
+  @HttpCode(200)
+  async getFeedbackSettings(
+    @Params() params: CourseVersionFeedbackParams,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
+  ): Promise<{studyModeFeedback: boolean}> {
+    const {courseId, versionId} = params;
+    this.courseFeedbackScope(ability, authenticatedUser, courseId, versionId);
+    return {
+      studyModeFeedback: await this.settingRepo().isStudyModeFeedbackAllowed(
+        courseId,
+        versionId,
+      ),
+    };
+  }
+
+  @OpenAPI({
+    summary: "Change a course version's feedback settings",
+    description:
+      'Turns study-mode feedback on or off. Off means students on phones cannot send feedback. Requires permission to edit the course content.',
+  })
+  @Authorized()
+  @Put('/:courseId/versions/:versionId/feedback/settings')
+  @HttpCode(200)
+  async updateFeedbackSettings(
+    @Params() params: CourseVersionFeedbackParams,
+    @Body() body: UpdateFeedbackSettingsBody,
+    @Ability(getItemAbility) {ability},
+  ): Promise<{studyModeFeedback: boolean}> {
+    const {courseId, versionId} = params;
+    if (!ability.can(ItemActions.Modify, subject('Item', {versionId}))) {
+      throw new ForbiddenError(
+        "You do not have permission to change this course's feedback settings",
+      );
     }
-
-    const headers = Object.keys(result[0]).map(key => ({id: key, title: key}));
-
-    const csvStringifier = createObjectCsvStringifier({
-      header: headers,
-    });
-
-    const csvContent =
-      csvStringifier.getHeaderString() +
-      csvStringifier.stringifyRecords(result);
-
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="feedback_submissions_${feedbackId}.csv"`,
+    await this.settingRepo().updateStudyModeFeedback(
+      courseId,
+      versionId,
+      body.studyModeFeedback,
     );
-    res.setHeader('Cache-Control', 'no-cache');
+    return {studyModeFeedback: body.studyModeFeedback};
+  }
 
-    return res.send(csvContent);
+  /** Resolved lazily so the controller doesn't depend on the settings module at construction. */
+  private settingRepo(): Pick<
+    SettingRepository,
+    'isStudyModeFeedbackAllowed' | 'updateStudyModeFeedback'
+  > {
+    return getContainer().get<SettingRepository>(SETTING_TYPES.SettingRepo);
+  }
+
+  /** Course staff only; returns the caller's cohort scope for the version. */
+  private courseFeedbackScope(
+    ability: any,
+    authenticatedUser: AuthenticatedUser,
+    courseId: string,
+    versionId: string,
+    requestedCohortId?: string,
+  ): string[] | undefined {
+    const staff =
+      ability.can(
+        EnrollmentActions.ViewAll,
+        subject('Enrollment', {courseId}),
+      ) ||
+      ability.can(
+        EnrollmentActions.ViewAll,
+        subject('Enrollment', {courseId, versionId}),
+      );
+    if (!staff) {
+      throw new ForbiddenError('Only course staff can see feedback responses');
+    }
+    const scope = this.cohortScopeService.resolve(
+      authenticatedUser,
+      courseId,
+      versionId,
+      requestedCohortId,
+    );
+    const ids = cohortScopeIds(scope);
+    return ids ? ids.map(id => id.toString()) : undefined;
+  }
+
+  @OpenAPI({
+    summary: 'Export all feedback in a course version',
+    description:
+      'Every feedback form in the course version, for any course. .xlsx: an Overview sheet, a sheet per form and a Watch + feedback sheet. CSV: every answer in one table (type=all) or one row per student per video (type=watch). Course staff only, within their cohorts.',
+  })
+  @Authorized()
+  @Get('/:courseId/versions/:versionId/feedback/export')
+  async exportCourseFeedback(
+    @Params() params: CourseVersionFeedbackParams,
+    @QueryParams() query: FeedbackExportQuery,
+    @Ability(getEnrollmentAbility) {ability, authenticatedUser},
+    @Res() res: Response,
+  ) {
+    const {courseId, versionId} = params;
+    const staff =
+      ability.can(
+        EnrollmentActions.ViewAll,
+        subject('Enrollment', {courseId}),
+      ) ||
+      ability.can(
+        EnrollmentActions.ViewAll,
+        subject('Enrollment', {courseId, versionId}),
+      );
+    if (!staff) {
+      throw new ForbiddenError('Only course staff can export feedback');
+    }
+    const scope = this.cohortScopeService.resolve(
+      authenticatedUser,
+      courseId,
+      versionId,
+      query.cohortId,
+    );
+    const ids = cohortScopeIds(scope);
+    const data = await this.feedbackExportService.buildCourseExport(
+      courseId,
+      versionId,
+      {
+        cohortIds: ids ? ids.map(id => id.toString()) : undefined,
+        history: query.history,
+      },
+    );
+    const format = query.format ?? 'xlsx';
+    if (format === 'csv') {
+      const watch = query.type === 'watch';
+      const sheet = watch
+        ? (data.watch ?? {name: 'Watch + feedback', header: [], rows: []})
+        : data.allAnswers;
+      return sendFile(
+        res,
+        toCsv(sheet),
+        'text/csv; charset=utf-8',
+        exportFileName(
+          data.courseName,
+          watch ? 'watch-feedback' : 'feedback',
+          'csv',
+        ),
+      );
+    }
+    return sendFile(
+      res,
+      await writeXlsx(data.sheets),
+      XLSX_TYPE,
+      exportFileName(data.courseName, 'feedback', 'xlsx'),
+    );
   }
 
   @OpenAPI({

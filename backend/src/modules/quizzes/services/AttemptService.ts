@@ -61,6 +61,7 @@ import {ContentLockService} from '#root/modules/courses/services/ContentLockServ
 import {COURSES_TYPES} from '#root/modules/courses/types.js';
 import {USERS_TYPES} from '#root/modules/users/types.js';
 import {ProgressRepository} from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
+import type {EnrollmentRepository} from '#root/shared/database/providers/mongo/repositories/EnrollmentRepository.js';
 import {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
 import {ProgressService} from '#root/modules/users/services/ProgressService.js';
 import {StudentQuestionRepository} from '#root/modules/studentQuestions/repositories/providers/mongodb/StudentQuestionRepository.js';
@@ -70,6 +71,10 @@ import {
   IStudentSegmentQuestion,
 } from '#root/modules/studentQuestions/classes/transformers/StudentSegmentQuestion.js';
 import { STUDENT_QUESTION_TYPES } from '#root/modules/studentQuestions/types.js';
+import {getContainer} from '#root/bootstrap/loadModules.js';
+import {SETTING_TYPES} from '#root/modules/setting/types.js';
+import type {SettingRepository} from '#root/shared/database/providers/mongo/repositories/SettingRepository.js';
+import type {StudyViewRepository} from '#root/shared/database/providers/mongo/repositories/StudyViewRepository.js';
 
 const PEER_QUESTION_DEFAULT_POINTS = 0;
 const PEER_QUESTION_DEFAULT_TIME_LIMIT_SECONDS = 60;
@@ -124,6 +129,9 @@ class AttemptService extends BaseService {
 
     @inject(COURSES_TYPES.ContentLockService)
     private readonly contentLockService: ContentLockService,
+
+    @inject(USERS_TYPES.EnrollmentRepo)
+    private readonly enrollmentRepo?: EnrollmentRepository,
   ) {
     super(database);
   }
@@ -511,6 +519,11 @@ class AttemptService extends BaseService {
   ): Promise<{ attemptId: string; questionRenderViews: IQuestionRenderView[] }> {
     // Before the transaction, so a refusal creates no metrics and uses no attempt.
     await this.contentLockService.assertOpenForUser(userId.toString(), quizId);
+    await this.progressService.assertNoRewatchPending(
+      userId.toString(),
+      quizId,
+      cohortId,
+    );
 
     return this._withTransaction(async session => {
 
@@ -827,22 +840,72 @@ class AttemptService extends BaseService {
     return this._buildGradingResult(quiz, gradingResult);
   }
 
+  /**
+   * The cohort a submission belongs to, from the student's own enrollment. A
+   * client-sent cohort is used only when the student is enrolled through it.
+   */
+  private async resolveFeedbackCohort(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    clientCohortId?: string,
+  ): Promise<string | undefined> {
+    if (!this.enrollmentRepo) return clientCohortId;
+    if (clientCohortId) {
+      const viaClient = await this.enrollmentRepo.findEnrollment(
+        userId,
+        courseId,
+        courseVersionId,
+        clientCohortId,
+      );
+      if (viaClient) return clientCohortId;
+    }
+    const enrollment = await this.enrollmentRepo.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+    return enrollment?.cohortId ? enrollment.cohortId.toString() : undefined;
+  }
+
   async submitFeedBackForm(
     userId: string,
     courseId: string,
     courseVersionId: string,
     feedbackFormId: string,
     details: Record<string, any>,
-    cohortId?: string
+    clientCohortId?: string,
+    mode: 'strict' | 'study' = 'strict',
   ): Promise<string> {
     await this.contentLockService.assertOpenForUser(userId, feedbackFormId);
-
+    // Study mode is how phones answer (strict mode is PC-only), so the course
+    // decides whether study-mode answers are accepted. Default: yes.
+    const study = mode === 'study' ? this.studyModeDeps() : null;
+    if (
+      study &&
+      !(await study.settings.isStudyModeFeedbackAllowed(
+        courseId,
+        courseVersionId,
+      ))
+    ) {
+      throw new ForbiddenError(
+        'Your course team accepts feedback only in strict mode.',
+      );
+    }
+    const cohortId = await this.resolveFeedbackCohort(
+      userId,
+      courseId,
+      courseVersionId,
+      clientCohortId,
+    );
     return this._withTransaction(async session => {
       // Course version is active or not
-      const versionStatus=await this.courseRepo.getCourseVersionStatus(courseVersionId);
-      
-      if(versionStatus==="archived"){
-        throw new ForbiddenError("This course version is inactive, you can't Submit feedback form");
+      const versionStatus =
+        await this.courseRepo.getCourseVersionStatus(courseVersionId);
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          "This course version is inactive, you can't Submit feedback form",
+        );
       }
 
       // 1. Validate Item Group
@@ -850,37 +913,52 @@ class AttemptService extends BaseService {
         feedbackFormId,
         session,
       );
-
       if (!ItemsGroup)
         throw new NotFoundError(
           'No item group found for the provided feedback form.',
         );
 
-      const items = ItemsGroup.items;
-
-      // 2. Find feedback item
+      // 2. Find feedback item, in section order
+      // Same order and visibility as course progression (hidden or deleted
+      // items are not "the lesson before" a form).
+      const items = [...ItemsGroup.items]
+        .filter(
+          (item: any) =>
+            item._id.toString() === feedbackFormId ||
+            (!item.isHidden && !item.isDeleted),
+        )
+        .sort((x, y) =>
+          String(x.order ?? '').localeCompare(String(y.order ?? '')),
+        );
       const feedbackIndex = items.findIndex(
         item => item._id.toString() === feedbackFormId,
       );
-
       if (feedbackIndex === -1)
         throw new NotFoundError(
           'Feedback form item not found inside the item group.',
         );
 
-      // 3. Find previous item
-      const previousItem = items[feedbackIndex - 1];
+      // 3. The lesson the form is about. A form first in its section is a
+      //    general form about no particular lesson.
+      const previousItem = feedbackIndex > 0 ? items[feedbackIndex - 1] : null;
+      const previousItemId = previousItem ? previousItem._id.toString() : null;
+      const previousItemType = previousItem ? previousItem.type : null;
 
-      if (!previousItem)
-        throw new NotFoundError(
-          'No previous learning item exists before this feedback form.',
+      // 4. A form after a video waits until the video is finished: in strict
+      //    mode, completed; in study mode, studied (a recorded study view).
+      //    Study mode never reads or changes strict progress.
+      if (previousItemType === 'VIDEO' && study) {
+        const views = await study.studyViews.findViews(
+          courseVersionId,
+          [userId],
+          [previousItemId],
         );
-
-      const previousItemId = previousItem._id.toString();
-      const previousItemType = previousItem.type;
-
-      // 4. Check if previous video has been watched
-      if (previousItemType === 'VIDEO') {
+        if (!views.length) {
+          throw new ForbiddenError(
+            'Watch the previous video in study mode before sending this feedback.',
+          );
+        }
+      } else if (previousItemType === 'VIDEO') {
         const isPreviousWatched = await this.progressRepository.isItemCompleted(
           userId,
           courseId,
@@ -890,7 +968,7 @@ class AttemptService extends BaseService {
         );
         if (!isPreviousWatched) {
           throw new ForbiddenError(
-            'You must watch the previous video before submitting feedback.',
+            'Watch the previous video before sending this feedback.',
           );
         }
       }
@@ -907,40 +985,34 @@ class AttemptService extends BaseService {
         feedbackFormId,
         session,
       );
-
       if (!feedbackForm) {
         throw new NotFoundError(
           `Feedback form with ID ${feedbackFormId} does not exist.`,
         );
       }
 
-      // 7. Check if the user already submitted feedback for this specific item
-      const existingSubmission =
-        await this.feedbackRepository.findByUserAndPreviousItem(
-          userId.toString(),
-          previousItemId.toString(),
-          cohortId,
-          session,
-        );
-
-      // if (existingSubmission) {
-      //   throw new BadRequestError(
-      //     `You have already submitted feedback for the previous item (${previousItemType}).`,
-      //   );
-      // }
+      // 7. The new answer replaces the student's earlier ones (kept as history)
+      await this.feedbackRepository.markReplaced(
+        userId,
+        feedbackFormId,
+        session,
+      );
 
       // 8. Create new feedback submission record
+      const now = new Date();
       const newFeedbackSubmission: FeedbackSubmissionItem = {
         userId: new ObjectId(userId),
         courseId: new ObjectId(courseId),
         courseVersionId: new ObjectId(courseVersionId),
-        ...(cohortId ? { cohortId: new ObjectId(cohortId) } : {}),
+        ...(cohortId ? {cohortId: new ObjectId(cohortId)} : {}),
         details,
         feedbackFormId: new ObjectId(feedbackFormId),
-        previousItemId: new ObjectId(previousItemId),
+        previousItemId: previousItemId ? new ObjectId(previousItemId) : null,
         previousItemType,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        isCurrent: true,
+        mode,
+        createdAt: now,
+        updatedAt: now,
       };
 
       await this.feedbackRepository.createFeedback(
@@ -950,6 +1022,43 @@ class AttemptService extends BaseService {
 
       return 'Your feedback has been submitted successfully. Thank you for your response!';
     });
+  }
+
+  /** The signed-in student's current answer to a feedback form, or null. */
+  async getMyFeedback(
+    userId: string,
+    feedbackFormId: string,
+  ): Promise<{
+    details: Record<string, any>;
+    createdAt: Date;
+    mode: 'strict' | 'study';
+  } | null> {
+    const current = await this.feedbackRepository.findCurrentForUser(
+      userId,
+      feedbackFormId,
+    );
+    return current
+      ? {
+          details: current.details ?? {},
+          createdAt: current.createdAt,
+          mode: current.mode === 'study' ? 'study' : 'strict',
+        }
+      : null;
+  }
+
+  /**
+   * The course setting and study views, resolved only for study-mode
+   * submissions so strict ones never depend on them.
+   */
+  protected studyModeDeps(): {
+    settings: Pick<SettingRepository, 'isStudyModeFeedbackAllowed'>;
+    studyViews: Pick<StudyViewRepository, 'findViews'>;
+  } {
+    const container = getContainer();
+    return {
+      settings: container.get<SettingRepository>(SETTING_TYPES.SettingRepo),
+      studyViews: container.get<StudyViewRepository>(USERS_TYPES.StudyViewRepo),
+    };
   }
 
   private async _normalizeAnswers(answers: IQuestionAnswer[]) {

@@ -518,14 +518,9 @@ describe('feedback editor', () => {
     renderApp(lessonUrl(`item=${loc.itemId}`));
     await user.click(await screen.findByRole('tab', { name: 'Responses' }));
     const submissions = studio.feedbackSubmissions.submissions;
-    const ratings = submissions.map((s) =>
-      Number(s.details['How useful was the previous lesson?']),
-    );
-    const avg = (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(
-      1,
-    );
-    expect(await screen.findByText(avg)).toBeInTheDocument();
-    expect(screen.getByText('average out of 5')).toBeInTheDocument();
+    // The server's summary over every current answer.
+    expect(await screen.findByText('4.5')).toBeInTheDocument();
+    expect(screen.getByText('average')).toBeInTheDocument();
     expect(screen.getByText('More diagrams please.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: /Individual/ }));

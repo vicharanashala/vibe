@@ -27,6 +27,8 @@ export interface LessonLocation {
   versionId: string;
   moduleId: string;
   sectionId: string;
+  /** Where a new lesson goes (from "Add above/below"); without it, at the end of the section. */
+  position?: { afterItemId: string } | { beforeItemId: string };
 }
 
 export interface VideoDetails {
@@ -210,6 +212,7 @@ export function useSaveLesson(loc: LessonLocation, itemId?: string) {
                 description: input.description,
                 type: input.type,
                 ...typed,
+                ...loc.position,
               } as any,
             },
           ),
@@ -596,17 +599,43 @@ export interface FeedbackResponse {
   details: Record<string, unknown>;
   user: { _id: string; firstName?: string; lastName?: string; email?: string };
   previousItem?: { name?: string } | null;
+  /** False for an answer the student later replaced (history views only). */
+  isCurrent: boolean;
+  /** The mode the student answered in (study mode is how phones answer). */
+  mode: 'strict' | 'study';
 }
 
-/** GET /courses/{courseId}/item/{feedbackId}/feedback/submissions — choice values come back as their labels. */
+function toResponse(s: any): FeedbackResponse {
+  return {
+    _id: toId(s._id),
+    createdAt: s.createdAt,
+    details: s.details ?? {},
+    user: {
+      _id: toId(s.user?._id),
+      firstName: s.user?.firstName,
+      lastName: s.user?.lastName,
+      email: s.user?.email,
+    },
+    previousItem: s.previousItem ? { name: s.previousItem.name } : null,
+    isCurrent: s.isCurrentVersion !== false,
+    mode: s.mode === 'study' ? 'study' : 'strict',
+  };
+}
+
+/**
+ * GET /courses/{courseId}/item/{feedbackId}/feedback/submissions: each
+ * student's current answer, newest first. Search matches name or email;
+ * choice values come back as their labels.
+ */
 export function useFeedbackResponses(
   courseId: string,
   feedbackId: string | undefined,
   page: number,
   search: string,
+  cohortId?: string,
 ) {
   return useQuery({
-    queryKey: ['studio', 'feedback-responses', feedbackId, page, search],
+    queryKey: ['studio', 'feedback-responses', feedbackId, page, search, cohortId ?? ''],
     enabled: !!feedbackId,
     placeholderData: (prev) => prev,
     queryFn: async () => {
@@ -616,7 +645,12 @@ export function useFeedbackResponses(
           {
             params: {
               path: { courseId, feedbackId: feedbackId! },
-              query: { page: String(page), limit: '20', search },
+              query: {
+                page: String(page),
+                limit: '20',
+                search,
+                ...(cohortId ? { cohortId } : {}),
+              },
             },
           },
         ),
@@ -624,81 +658,207 @@ export function useFeedbackResponses(
       return {
         total: raw.total ?? 0,
         totalPages: raw.totalPages ?? 1,
-        responses: (raw.submissions ?? []).map((s): FeedbackResponse => ({
-          _id: toId(s._id),
-          createdAt: s.createdAt,
-          details: s.details ?? {},
-          user: {
-            _id: toId(s.user?._id),
-            firstName: s.user?.firstName,
-            lastName: s.user?.lastName,
-            email: s.user?.email,
-          },
-          previousItem: s.previousItem ? { name: s.previousItem.name } : null,
-        })),
+        responses: (raw.submissions ?? []).map(toResponse),
       };
     },
   });
 }
 
-/** Downloads the backend's CSV export (it needs the auth header, so it can't be a plain link). */
-export async function downloadFeedbackCsv(
+/** One student's answers to a form, newest first, including ones they replaced. */
+export function useStudentFeedbackHistory(
   courseId: string,
   feedbackId: string,
-  filename: string,
-) {
-  const { data, error } = await api.GET(
-    '/api/courses/{courseId}/item/{feedbackId}/feedback/submissions/export',
-    {
-      params: { path: { courseId, feedbackId } },
-      parseAs: 'blob',
-    },
-  );
-  if (error || !data)
-    throw new Error('Couldn’t export the responses. Please try again.');
-  const url = URL.createObjectURL(data as Blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-/**
- * Every response (up to 1000) for the Summary view's counts and averages. The
- * submissions endpoint is paged; one large page keeps this to a single request.
- */
-export function useFeedbackSummary(
-  courseId: string,
-  feedbackId: string | undefined,
+  userId: string | undefined,
 ) {
   return useQuery({
-    queryKey: ['studio', 'feedback-summary', feedbackId],
-    enabled: !!feedbackId,
+    queryKey: ['studio', 'feedback-history', feedbackId, userId],
+    enabled: !!userId,
     queryFn: async () => {
       const raw = unwrap(
         await api.GET(
           '/api/courses/{courseId}/item/{feedbackId}/feedback/submissions',
           {
             params: {
-              path: { courseId, feedbackId: feedbackId! },
-              query: { page: '1', limit: '1000', search: '' },
+              path: { courseId, feedbackId },
+              query: { page: '1', limit: '50', search: '', userId: userId!, history: 'all' },
             },
           },
         ),
-      ) as unknown as {
-        submissions: { details?: Record<string, unknown>; createdAt: string }[];
-        total: number;
-      };
-      return {
-        total: raw.total ?? 0,
-        rows: (raw.submissions ?? []).map((s) => ({
-          details: s.details ?? {},
-          createdAt: s.createdAt,
-        })),
-      };
+      ) as unknown as { submissions: any[] };
+      return (raw.submissions ?? []).map(toResponse);
     },
   });
+}
+
+export interface QuestionSummary {
+  key: string;
+  title: string;
+  kind: string;
+  answered: number;
+  counts?: Record<string, number>;
+  average?: number;
+  latestTexts?: string[];
+}
+
+/** GET …/feedback/summary: counts and averages over every current answer (no cap). */
+export function useFeedbackSummary(
+  courseId: string,
+  feedbackId: string | undefined,
+  cohortId?: string,
+) {
+  return useQuery({
+    queryKey: ['studio', 'feedback-summary', feedbackId, cohortId ?? ''],
+    enabled: !!feedbackId,
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/courses/{courseId}/item/{feedbackId}/feedback/summary', {
+          params: {
+            path: { courseId, feedbackId: feedbackId! },
+            query: cohortId ? { cohortId } : {},
+          },
+        }),
+      ) as unknown as { total: number; questions: QuestionSummary[] },
+  });
+}
+
+export interface CourseFeedbackForm {
+  id: string;
+  name: string;
+  moduleId: string;
+  sectionId: string;
+  moduleName: string;
+  sectionName: string;
+  aboutName: string;
+  responses: number;
+}
+
+/** GET …/versions/{versionId}/feedback/forms: every form in course order with its current responses. */
+export function useCourseFeedbackForms(
+  courseId: string,
+  versionId: string,
+  cohortId?: string,
+) {
+  return useQuery({
+    queryKey: ['studio', 'feedback-forms', versionId, cohortId ?? ''],
+    queryFn: async () =>
+      (
+        unwrap(
+          await api.GET('/api/courses/{courseId}/versions/{versionId}/feedback/forms', {
+            params: {
+              path: { courseId, versionId },
+              query: cohortId ? { cohortId } : {},
+            },
+          }),
+        ) as unknown as { forms: CourseFeedbackForm[] }
+      ).forms ?? [],
+  });
+}
+
+const feedbackSettingsKey = (versionId: string) => ['studio', 'feedback-settings', versionId] as const;
+
+/** Whether students can send feedback in study mode (GET …/feedback/settings). On by default. */
+export function useFeedbackSettings(courseId: string, versionId: string) {
+  return useQuery({
+    queryKey: feedbackSettingsKey(versionId),
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/courses/{courseId}/versions/{versionId}/feedback/settings', {
+          params: { path: { courseId, versionId } },
+        }),
+      ) as unknown as { studyModeFeedback: boolean },
+  });
+}
+
+/** Turns study-mode feedback on or off (PUT …/feedback/settings). */
+export function useUpdateFeedbackSettings(courseId: string, versionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (studyModeFeedback: boolean) =>
+      unwrap(
+        await api.PUT('/api/courses/{courseId}/versions/{versionId}/feedback/settings', {
+          params: { path: { courseId, versionId } },
+          body: { studyModeFeedback },
+        }),
+      ) as unknown as { studyModeFeedback: boolean },
+    onSuccess: (data) => {
+      queryClient.setQueryData(feedbackSettingsKey(versionId), data);
+      // Students' course settings carry it too.
+      void queryClient.invalidateQueries({ queryKey: ['course-settings'] });
+    },
+  });
+}
+
+export interface FeedbackDownload {
+  format: 'xlsx' | 'csv';
+  history?: 'latest' | 'all';
+  cohortId?: string;
+  /** Course CSV only: every answer, or one row per student per video. */
+  type?: 'all' | 'watch';
+}
+
+/** The file name from Content-Disposition (filename* first), or a fallback. */
+function fileNameFrom(response: Response | undefined, fallback: string) {
+  const header = response?.headers.get('content-disposition') ?? '';
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (star) return decodeURIComponent(star[1]);
+  const plain = /filename="([^"]+)"/i.exec(header);
+  return plain ? plain[1] : fallback;
+}
+
+function saveBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportQuery({ format, history, cohortId, type }: FeedbackDownload) {
+  return {
+    format,
+    ...(history && history !== 'latest' ? { history } : {}),
+    ...(cohortId ? { cohortId } : {}),
+    ...(type ? { type } : {}),
+  };
+}
+
+/** Downloads one form's responses (it needs the auth header, so it can't be a plain link). */
+export async function downloadFeedbackForm(
+  courseId: string,
+  feedbackId: string,
+  options: FeedbackDownload,
+): Promise<string> {
+  const { data, error, response } = await api.GET(
+    '/api/courses/{courseId}/item/{feedbackId}/feedback/export',
+    {
+      params: { path: { courseId, feedbackId }, query: exportQuery(options) as never },
+      parseAs: 'blob',
+    },
+  );
+  if (error || !data) throw new Error('Couldn’t prepare the file. Please try again.');
+  const name = fileNameFrom(response, `feedback-responses.${options.format}`);
+  saveBlob(data as Blob, name);
+  return name;
+}
+
+/** Downloads the whole course's feedback as a workbook or CSV. */
+export async function downloadCourseFeedback(
+  courseId: string,
+  versionId: string,
+  options: FeedbackDownload,
+): Promise<string> {
+  const { data, error, response } = await api.GET(
+    '/api/courses/{courseId}/versions/{versionId}/feedback/export',
+    {
+      params: { path: { courseId, versionId }, query: exportQuery(options) as never },
+      parseAs: 'blob',
+    },
+  );
+  if (error || !data) throw new Error('Couldn’t prepare the file. Please try again.');
+  const name = fileNameFrom(response, `course-feedback.${options.format}`);
+  saveBlob(data as Blob, name);
+  return name;
 }
 
 // ---------------------------------------------------------------------------

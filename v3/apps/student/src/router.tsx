@@ -10,6 +10,8 @@ import {
 
 import { AdminShell, StudioEditorShell } from '@/features/admin/admin-shell';
 import { CourseDetailPage, parseCourseTab, type CourseTab } from '@/features/admin/course-detail-page';
+import { parsePeopleSort, type SortOrder } from '@/features/admin/people-sort';
+import type { PeopleSortBy } from '@/features/admin/queries';
 import { CoursesPage as StudioCoursesPage } from '@/features/admin/courses-page';
 import { LessonEditorPage } from '@/features/admin/editor/lesson-editor-page';
 import type { LessonType } from '@/features/admin/editor/lesson-api';
@@ -30,6 +32,7 @@ import { LandingPage } from '@/features/landing/landing-page';
 import { OnboardingPage } from '@/features/onboarding/onboarding-page';
 import { needsOnboarding } from '@/features/onboarding/onboarding-state';
 import { ProfilePage } from '@/features/profile/profile-page';
+import { CheckDevicePage } from '@/features/learn/proctoring/check-device-page';
 import { RegistrationPage } from '@/features/registration/registration-page';
 
 const rootRoute = createRootRoute({
@@ -141,6 +144,7 @@ const courseRoute = createRoute({
   },
 });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile', component: ProfilePage });
+const checkDeviceRoute = createRoute({ getParentRoute: () => appRoute, path: '/check-device', component: CheckDevicePage });
 
 /**
  * Studio (teacher/admin) gets its own shell, nav and theme. AdminShell does the
@@ -159,11 +163,22 @@ const adminUsersRoute = createRoute({ getParentRoute: () => adminLayoutRoute, pa
 const adminCourseRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: '/admin/courses/$courseId/$versionId',
-  validateSearch: (search: Record<string, unknown>): { tab?: CourseTab } => ({ tab: parseCourseTab(search.tab) }),
+  validateSearch: (search: Record<string, unknown>): { tab?: CourseTab; sort?: PeopleSortBy; order?: SortOrder } => {
+    const sort = parsePeopleSort(search.sort, search.order);
+    return { tab: parseCourseTab(search.tab), sort: sort?.by, order: sort?.order };
+  },
   component: function AdminCourseRoute() {
     const { courseId, versionId } = adminCourseRoute.useParams();
-    const { tab } = adminCourseRoute.useSearch();
-    return <CourseDetailPage key={versionId} courseId={courseId} versionId={versionId} tab={tab} />;
+    const { tab, sort, order } = adminCourseRoute.useSearch();
+    return (
+      <CourseDetailPage
+        key={versionId}
+        courseId={courseId}
+        versionId={versionId}
+        tab={tab}
+        peopleSort={sort && order ? { by: sort, order } : undefined}
+      />
+    );
   },
 });
 
@@ -178,16 +193,22 @@ const LESSON_TYPES: LessonType[] = ['VIDEO', 'BLOG', 'QUIZ', 'FEEDBACK'];
 const lessonEditorRoute = createRoute({
   getParentRoute: () => studioEditorLayoutRoute,
   path: '/admin/courses/$courseId/$versionId/lesson',
-  validateSearch: (search: Record<string, unknown>): { module: string; section: string; item?: string; type?: LessonType } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { module: string; section: string; item?: string; type?: LessonType; after?: string; before?: string } => ({
     module: typeof search.module === 'string' ? search.module : '',
     section: typeof search.section === 'string' ? search.section : '',
     item: typeof search.item === 'string' && search.item ? search.item : undefined,
     type: LESSON_TYPES.includes(search.type as LessonType) ? (search.type as LessonType) : undefined,
+    // A new lesson from "Add above/below": create it next to this lesson instead of at the end.
+    after: typeof search.after === 'string' && search.after ? search.after : undefined,
+    before: typeof search.before === 'string' && search.before ? search.before : undefined,
   }),
   component: function LessonEditorRoute() {
     const { courseId, versionId } = lessonEditorRoute.useParams();
-    const { module, section, item, type } = lessonEditorRoute.useSearch();
-    return <LessonEditorPage loc={{ courseId, versionId, moduleId: module, sectionId: section }} itemId={item} type={type} />;
+    const { module, section, item, type, after, before } = lessonEditorRoute.useSearch();
+    const position = !item && after ? { afterItemId: after } : !item && before ? { beforeItemId: before } : undefined;
+    return <LessonEditorPage loc={{ courseId, versionId, moduleId: module, sectionId: section, position }} itemId={item} type={type} />;
   },
 });
 
@@ -223,7 +244,7 @@ const routeTree = rootRoute.addChildren([
   learnRoute,
   registerRoute,
   ...legacyRegisterRoutes,
-  appRoute.addChildren([homeRoute, coursesRoute, exploreRoute, courseRoute, profileRoute]),
+  appRoute.addChildren([homeRoute, coursesRoute, exploreRoute, courseRoute, profileRoute, checkDeviceRoute]),
   adminLayoutRoute.addChildren([adminIndexRoute, adminCoursesRoute, adminCourseRoute, adminUsersRoute]),
   studioEditorLayoutRoute.addChildren([lessonEditorRoute]),
 ]);
