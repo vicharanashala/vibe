@@ -2,12 +2,12 @@ import {injectable, inject} from 'inversify';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {
   AuditingDto,
-  CourseSetting,
   DetectorOptionsDto,
   DetectorSettingsDto,
   ProctoringSettingsDto,
   SettingsDto,
 } from '#root/modules/setting/classes/index.js';
+import {CourseSetting} from '../classes/transformers/CourseSetting.js';
 import {
   BadRequestError,
   ForbiddenError,
@@ -169,6 +169,7 @@ class CourseSettingService extends BaseService {
     randomizeItems: boolean,
     userId: string,
     crowdsourcedQuestionSubmissionEnabled: boolean = false,
+    isLensEnabled: boolean = true,
     caseStudiesEnabled: boolean = false,
     caseStudyStrictUnlockEnabled: boolean = true,
     caseStudyWeakStreakThreshold: number = 3,
@@ -201,6 +202,7 @@ class CourseSettingService extends BaseService {
         settings.randomizeItems = randomizeItems;
         settings.crowdsourcedQuestionSubmissionEnabled =
           crowdsourcedQuestionSubmissionEnabled;
+        settings.isLensEnabled = isLensEnabled;
         settings.caseStudiesEnabled = caseStudiesEnabled;
         settings.caseStudyStrictUnlockEnabled = caseStudyStrictUnlockEnabled;
         settings.caseStudyWeakStreakThreshold = caseStudyWeakStreakThreshold;
@@ -221,6 +223,7 @@ class CourseSettingService extends BaseService {
                 baseHp,
                 randomizeItems,
                 crowdsourcedQuestionSubmissionEnabled,
+                isLensEnabled,
                 caseStudiesEnabled,
                 caseStudyStrictUnlockEnabled,
                 caseStudyWeakStreakThreshold,
@@ -260,6 +263,7 @@ class CourseSettingService extends BaseService {
         randomizeItems: courseSettings.settings?.randomizeItems,
         crowdsourcedQuestionSubmissionEnabled:
           courseSettings.settings?.crowdsourcedQuestionSubmissionEnabled,
+        isLensEnabled: courseSettings.settings?.isLensEnabled,
         caseStudiesEnabled: courseSettings.settings?.caseStudiesEnabled,
         caseStudyStrictUnlockEnabled:
           courseSettings.settings?.caseStudyStrictUnlockEnabled,
@@ -276,6 +280,7 @@ class CourseSettingService extends BaseService {
         baseHp,
         randomizeItems,
         crowdsourcedQuestionSubmissionEnabled,
+        isLensEnabled,
         caseStudiesEnabled,
         caseStudyStrictUnlockEnabled,
         caseStudyWeakStreakThreshold,
@@ -304,6 +309,7 @@ class CourseSettingService extends BaseService {
         audit,
         session,
         crowdsourcedQuestionSubmissionEnabled,
+        isLensEnabled,
         caseStudiesEnabled,
         caseStudyStrictUnlockEnabled,
         caseStudyWeakStreakThreshold,

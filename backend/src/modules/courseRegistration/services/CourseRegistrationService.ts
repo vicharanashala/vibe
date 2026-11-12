@@ -717,9 +717,16 @@ export class CourseRegistrationService extends BaseService {
         );
 
         if (!courseSettings) {
-          throw new NotFoundError(
-            `Course settings for course ID ${courseId} and version ID ${versionId} not found.`,
-          );
+          return {
+            jsonSchema: undefined,
+            uiSchema: undefined,
+            isActive: true,
+            registrationsAutoApproved: false,
+            autoapproval_emails: [],
+            autoApprovalMode: 'EVERYONE',
+            cohortSettings: [],
+            cohortSettingDetails: [],
+          };
         }
 
         const cohortSettingDetails = [];
@@ -783,7 +790,8 @@ export class CourseRegistrationService extends BaseService {
 
         // return registrationSettings;
       } catch (error) {
-        throw new InternalServerError('Failed to get settings');
+        console.error('ERROR IN getSettings:', error);
+        throw new InternalServerError('Failed to get settings: ' + error.message);
       }
     });
   }
