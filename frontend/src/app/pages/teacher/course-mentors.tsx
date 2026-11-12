@@ -104,8 +104,8 @@ export default function CourseMentors() {
       setNewMentorId("");
       setInitialLoaded(true);
       toast.success(`Added ${trimmed} as a mentor`);
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to add mentor");
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : null) || "Failed to add mentor");
     }
   };
 
@@ -122,8 +122,8 @@ export default function CourseMentors() {
       setMentorIds(result.mentorIds);
       setInitialLoaded(true);
       toast.success(`Removed ${userId} from mentors`);
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to remove mentor");
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : null) || "Failed to remove mentor");
     }
   };
 

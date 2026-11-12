@@ -717,7 +717,7 @@ export default function ReviewSession() {
 
   // Intercept the URL parameter to route targeted reviews
   const search = useSearch({ strict: false });
-  const targetCourseId = (search as any).courseId as string | undefined;
+  const targetCourseId = (search as Record<string, unknown>).courseId as string | undefined;
 
   const {
     data: schedule,

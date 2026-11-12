@@ -94,7 +94,7 @@ export function ExportButtons({
         <Button
           type="button"
           variant="outline"
-          onClick={() => selected && handleExportPdf(selected)}
+          onClick={() => selected && handleExportPdf()}
           disabled={!selected}
         >
           Export PDF
@@ -309,7 +309,7 @@ function tierToNumber(tier: string): number {
 
 // ── PDF (print-to-PDF) ─────────────────────────────────────────────────────
 
-function handleExportPdf(_badge: BadgeProgress): void {
+function handleExportPdf(): void {
   // Toggle a print-only class on <html> so the printable area renders.
   // Restore after the print dialog closes.
   document.documentElement.classList.add('motivation-printing');
