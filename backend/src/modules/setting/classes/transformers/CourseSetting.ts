@@ -446,12 +446,9 @@ class CourseSetting implements ICourseSetting {
     };
     linearProgressionEnabled: boolean;
     seekForwardEnabled: boolean;
-<<<<<<< HEAD
     isLensEnabled?: boolean;
-=======
     /** Students may send feedback forms in study mode. Default true. */
     studyModeFeedback?: boolean;
->>>>>>> upstream/main
     hpSystem?: boolean;
     isPublic?: boolean;
     baseHp?: number;
