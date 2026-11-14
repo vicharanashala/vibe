@@ -25,7 +25,10 @@ class QuestionBank implements IQuestionBank {
     this.tags = questionBank.tags || [];
     this.title = questionBank.title;
     this.description = questionBank.description;
-    this.points = questionBank.points;
+    this.points =
+      typeof questionBank.points === 'number' && !isNaN(questionBank.points)
+        ? questionBank.points
+        : 1;
     this.createdAt = questionBank.createdAt ?? new Date();
     this.updatedAt = questionBank.updatedAt ?? new Date();
     this.isDeleted = false;

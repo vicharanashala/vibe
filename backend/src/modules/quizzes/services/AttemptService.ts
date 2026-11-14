@@ -394,7 +394,10 @@ class AttemptService extends BaseService {
         questionDetail.questionId.toString(),
         true,
       );
-      totalMaxScore += question.points;
+      totalMaxScore +=
+        typeof question.points === 'number' && question.points > 0
+          ? question.points
+          : 1;
     }
 
 

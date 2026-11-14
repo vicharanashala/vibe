@@ -436,6 +436,7 @@ export function fromWire(raw: any): DraftQuestion {
 interface BankRef {
   bankId: string;
   count: number;
+  points?: number;
   title?: string;
 }
 
@@ -457,6 +458,7 @@ export function quizQuestionsQueryOptions(quizId?: string) {
             ({
               bankId: toId(b.bankId),
               count: b.count,
+              points: b.points,
               title: b.title,
             }) as BankRef,
         )
@@ -514,6 +516,7 @@ export async function syncQuizQuestions({
   questionsPerAttempt: number | null;
 }): Promise<DraftQuestion[]> {
   let bankId = bank?.bankId;
+  const defaultPoints = Math.max(1, Number(after[0]?.points) || 1);
   if (!bankId) {
     const created = unwrap(
       await api.POST('/api/quizzes/question-bank/', {
@@ -522,6 +525,7 @@ export async function syncQuizQuestions({
           description: `Questions for the quiz “${quizName}”.`,
           courseId: loc.courseId,
           courseVersionId: loc.versionId,
+          points: defaultPoints,
         } as any,
       }),
     ) as unknown as { questionBankId: string };
@@ -529,7 +533,7 @@ export async function syncQuizQuestions({
     unwrap(
       await api.POST('/api/quizzes/quiz/{quizId}/bank', {
         params: { path: { quizId } },
-        body: { bankId, count: Math.max(1, after.length) } as any,
+        body: { bankId, count: Math.max(1, after.length), points: defaultPoints } as any,
       }),
     );
   }
@@ -578,11 +582,11 @@ export async function syncQuizQuestions({
       ? after.length
       : Math.min(questionsPerAttempt, after.length),
   );
-  if (!bank || bank.count !== count) {
+  if (!bank || bank.count !== count || bank.points !== defaultPoints) {
     unwrap(
       await api.PATCH('/api/quizzes/quiz/{quizId}/bank', {
         params: { path: { quizId } },
-        body: { bankId, count } as any,
+        body: { bankId, count, points: defaultPoints } as any,
       }),
     );
   }
