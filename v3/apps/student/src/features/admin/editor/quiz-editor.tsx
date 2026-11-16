@@ -186,7 +186,7 @@ function QuizEditorBody({
 }: {
   loc: LessonLocation;
   item?: LessonItem;
-  bank: { bankId: string; count: number } | null;
+  bank: { bankId: string; count: number; points?: number } | null;
   initial: DraftQuestion[];
   loadError: unknown;
 }) {
@@ -280,9 +280,10 @@ function QuizEditorBody({
         1,
         perAttempt === null ? saved.length : Math.min(perAttempt, saved.length),
       );
+      const defaultPoints = Math.max(1, Number(saved[0]?.points) || 1);
       setQuestions(saved);
       setServerQuestions(saved);
-      setServerBank((b) => ({ bankId: b?.bankId ?? '', count }));
+      setServerBank((b) => ({ bankId: b?.bankId ?? '', count, points: defaultPoints }));
       setDirty(false);
       setSavedOnce(true);
       toast.success(item ? 'Quiz saved.' : 'Quiz published.');

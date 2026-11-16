@@ -88,8 +88,11 @@ class QuestionBankService extends BaseService {
       const questionBankId = await this.questionBankRepository.create(questionBank, session);
       
       // If points is set, cascade to all questions in the bank
-      const pointsToUse = questionBank.points !== undefined ? questionBank.points : 5;
-      if (pointsToUse !== undefined && questionBank.questions && questionBank.questions.length > 0) {
+      const pointsToUse =
+        typeof questionBank.points === 'number' && !isNaN(questionBank.points)
+          ? questionBank.points
+          : 1;
+      if (questionBank.questions && questionBank.questions.length > 0) {
         await this.questionBankRepository.updateQuestionsPoints(
           questionBankId,
           pointsToUse,
@@ -183,7 +186,7 @@ class QuestionBankService extends BaseService {
       questionBank.courseId = new ObjectId(questionBank.courseId.toString());
 
       // If question bank has points set, update the new question's points
-      if (questionBank.points !== undefined) {
+      if (typeof questionBank.points === 'number' && questionBank.points > 0) {
         await this.questionRepository.updatePoints(questionId, questionBank.points, session);
       }
 
@@ -401,7 +404,7 @@ class QuestionBankService extends BaseService {
       );
       
       // Set the duplicated question's points to match the question bank's points
-      if (questionBank.points !== undefined) {
+      if (typeof questionBank.points === 'number' && questionBank.points > 0) {
         await this.questionRepository.updatePoints(
           duplicatedQuestion._id.toString(),
           questionBank.points,
