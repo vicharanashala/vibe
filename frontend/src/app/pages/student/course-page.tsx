@@ -2045,6 +2045,16 @@ return false;
               <p className="mt-1 text-sm opacity-80">You can open it again once they unlock it. Your progress isn’t affected.</p>
             </div>
           </div>
+        ) : currentItem && selectedItemId && String(currentItem._id) !== selectedItemId ? (
+          /*
+           * The next lesson is still loading. The previous one isn't shown in the
+           * meantime: the page can remount it while it loads, and a remounted
+           * quiz auto-starts a new attempt — using up one of the student's
+           * attempts every time they left a quiz.
+           */
+          <div className="z-30 absolute inset-0 grid place-items-center" role="status" aria-label="Loading lesson">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-current border-t-transparent opacity-60" />
+          </div>
         ) : currentItem ? (
           currentItem.type === "PROJECT" ? (
             <div className="z-30 absolute inset-0 px-3 sm:px-6 py-16 overflow-y-auto">
