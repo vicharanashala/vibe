@@ -2399,7 +2399,6 @@ class ProgressService extends BaseService {
     };
   }
 
-
   async stopItem(
     userId: string,
     courseId: string,
@@ -3905,29 +3904,29 @@ class ProgressService extends BaseService {
         );
       }
     } else {
-      const previousDetails = await this.getPreviousItemInSequence(
-        courseVersion,
-        progress.currentModule.toString(),
-        progress.currentSection.toString(),
-        quizId,
-      );
-
-      if (previousDetails) {
-        const previousProgress = {
-          currentModule: previousDetails.moduleId,
-          currentSection: previousDetails.sectionId,
-          currentItem: previousDetails.itemId,
-        };
-
-        await this.progressRepository.updateProgress(
-          userId,
-          courseId,
-          courseVersionId,
-          previousProgress,
-          cohortId,
-          session,
+        const previousDetails = await this.getPreviousItemInSequence(
+          courseVersion,
+          progress.currentModule.toString(),
+          progress.currentSection.toString(),
+          quizId,
         );
-      }
+
+        if (previousDetails) {
+          const previousProgress = {
+            currentModule: previousDetails.moduleId,
+            currentSection: previousDetails.sectionId,
+            currentItem: previousDetails.itemId,
+          };
+
+          await this.progressRepository.updateProgress(
+            userId,
+            courseId,
+            courseVersionId,
+            previousProgress,
+            cohortId,
+            session,
+          );
+        }
     }
     // if we refresh the quiz page after passing then the student will land on next item
     //  and as the stop item is not called for that quiz endtime will never be created
