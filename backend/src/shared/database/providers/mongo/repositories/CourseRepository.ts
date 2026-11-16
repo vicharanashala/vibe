@@ -694,6 +694,7 @@ export class CourseRepository implements ICourseRepository {
           _id: { $in: objectIdArray },
           $or: [
             { versionStatus: "active" },
+            { versionStatus: "published" },
             { versionStatus: { $exists: false } }
           ]
         }

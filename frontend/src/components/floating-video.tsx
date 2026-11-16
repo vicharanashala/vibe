@@ -50,7 +50,7 @@ function FloatingVideo({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [overlayPosition, setOverlayPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-right');
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isPoppedOut, setIsPoppedOut] = useState(false);
+  const [isPoppedOut, setIsPoppedOut] = useState(true);
   const [anomaly, setAnomaly] = useState(false);
   const [anomalyType, setAnomalyType] = useState("");
    const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -647,6 +647,10 @@ const lastCalledRef = useRef<number>(0);
       // Determine if we need to pause or rewind immediately
       let immediatePause = false;
       let immediateRewind = false;
+
+      if (activeAnomalies.length > 0) {
+        immediatePause = true;
+      }
 
       if (hasFaceMismatch) {
         immediatePause = true;

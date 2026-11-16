@@ -40,7 +40,14 @@ export class MongoDatabase implements IDatabase<Db> {
       return;
     }
 
+    const isSsl = uri.startsWith('mongodb+srv://') || uri.includes('ssl=true') || uri.includes('tls=true');
     this.client = new MongoClient(uri, {
+      ...(isSsl ? {
+        ssl: true,
+        tls: true,
+        tlsAllowInvalidCertificates: false,
+        tlsAllowInvalidHostnames: false,
+      } : {}),
       retryWrites: true,
 
       // 🔹 CONNECTION POOL
@@ -51,10 +58,7 @@ export class MongoDatabase implements IDatabase<Db> {
       // 🔹 TIMEOUTS
       connectTimeoutMS: 20000,
       socketTimeoutMS: 30000,
-
-
     });
-
   }
 
   private async ensureIndexes(): Promise<void> {
@@ -83,20 +87,30 @@ export class MongoDatabase implements IDatabase<Db> {
   //   return this.database;
   // }
 
-public async connect(): Promise<Db> {
+public async connect(): Promise<Db | null> {
+  if (process.env.SKIP_DB_CONNECTION === 'true') {
+    console.log('Database connection skipped.');
+    return null;
+  }
+
   if (this.database) {
     return this.database;
   }
 
   if (!this.connectingPromise) {
     this.connectingPromise = (async () => {
-      await this.client?.connect();
-      this.database = this.client?.db(this.dbName);
+      try {
+        await this.client?.connect();
+        this.database = this.client?.db(this.dbName) || null;
+        if (this.database) {
+          await this.ensureIndexes();
+        }
+      } catch (err: any) {
+        console.warn('⚠️ Local MongoDB connection skipped:', err?.message || err);
+        this.database = null;
+      }
 
-      // 🔥 Ensure indexes after connection
-      await this.ensureIndexes();
-
-      return this.database;
+      return this.database!;
     })();
   }
 

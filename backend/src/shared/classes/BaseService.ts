@@ -10,9 +10,12 @@ export abstract class BaseService {
   constructor(private readonly db: MongoDatabase) {}
 
   protected async _withTransaction<T>(
-    operation: (session: ClientSession) => Promise<T>,
+    operation: (session?: ClientSession) => Promise<T>,
   ): Promise<T> {
     const client = await this.db.getClient();
+    if (!client) {
+      return operation();
+    }
     const MAX_RETRIES = 3;
     const txOptions = {
       readPreference: ReadPreference.primary,
@@ -31,6 +34,11 @@ export abstract class BaseService {
       } catch (error: any) {
         if (session.inTransaction()) await session.abortTransaction();
         await session.endSession();
+
+        if (error?.message?.includes('Transaction numbers are only allowed')) {
+          return operation(undefined as any);
+        }
+
         const isTransient =
           Array.isArray(error?.errorLabels) &&
           error.errorLabels.includes('TransientTransactionError');

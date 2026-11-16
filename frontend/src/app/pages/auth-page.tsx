@@ -319,7 +319,8 @@ export default function AuthPage() {
             email: email,
             password: password,
             firstName: firstName,
-            lastName: lastName
+            lastName: lastName,
+            recaptchaToken: "NO_CAPTCHA"
           }
         });
       } catch (mutationError: any) {

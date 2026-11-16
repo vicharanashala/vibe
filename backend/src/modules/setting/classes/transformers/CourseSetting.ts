@@ -311,7 +311,7 @@ import {
   EnrollmentRole,
 } from '#shared/interfaces/models.js';
 import {JSONSchema} from 'class-validator-jsonschema';
-import {CreateCourseSettingBody} from '../index.js';
+import {CreateCourseSettingBody} from '../validators/CourseSettingValidators.js';
 import {ObjectId} from 'mongodb';
 import {IsNotEmpty, IsOptional} from 'class-validator';
 
@@ -387,6 +387,7 @@ class CourseSetting implements ICourseSetting {
       },
       linearProgressionEnabled: {type: 'boolean'},
       seekForwardEnabled: {type: 'boolean'},
+      isLensEnabled: {type: 'boolean'},
       studyModeFeedback: {
         type: 'boolean',
         description:
@@ -445,6 +446,7 @@ class CourseSetting implements ICourseSetting {
     };
     linearProgressionEnabled: boolean;
     seekForwardEnabled: boolean;
+    isLensEnabled?: boolean;
     /** Students may send feedback forms in study mode. Default true. */
     studyModeFeedback?: boolean;
     hpSystem?: boolean;
@@ -498,6 +500,7 @@ class CourseSetting implements ICourseSetting {
       isPublic: courseSettingsBody?.settings?.isPublic ?? false,
       baseHp: courseSettingsBody?.settings?.baseHp ?? 0,
       randomizeItems: courseSettingsBody?.settings?.randomizeItems ?? false,
+      isLensEnabled: courseSettingsBody?.settings?.isLensEnabled ?? true,
       caseStudiesEnabled:
         courseSettingsBody?.settings?.caseStudiesEnabled ?? false,
       caseStudyStrictUnlockEnabled:

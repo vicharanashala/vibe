@@ -250,11 +250,14 @@ const CourseRegistration: React.FC = () => {
   const resetForm = () => {
     if (jsonSchema) {
       const empty = buildEmptyFormData(jsonSchema);
+      const displayName = (user?.name && user.name.trim().length > 0)
+        ? user.name
+        : (user?.email ? user.email.split('@')[0] : '');
 
       setFormData({
         ...empty,
-        Name: user?.name,
-        Email: user?.email,
+        Name: displayName,
+        Email: user?.email || '',
       });
     }
 
@@ -278,37 +281,38 @@ const CourseRegistration: React.FC = () => {
     return obj;
   };
 
-
-
   useEffect(() => {
     if (!jsonSchema?.properties || !user) return;
 
     const emptyData = buildEmptyFormData(jsonSchema);
+    const displayName = (user?.name && user.name.trim().length > 0)
+      ? user.name
+      : (user?.email ? user.email.split('@')[0] : '');
 
     setFormData({
       ...emptyData,
-      Name: user?.name ?? "emptyData.Name",
-      Email: user?.email ?? "emptyData.Email",
+      Name: displayName,
+      Email: user?.email || '',
     });
   }, [jsonSchema, user]);
 
-
-
   const computedUiSchema = React.useMemo(() => {
     if (!uiSchema) return uiSchema;
+
+    const hasExplicitName = Boolean(user?.name && user.name.trim().length > 0);
 
     return {
       ...uiSchema,
       Name: {
         ...uiSchema?.Name,
-        "ui:disabled": true,
+        "ui:disabled": hasExplicitName,
       },
       Email: {
         ...uiSchema?.Email,
-        "ui:disabled": true,
+        "ui:disabled": Boolean(user?.email),
       },
     };
-  }, [uiSchema]);
+  }, [uiSchema, user]);
 
 
   useEffect(() => {
