@@ -6,56 +6,82 @@ Precomputed, chart-shaped analytics for each course version, kept up to date in 
 
 ## ADDED Requirements
 
-### Requirement: Read models are derived only from existing records
-Course analytics SHALL be computed solely from the records the platform already keeps (enrolments, progress, viewing sessions, quiz attempts and results, proctoring incidents, study views, rewind/fast-forward events and course structure). Keeping analytics up to date MUST NOT write to any of those records or change how they are written.
+### Requirement: Learning flows are never affected
+Keeping analytics up to date MUST NOT change what is stored in enrolment, progress, viewing-session, quiz or incident records. It MUST NOT make any student request fail or wait noticeably longer: analytics updates happen only after the student's own change has been saved, and any analytics error is logged and ignored.
 
-#### Scenario: Projector never alters learning records
-- **WHEN** the analytics are refreshed for a course version
-- **THEN** no enrolment, progress, viewing-session, quiz or incident record is created, changed or deleted
+#### Scenario: Analytics update fails
+- **WHEN** updating analytics after a quiz submission fails
+- **THEN** the student's submission still succeeds and is saved exactly as before
 
-#### Scenario: Analytics failure does not affect students
-- **WHEN** refreshing analytics fails for a course version
-- **THEN** students of that course can still start, finish and progress through lessons and quizzes exactly as before
+#### Scenario: Learning records unchanged
+- **WHEN** analytics are built or updated for a course version
+- **THEN** no enrolment, progress, viewing-session, quiz or incident record is created, changed or deleted by that work
 
-### Requirement: Incremental refresh
-The system SHALL refresh each active course version's analytics in the background at least every 10 minutes, processing only records added or changed since that version's last successful refresh.
+### Requirement: Updated when events happen
+Once a course version's analytics are built, the system SHALL update them as each relevant event happens, with no scheduled recomputation:
+- a quiz is submitted
+- a video or lesson is finished
+- a student enrols or leaves
+- a student's current lesson changes
+- a student finishes the course
+- a proctoring incident is recorded
+- a lesson is studied in study mode
+- a video is rewound
 
-#### Scenario: New activity appears
-- **WHEN** a student finishes a video and the next refresh completes
-- **THEN** that course's daily learning hours, the video's completion count and the student's last-active time include it
+#### Scenario: Quiz attempt
+- **WHEN** a student submits a quiz attempt
+- **THEN** the next overview request reflects it in that quiz's attempts, pass figures, score bands and question figures
 
-#### Scenario: Refresh resumes after a failure
-- **WHEN** a refresh stops partway through
-- **THEN** the next refresh picks up from the last successful point, with no activity counted twice or missed
+#### Scenario: Lesson finished
+- **WHEN** a student finishes a video
+- **THEN** the next overview request includes it in that day's learning hours and active students and in the video's completion count
 
-### Requirement: Single refresher at a time
-At most one refresh SHALL run for a given course version at any moment, even when several backend instances are running.
+### Requirement: Each event counted once
+An event SHALL change the analytics at most once, even if the request that caused it is retried or the update runs twice.
 
-#### Scenario: Two instances start the job together
-- **WHEN** two backend instances begin a refresh of the same course version at the same time
-- **THEN** only one performs it and the other skips that version
+#### Scenario: Retried stop
+- **WHEN** the same lesson-finished request is processed twice
+- **THEN** the lesson's completion and the day's learning time are counted once
 
-### Requirement: Full rebuild
-The system SHALL be able to rebuild a course version's analytics from scratch, producing the same figures an incremental refresh would. It SHALL do this nightly for active course versions and on demand by an administrator.
+### Requirement: Time-based figures computed when read
+Figures that change with the passage of time rather than with events SHALL be computed when the overview is requested, from the per-student analytics rather than raw records. These are inactivity, time on the current lesson, and medians.
 
-#### Scenario: Nightly rebuild corrects drift
-- **WHEN** a figure has drifted from the underlying records and the nightly rebuild runs
-- **THEN** the figure afterwards matches a direct count from the records
+#### Scenario: Student goes quiet
+- **WHEN** an unfinished student has no events for 8 days
+- **THEN** the overview requested today lists them as inactive for 8 days, although no event occurred
+
+### Requirement: First build happens gradually on demand
+A course version with no analytics yet SHALL be built when its overview is first requested. The build advances in bounded steps during overview requests, so no single request does more than a few seconds of work or holds the whole course in memory. Until it completes, responses report the build's progress.
+
+#### Scenario: First visit to an existing course
+- **WHEN** an instructor opens the overview of a course that has history but no analytics yet
+- **THEN** the response says the build is in progress with a percentage, and repeated requests advance it until the full figures are returned
+
+#### Scenario: Visit interrupted
+- **WHEN** the instructor closes the page halfway through the first build
+- **THEN** the next overview request continues the build from where it stopped
+
+#### Scenario: Events during the build
+- **WHEN** students finish lessons while their course's first build is in progress
+- **THEN** the completed build includes those events exactly once
+
+### Requirement: One build step at a time
+At most one build step SHALL run for a course version at any moment, even across several backend instances or open browser tabs.
+
+#### Scenario: Two tabs
+- **WHEN** two instructors open the same course's overview during its first build
+- **THEN** each step is performed once, and both see the same progress
+
+### Requirement: Rebuild on request
+An administrator SHALL be able to rebuild one course version's analytics from scratch, for example after a suspected error. The rebuild proceeds gradually in the same way as a first build and gives the same figures as event updates would.
 
 #### Scenario: Administrator triggers a rebuild
 - **WHEN** an administrator requests a rebuild of one course version
-- **THEN** the request is accepted straight away, the version's analytics are recomputed in the background, and once finished the overview's last-refreshed time reflects the rebuild
+- **THEN** the request is accepted, the overview shows build progress, and once finished the figures match a direct count from the records
 
 #### Scenario: Non-administrator cannot trigger a rebuild
 - **WHEN** an instructor who is not an administrator requests a rebuild
 - **THEN** the request is refused with a forbidden error
-
-### Requirement: Backfill on first deploy
-After the analytics feature is first deployed, every course version with enrolled students SHALL have analytics available without manual action.
-
-#### Scenario: Existing course after deploy
-- **WHEN** an instructor opens analytics for a course version that existed before the deploy
-- **THEN** the figures reflect its full history, or the response says the first build is still in progress
 
 ### Requirement: Learner exclusions
 Analytics SHALL count only enrolled students. Instructors, teaching assistants, managers, share-link guests and quick-share containers MUST be excluded, matching the existing course statistics.
@@ -77,7 +103,7 @@ The backend SHALL expose one endpoint returning a course version's overview anal
 
 #### Scenario: Response time on a large course
 - **WHEN** the overview is requested for a course version with 10,000 enrolled students
-- **THEN** the response arrives within 1 second at the 95th percentile
+- **THEN** the response arrives within 1 second at the 95th percentile, and a build-step response within 5 seconds
 
 ### Requirement: Access control
 Only users allowed to view the existing course statistics SHALL be able to read a course version's analytics.
@@ -90,16 +116,16 @@ Only users allowed to view the existing course statistics SHALL be able to read 
 - **WHEN** an instructor who does not teach this course requests its analytics
 - **THEN** the request is refused with a forbidden error
 
-### Requirement: Freshness is reported
-Every overview response SHALL include the time the analytics were last successfully refreshed. If a first build hasn't finished yet, the response SHALL say so.
+### Requirement: Build status is reported
+Every overview response SHALL say whether the course version's analytics are ready or still being built. While building, the response SHALL include progress as a percentage and no figures.
 
-#### Scenario: Normal response
-- **WHEN** the overview is requested
-- **THEN** the response includes the last successful refresh time
+#### Scenario: Ready
+- **WHEN** the overview is requested for a built course version
+- **THEN** the response says it is ready and includes every figure
 
-#### Scenario: First build pending
-- **WHEN** the overview is requested for a course version whose first build hasn't completed
-- **THEN** the response says the build is in progress and returns no figures for that version
+#### Scenario: Building
+- **WHEN** the overview is requested during the first build
+- **THEN** the response says it is building, with its percentage done, and returns no figures
 
 ### Requirement: Headline metrics with comparison
 The overview SHALL include these headline metrics, each for the selected range and for the equal-length range before it:

@@ -25,25 +25,45 @@ See proposal.md for the motivation and specs/ for the required behaviour.
 
 **Goals:**
 - Overview endpoint answers with indexed reads of precomputed documents only: no `$lookup` and no scans of raw collections at request time.
-- Figures are at most about 10 minutes behind, exact after the nightly rebuild, and safe to recompute at any time.
-- Zero changes to how learning records are written.
+- Figures are live: updated as events happen, with no scheduled job and no extra infrastructure.
+- Existing courses are built gradually on first view, within ordinary requests, with bounded time and memory per request.
+- No change to what learning records contain. Analytics hooks run after the student's save and can never fail it.
 
 **Non-Goals:**
-- Real-time (second-level) dashboards.
 - Cross-course or platform-wide analytics. The model is per course version, but nothing here prevents adding those later.
 - Per-cohort filtering of the dashboard. It's an obvious next step, and cohort is stored on read-model rows so it can be added without a rebuild.
 - Changing the existing `/statistics` endpoint or `courseVersionStats`.
 
 ## Decisions
 
-### 1. Batch projector over existing records, not events in the write path
-The read models are rebuilt from the source collections by a background projector.
+### 1. Event-driven per-learner recompute, no scheduled job
+The read models are updated when events happen. The user ruled out a Cloud Run Job and scheduler (17 Nov).
 
-The alternative considered was emitting domain events from `ProgressService` and `AttemptService` and updating counters synchronously, or using MongoDB change streams. It was rejected:
-- **Synchronous events** put extra writes and new failure modes into the exact code paths that broke this week.
-- **Change streams** need a long-lived consumer, which scale-to-zero, CPU-throttled Cloud Run doesn't give us.
+A batch projector every 5 minutes was the first version. It was dropped for two reasons:
+- It needs a separate job: serving instances are CPU-throttled and have 512 MiB, and a full backfill peaked at 714 MiB.
+- It re-reads every active student's activity on every run.
 
-A batch projector reads only, can be re-run safely, and is easy to test against fixtures.
+**Events recompute one learner and apply a difference.** An event doesn't `$inc` a counter blindly. It recomputes **that one learner's** tier-1 and tier-2 rows from their own records, which is a handful of indexed reads using the existing projection functions. Then it applies the difference between the learner's old and new rows to the course counters. This gives three properties:
+- **Retries are free:** a repeated event recomputes the same rows, the difference is zero, and nothing is counted twice (spec: "Each event counted once").
+- **Concurrent events stay correct.** Each replace is a single `findOneAndReplace`, guarded so it only replaces a row with an older `computedAt`. Each difference is taken against the row it actually replaced, so the course counters always equal the sum of the learner rows.
+- **One code path:** the projection functions used for building and for events are the same, so they can't disagree.
+
+**Where hooks fire:**
+
+| Event | Source |
+|---|---|
+| Quiz submitted | `AttemptService` submit |
+| Lesson finished, current lesson changed, course finished | `ProgressService.stopItem`, skip, the quiz-outcome paths and admin advance |
+| Enrolled or unenrolled | `EnrollmentService` |
+| Incident | `AnomalyService.recordAnomaly` |
+| Study view | `StudyViewRepository` write |
+| Rewind | `UserActivityEvent` upsert |
+
+**How hooks are called:**
+- **Always after the transaction commits.** The call is `void analyticsEvents.learnerChanged(versionId, userId).catch(log)`.
+- **Never awaited** by the student's response, and errors are swallowed (spec: "Learning flows are never affected").
+- **Skipped when not needed:** the hook does nothing if the course version has no analytics yet, or if the learner hasn't been reached by an in-progress build.
+- **Debounced:** several events for the same learner within 2 s collapse into one recompute, kept in memory per instance. If an instance dies, the next event or a rebuild catches up.
 
 ### 2. Three tiers of read models, all per course version (prefix `ca_`)
 
@@ -90,32 +110,36 @@ Tier 3 is aggregated from tiers 1 and 2 after each refresh. Those collections ar
 
 Alternative considered: a single document per course. It was rejected because a 10,000-student roster plus per-day series would push past MongoDB's 16 MB document limit and make every update rewrite the whole thing.
 
-### 3. Dirty-learner detection with a per-version watermark
-`ca_state`, one row per version, stores:
-- `watermark`: the time source records were read up to
-- `lastRefreshedAt`
-- `firstBuildCompletedAt`
-- `status`
+### 3. Gradual first build during overview requests
+`ca_state`, one row per version, holds:
+- `status`: `none`, `building` or `ready`
+- `cursorUserId`, `done`, `total`
+- `startedAt`
 - a lease (`leaseOwner`, `leaseUntil`)
 
-A refresh runs these steps:
-1. Take the lease atomically. The lease document is updated with `findOneAndUpdate` only where `leaseUntil < now`, so only one instance proceeds (spec: "Single refresher").
-2. Set `upTo = now − 2 min`. The margin is for writes still in flight.
-3. Collect the dirty user IDs, meaning learners with any of these between `watermark` and `upTo`:
-   - `watchTime.endTime`
-   - `quiz_submission_results.submittedAt`, read per quiz in the version
-   - `anomaly_records.createdAt`
-   - `studyViews.firstStudiedAt`
-   - `user_activity_events.updatedAt`
-4. Read the whole roster from `enrollment` and `progress` for the version, with a projection to keep it small:
-   - learners whose `currentItem` or `percentCompleted` changed since the stored tier-1 row are dirty too
-   - new enrolments are dirty
-   - removed or unenrolled learners are deleted
-5. For each dirty learner, recompute tiers 1 and 2 from their own records (indexed by user and version), and replace their rows.
-6. Re-aggregate tier 3 for the version.
-7. Advance `watermark = upTo` and release the lease.
+An overview request runs these steps:
+1. **No analytics yet** (`status` is `none`): create the state as `building`, with `total` = roster size and an empty cursor.
+2. **Building:** try to take the lease with `findOneAndUpdate` where `leaseUntil < now`. If it's acquired, run **one step**:
+   1. read the next roster learners after `cursorUserId`, ordered by `userId`
+   2. recompute each through the same per-learner function the events use
+   3. stop at 500 learners or 3 seconds, whichever comes first
+   4. advance the cursor
+   5. release the lease
 
-Each step replaces rows rather than incrementing them. So a crash between steps loses nothing: the watermark hasn't moved, and the next run recomputes the same learners (spec: "Refresh resumes after a failure").
+   Then reply `{status:'building', buildProgress}`. If the lease is held by another tab or instance, reply with the current progress without doing work.
+3. **After the last learner:** compute the tier-3 rows for the version once from the tier-1 and tier-2 rows, set `status:'ready'`, and reply with the full overview.
+
+Why this design:
+- **CPU:** every step runs inside a request, so Cloud Run gives it full CPU. Nothing depends on background CPU after the response.
+- **Memory:** bounded to one batch of learners.
+- **Leaving and returning:** a closed tab just pauses the build at its cursor.
+- **Events during a build:**
+  - a learner at or before the cursor is recomputed by the event hook
+  - a learner after the cursor is skipped, because the build will read their up-to-date records when it gets there
+
+  So each event lands exactly once (spec: "Events during the build").
+
+**Rebuild (admin):** deletes the version's `ca_*` rows and resets the state to `building`. The next overview requests rebuild it the same way.
 
 ### 4. Derived values and their rules
 - **Learning time:**
@@ -142,25 +166,31 @@ Each step replaces rows rather than incrementing them. So a crash between steps 
   - Roles other than `STUDENT` are excluded.
   - So are `isShareLinkGuest` and `isQuickShareContainer`.
 
-### 5. Where the projector runs
-`modules/analytics/services/AnalyticsProjector` exposes `refreshVersion(versionId)`, `rebuildVersion(versionId)` and `refreshAllActive()`. Three entry points use it:
-- **Production, recommended:** a Cloud Run **Job** running the same backend image with entrypoint `node build/jobs/analyticsProjector.js`.
-  - **Schedule:** Cloud Scheduler triggers it every 5 minutes (`refresh`) and nightly at 02:30 IST (`rebuild`).
-  - **Memory:** the job gets 1–2 GiB of memory and full CPU.
-  - **Effect on students:** none, because it runs separately from serving traffic.
-- **Fallback:** an in-process node-cron job in `bootstrap/jobs/analyticsProjector.ts`, gated by `ENABLE_ANALYTICS_PROJECTOR_JOB`.
-  - **Default:** off in production and on in local/dev.
-  - **Purpose:** the feature still works without the Cloud Run Job, and the local stack can be tested.
-- **On demand:** `POST /analytics/courses/:c/versions/:v/rebuild`, admin only, runs `rebuildVersion` asynchronously and records completion in `ca_state`.
+### 5. Time-based figures at read time
+Inactivity, time on the current lesson, medians (days to finish, time on a lesson), progress bands, the funnel, "where students are now" and "students to check on" change with time or roster state, not only with events. The overview computes them on each request from `ca_learners`:
+- one indexed query on `versionId`
+- a small projection of about 10 fields
 
-The first deploy backfills by running `rebuild` for every version with active enrolments. Until a version's first build completes, the endpoint returns `{status: 'building'}` (spec: "Backfill on first deploy").
+That's about 10,000 short rows for the largest course, the same order as the existing roster reads. The result is cached in memory per instance for 30 s.
 
-Alternative considered: only node-cron, as `refreshEnrollmentStats` does today. That is simpler, but CPU throttling makes it fire unpredictably, and a full rebuild on a 512 MiB serving instance is an out-of-memory risk.
+Counter-style figures are kept up to date by events and read directly:
+- daily activity
+- the heatmap
+- per-item quiz and video stats
+- proctoring by day
+
+**Removed from the earlier version:**
+- the 5-minute refresh
+- the nightly rebuild
+- the Cloud Run Job entrypoint
+- the node-cron fallback and `ENABLE_ANALYTICS_PROJECTOR_JOB`
+- the watermark and dirty-learner detection
 
 ### 6. Read API
 `GET /analytics/courses/:courseId/versions/:versionId/overview?range=7|30|90` returns one JSON payload with these sections:
-- `status`
-- `updatedAt`
+- `status`: `ready` or `building`
+- `buildProgress`: 0–100, present while building
+- `updatedAt`: response time
 - `headline` (current and previous values)
 - `daily[]`
 - `heatmap[7][24]`
@@ -185,7 +215,8 @@ type Range = 7 | 30 | 90;
 interface Metric { current: number | null; previous: number | null } // null = no data for that period
 interface CourseInsights {
   status: 'ready' | 'building';
-  updatedAt: string | null;            // ISO; last successful refresh
+  buildProgress?: number;              // 0–100, only while building
+  updatedAt: string | null;            // ISO; when the figures were read
   range: Range;
   // Everything below is omitted when status === 'building'.
   headline?: {
@@ -244,38 +275,29 @@ Quiz question text and lesson names are joined from the course structure, which 
 
 ## Risks / Trade-offs
 
-- **The dirty-learner pass reads the whole roster from `enrollment` and `progress` every 5 minutes, per active version.**
-  - **Cost:** tens of thousands of small documents per run across all courses.
+- **[Hooks add work to student write paths]**
+  - **What they do:** each recompute is about 6 indexed reads and 3 small writes for one learner.
   - **Mitigations:**
-    - a projection limited to the fields compared
-    - versions processed one at a time
-    - versions with no source activity since the watermark skipped, unless the nightly rebuild is due
-- **Progress changes that leave no timestamped trace** (for example an admin advancing a student) **are only noticed by the roster comparison.** Figures could briefly disagree. → The roster comparison catches `currentItem` and `percentCompleted` changes, and the nightly rebuild corrects anything else.
-- **Learning time from closed viewings only, so an in-progress viewing appears late.** → Acceptable for a dashboard updated every few minutes. The orphan-recovery job closes abandoned viewings.
-- **`anomaly_records` and `user_activity_events` may lack indexes for "this version, since T".** → This change adds `{versionId, createdAt}` and `{courseVersionId, updatedAt}` indexes (built in the background). Those are read-side indexes only; how records are written doesn't change.
-- **Recharts adds bundle size.** → The Overview insights are lazy-loaded with the route's code-split boundary, so students never download it.
-- **Cloud Scheduler and the Cloud Run Job are infrastructure the user must create.** → The node-cron fallback keeps the feature working until they exist. The migration plan lists the exact resources.
+    - it runs after commit and is never awaited, so it doesn't delay the response
+    - it's debounced per learner
+    - it's skipped for course versions without analytics
+    - errors are swallowed
+  - **Tests:** a test asserts that a hook that throws still lets submit and stop succeed.
+- **[A hook missed]** (instance killed mid-recompute, or a write path not yet hooked, such as an admin script) → That learner's rows are stale until their next event. The admin rebuild is the repair tool. A missing hook is a code bug, caught by tests that exercise each write path.
+- **[First view of a big course takes a while]** → About 20 build steps for 10,000 students, at a few seconds each, with a progress bar. It only happens once per course. Teachers can leave and come back.
+- **[Read-time figures cost one `ca_learners` query per request]** → It's indexed and projected, with a 30 s per-instance cache. The load check covers 10,000 students.
+- **[`anomaly_records` and `user_activity_events` indexes]** → The read-side indexes from task 1.3 stay, for per-learner recomputes.
+- **[Recharts bundle size]** → It's lazy-loaded, as before.
 
 ## Migration Plan
 
 1. **Backend PR:**
-   - Merge and deploy as usual.
+   - Merge and deploy.
    - New collections and indexes are created on start-up.
-   - With `ENABLE_ANALYTICS_PROJECTOR_JOB` unset in production, nothing runs yet.
-2. **Create infrastructure** (done by the user):
-   - **Cloud Run Job `vibe-analytics-projector`:**
-     - same image as the backend
-     - entrypoint `node build/jobs/analyticsProjector.js`
-     - 2 GiB of memory, 1 CPU
-     - same environment and secrets as the backend
-   - **Cloud Scheduler triggers:** `*/5 * * * *` with arg `refresh`, and `30 2 * * *` (Asia/Kolkata) with arg `rebuild`.
-3. **Run the job once by hand with `backfill`** to build every active version, then check one course's figures against direct database counts.
-4. **v3 PR:** merge and deploy. Until the backend is live, the Overview shows its existing content plus the "being prepared" message.
-5. **Rollback:**
-   - Pause the scheduler.
-   - The Overview falls back to the "being prepared" state.
+   - No infrastructure is needed.
+2. **v3 PR:** merge and deploy.
+3. **First view of each course:** the first time a teacher opens a course's Overview, its analytics build over a few requests, with a progress bar. After that, they stay live.
+4. **Rollback:**
+   - Revert the backend PR.
+   - Hooks are fire-and-forget, so removing them can't affect students.
    - Dropping the `ca_*` collections is safe, because nothing else reads them.
-
-## Open Questions
-
-- **Exact refresh cadence (5 vs 10 minutes)** depends on Cloud Run Job cost and run time on the largest course. Measure after the backfill. The spec allows up to 10 minutes.

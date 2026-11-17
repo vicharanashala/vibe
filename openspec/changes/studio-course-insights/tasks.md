@@ -9,7 +9,7 @@
   - `npx vitest run --root apps/student`
   - `npx tsc -b apps/student/tsconfig.app.json apps/student/tsconfig.spec.json`
 
-**Release order:** the backend groups (1–5) land as one backend PR and are deployed first. The v3 groups (6–9) are a separate PR.
+**Release order:** the backend groups (1–5) land as one backend PR and are deployed first. The v3 groups (6–9) are a separate PR. **No infrastructure is needed:** there's no scheduled job, and analytics update on events and build on first view.
 
 ## 1. Backend: read-model storage
 
@@ -53,41 +53,57 @@
   - `ca_course_snapshot`: headline metrics for each range and its previous period, progress bands, funnel, where-now with median time, check-on top 50, study-mode split, median days to finish
 
   Verify each spec scenario in `specs/backend/course-analytics` as a unit test on fixture tier-1/2 rows, including that the bands add up to the roster and that a quiet day appears as zeros.
-- [x] 3.2 Implement `AnalyticsProjector.refreshVersion`, following design §3:
-  1. take the lease
-  2. set `upTo = now − 2 min`
-  3. find dirty learners from the five sources, plus the roster diff
-  4. recompute their tiers 1–2
-  5. re-aggregate tier 3
-  6. advance the watermark
-  7. release the lease
+- [ ] 3.2 Replace the batch refresh with `learnerChanged(versionId, userId)`:
+  - recompute that learner's tier-1/2 rows with the existing projection functions
+  - `findOneAndReplace` guarded by a newer `computedAt`
+  - apply the old→new difference to the counter-style tier-3 rows (`ca_course_daily`, `ca_course_heatmap`, `ca_item_stats`)
+  - skip when the version has no analytics, or when the learner is after an in-progress build's cursor
 
   Verify with mongodb-memory-server tests:
-  - new activity appears after a refresh
-  - a refresh made to throw midway leaves the watermark unchanged, and a rerun gives the same figures with nothing double-counted
-  - a version with no new activity is skipped
-- [x] 3.3 Implement `rebuildVersion` (all learners, then tier 3, then set `firstBuildCompletedAt`) and `refreshAllActive` (versions with active student enrolments, one at a time, failures logged and counted). Verify with a test that a rebuild after incremental refreshes gives identical documents, and that a deliberately drifted figure is corrected by the rebuild.
-- [x] 3.4 Write a projector guard test: run the projector against a fixture database snapshot, then confirm that the documents in `enrollment`, `progress`, `watchTime`, `quiz_attempts`, `quiz_submission_results`, `anomaly_records`, `studyViews` and `user_activity_events` are byte-identical before and after. This verifies the "derived only from existing records" requirement.
+  - the same event processed twice changes nothing the second time
+  - two concurrent recomputes leave the counters equal to the sum of the learner rows
+  - a learner after the cursor is skipped
+- [ ] 3.3 Implement the gradual build in `ca_state` (`none`/`building`/`ready`, cursor, done/total, lease). One step processes up to 500 learners or 3 s, ordered by `userId`. The last step builds the tier-3 counters and sets `ready`. The admin rebuild deletes the version's rows and resets to `building`. Verify with tests:
+  - repeated steps reach `ready` with figures identical to a single full build
+  - an interrupted build resumes from the cursor
+  - an event during a build is counted exactly once
+  - two concurrent step attempts do one step
+- [ ] 3.4 Compute the read-time figures (progress bands, funnel, where-now with median time, check-on, study-mode split, median days to finish, headline counts) from `ca_learners` with one projected query, cached for 30 s per instance. Remove these from the stored snapshot. Verify with tests: a student with no events for 8 days appears as inactive for 8 days, and the existing tier-3 scenario tests still pass.
+- [ ] 3.5 Keep the guard test from the old task 3.4, extended: drive a build plus a series of events against a fixture database snapshot, then confirm the source collections are byte-identical before and after.
 
-## 4. Backend: scheduling and entry points
+## 4. Backend: event hooks (after commit, fire-and-forget)
 
-- [x] 4.1 Add a `build/jobs/analyticsProjector.js` entrypoint (source `src/jobs/analyticsProjector.ts`). It takes `refresh`, `rebuild` or `backfill`, boots the DI container without the HTTP server, runs, and exits with a non-zero code on failure. Verify by running `node build/jobs/analyticsProjector.js backfill` against the local `vibe_v3_local*` database and seeing every seeded course get `firstBuildCompletedAt`.
-- [x] 4.2 Add the node-cron fallback `bootstrap/jobs/analyticsProjector.ts`, gated by `ENABLE_ANALYTICS_PROJECTOR_JOB`. It runs refresh every 5 min and rebuild at 02:30 Asia/Kolkata, defaults off in production, and is documented next to the flag in `config/app.ts`. Verify with a test that the job does nothing when the flag is false.
-- [x] 4.3 Document the Cloud Run Job and Cloud Scheduler setup (resources, args, memory, schedule), the backfill and the rollback in `backend/docs/analytics-projector.md`, taking them from design's Migration Plan. Verify that the commands in the doc match the entrypoint arguments.
+- [ ] 4.1 Add `AnalyticsEvents` with a per-learner 2 s in-memory debounce. Hook it after commit into:
+  - `AttemptService` quiz submit
+  - `ProgressService` `stopItem`, skip, quiz-outcome and admin-advance paths
+  - `EnrollmentService` enrol/unenrol
+  - `AnomalyService.recordAnomaly`
+  - study-view writes
+  - rewind/activity upserts
+
+  Each call is `void …catch(log)` and never awaited. Verify with tests for each hooked path:
+  - the hook is called with the right version and user
+  - a hook that throws still lets the student request succeed with an unchanged response
+  - no hook runs for a version without analytics
+- [ ] 4.2 Remove the batch projector's scheduling and infrastructure: the `src/jobs/analyticsProjector.ts` entrypoint, `bootstrap/jobs/analyticsProjector.ts`, `ENABLE_ANALYTICS_PROJECTOR_JOB`, the watermark and dirty-learner detection, and `backend/docs/analytics-projector.md`. Update `backend/docs/analytics-load-check.md`. Verify that `tsc` passes, that grep finds no references to the removed names, and that the server still boots.
 
 ## 5. Backend: API
 
-- [x] 5.1 Add `GET /analytics/courses/:courseId/versions/:versionId/overview?range=7|30|90`:
+- [ ] 5.1 Add `GET /analytics/courses/:courseId/versions/:versionId/overview?range=7|30|90`:
   - validators and an OpenAPI response schema matching design §6
   - reads only `ca_course_snapshot`, `ca_item_stats`, and range slices of `ca_course_daily`/`ca_course_heatmap`
   - names joined from the course structure
   - `status: 'building'` before the first build
 
   Verify with controller tests: 30-day shape, rejection of `range=14`, building state, and a query-count assertion of at most 5 database reads.
+
+  **Rework:** while building, a request advances one build step and returns `{status:'building', buildProgress}` (design §3), and `updatedAt` is the response time. Verify with controller tests that repeated requests progress from 0 to 100 and then return the full payload.
 - [x] 5.2 Authorise the overview with the same ability check as `/users/enrollments/.../statistics`. Verify with tests: an instructor of the course is allowed; a student and an instructor of another course are both refused with 403.
 - [x] 5.3 Add `POST /analytics/courses/:courseId/versions/:versionId/rebuild` (admin only). It starts `rebuildVersion` in the background and returns 202. Verify with tests: admin gets 202 and `ca_state` later shows a new refresh time; a non-admin instructor is refused with 403.
-- [x] 5.4 Load-check the overview against a generated 10,000-student fixture version. Verify that p95 is under 1 s across 50 sequential requests in the local stack, and record the timing in the PR.
-- [x] 5.5 Regenerate the v3 API types (`pnpm --filter @vibe/api generate` against the local backend). Verify that `npx tsc -b apps/student/tsconfig.app.json` passes in v3.
+- [ ] 5.4 Load-check the overview against a generated 10,000-student fixture version. Verify that p95 is under 1 s across 50 sequential requests in the local stack, and record the timing in the PR.
+
+  **Redo after the rework:** measure the ready-overview p95 with read-time figures (10,000 students), each build step's duration and peak memory (target under 5 s and well under 512 MiB), and the added latency of a quiz submit and a stop with hooks on (target under 10 ms, because hooks aren't awaited).
+- [ ] 5.5 Regenerate the v3 API types (`pnpm --filter @vibe/api generate` against the local backend). Verify that `npx tsc -b apps/student/tsconfig.app.json` passes in v3.
 
 ## 6. v3: data and page frame
 
@@ -102,6 +118,8 @@
   - the existing finished students, action tiles, registration link and description kept
 
   Verify with specs for each state and that the registration link is still present.
+
+- [ ] 6.4 Rework the building state: show "Preparing insights" with a percentage progress bar from `buildProgress`, poll every 3 s while building (each poll advances the build), drop the "Updated N minutes ago" label, and switch the insights query to the regenerated `@vibe/api` types. Verify with specs: 40% renders a 40% bar; polling stops and the figures render when the status turns `ready`.
 
 ## 7. v3: headline, activity and progress
 
@@ -130,4 +148,4 @@
 
 ## Workflow follow-up
 
-- After both PRs are merged and deployed: create the Cloud Run Job and Cloud Scheduler triggers, run the backfill, then archive this change.
+- After both PRs are merged and deployed, open one large course's Overview to confirm the gradual build, then archive this change.

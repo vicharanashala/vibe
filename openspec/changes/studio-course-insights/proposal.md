@@ -58,16 +58,17 @@ Computing these figures live means scanning every viewing session, attempt and i
     - an activity heatmap
     - proctoring by day
     - video rewind hotspots
-  - **A background projector** updates them every few minutes from the existing source collections, starting from where it last stopped. A nightly full rebuild corrects any drift.
-  - **No changes to how progress, quizzes or watch time are written.** The projector only reads. Students' paths aren't touched, so a projector bug can't break learning.
+  - **Updated as things happen.** When a student submits a quiz, finishes a lesson, enrols or triggers an incident, that student's analytics are recomputed and the course totals adjusted. This runs after the student's save succeeds, and never delays or fails it. No scheduled job and no extra infrastructure.
+  - **Existing courses are built gradually** the first time a teacher opens their Overview. The build runs in small steps across a few requests, with a progress bar.
+  - **No change to what progress, quizzes or watch time store.** The hooks only read those records and write the analytics collections.
   - **One read endpoint for the Overview tab**, with the same access as the existing course statistics endpoint. It returns every panel from the read models with indexed lookups only.
-  - **An admin endpoint** to rebuild one course version's analytics on demand.
+  - **An admin endpoint** to rebuild one course version's analytics from scratch, if figures ever look wrong.
   - **Not BREAKING**: existing endpoints, including `/statistics` and `courseVersionStats`, keep working unchanged.
 
 ## Capabilities
 
 ### New Capabilities
-- `backend/course-analytics`: the analytics read models for each course version, how they are kept up to date (incremental projector, nightly rebuild, on-demand rebuild), how fresh they are, and the read endpoint the Studio Overview uses.
+- `backend/course-analytics`: the analytics read models for each course version, how they are kept up to date (event-driven updates, a gradual first build on view, an admin rebuild), build status, and the read endpoint the Studio Overview uses.
 - `v3/studio-course-insights`: what the ViBe Studio course Overview tab shows teachers (metrics, charts, lists, ranges, freshness, empty states) and how they move from an insight to the students behind it.
 
 ### Modified Capabilities
@@ -76,11 +77,11 @@ Computing these figures live means scanning every viewing session, attempt and i
 ## Impact
 
 - **Backend:**
-  - A new `modules/analytics` (repository, projector service, controller).
-  - A new cron job in `bootstrap/jobs`, gated by an env flag like `ENABLE_ENROLLMENT_STATS_JOB`.
+  - A new `modules/analytics` (repository, per-learner projection, event hooks, gradual build, controller).
+  - Fire-and-forget hooks after commit in the quiz-submit, lesson-finish, enrolment, incident, study-view and rewind write paths.
   - New collections with indexes.
   - It reads `enrollment`, `progress`, `watchTime`, `quiz_attempts`, `quiz_submission_results`, `user_quiz_metrics`, `anomaly_records`, `studyViews`, `user_activity_events` and the course structure. It writes only the new collections.
-  - Needs a backend deploy before the v3 deploy. The first run backfills existing courses.
+  - Needs a backend deploy before the v3 deploy. Existing courses build on first view.
 - **v3:**
   - `features/admin/course-detail-page.tsx`: the Overview tab.
   - New `features/admin/insights/*` components and queries.
