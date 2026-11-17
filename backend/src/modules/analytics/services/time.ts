@@ -51,7 +51,11 @@ export function splitByIstHour(
         s.getUTCHours() + 1,
       ) - IST_OFFSET_MS;
     const pieceEnd = Math.min(hourEnd, stop);
-    out.push({day: istDay(t), hour: istHour(t), seconds: (pieceEnd - t) / 1000});
+    out.push({
+      day: istDay(t),
+      hour: istHour(t),
+      seconds: (pieceEnd - t) / 1000,
+    });
     t = pieceEnd;
   }
   return out;

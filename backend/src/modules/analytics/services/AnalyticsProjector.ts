@@ -2,7 +2,10 @@ import {injectable, inject} from 'inversify';
 import {randomUUID} from 'crypto';
 import {ANALYTICS_TYPES} from '../types.js';
 import {AnalyticsRepository} from '../repositories/AnalyticsRepository.js';
-import {AnalyticsSourceReader, RosterEntry} from '../repositories/AnalyticsSourceReader.js';
+import {
+  AnalyticsSourceReader,
+  RosterEntry,
+} from '../repositories/AnalyticsSourceReader.js';
 import {
   CaCourseSnapshot,
   CaItemStats,
@@ -90,11 +93,16 @@ export class AnalyticsProjector {
       const rosterIds = new Set(roster.map(r => r.userId));
       for (const r of roster) {
         const s = storedById.get(r.userId);
-        const cur = r.progress?.currentItem ? String(r.progress.currentItem) : null;
+        const cur = r.progress?.currentItem
+          ? String(r.progress.currentItem)
+          : null;
         const pct = Number(r.enrollment.percentCompleted ?? 0) || 0;
-        if (!s || s.currentItemId !== cur || s.percent !== pct) dirty.add(r.userId);
+        if (!s || s.currentItemId !== cur || s.percent !== pct)
+          dirty.add(r.userId);
       }
-      const removed = stored.map(s => s.userId).filter(id => !rosterIds.has(id));
+      const removed = stored
+        .map(s => s.userId)
+        .filter(id => !rosterIds.has(id));
 
       // After a failed run the per-learner rows may be newer than the course
       // summaries, so the summaries are rebuilt in full even with no new records.
@@ -124,7 +132,11 @@ export class AnalyticsProjector {
       );
 
       await this.beforeAggregate?.();
-      await this.aggregate(structure, recovering ? null : [...affectedDays], now);
+      await this.aggregate(
+        structure,
+        recovering ? null : [...affectedDays],
+        now,
+      );
       await this.repo.releaseLease(versionId, owner, {
         watermark: upTo,
         lastRefreshedAt: now,
@@ -162,7 +174,9 @@ export class AnalyticsProjector {
       const roster = await this.source.loadRoster(courseId, versionId);
       const stored = await this.repo.getLearnerCurrentState(versionId);
       const rosterIds = new Set(roster.map(r => r.userId));
-      const removed = stored.map(s => s.userId).filter(id => !rosterIds.has(id));
+      const removed = stored
+        .map(s => s.userId)
+        .filter(id => !rosterIds.has(id));
       if (removed.length) await this.repo.deleteLearners(versionId, removed);
       const recomputed = await this.recomputeLearners(
         structure,
@@ -227,7 +241,12 @@ export class AnalyticsProjector {
       const batch = roster.slice(i, i + BATCH);
       const ids = batch.map(r => r.userId);
       const [records, previous] = await Promise.all([
-        this.source.loadLearnerRecords(courseId, versionId, structure.quizIds, ids),
+        this.source.loadLearnerRecords(
+          courseId,
+          versionId,
+          structure.quizIds,
+          ids,
+        ),
         this.repo.getLearners(versionId, ids),
       ]);
       const prevById = new Map(previous.map(p => [p.userId, p]));
@@ -244,7 +263,8 @@ export class AnalyticsProjector {
           upTo,
         ),
       );
-      for (const p of projections) for (const d of p.days) affectedDays.add(d.day);
+      for (const p of projections)
+        for (const d of p.days) affectedDays.add(d.day);
       await this.repo.replaceLearners(versionId, ids, {
         learners: projections.map(p => p.learner),
         quizzes: projections.flatMap(p => p.quizzes),
@@ -329,7 +349,10 @@ export class AnalyticsProjector {
       checksOn: await this.source.proctoringChecksOn(courseId, versionId),
     };
     await this.repo.replaceSnapshot(snapshot);
-    await this.repo.replaceItemStats(versionId, await this.itemStats(structure));
+    await this.repo.replaceItemStats(
+      versionId,
+      await this.itemStats(structure),
+    );
   }
 
   private async itemStats(structure: CourseStructure): Promise<CaItemStats[]> {
@@ -345,10 +368,17 @@ export class AnalyticsProjector {
     >();
     for (const q of perQuestion) {
       const list = questionsByQuiz.get(q._id.quizId) ?? [];
-      list.push({questionId: q._id.questionId, answered: q.answered, correct: q.correct});
+      list.push({
+        questionId: q._id.questionId,
+        answered: q.answered,
+        correct: q.correct,
+      });
       questionsByQuiz.set(q._id.quizId, list);
     }
-    const hardest = new Map<string, {questionId: string; answered: number; correctRate: number}[]>();
+    const hardest = new Map<
+      string,
+      {questionId: string; answered: number; correctRate: number}[]
+    >();
     for (const [quizId, list] of questionsByQuiz) {
       hardest.set(
         quizId,
@@ -359,7 +389,9 @@ export class AnalyticsProjector {
             answered: q.answered,
             correctRate: q.correct / q.answered,
           }))
-          .sort((a, b) => a.correctRate - b.correctRate || b.answered - a.answered)
+          .sort(
+            (a, b) => a.correctRate - b.correctRate || b.answered - a.answered,
+          )
           .slice(0, 5),
       );
     }
@@ -367,7 +399,10 @@ export class AnalyticsProjector {
       [...hardest.values()].flat().map(q => q.questionId),
     );
     const videoRows = new Map(perVideo.map((v: any) => [String(v._id), v]));
-    const segsByVideo = new Map<string, {startSecond: number; rewinds: number}[]>();
+    const segsByVideo = new Map<
+      string,
+      {startSecond: number; rewinds: number}[]
+    >();
     for (const s of perSegment) {
       const list = segsByVideo.get(s._id.itemId) ?? [];
       list.push({startSecond: Number(s._id.seg), rewinds: s.rewinds});
@@ -393,7 +428,9 @@ export class AnalyticsProjector {
           ...base,
           type: 'QUIZ',
           attempted: q?.attempted ?? 0,
-          firstAttemptPassRate: q?.attempted ? q.firstPassed / q.attempted : null,
+          firstAttemptPassRate: q?.attempted
+            ? q.firstPassed / q.attempted
+            : null,
           avgAttemptsToPass:
             q?.avgAttemptsToPass == null
               ? null
@@ -413,7 +450,9 @@ export class AnalyticsProjector {
           completed: v?.completed ?? 0,
           rewindHotspots: (segsByVideo.get(item.itemId) ?? [])
             .filter(s => s.rewinds > 0)
-            .sort((a, b) => b.rewinds - a.rewinds || a.startSecond - b.startSecond)
+            .sort(
+              (a, b) => b.rewinds - a.rewinds || a.startSecond - b.startSecond,
+            )
             .slice(0, 5),
         });
       }

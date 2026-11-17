@@ -48,13 +48,17 @@ export class AnalyticsRepository {
     const db = this.db;
     this.state = await db.getCollection<CaState>('ca_state');
     this.learners = await db.getCollection<CaLearner>('ca_learners');
-    this.learnerQuizzes = await db.getCollection<CaLearnerQuiz>('ca_learner_quizzes');
-    this.learnerVideos = await db.getCollection<CaLearnerVideo>('ca_learner_videos');
+    this.learnerQuizzes =
+      await db.getCollection<CaLearnerQuiz>('ca_learner_quizzes');
+    this.learnerVideos =
+      await db.getCollection<CaLearnerVideo>('ca_learner_videos');
     this.learnerDays = await db.getCollection<CaLearnerDay>('ca_learner_days');
     this.courseDaily = await db.getCollection<CaCourseDaily>('ca_course_daily');
-    this.courseHeatmap = await db.getCollection<CaCourseHeatmapDay>('ca_course_heatmap');
+    this.courseHeatmap =
+      await db.getCollection<CaCourseHeatmapDay>('ca_course_heatmap');
     this.itemStats = await db.getCollection<CaItemStats>('ca_item_stats');
-    this.snapshots = await db.getCollection<CaCourseSnapshot>('ca_course_snapshot');
+    this.snapshots =
+      await db.getCollection<CaCourseSnapshot>('ca_course_snapshot');
 
     await Promise.all([
       this.state.createIndex({versionId: 1}, {unique: true}),
@@ -143,7 +147,10 @@ export class AnalyticsRepository {
           ],
         },
         {
-          $set: {leaseOwner: owner, leaseUntil: new Date(now.getTime() + LEASE_MS)},
+          $set: {
+            leaseOwner: owner,
+            leaseUntil: new Date(now.getTime() + LEASE_MS),
+          },
           $setOnInsert: {
             versionId,
             courseId,
@@ -182,19 +189,23 @@ export class AnalyticsRepository {
 
   // ------------------------------------------------------- tier 1 and 2
 
-  async getLearners(versionId: string, userIds?: string[]): Promise<CaLearner[]> {
+  async getLearners(
+    versionId: string,
+    userIds?: string[],
+  ): Promise<CaLearner[]> {
     await this.init();
     return this.learners
-      .find(
-        userIds ? {versionId, userId: {$in: userIds}} : {versionId},
-        {projection: {_id: 0}},
-      )
+      .find(userIds ? {versionId, userId: {$in: userIds}} : {versionId}, {
+        projection: {_id: 0},
+      })
       .toArray();
   }
 
   async getLearnerCurrentState(
     versionId: string,
-  ): Promise<{userId: string; currentItemId: string | null; percent: number}[]> {
+  ): Promise<
+    {userId: string; currentItemId: string | null; percent: number}[]
+  > {
     await this.init();
     return this.learners
       .find(
@@ -205,9 +216,15 @@ export class AnalyticsRepository {
   }
 
   /** Days currently stored for these learners (used to find affected days). */
-  async getLearnerDayKeys(versionId: string, userIds: string[]): Promise<string[]> {
+  async getLearnerDayKeys(
+    versionId: string,
+    userIds: string[],
+  ): Promise<string[]> {
     await this.init();
-    return this.learnerDays.distinct('day', {versionId, userId: {$in: userIds}});
+    return this.learnerDays.distinct('day', {
+      versionId,
+      userId: {$in: userIds},
+    });
   }
 
   /** Replaces every tier-1/2 row of the given learners with the new ones. */
@@ -329,11 +346,9 @@ export class AnalyticsRepository {
     if (kind === 'active') match.active = true;
     else match['incidentsByType'] = {$nin: [{}, null]};
     const [row] = await this.learnerDays
-      .aggregate<{n: number}>([
-        {$match: match},
-        {$group: {_id: '$userId'}},
-        {$count: 'n'},
-      ])
+      .aggregate<{
+        n: number;
+      }>([{$match: match}, {$group: {_id: '$userId'}}, {$count: 'n'}])
       .toArray();
     return row?.n ?? 0;
   }
@@ -424,7 +439,10 @@ export class AnalyticsRepository {
     return {perVideo, perSegment};
   }
 
-  async replaceItemStats(versionId: string, rows: CaItemStats[]): Promise<void> {
+  async replaceItemStats(
+    versionId: string,
+    rows: CaItemStats[],
+  ): Promise<void> {
     await this.init();
     await this.itemStats.deleteMany({versionId});
     if (rows.length) await this.itemStats.insertMany(rows);
@@ -455,14 +473,20 @@ export class AnalyticsRepository {
   async getDaily(versionId: string, fromDay: string, toDay: string) {
     await this.init();
     return this.courseDaily
-      .find({versionId, day: {$gte: fromDay, $lte: toDay}}, {projection: {_id: 0}})
+      .find(
+        {versionId, day: {$gte: fromDay, $lte: toDay}},
+        {projection: {_id: 0}},
+      )
       .toArray();
   }
 
   async getHeatmap(versionId: string, fromDay: string, toDay: string) {
     await this.init();
     return this.courseHeatmap
-      .find({versionId, day: {$gte: fromDay, $lte: toDay}}, {projection: {_id: 0}})
+      .find(
+        {versionId, day: {$gte: fromDay, $lte: toDay}},
+        {projection: {_id: 0}},
+      )
       .toArray();
   }
 }

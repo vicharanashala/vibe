@@ -52,7 +52,9 @@ export class InsightsHeadline {
   @Type(() => InsightsMetric)
   averageProgress: InsightsMetric;
   @ValidateNested() @Type(() => InsightsMetric) finished: InsightsMetric;
-  @ValidateNested() @Type(() => InsightsMetric) medianDaysToFinish: InsightsMetric;
+  @ValidateNested()
+  @Type(() => InsightsMetric)
+  medianDaysToFinish: InsightsMetric;
   @ValidateNested() @Type(() => InsightsMetric) learningHours: InsightsMetric;
 }
 
@@ -195,10 +197,14 @@ export class CourseInsightsResponse {
 
   @IsIn([7, 30, 90]) range: 7 | 30 | 90;
 
-  @IsOptional() @ValidateNested() @Type(() => InsightsHeadline)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InsightsHeadline)
   headline?: InsightsHeadline;
 
-  @IsOptional() @ValidateNested({each: true}) @Type(() => InsightsDailyRow)
+  @IsOptional()
+  @ValidateNested({each: true})
+  @Type(() => InsightsDailyRow)
   daily?: InsightsDailyRow[];
 
   @JSONSchema({
@@ -209,28 +215,44 @@ export class CourseInsightsResponse {
   @IsOptional()
   heatmap?: number[][];
 
-  @IsOptional() @ValidateNested({each: true}) @Type(() => InsightsProgressBand)
+  @IsOptional()
+  @ValidateNested({each: true})
+  @Type(() => InsightsProgressBand)
   progressBands?: InsightsProgressBand[];
 
-  @IsOptional() @ValidateNested({each: true}) @Type(() => InsightsFunnelRow)
+  @IsOptional()
+  @ValidateNested({each: true})
+  @Type(() => InsightsFunnelRow)
   funnel?: InsightsFunnelRow[];
 
-  @IsOptional() @ValidateNested({each: true}) @Type(() => InsightsWhereNowRow)
+  @IsOptional()
+  @ValidateNested({each: true})
+  @Type(() => InsightsWhereNowRow)
   whereNow?: InsightsWhereNowRow[];
 
-  @IsOptional() @ValidateNested({each: true}) @Type(() => InsightsQuizRow)
+  @IsOptional()
+  @ValidateNested({each: true})
+  @Type(() => InsightsQuizRow)
   quizzes?: InsightsQuizRow[];
 
-  @IsOptional() @ValidateNested({each: true}) @Type(() => InsightsVideoRow)
+  @IsOptional()
+  @ValidateNested({each: true})
+  @Type(() => InsightsVideoRow)
   videos?: InsightsVideoRow[];
 
-  @IsOptional() @ValidateNested({each: true}) @Type(() => InsightsCheckOnRow)
+  @IsOptional()
+  @ValidateNested({each: true})
+  @Type(() => InsightsCheckOnRow)
   checkOn?: InsightsCheckOnRow[];
 
-  @IsOptional() @ValidateNested() @Type(() => InsightsProctoring)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InsightsProctoring)
   proctoring?: InsightsProctoring;
 
-  @IsOptional() @ValidateNested() @Type(() => InsightsStudyMode)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InsightsStudyMode)
   studyMode?: InsightsStudyMode;
 }
 

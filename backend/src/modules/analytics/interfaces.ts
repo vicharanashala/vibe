@@ -135,7 +135,13 @@ export interface Headline {
   learningHours: Metric;
 }
 
-export type ProgressBand = '0' | '1-24' | '25-49' | '50-74' | '75-99' | 'finished';
+export type ProgressBand =
+  | '0'
+  | '1-24'
+  | '25-49'
+  | '50-74'
+  | '75-99'
+  | 'finished';
 
 export interface WhereNowRow {
   itemId: string;
@@ -164,7 +170,12 @@ export interface CaCourseSnapshot {
   headline: Record<string, Headline>; // keyed by range ("7" | "30" | "90")
   shareWithIncident: Record<string, number>; // keyed by range
   progressBands: {band: ProgressBand; students: number}[];
-  funnel: {moduleId: string; name: string; reached: number; completed: number}[];
+  funnel: {
+    moduleId: string;
+    name: string;
+    reached: number;
+    completed: number;
+  }[];
   whereNow: WhereNowRow[];
   checkOn: CheckOnRow[];
   studyMode: {strictOnly: number; studyOnly: number; both: number};
@@ -185,7 +196,12 @@ export interface CourseInsights {
   }[];
   heatmap?: number[][];
   progressBands?: {band: ProgressBand; students: number}[];
-  funnel?: {moduleId: string; name: string; reached: number; completed: number}[];
+  funnel?: {
+    moduleId: string;
+    name: string;
+    reached: number;
+    completed: number;
+  }[];
   whereNow?: WhereNowRow[];
   quizzes?: {
     itemId: string;

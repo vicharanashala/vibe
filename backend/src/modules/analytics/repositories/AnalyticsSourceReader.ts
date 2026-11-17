@@ -86,7 +86,11 @@ export class AnalyticsSourceReader {
           });
         }
       }
-      outModules.push({moduleId: String(m.moduleId), name: m.name ?? '', itemIds});
+      outModules.push({
+        moduleId: String(m.moduleId),
+        name: m.name ?? '',
+        itemIds,
+      });
     });
 
     // Names (and video lengths) live in the per-type item collections.
@@ -137,8 +141,13 @@ export class AnalyticsSourceReader {
    * guests and quick-share holders are excluded, matching the existing
    * course statistics.
    */
-  async loadRoster(courseId: string, versionId: string): Promise<RosterEntry[]> {
-    const enrollments = await (await this.col('enrollment'))
+  async loadRoster(
+    courseId: string,
+    versionId: string,
+  ): Promise<RosterEntry[]> {
+    const enrollments = await (
+      await this.col('enrollment')
+    )
       .find(
         {
           courseId: idEq(courseId),
@@ -179,7 +188,11 @@ export class AnalyticsSourceReader {
       const userId = String(e.userId);
       if (seen.has(userId)) continue;
       seen.add(userId);
-      out.push({userId, enrollment: e, progress: progressByUser.get(userId) ?? null});
+      out.push({
+        userId,
+        enrollment: e,
+        progress: progressByUser.get(userId) ?? null,
+      });
     }
     return out;
   }
@@ -198,6 +211,21 @@ export class AnalyticsSourceReader {
         courseId: idEq(courseId),
         courseVersionId: idEq(versionId),
         endTime: range,
+      }),
+      // Viewings still open (started since the watermark, not yet stopped).
+      // Served by the existing partial index on open sessions' startTime.
+      (await this.col('watchTime')).distinct('userId', {
+        startTime: range,
+        endTime: {$exists: false},
+        courseId: idEq(courseId),
+        courseVersionId: idEq(versionId),
+      }),
+      // Started before the cut-off but stopped after it: open as of `to`.
+      (await this.col('watchTime')).distinct('userId', {
+        courseId: idEq(courseId),
+        courseVersionId: idEq(versionId),
+        endTime: {$gt: to},
+        startTime: range,
       }),
       quizIds.length
         ? (await this.col('quiz_submission_results')).distinct('userId', {
@@ -230,67 +258,74 @@ export class AnalyticsSourceReader {
     quizIds: string[],
     userIds: string[],
   ): Promise<
-    Map<
-      string,
-      Omit<LearnerSources, 'userId' | 'enrollment' | 'progress'>
-    >
+    Map<string, Omit<LearnerSources, 'userId' | 'enrollment' | 'progress'>>
   > {
     const users = idIn(userIds);
-    const [watch, subs, anomalies, study, activity, people] = await Promise.all([
-      (await this.col('watchTime'))
-        .find(
-          {
-            userId: users,
-            courseId: idEq(courseId),
-            courseVersionId: idEq(versionId),
-          },
-          {projection: {userId: 1, itemId: 1, startTime: 1, endTime: 1, isDeleted: 1}},
-        )
-        .toArray(),
-      quizIds.length
-        ? (await this.col('quiz_submission_results'))
-            .find(
-              {userId: users, quizId: idIn(quizIds)},
-              {
-                projection: {
-                  userId: 1,
-                  quizId: 1,
-                  submittedAt: 1,
-                  'gradingResult.totalScore': 1,
-                  'gradingResult.totalMaxScore': 1,
-                  'gradingResult.gradingStatus': 1,
-                  'gradingResult.overallFeedback.questionId': 1,
-                  'gradingResult.overallFeedback.status': 1,
-                },
+    const [watch, subs, anomalies, study, activity, people] = await Promise.all(
+      [
+        (await this.col('watchTime'))
+          .find(
+            {
+              userId: users,
+              courseId: idEq(courseId),
+              courseVersionId: idEq(versionId),
+            },
+            {
+              projection: {
+                userId: 1,
+                itemId: 1,
+                startTime: 1,
+                endTime: 1,
+                isDeleted: 1,
               },
-            )
-            .toArray()
-        : Promise.resolve([]),
-      (await this.col('anomaly_records'))
-        .find(
-          {userId: users, versionId: idEq(versionId)},
-          {projection: {userId: 1, type: 1, createdAt: 1}},
-        )
-        .toArray(),
-      (await this.col('studyViews'))
-        .find(
-          {userId: users, courseVersionId: idEq(versionId)},
-          {projection: {userId: 1, itemId: 1, firstStudiedAt: 1}},
-        )
-        .toArray(),
-      (await this.col('user_activity_events'))
-        .find(
-          {userId: users, courseVersionId: idEq(versionId)},
-          {projection: {userId: 1, videoId: 1, 'rewindData.to': 1}},
-        )
-        .toArray(),
-      (await this.col('users'))
-        .find(
-          {_id: users},
-          {projection: {firstName: 1, lastName: 1, email: 1}},
-        )
-        .toArray(),
-    ]);
+            },
+          )
+          .toArray(),
+        quizIds.length
+          ? (await this.col('quiz_submission_results'))
+              .find(
+                {userId: users, quizId: idIn(quizIds)},
+                {
+                  projection: {
+                    userId: 1,
+                    quizId: 1,
+                    submittedAt: 1,
+                    'gradingResult.totalScore': 1,
+                    'gradingResult.totalMaxScore': 1,
+                    'gradingResult.gradingStatus': 1,
+                    'gradingResult.overallFeedback.questionId': 1,
+                    'gradingResult.overallFeedback.status': 1,
+                  },
+                },
+              )
+              .toArray()
+          : Promise.resolve([]),
+        (await this.col('anomaly_records'))
+          .find(
+            {userId: users, versionId: idEq(versionId)},
+            {projection: {userId: 1, type: 1, createdAt: 1}},
+          )
+          .toArray(),
+        (await this.col('studyViews'))
+          .find(
+            {userId: users, courseVersionId: idEq(versionId)},
+            {projection: {userId: 1, itemId: 1, firstStudiedAt: 1}},
+          )
+          .toArray(),
+        (await this.col('user_activity_events'))
+          .find(
+            {userId: users, courseVersionId: idEq(versionId)},
+            {projection: {userId: 1, videoId: 1, 'rewindData.to': 1}},
+          )
+          .toArray(),
+        (await this.col('users'))
+          .find(
+            {_id: users},
+            {projection: {firstName: 1, lastName: 1, email: 1}},
+          )
+          .toArray(),
+      ],
+    );
     const out = new Map<
       string,
       Omit<LearnerSources, 'userId' | 'enrollment' | 'progress'>
@@ -304,7 +339,13 @@ export class AnalyticsSourceReader {
         studyViews: [],
         activityEvents: [],
       });
-    const push = (rows: any[], key: keyof Omit<LearnerSources, 'userId' | 'enrollment' | 'progress' | 'user'>) => {
+    const push = (
+      rows: any[],
+      key: keyof Omit<
+        LearnerSources,
+        'userId' | 'enrollment' | 'progress' | 'user'
+      >,
+    ) => {
       for (const r of rows) out.get(String(r.userId))?.[key].push(r as never);
     };
     push(watch, 'watchTimes');
@@ -320,8 +361,13 @@ export class AnalyticsSourceReader {
   }
 
   /** Whether any proctoring check is turned on for the course version. */
-  async proctoringChecksOn(courseId: string, versionId: string): Promise<boolean> {
-    const s = await (await this.col('courseSettings')).findOne(
+  async proctoringChecksOn(
+    courseId: string,
+    versionId: string,
+  ): Promise<boolean> {
+    const s = await (
+      await this.col('courseSettings')
+    ).findOne(
       {courseId: idEq(courseId), courseVersionId: idEq(versionId)},
       {projection: {'settings.proctors.detectors': 1}},
     );

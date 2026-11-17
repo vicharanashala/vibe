@@ -96,12 +96,14 @@ export class AnalyticsController {
       throw new ForbiddenError('Only administrators can rebuild analytics');
     }
     const {courseId, versionId} = params;
-    void this.projector.rebuildVersion(courseId, versionId).catch(err =>
-      console.error(
-        `[analytics] on-demand rebuild failed for ${courseId}/${versionId}:`,
-        err,
-      ),
-    );
+    void this.projector
+      .rebuildVersion(courseId, versionId)
+      .catch(err =>
+        console.error(
+          `[analytics] on-demand rebuild failed for ${courseId}/${versionId}:`,
+          err,
+        ),
+      );
     return {accepted: true};
   }
 }

@@ -149,8 +149,13 @@ export function projectLearner(
   // Viewing sessions: completion, learning time, video start/finish.
   const completed = new Set<string>();
   const videoState = new Map<string, {started: boolean; completed: boolean}>();
-  for (const w of src.watchTimes) {
-    if (w.isDeleted) continue;
+  // Everything is projected "as of upTo": newer records are picked up by the
+  // next refresh, so a rebuild and an incremental refresh at the same moment
+  // give the same figures.
+  const after = (t?: Date | null) => !!t && t.getTime() > upTo.getTime();
+  for (const w0 of src.watchTimes) {
+    if (w0.isDeleted || after(w0.startTime)) continue;
+    const w = after(w0.endTime) ? {...w0, endTime: null} : w0;
     const itemId = str(w.itemId);
     if (!itemId) continue;
     const item = structure.items.get(itemId);
@@ -185,6 +190,7 @@ export function projectLearner(
   // Quiz attempts, oldest first.
   const byQuiz = new Map<string, LearnerSources['submissions']>();
   for (const s of src.submissions) {
+    if (after(s.submittedAt)) continue;
     const quizId = str(s.quizId);
     if (!quizId || !structure.items.has(quizId)) continue;
     touch(s.submittedAt);
@@ -230,7 +236,7 @@ export function projectLearner(
   // Proctoring incidents.
   let incidentCount = 0;
   for (const a of src.anomalies) {
-    if (!a.createdAt) continue;
+    if (!a.createdAt || after(a.createdAt)) continue;
     incidentCount += 1;
     touch(a.createdAt);
     const row = day(istDay(a.createdAt));
@@ -240,7 +246,7 @@ export function projectLearner(
 
   // Study mode.
   for (const v of src.studyViews) {
-    if (!v.firstStudiedAt) continue;
+    if (!v.firstStudiedAt || after(v.firstStudiedAt)) continue;
     touch(v.firstStudiedAt);
     day(istDay(v.firstStudiedAt)).active = true;
   }
@@ -294,7 +300,9 @@ export function projectLearner(
 
   // Furthest module and fully completed modules.
   let furthest = -1;
-  const curItem = currentItemId ? structure.items.get(currentItemId) : undefined;
+  const curItem = currentItemId
+    ? structure.items.get(currentItemId)
+    : undefined;
   if (curItem) furthest = curItem.moduleIndex;
   for (const id of completed) {
     const it = structure.items.get(id);
@@ -325,15 +333,19 @@ export function projectLearner(
     currentItemSince,
     furthestModuleIndex: furthest,
     completedModuleIds,
-    usedStrict: src.watchTimes.length > 0 || src.submissions.length > 0,
-    usedStudy: src.studyViews.length > 0,
+    usedStrict:
+      src.watchTimes.some(w => !w.isDeleted && !after(w.startTime)) ||
+      src.submissions.some(s => !after(s.submittedAt)),
+    usedStudy: src.studyViews.some(v => !after(v.firstStudiedAt)),
     incidentCount,
   };
 
   return {learner, quizzes, videos, days: [...days.values()]};
 }
 
-export function progressBand(l: Pick<CaLearner, 'percent' | 'finished'>): ProgressBand {
+export function progressBand(
+  l: Pick<CaLearner, 'percent' | 'finished'>,
+): ProgressBand {
   if (l.finished) return 'finished';
   const p = l.percent;
   if (p <= 0) return '0';
@@ -343,7 +355,14 @@ export function progressBand(l: Pick<CaLearner, 'percent' | 'finished'>): Progre
   return '75-99';
 }
 
-const BANDS: ProgressBand[] = ['0', '1-24', '25-49', '50-74', '75-99', 'finished'];
+const BANDS: ProgressBand[] = [
+  '0',
+  '1-24',
+  '25-49',
+  '50-74',
+  '75-99',
+  'finished',
+];
 
 /** Range-specific figures that come from the learner-day rows (aggregated in MongoDB). */
 export interface WindowFigures {
@@ -413,7 +432,10 @@ export function progressBands(learners: CaLearner[]) {
   return BANDS.map(band => ({band, students: counts.get(band) ?? 0}));
 }
 
-export function moduleFunnel(structure: CourseStructure, learners: CaLearner[]) {
+export function moduleFunnel(
+  structure: CourseStructure,
+  learners: CaLearner[],
+) {
   return structure.modules.map((m, i) => ({
     moduleId: m.moduleId,
     name: m.name,
@@ -434,7 +456,9 @@ export function whereNow(
     if (!structure.items.has(l.currentItemId)) continue;
     const list = groups.get(l.currentItemId) ?? [];
     list.push(
-      l.currentItemSince ? Math.max(0, daysBetween(l.currentItemSince, now)) : 0,
+      l.currentItemSince
+        ? Math.max(0, daysBetween(l.currentItemSince, now))
+        : 0,
     );
     groups.set(l.currentItemId, list);
   }
@@ -451,7 +475,10 @@ export function whereNow(
         medianDaysThere: round(median(ds) ?? 0),
       };
     })
-    .sort((a, b) => b.students - a.students || b.medianDaysThere - a.medianDaysThere)
+    .sort(
+      (a, b) =>
+        b.students - a.students || b.medianDaysThere - a.medianDaysThere,
+    )
     .slice(0, WHERE_NOW_LIMIT);
 }
 
@@ -468,10 +495,13 @@ export function checkOn(
     const daysOnItem = l.currentItemSince
       ? Math.floor(daysBetween(l.currentItemSince, now))
       : null;
-    const it = l.currentItemId ? structure.items.get(l.currentItemId) : undefined;
+    const it = l.currentItemId
+      ? structure.items.get(l.currentItemId)
+      : undefined;
     let reason: CheckOnRow['reason'] | null = null;
     if (since && daysSinceActive >= INACTIVE_DAYS) reason = 'inactive';
-    else if (it && daysOnItem != null && daysOnItem >= STUCK_DAYS) reason = 'stuck';
+    else if (it && daysOnItem != null && daysOnItem >= STUCK_DAYS)
+      reason = 'stuck';
     if (!reason) continue;
     rows.push({
       userId: l.userId,
