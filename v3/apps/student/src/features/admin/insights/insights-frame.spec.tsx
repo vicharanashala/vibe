@@ -99,3 +99,25 @@ describe('states', () => {
     expect(screen.getByRole('button', { name: /Copy/i })).toBeInTheDocument();
   });
 });
+
+describe('accessibility', () => {
+  it('gives every chart and list a title and a one-sentence summary', async () => {
+    renderApp(base);
+    await screen.findByRole('figure', { name: 'Daily activity' });
+    const figures = screen.getAllByRole('figure');
+    expect(figures.map((el) => el.getAttribute('aria-labelledby') && document.getElementById(el.getAttribute('aria-labelledby')!)?.textContent)).toEqual([
+      'Daily activity',
+      'New enrolments',
+      'When students study',
+      'Progress',
+      'Module by module',
+      'Where students are now',
+      'Students to check on',
+      'Quizzes',
+      'Videos',
+      'Proctoring',
+      'Study mode and strict mode',
+    ]);
+    for (const fig of figures) expect(fig).toHaveAccessibleDescription(/\w.+\./);
+  });
+});
