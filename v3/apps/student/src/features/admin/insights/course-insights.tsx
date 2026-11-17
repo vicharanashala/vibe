@@ -166,6 +166,7 @@ export default function CourseInsightsSection({
           {data.checkOn && (
             <StudentsToCheckOn
               students={data.checkOn}
+              totals={data.checkOnTotals}
               onOpenStudent={onOpenStudent}
             />
           )}

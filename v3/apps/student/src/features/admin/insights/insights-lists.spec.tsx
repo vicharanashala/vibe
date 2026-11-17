@@ -183,6 +183,20 @@ describe('students to check on', () => {
     );
   });
 
+  it('summarises with the backend totals, not the length of the capped list', () => {
+    const one = f.checkOn![0]!;
+    render(
+      <StudentsToCheckOn
+        students={[one]}
+        totals={{ inactive: 1240, stuck: 37 }}
+        onOpenStudent={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('figure', { name: 'Students to check on' }),
+    ).toHaveAccessibleDescription('1,240 inactive 7+ days, 37 stuck 3+ days.');
+  });
+
   it('says everyone is active when nobody needs a nudge', () => {
     render(<StudentsToCheckOn students={[]} onOpenStudent={vi.fn()} />);
     expect(

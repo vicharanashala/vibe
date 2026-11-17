@@ -69,6 +69,8 @@ export interface CourseInsights {
   quizzes?: QuizInsight[];
   videos?: VideoInsight[];
   checkOn?: CheckOnStudent[];
+  /** Totals per reason; `checkOn` is capped at 50 rows. */
+  checkOnTotals?: { inactive: number; stuck: number };
   proctoring?: {
     checksOn: boolean;
     daily: { day: string; per100Hours: Partial<Record<string, number>> }[];

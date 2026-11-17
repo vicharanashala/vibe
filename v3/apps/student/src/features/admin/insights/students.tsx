@@ -16,13 +16,18 @@ const STATUS = {
 /** Students who've gone quiet or are stuck on one lesson. Each opens People filtered to them. */
 export function StudentsToCheckOn({
   students,
+  totals,
   onOpenStudent,
 }: {
   students: CheckOnStudent[];
+  /** Totals per reason from the backend; the list itself is capped at 50. */
+  totals?: { inactive: number; stuck: number };
   onOpenStudent: (email: string) => void;
 }) {
-  const inactive = students.filter((s) => s.reason === 'inactive').length;
-  const stuck = students.length - inactive;
+  const inactive =
+    totals?.inactive ?? students.filter((s) => s.reason === 'inactive').length;
+  const stuck =
+    totals?.stuck ?? students.filter((s) => s.reason === 'stuck').length;
   return (
     <ChartPanel
       title="Students to check on"
