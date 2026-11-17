@@ -120,7 +120,7 @@
 
 - [x] 9.1 Add the proctoring chart (incidents per 100 hours by type), the share-with-incident figure, the "proctoring is off" state, and the study-mode split. Verify with specs for the chart data and the off state.
 - [x] 9.2 Check accessibility and responsiveness: every chart has a title and summary, tooltips are keyboard reachable, nothing relies on colour alone, light and dark themes work, and the layout is one column at 375px. Verify with specs that use keyboard focus to open tooltips, and with screenshots at 375px and 1280px in both themes attached to the PR.
-- [ ] 9.3 End-to-end on the local stack:
+- [x] 9.3 End-to-end on the local stack:
   1. seed a course with students and activity
   2. run the projector backfill
   3. open the Overview
