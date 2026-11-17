@@ -92,7 +92,7 @@ export function CoursesPage() {
                           <CourseCover name={e.course.name} seed={e.courseId} className="h-36 w-full" />
                           <p className="mt-4 flex justify-between gap-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                             <span className="truncate">Course{e.cohortName ? ` · ${e.cohortName}` : ''}</span>
-                            {total > 0 && <span className="shrink-0">{total} lessons</span>}
+                            {total > 0 && <span className="shrink-0">{total} {total === 1 ? 'lesson' : 'lessons'}</span>}
                           </p>
                           <h2 className="mt-1 line-clamp-2 font-medium">{e.course.name}</h2>
                           {e.course.description && (
