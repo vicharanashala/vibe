@@ -358,6 +358,12 @@ export class AnalyticsRepository {
       .toArray();
   }
 
+  /** Ids of the learners with stored rows. */
+  async learnerIds(versionId: string): Promise<string[]> {
+    await this.init();
+    return this.learners.distinct('userId', {versionId});
+  }
+
   /** Every stored row of these learners, grouped by learner. */
   async getLearnerRows(
     versionId: string,
@@ -462,11 +468,9 @@ export class AnalyticsRepository {
   ): Promise<number> {
     await this.init();
     const [row] = await this.learnerDays
-      .aggregate<{n: number}>([
-        {$match: {versionId, day: {$gte: fromDay, $lte: toDay}, active: true}},
-        {$group: {_id: '$userId'}},
-        {$count: 'n'},
-      ])
+      .aggregate<{
+        n: number;
+      }>([{$match: {versionId, day: {$gte: fromDay, $lte: toDay}, active: true}}, {$group: {_id: '$userId'}}, {$count: 'n'}])
       .toArray();
     return row?.n ?? 0;
   }

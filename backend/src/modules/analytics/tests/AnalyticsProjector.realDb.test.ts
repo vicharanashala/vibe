@@ -347,7 +347,11 @@ describe('AnalyticsProjector against a real database', {timeout: 30000}, () => {
       ist('2026-11-09T12:00:00'),
     );
     expect(ov.checkOn).toEqual([
-      expect.objectContaining({userId: s, reason: 'inactive', daysSinceActive: 8}),
+      expect.objectContaining({
+        userId: s,
+        reason: 'inactive',
+        daysSinceActive: 8,
+      }),
     ]);
   });
 
@@ -359,6 +363,25 @@ describe('AnalyticsProjector against a real database', {timeout: 30000}, () => {
     await t.repo.markDirty(c.versionId, s);
     const ov = await t.query.overview(c.courseId, c.versionId, 7, later(20));
     expect(ov.videos!.find(v => v.itemId === c.v1)!.completed).toBe(1);
+  });
+
+  it('does nothing for a version without analytics (4.1)', async () => {
+    const s = await addStudent(t.raw, c);
+    await t.projector.learnerChanged(c.versionId, s, NOW);
+    expect(await t.raw.collection('ca_learner_locks').countDocuments()).toBe(0);
+    expect(await t.raw.collection('ca_learners').countDocuments()).toBe(0);
+  });
+
+  it('picks up enrolments that fired no event, at the next roster check (4.1)', async () => {
+    await addStudent(t.raw, c);
+    await build();
+    // Enrolled inside another service's transaction: no event.
+    await addStudent(t.raw, c);
+    let ov = await t.query.overview(c.courseId, c.versionId, 30, later(1));
+    expect(ov.headline!.students.current).toBe(1); // checked < 5 min ago
+    ov = await t.query.overview(c.courseId, c.versionId, 30, later(6));
+    expect(ov.headline!.students.current).toBe(2);
+    expect(await counters()).toEqual(await rebuiltCounters(later(6)));
   });
 
   it('never writes to a learning record (3.5)', async () => {

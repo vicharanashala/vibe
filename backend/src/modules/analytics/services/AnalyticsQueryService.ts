@@ -78,8 +78,10 @@ export class AnalyticsQueryService {
     if (!structure) {
       return {status: 'building', buildProgress: 0, updatedAt: null, range};
     }
-    // Normally nothing to do; repairs learners whose recompute was cut short.
+    // Normally nothing to do; repairs learners whose recompute was cut short,
+    // and picks up enrolments made where no event could fire.
     await this.projector.sweep(structure, undefined, now);
+    await this.projector.reconcileRoster(structure, now);
     state = (await this.repo.getState(versionId)) ?? state;
 
     const key = `${versionId}:${range}`;
@@ -94,8 +96,7 @@ export class AnalyticsQueryService {
       return {...hit.value, updatedAt: now.toISOString()};
 
     const value = await this.compute(courseId, structure, range, now);
-    if (this.cacheMs > 0)
-      this.cache.set(key, {at: now.getTime(), seq, value});
+    if (this.cacheMs > 0) this.cache.set(key, {at: now.getTime(), seq, value});
     return value;
   }
 

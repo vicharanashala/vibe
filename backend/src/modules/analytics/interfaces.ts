@@ -24,6 +24,8 @@ export interface CaState {
   total: number;
   startedAt: Date;
   readyAt?: Date | null;
+  /** Last time the stored learners were compared with the enrolment roster. */
+  rosterCheckedAt?: Date | null;
   /** Bumped by every learner recompute; readers cache until it changes. */
   changeSeq?: number;
   leaseOwner?: string | null;

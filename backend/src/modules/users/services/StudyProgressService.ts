@@ -22,6 +22,7 @@ import {
   resolveContentLock,
   resolveStudyMode,
 } from '#root/shared/interfaces/models.js';
+import {notifyLearnerChanged} from '#root/modules/analytics/events.js';
 
 /** A student's study progress for one course version (spec backend/study-progress). */
 export interface StudyProgress {
@@ -198,6 +199,7 @@ export class StudyProgressService {
       courseVersionId: versionId,
       itemId: lesson.itemId,
     });
+    notifyLearnerChanged(versionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
     return {recorded: true};
   }
 

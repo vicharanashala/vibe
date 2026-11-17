@@ -20,6 +20,7 @@ import {
   IAnomalyData,
   PaginatedResponse,
 } from '../classes/transformers/Anomaly.js';
+import {notifyLearnerChanged} from '#root/modules/analytics/events.js';
 
 @injectable()
 export class AnomalyService extends BaseService {
@@ -42,7 +43,7 @@ export class AnomalyService extends BaseService {
     file?: Express.Multer.File,
     fileType?: FileType,
   ): Promise<AnomalyData> {
-    return this._withTransaction(async session => {
+    const recorded = await this._withTransaction(async session => {
       const {courseId, versionId} = anomalyData;
 
       const courseVersion = await this.courseRepo.readVersion(
@@ -91,6 +92,8 @@ export class AnomalyService extends BaseService {
       }
       return savedAnomaly;
     });
+    notifyLearnerChanged(anomalyData.versionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
+    return recorded;
   }
 
   async getUserAnomalies(

@@ -21,6 +21,10 @@ const CHUNK = 100;
 /** Dirty learners swept per request (crash recovery; normally zero). */
 export const SWEEP_LIMIT = 200;
 const STRUCTURE_TTL_MS = 60 * 1000;
+/** How often a ready version's learners are compared with the roster. */
+export const ROSTER_CHECK_MS = 5 * 60 * 1000;
+/** Learners fixed per roster check (the rest on the next check). */
+const ROSTER_FIX_LIMIT = 500;
 
 export interface BuildStepResult {
   state: CaState | null;
@@ -203,6 +207,7 @@ export class AnalyticsProjector {
         await this.repo.updateState(versionId, {
           status: 'ready',
           readyAt: new Date(),
+          rosterCheckedAt: now,
           done,
           total: done,
         });
@@ -227,6 +232,46 @@ export class AnalyticsProjector {
     if (upToUserId !== undefined) ids = ids.filter(id => id <= upToUserId);
     if (!ids.length) return 0;
     return this.recomputeLearners(structure, ids, now);
+  }
+
+  /**
+   * Enrolments made inside another service's transaction can't notify after
+   * commit, so a ready version's stored learners are compared with the roster
+   * at most every ROSTER_CHECK_MS, and differences recomputed.
+   */
+  async reconcileRoster(
+    structure: CourseStructure,
+    now = new Date(),
+  ): Promise<number> {
+    const {courseId, versionId} = structure;
+    const state = await this.repo.getState(versionId);
+    const last = state?.rosterCheckedAt?.getTime() ?? 0;
+    if (
+      !state ||
+      state.status !== 'ready' ||
+      now.getTime() - last < ROSTER_CHECK_MS
+    )
+      return 0;
+    await this.repo.updateState(versionId, {rosterCheckedAt: now});
+    const [roster, stored] = await Promise.all([
+      this.source.rosterUserIds(courseId, versionId),
+      this.repo.learnerIds(versionId),
+    ]);
+    const inRoster = new Set(roster);
+    const inStore = new Set(stored);
+    const diff = [
+      ...roster.filter(id => !inStore.has(id)),
+      ...stored.filter(id => !inRoster.has(id)),
+    ].slice(0, ROSTER_FIX_LIMIT);
+    if (!diff.length) return 0;
+    let fixed = 0;
+    for (let i = 0; i < diff.length; i += CHUNK)
+      fixed += await this.recomputeLearners(
+        structure,
+        diff.slice(i, i + CHUNK),
+        now,
+      );
+    return fixed;
   }
 
   /** Admin rebuild: drop the version's analytics; the next view rebuilds. */

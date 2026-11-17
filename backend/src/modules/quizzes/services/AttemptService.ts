@@ -75,6 +75,7 @@ import {getContainer} from '#root/bootstrap/loadModules.js';
 import {SETTING_TYPES} from '#root/modules/setting/types.js';
 import type {SettingRepository} from '#root/shared/database/providers/mongo/repositories/SettingRepository.js';
 import type {StudyViewRepository} from '#root/shared/database/providers/mongo/repositories/StudyViewRepository.js';
+import {notifyLearnerChanged} from '#root/modules/analytics/events.js';
 
 const PEER_QUESTION_DEFAULT_POINTS = 0;
 const PEER_QUESTION_DEFAULT_TIME_LIMIT_SECONDS = 60;
@@ -837,6 +838,8 @@ class AttemptService extends BaseService {
       }
       await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId, quizModuleId, quizSectionId);
     }
+
+    notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */
 

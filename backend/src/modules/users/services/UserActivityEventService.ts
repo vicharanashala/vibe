@@ -9,6 +9,7 @@ import {
   InternalServerError,
 } from 'routing-controllers';
 import { GLOBAL_TYPES } from '#root/types.js';
+import {notifyLearnerChanged} from '#root/modules/analytics/events.js';
 
 // Interface for the request body
 interface UserActivityEventRequest {
@@ -51,7 +52,7 @@ class UserActivityEventService extends BaseService {
     userId: string,
     data: UserActivityEventRequest,
   ): Promise<IUserActivityEvent> {
-    return this._withTransaction(async (session) => {
+    const saved = await this._withTransaction(async (session) => {
       const repository = this.getUserActivityEventRepository();
       
       // Convert string dates to Date objects
@@ -132,6 +133,8 @@ class UserActivityEventService extends BaseService {
         return updatedResult;
       }
     });
+    notifyLearnerChanged(data.versionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
+    return saved;
   }
 }
 
