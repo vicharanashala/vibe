@@ -103,6 +103,8 @@
 
   Verify with specs for each state and that the registration link is still present.
 
+- [x] 6.4 Rework the building state: show "Preparing insights" with a percentage progress bar from `buildProgress`, poll every 3 s while building (each poll advances the build), and drop the "Updated N minutes ago" label. Verify with specs: 40% renders a 40% bar; polling stops and the figures render when the status turns `ready`. (Switching to the regenerated `@vibe/api` types happens when this branch is merged with the reworked backend.)
+
 ## 7. v3: headline, activity and progress
 
 - [x] 7.1 Extend `StatStrip` with trend badges (up/down with delta, hidden when there's no previous data) for the six headline metrics. Verify with specs: Finished 12 vs 8 shows +4 up, and no badge appears without previous data.
