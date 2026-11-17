@@ -96,6 +96,13 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     const params = new URLSearchParams();
     if (course?.courseId) params.set('courseId', course.courseId);
     if (course?.versionId) params.set('versionId', course.versionId);
+    // Lets the backend resolve a selective-proctoring override on this item
+    // or module instead of only the course-wide setting (resolveProctoringDetectors'
+    // item > module > course precedence) -- without these, a course whose
+    // face-recognition is only turned on at the item/module level always
+    // withholds an already-registered student's embedding.
+    if (course?.moduleId) params.set('moduleId', course.moduleId);
+    if (course?.itemId) params.set('itemId', course.itemId);
     const query = params.toString() ? `?${params.toString()}` : '';
 
     const response = await fetch(`${import.meta.env.VITE_BASE_URL}/users/me/face-reference${query}`, {
