@@ -12,6 +12,7 @@ import {AnalyticsProjector} from './AnalyticsProjector.js';
 import {
   CourseStructure,
   checkOn,
+  checkOnTotals,
   learnerHeadline,
   moduleFunnel,
   progressBands,
@@ -180,6 +181,7 @@ export class AnalyticsQueryService {
       quizzes,
       videos,
       checkOn: checkOn(structure, learners, now),
+      checkOnTotals: checkOnTotals(structure, learners, now),
       proctoring: {
         checksOn,
         daily: days.map(day => {

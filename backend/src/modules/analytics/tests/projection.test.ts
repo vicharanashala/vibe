@@ -3,6 +3,7 @@ import {
   CourseStructure,
   LearnerSources,
   checkOn,
+  checkOnTotals,
   learnerHeadline,
   moduleFunnel,
   progressBands,
@@ -401,6 +402,26 @@ describe('course summaries from learner rows (3.1)', () => {
       itemId: 'v1',
       students: 15,
       medianDaysThere: 4,
+    });
+  });
+
+  it('students to check on: totals count everyone, although the list is capped at 50', () => {
+    const many = Array.from({length: 70}, (_, i) =>
+      learner({
+        userId: `quiet-${i}`,
+        lastActiveAt: new Date(now.getTime() - 10 * DAY),
+      }),
+    );
+    many.push(
+      learner({
+        userId: 'stuck',
+        currentItemSince: new Date(now.getTime() - 4 * DAY),
+      }),
+    );
+    expect(checkOn(structure(), many, now)).toHaveLength(50);
+    expect(checkOnTotals(structure(), many, now)).toEqual({
+      inactive: 70,
+      stuck: 1,
     });
   });
 

@@ -237,6 +237,8 @@ export interface CourseInsights {
     rewindHotspots: {startSecond: number; rewinds: number}[];
   }[];
   checkOn?: CheckOnRow[];
+  /** Totals per reason; `checkOn` itself is capped at 50 rows. */
+  checkOnTotals?: {inactive: number; stuck: number};
   proctoring?: {
     checksOn: boolean;
     daily: {day: string; per100Hours: Partial<Record<string, number>>}[];

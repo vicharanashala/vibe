@@ -487,7 +487,8 @@ export function whereNow(
     .slice(0, WHERE_NOW_LIMIT);
 }
 
-export function checkOn(
+/** Every unfinished student who is inactive 7+ days or stuck 3+ days, most overdue first. */
+function allCheckOn(
   structure: CourseStructure,
   learners: CaLearner[],
   now: Date,
@@ -518,13 +519,32 @@ export function checkOn(
       daysOnItem: it ? daysOnItem : null,
     });
   }
-  return rows
-    .sort(
-      (a, b) =>
-        b.daysSinceActive - a.daysSinceActive ||
-        (b.daysOnItem ?? 0) - (a.daysOnItem ?? 0),
-    )
-    .slice(0, CHECK_ON_LIMIT);
+  return rows.sort(
+    (a, b) =>
+      b.daysSinceActive - a.daysSinceActive ||
+      (b.daysOnItem ?? 0) - (a.daysOnItem ?? 0),
+  );
+}
+
+/** The students to check on, capped at CHECK_ON_LIMIT rows. */
+export function checkOn(
+  structure: CourseStructure,
+  learners: CaLearner[],
+  now: Date,
+): CheckOnRow[] {
+  return allCheckOn(structure, learners, now).slice(0, CHECK_ON_LIMIT);
+}
+
+/** How many students meet each check-on reason in total (the list itself is capped). */
+export function checkOnTotals(
+  structure: CourseStructure,
+  learners: CaLearner[],
+  now: Date,
+): {inactive: number; stuck: number} {
+  const totals = {inactive: 0, stuck: 0};
+  for (const row of allCheckOn(structure, learners, now))
+    totals[row.reason] += 1;
+  return totals;
 }
 
 export function studyModeSplit(learners: CaLearner[]) {

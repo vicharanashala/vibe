@@ -11250,6 +11250,21 @@
      "name"
     ]
    },
+   "InsightsCheckOnTotals": {
+    "properties": {
+     "inactive": {
+      "type": "number"
+     },
+     "stuck": {
+      "type": "number"
+     }
+    },
+    "type": "object",
+    "required": [
+     "inactive",
+     "stuck"
+    ]
+   },
    "InsightsCheckOnRow": {
     "properties": {
      "userId": {
@@ -11433,6 +11448,9 @@
        "$ref": "#/components/schemas/InsightsCheckOnRow"
       },
       "type": "array"
+     },
+     "checkOnTotals": {
+      "$ref": "#/components/schemas/InsightsCheckOnTotals"
      },
      "proctoring": {
       "$ref": "#/components/schemas/InsightsProctoring"
@@ -38482,7 +38500,7 @@
      "description": "Localhost for API server"
     },
     "port": {
-     "default": "4005",
+     "default": "4006",
      "description": "Port for the API server"
     }
    }
