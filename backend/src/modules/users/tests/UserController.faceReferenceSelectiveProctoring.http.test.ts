@@ -5,38 +5,38 @@ import {
   useExpressServer,
 } from 'routing-controllers';
 import request from 'supertest';
-import { faker } from '@faker-js/faker';
-import { Container } from 'inversify';
-import { describe, it, expect, beforeAll, vi } from 'vitest';
-import { InversifyAdapter } from '#root/inversify-adapter.js';
-import { coursesContainerModules } from '#root/modules/courses/index.js';
-import { anomaliesContainerModule } from '#root/modules/anomalies/container.js';
-import { settingContainerModule } from '#root/modules/setting/container.js';
-import { courseRegistrationContainerModule } from '#root/modules/courseRegistration/container.js';
-import { projectsContainerModule } from '#root/modules/projects/container.js';
-import { reportsContainerModule } from '#root/modules/reports/container.js';
-import { hpSystemContainerModule } from '#root/modules/hpSystem/container.js';
-import { ejectionPolicyContainerModule } from '#root/modules/ejectionPolicy/container.js';
-import { emotionsContainerModule } from '#root/modules/emotions/container.js';
-import { genAIContainerModule } from '#root/modules/genAI/container.js';
-import { studentQuestionsContainerModule } from '#root/modules/studentQuestions/container.js';
-import { announcementsContainerModule } from '#root/modules/announcements/container.js';
-import { auditTrailsContainerModule } from '#root/modules/auditTrails/container.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { MongoDatabase } from '#root/shared/database/providers/mongo/MongoDatabase.js';
-import { CourseController } from '#root/modules/courses/controllers/CourseController.js';
-import { CourseVersionController } from '#root/modules/courses/controllers/CourseVersionController.js';
-import { ModuleController } from '#root/modules/courses/controllers/ModuleController.js';
-import { SectionController } from '#root/modules/courses/controllers/SectionController.js';
-import { ItemController } from '#root/modules/courses/controllers/ItemController.js';
-import { EnrollmentController } from '#root/modules/users/controllers/EnrollmentController.js';
-import { UserController } from '#root/modules/users/controllers/UserController.js';
-import { CourseSettingController } from '#root/modules/setting/controllers/CourseSettingController.js';
-import { FirebaseAuthService } from '#root/modules/auth/services/FirebaseAuthService.js';
-import { currentUserChecker } from '#root/shared/functions/currentUserChecker.js';
-import { UserRepository } from '#root/shared/database/providers/mongo/repositories/UserRepository.js';
-import { ProctoringComponent } from '#root/shared/database/interfaces/ISettingRepository.js';
-import { ItemType } from '#root/shared/interfaces/models.js';
+import {faker} from '@faker-js/faker';
+import {Container} from 'inversify';
+import {describe, it, expect, beforeAll, vi} from 'vitest';
+import {InversifyAdapter} from '#root/inversify-adapter.js';
+import {coursesContainerModules} from '#root/modules/courses/index.js';
+import {anomaliesContainerModule} from '#root/modules/anomalies/container.js';
+import {settingContainerModule} from '#root/modules/setting/container.js';
+import {courseRegistrationContainerModule} from '#root/modules/courseRegistration/container.js';
+import {projectsContainerModule} from '#root/modules/projects/container.js';
+import {reportsContainerModule} from '#root/modules/reports/container.js';
+import {hpSystemContainerModule} from '#root/modules/hpSystem/container.js';
+import {ejectionPolicyContainerModule} from '#root/modules/ejectionPolicy/container.js';
+import {emotionsContainerModule} from '#root/modules/emotions/container.js';
+import {genAIContainerModule} from '#root/modules/genAI/container.js';
+import {studentQuestionsContainerModule} from '#root/modules/studentQuestions/container.js';
+import {announcementsContainerModule} from '#root/modules/announcements/container.js';
+import {auditTrailsContainerModule} from '#root/modules/auditTrails/container.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase.js';
+import {CourseController} from '#root/modules/courses/controllers/CourseController.js';
+import {CourseVersionController} from '#root/modules/courses/controllers/CourseVersionController.js';
+import {ModuleController} from '#root/modules/courses/controllers/ModuleController.js';
+import {SectionController} from '#root/modules/courses/controllers/SectionController.js';
+import {ItemController} from '#root/modules/courses/controllers/ItemController.js';
+import {EnrollmentController} from '#root/modules/users/controllers/EnrollmentController.js';
+import {UserController} from '#root/modules/users/controllers/UserController.js';
+import {CourseSettingController} from '#root/modules/setting/controllers/CourseSettingController.js';
+import {FirebaseAuthService} from '#root/modules/auth/services/FirebaseAuthService.js';
+import {currentUserChecker} from '#root/shared/functions/currentUserChecker.js';
+import {UserRepository} from '#root/shared/database/providers/mongo/repositories/UserRepository.js';
+import {ProctoringComponent} from '#root/shared/database/interfaces/ISettingRepository.js';
+import {ItemType} from '#root/shared/interfaces/models.js';
 
 /**
  * End-to-end HTTP reproduction of the face-reference selective-proctoring
@@ -55,7 +55,7 @@ import { ItemType } from '#root/shared/interfaces/models.js';
 function allDetectors(enabledDetectorNames: ProctoringComponent[] = []) {
   return Object.values(ProctoringComponent).map(detectorName => ({
     detectorName,
-    settings: { enabled: enabledDetectorNames.includes(detectorName) },
+    settings: {enabled: enabledDetectorNames.includes(detectorName)},
   }));
 }
 
@@ -67,7 +67,7 @@ describe('UserController.getCurrentUserFaceReference -- selective proctoring, re
   let moduleId: string;
   let sectionId: string;
   let studentToken: string;
-  const embedding = Array.from({ length: 128 }, (_, i) => i / 128);
+  const embedding = Array.from({length: 128}, (_, i) => i / 128);
 
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
@@ -155,7 +155,7 @@ describe('UserController.getCurrentUserFaceReference -- selective proctoring, re
 
     const versionRes = await request(app)
       .post(`/courses/${courseId}/versions`)
-      .send({ version: '1.0', description: 'v1' })
+      .send({version: '1.0', description: 'v1'})
       .set('Authorization', 'Bearer test-token')
       .expect(201);
     versionId = versionRes.body._id;
@@ -179,14 +179,14 @@ describe('UserController.getCurrentUserFaceReference -- selective proctoring, re
 
     const moduleRes = await request(app)
       .post(`/courses/versions/${versionId}/modules`)
-      .send({ name: 'Module 1', description: 'Module 1' })
+      .send({name: 'Module 1', description: 'Module 1'})
       .set('Authorization', 'Bearer test-token')
       .expect(201);
     moduleId = moduleRes.body.version.modules[0].moduleId;
 
     const sectionRes = await request(app)
       .post(`/courses/versions/${versionId}/modules/${moduleId}/sections`)
-      .send({ name: 'Section 1', description: 'Section 1' })
+      .send({name: 'Section 1', description: 'Section 1'})
       .set('Authorization', 'Bearer test-token')
       .expect(201);
     sectionId = sectionRes.body.version.modules[0].sections[0].sectionId;
@@ -203,9 +203,11 @@ describe('UserController.getCurrentUserFaceReference -- selective proctoring, re
     tokenToUserId.set(studentToken, studentId);
 
     await request(app)
-      .post(`/users/${studentId}/enrollments/courses/${courseId}/versions/${versionId}`)
+      .post(
+        `/users/${studentId}/enrollments/courses/${courseId}/versions/${versionId}`,
+      )
       .set('Authorization', 'Bearer test-token')
-      .send({ role: 'STUDENT' })
+      .send({role: 'STUDENT'})
       .expect(200);
 
     await request(app)
@@ -249,24 +251,29 @@ describe('UserController.getCurrentUserFaceReference -- selective proctoring, re
     return items[items.length - 1]._id as string;
   }
 
-  async function putItemDetectors(itemId: string, detectors: ReturnType<typeof allDetectors> | null) {
+  async function putItemDetectors(
+    itemId: string,
+    detectors: ReturnType<typeof allDetectors> | null,
+  ) {
     await request(app)
       .put(`/courses/versions/${versionId}/items/${itemId}/proctoring`)
       .set('Authorization', 'Bearer test-token')
-      .send({ detectors })
+      .send({detectors})
       .expect(200);
   }
 
-  async function putModuleDetectors(detectors: ReturnType<typeof allDetectors> | null) {
+  async function putModuleDetectors(
+    detectors: ReturnType<typeof allDetectors> | null,
+  ) {
     await request(app)
       .put(`/courses/versions/${versionId}/modules/${moduleId}/proctoring`)
       .set('Authorization', 'Bearer test-token')
-      .send({ detectors })
+      .send({detectors})
       .expect(200);
   }
 
   async function getFaceReference(itemId?: string, moduleIdForQuery?: string) {
-    const query: Record<string, string> = { courseId, versionId };
+    const query: Record<string, string> = {courseId, versionId};
     if (itemId) query.itemId = itemId;
     if (moduleIdForQuery) query.moduleId = moduleIdForQuery;
     const res = await request(app)
@@ -274,12 +281,15 @@ describe('UserController.getCurrentUserFaceReference -- selective proctoring, re
       .set('Authorization', `Bearer ${studentToken}`)
       .query(query)
       .expect(200);
-    return res.body as { faceEmbedding: number[] | null };
+    return res.body as {faceEmbedding: number[] | null};
   }
 
   it('course-level FACE_RECOGNITION off, item override turns it on -> embedding only returned when itemId is supplied', async () => {
     const itemId = await createItem();
-    await putItemDetectors(itemId, allDetectors([ProctoringComponent.FACERECOGNITION]));
+    await putItemDetectors(
+      itemId,
+      allDetectors([ProctoringComponent.FACERECOGNITION]),
+    );
 
     const withoutItemId = await getFaceReference();
     expect(withoutItemId.faceEmbedding).toBeNull();
@@ -302,7 +312,9 @@ describe('UserController.getCurrentUserFaceReference -- selective proctoring, re
 
   it('module override enables FACE_RECOGNITION, item unset -> resolves through the module tier via moduleId', async () => {
     const itemId = await createItem();
-    await putModuleDetectors(allDetectors([ProctoringComponent.FACERECOGNITION]));
+    await putModuleDetectors(
+      allDetectors([ProctoringComponent.FACERECOGNITION]),
+    );
 
     const withoutModuleId = await getFaceReference(itemId);
     expect(withoutModuleId.faceEmbedding).toBeNull();

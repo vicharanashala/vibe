@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { ObjectId } from 'mongodb';
-import { UserController } from '#root/modules/users/controllers/UserController.js';
-import { ProctoringComponent } from '#root/shared/database/interfaces/ISettingRepository.js';
+import {describe, it, expect, vi} from 'vitest';
+import {ObjectId} from 'mongodb';
+import {UserController} from '#root/modules/users/controllers/UserController.js';
+import {ProctoringComponent} from '#root/shared/database/interfaces/ISettingRepository.js';
 
 /**
  * getCurrentUserFaceReference used to decide whether to return a student's
@@ -25,7 +25,7 @@ describe('UserController.getCurrentUserFaceReference -- selective proctoring', (
     courseVersion: any;
   }) {
     const userId = new ObjectId();
-    const embedding = Array.from({ length: 128 }, (_, i) => i / 128);
+    const embedding = Array.from({length: 128}, (_, i) => i / 128);
     const user = {
       _id: userId,
       firstName: 'Test',
@@ -57,31 +57,37 @@ describe('UserController.getCurrentUserFaceReference -- selective proctoring', (
       itemRepo as any,
     );
 
-    return { controller, embedding };
+    return {controller, embedding};
   }
 
   function req() {
-    return { headers: { authorization: 'Bearer test-token' } };
+    return {headers: {authorization: 'Bearer test-token'}};
   }
 
   it('course-level FACE_RECOGNITION off, item override turns it on -> embedding returned when itemId is supplied', async () => {
     const moduleId = new ObjectId();
-    const { controller, embedding } = makeController({
+    const {controller, embedding} = makeController({
       courseSetting: {
         settings: {
           proctors: {
             detectors: [
-              { detectorName: ProctoringComponent.FACERECOGNITION, settings: { enabled: false } },
+              {
+                detectorName: ProctoringComponent.FACERECOGNITION,
+                settings: {enabled: false},
+              },
             ],
           },
         },
       },
       item: {
         proctoringDetectors: [
-          { detectorName: ProctoringComponent.FACERECOGNITION, settings: { enabled: true } },
+          {
+            detectorName: ProctoringComponent.FACERECOGNITION,
+            settings: {enabled: true},
+          },
         ],
       },
-      courseVersion: { modules: [{ moduleId, proctoringDetectors: null }] },
+      courseVersion: {modules: [{moduleId, proctoringDetectors: null}]},
     });
 
     // The bug this fix addresses: without itemId, only the course-level
@@ -104,19 +110,25 @@ describe('UserController.getCurrentUserFaceReference -- selective proctoring', (
   });
 
   it('course-level FACE_RECOGNITION on, item override turns it off -> embedding withheld even with itemId supplied', async () => {
-    const { controller } = makeController({
+    const {controller} = makeController({
       courseSetting: {
         settings: {
           proctors: {
             detectors: [
-              { detectorName: ProctoringComponent.FACERECOGNITION, settings: { enabled: true } },
+              {
+                detectorName: ProctoringComponent.FACERECOGNITION,
+                settings: {enabled: true},
+              },
             ],
           },
         },
       },
       item: {
         proctoringDetectors: [
-          { detectorName: ProctoringComponent.FACERECOGNITION, settings: { enabled: false } },
+          {
+            detectorName: ProctoringComponent.FACERECOGNITION,
+            settings: {enabled: false},
+          },
         ],
       },
       courseVersion: null,
@@ -134,17 +146,20 @@ describe('UserController.getCurrentUserFaceReference -- selective proctoring', (
 
   it('module override present, item unset -> resolves through the module tier via moduleId', async () => {
     const moduleId = new ObjectId();
-    const { controller, embedding } = makeController({
+    const {controller, embedding} = makeController({
       courseSetting: {
-        settings: { proctors: { detectors: [] } },
+        settings: {proctors: {detectors: []}},
       },
-      item: { proctoringDetectors: null },
+      item: {proctoringDetectors: null},
       courseVersion: {
         modules: [
           {
             moduleId,
             proctoringDetectors: [
-              { detectorName: ProctoringComponent.FACERECOGNITION, settings: { enabled: true } },
+              {
+                detectorName: ProctoringComponent.FACERECOGNITION,
+                settings: {enabled: true},
+              },
             ],
           },
         ],
@@ -171,7 +186,7 @@ describe('UserController.getCurrentUserFaceReference -- selective proctoring', (
   });
 
   it('no courseId/versionId supplied -> embedding returned unconditionally (unscoped lookup, unchanged behavior)', async () => {
-    const { controller, embedding } = makeController({
+    const {controller, embedding} = makeController({
       courseSetting: null,
       item: null,
       courseVersion: null,
