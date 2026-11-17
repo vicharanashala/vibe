@@ -1875,7 +1875,7 @@ class ProgressService extends BaseService {
     }
 
     // console.log(`Starting item tracking for user ${userId}, course ${courseId}, version ${courseVersionId}, item ${itemId}, cohort ${cohortId}`);
-    const watchItemId = await this._withTransaction(async session => {
+    return this._withTransaction(async session => {
 
       const versionStatus = await this.courseRepo.getCourseVersionStatus(courseVersionId);
 
@@ -1981,9 +1981,10 @@ class ProgressService extends BaseService {
       }
 
       return result;
+    }).then(watchItemId => {
+      notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
+      return watchItemId;
     });
-    notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
-    return watchItemId;
   }
 
   // async stopIte(

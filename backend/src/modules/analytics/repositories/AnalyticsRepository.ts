@@ -470,7 +470,11 @@ export class AnalyticsRepository {
     const [row] = await this.learnerDays
       .aggregate<{
         n: number;
-      }>([{$match: {versionId, day: {$gte: fromDay, $lte: toDay}, active: true}}, {$group: {_id: '$userId'}}, {$count: 'n'}])
+      }>([
+        {$match: {versionId, day: {$gte: fromDay, $lte: toDay}, active: true}},
+        {$group: {_id: '$userId'}},
+        {$count: 'n'},
+      ])
       .toArray();
     return row?.n ?? 0;
   }

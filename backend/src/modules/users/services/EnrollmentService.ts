@@ -559,7 +559,7 @@ export class EnrollmentService extends BaseService {
     courseVersionId: string,
     enrollment: Enrollment | null,
   ) {
-    const unenrolled = await this._withTransaction(async (session: ClientSession) => {
+    return this._withTransaction(async (session: ClientSession) => {
       const versionStatus = await this.courseRepo.getCourseVersionStatus(
         courseVersionId,
         session,
@@ -588,9 +588,10 @@ export class EnrollmentService extends BaseService {
         progress: null,
         role: enrollment.role,
       };
+    }).then(unenrolled => {
+      notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
+      return unenrolled;
     });
-    notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
-    return unenrolled;
   }
 
   async bulkUnenrollUsers(

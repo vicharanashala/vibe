@@ -52,7 +52,7 @@ class UserActivityEventService extends BaseService {
     userId: string,
     data: UserActivityEventRequest,
   ): Promise<IUserActivityEvent> {
-    const saved = await this._withTransaction(async (session) => {
+    return this._withTransaction(async (session) => {
       const repository = this.getUserActivityEventRepository();
       
       // Convert string dates to Date objects
@@ -132,9 +132,10 @@ class UserActivityEventService extends BaseService {
         );
         return updatedResult;
       }
+    }).then(saved => {
+      notifyLearnerChanged(data.versionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
+      return saved;
     });
-    notifyLearnerChanged(data.versionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
-    return saved;
   }
 }
 
