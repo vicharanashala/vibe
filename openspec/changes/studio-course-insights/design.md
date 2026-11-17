@@ -178,6 +178,51 @@ How it's served:
 - **Access:** authorised with the same ability check as the existing `/statistics` endpoint.
 - **API types:** documented with routing-controllers-openapi so the v3 types can be regenerated.
 
+The response shape is fixed so the backend and v3 PRs can be built in parallel:
+
+```ts
+type Range = 7 | 30 | 90;
+interface Metric { current: number | null; previous: number | null } // null = no data for that period
+interface CourseInsights {
+  status: 'ready' | 'building';
+  updatedAt: string | null;            // ISO; last successful refresh
+  range: Range;
+  // Everything below is omitted when status === 'building'.
+  headline?: {
+    students: Metric; activeThisWeek: Metric; averageProgress: Metric; // averageProgress in %, 0–100
+    finished: Metric; medianDaysToFinish: Metric; learningHours: Metric;
+  };
+  daily?: { day: string /* YYYY-MM-DD IST */; activeLearners: number; learningHours: number; newEnrolments: number }[];
+  heatmap?: number[][];                // [weekday 0=Mon..6=Sun][hour 0..23] learning hours, IST
+  progressBands?: { band: '0' | '1-24' | '25-49' | '50-74' | '75-99' | 'finished'; students: number }[];
+  funnel?: { moduleId: string; name: string; reached: number; completed: number }[];
+  whereNow?: { itemId: string; moduleId: string; sectionId: string; name: string; type: string; students: number; medianDaysThere: number }[];
+  quizzes?: {
+    itemId: string; moduleId: string; sectionId: string; name: string;
+    attempted: number; firstAttemptPassRate: number | null; // 0–1
+    avgAttemptsToPass: number | null;
+    scoreBands: number[];              // 10 bands: 0–9, 10–19, … 90–100 (% score of first attempt)
+    hardestQuestions: { questionId: string; text: string; correctRate: number /* 0–1 */; answered: number }[];
+  }[];
+  videos?: {
+    itemId: string; moduleId: string; sectionId: string; name: string;
+    started: number; completed: number;
+    rewindHotspots: { startSecond: number; rewinds: number }[]; // 10-second segments, top 5
+  }[];
+  checkOn?: {
+    userId: string; name: string; email: string;
+    reason: 'inactive' | 'stuck'; daysSinceActive: number;
+    item: { itemId: string; name: string } | null; daysOnItem: number | null;
+  }[];
+  proctoring?: {
+    checksOn: boolean;
+    daily: { day: string; per100Hours: Partial<Record<string, number>> }[]; // keyed by anomaly type
+    shareWithIncident: number;          // 0–1
+  };
+  studyMode?: { strictOnly: number; studyOnly: number; both: number };
+}
+```
+
 Quiz question text and lesson names are joined from the course structure, which is already cached per version, so read models store IDs only.
 
 ### 7. v3 presentation
