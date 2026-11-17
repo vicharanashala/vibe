@@ -439,7 +439,7 @@ function useProctoring(
   const faceCountCheck = useFaceCountDetector(captureRef, needsFaceCount);
   const faceCount = cameraReady ? faceCountCheck.faceCount : null;
 
-  const faceReference = useFaceReference(courseId, versionId);
+  const faceReference = useFaceReference(courseId, versionId, itemId);
   const referenceEmbedding = needsFaceRecognition
     ? faceReference.data?.faceEmbedding
     : undefined;

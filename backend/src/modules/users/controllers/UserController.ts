@@ -33,6 +33,11 @@ import { IUser } from '#root/shared/interfaces/models.js';
 import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import { CourseSettingService } from '#root/modules/setting/services/CourseSettingService.js';
 import { ProctoringComponent } from '#root/shared/database/interfaces/ISettingRepository.js';
+import { resolveProctoringDetectors, isDetectorEnabled } from '#root/shared/index.js';
+import { GLOBAL_TYPES } from '#root/types.js';
+import { COURSES_TYPES } from '#root/modules/courses/types.js';
+import type { ICourseRepository } from '#root/shared/database/interfaces/ICourseRepository.js';
+import type { IItemRepository } from '#root/shared/database/interfaces/IItemRepository.js';
 
 @OpenAPI({
   tags: ['Users'],
@@ -52,6 +57,12 @@ export class UserController {
 
     @inject(SETTING_TYPES.CourseSettingService)
     private readonly courseSettingService: CourseSettingService,
+
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: ICourseRepository,
+
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
   ) { }
 
   @OpenAPI({
@@ -129,7 +140,7 @@ export class UserController {
 
   @OpenAPI({
     summary: 'Get the current user face reference',
-    description: 'Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if the course has face recognition enabled.',
+    description: 'Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if face recognition is enabled -- resolved through the item/module override (moduleId/itemId) when supplied, else the course-wide setting.',
   })
   @Authorized()
   @Get('/me/face-reference')
@@ -138,6 +149,8 @@ export class UserController {
     @Req() req: any,
     @QueryParam('courseId') courseId?: string,
     @QueryParam('versionId') versionId?: string,
+    @QueryParam('moduleId') moduleId?: string,
+    @QueryParam('itemId') itemId?: string,
   ): Promise<{
     label: string;
     profileImage: string | null;
@@ -148,14 +161,35 @@ export class UserController {
 
     let faceRecognitionAllowed = true;
     if (courseId && versionId) {
-      const courseSetting = await this.courseSettingService.readCourseSettings(
-        courseId,
-        versionId,
+      const [courseSetting, item, courseVersion] = await Promise.all([
+        this.courseSettingService.readCourseSettings(courseId, versionId),
+        itemId ? this.itemRepo.readItemById(itemId) : null,
+        // Only needed to resolve the module's own override -- skip if the
+        // client didn't send moduleId (item-level + universal still resolve
+        // correctly without it, per resolveProctoringDetectors' precedence).
+        moduleId ? this.courseRepo.readVersion(versionId) : null,
+      ]);
+
+      const itemModule = moduleId
+        ? courseVersion?.modules?.find(
+            m => m.moduleId?.toString() === moduleId,
+          )
+        : undefined;
+
+      // Resolves the item's/module's own detector override before falling
+      // back to the course-wide list, matching AnomalyController's own
+      // FACE_RECOGNITION check -- the old course-only lookup here ignored a
+      // selective-proctoring override, withholding an already-registered
+      // student's embedding (or exposing one that should stay withheld).
+      const resolvedDetectors = resolveProctoringDetectors(
+        item ?? undefined,
+        itemModule,
+        courseSetting ?? undefined,
       );
-      const detector = courseSetting?.settings?.proctors?.detectors?.find(
-        d => d.detectorName === ProctoringComponent.FACERECOGNITION,
+      faceRecognitionAllowed = isDetectorEnabled(
+        resolvedDetectors,
+        ProctoringComponent.FACERECOGNITION,
       );
-      faceRecognitionAllowed = detector?.settings?.enabled ?? false;
     }
 
     return {
