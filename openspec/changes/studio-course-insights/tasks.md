@@ -91,9 +91,9 @@
 
 ## 6. v3: data and page frame
 
-- [ ] 6.1 Add the shadcn `chart` component through the shadcn CLI (it brings in Recharts), and code-split the insights section so student routes don't load it. Verify that the student course page bundle has no `recharts` chunk (`pnpm nx build student` and inspect the chunk list).
-- [ ] 6.2 Add `features/admin/insights/queries.ts` with `useCourseInsights(courseId, versionId, range)` (`staleTime` 5 min). Add `range` (7/30/90, default 30) to the course route's search params. Verify with a spec that changing the range updates the URL and refetches with the new range.
-- [ ] 6.3 Build the Overview frame:
+- [x] 6.1 Add the shadcn `chart` component through the shadcn CLI (it brings in Recharts), and code-split the insights section so student routes don't load it. Verify that the student course page bundle has no `recharts` chunk (`pnpm nx build student` and inspect the chunk list).
+- [x] 6.2 Add `features/admin/insights/queries.ts` with `useCourseInsights(courseId, versionId, range)` (`staleTime` 5 min). Add `range` (7/30/90, default 30) to the course route's search params. Verify with a spec that changing the range updates the URL and refetches with the new range.
+- [x] 6.3 Build the Overview frame:
   - range `ToggleGroup`
   - "Updated N minutes ago"
   - skeletons while loading
