@@ -111,10 +111,10 @@
 
 ## 8. v3: lessons, quizzes, videos and students
 
-- [ ] 8.1 Add the "Where students are now" table, with a possible-blocker badge when there are ≥5 students and a median of ≥3 days, and a row action that opens the lesson editor. Verify with specs: the badge shows for the 15-students/4-days fixture, and selecting a row navigates to the lesson editor route.
-- [ ] 8.2 Add the quiz list, sorted by lowest first-attempt pass rate, and a quiz detail `Sheet` showing the score distribution and up to 5 hardest questions with text and percent correct. Verify with specs for the sort order and the sheet content.
-- [ ] 8.3 Add the video list with completion rate, and a video detail `Sheet` listing rewind hotspots as `m:ss` with counts. Verify with a spec where "4:10" is listed first.
-- [ ] 8.4 Move the People tab's search into a `q` search param, then add the "Students to check on" table (name, reason, lesson, last active) that links to `?tab=people&q=<email>`, with an "everyone is active and moving" empty state. Verify with specs: selecting a student opens People filtered to them, and the empty state renders.
+- [x] 8.1 Add the "Where students are now" table, with a possible-blocker badge when there are ≥5 students and a median of ≥3 days, and a row action that opens the lesson editor. Verify with specs: the badge shows for the 15-students/4-days fixture, and selecting a row navigates to the lesson editor route.
+- [x] 8.2 Add the quiz list, sorted by lowest first-attempt pass rate, and a quiz detail `Sheet` showing the score distribution and up to 5 hardest questions with text and percent correct. Verify with specs for the sort order and the sheet content.
+- [x] 8.3 Add the video list with completion rate, and a video detail `Sheet` listing rewind hotspots as `m:ss` with counts. Verify with a spec where "4:10" is listed first.
+- [x] 8.4 Move the People tab's search into a `q` search param, then add the "Students to check on" table (name, reason, lesson, last active) that links to `?tab=people&q=<email>`, with an "everyone is active and moving" empty state. Verify with specs: selecting a student opens People filtered to them, and the empty state renders.
 
 ## 9. v3: proctoring, study mode, accessibility and integration
 
