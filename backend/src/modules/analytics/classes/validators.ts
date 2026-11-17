@@ -144,6 +144,15 @@ export class InsightsCheckOnItem {
   @IsString() name: string;
 }
 
+/** Totals per check-on reason; the `checkOn` list is capped at 50 rows. */
+export class InsightsCheckOnTotals {
+  @IsNumber()
+  inactive!: number;
+
+  @IsNumber()
+  stuck!: number;
+}
+
 export class InsightsCheckOnRow {
   @IsString() userId: string;
   @IsString() name: string;
@@ -251,6 +260,11 @@ export class CourseInsightsResponse {
   @ValidateNested({each: true})
   @Type(() => InsightsCheckOnRow)
   checkOn?: InsightsCheckOnRow[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InsightsCheckOnTotals)
+  checkOnTotals?: InsightsCheckOnTotals;
 
   @IsOptional()
   @ValidateNested()

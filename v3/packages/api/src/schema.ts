@@ -12255,6 +12255,10 @@ export interface components {
             itemId: string;
             name: string;
         };
+        InsightsCheckOnTotals: {
+            inactive: number;
+            stuck: number;
+        };
         InsightsCheckOnRow: {
             userId: string;
             name: string;
@@ -12298,6 +12302,7 @@ export interface components {
             quizzes?: components["schemas"]["InsightsQuizRow"][];
             videos?: components["schemas"]["InsightsVideoRow"][];
             checkOn?: components["schemas"]["InsightsCheckOnRow"][];
+            checkOnTotals?: components["schemas"]["InsightsCheckOnTotals"];
             proctoring?: components["schemas"]["InsightsProctoring"];
             studyMode?: components["schemas"]["InsightsStudyMode"];
         };
