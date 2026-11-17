@@ -103,7 +103,7 @@ function CourseRegistration({ details, versionId, cohortId }: { details: Registr
           </div>
           <h1 className="mt-3 font-aleo text-3xl leading-tight tracking-tight sm:text-4xl">{name}</h1>
           <ul className="mt-4 flex flex-col gap-3 text-sm" aria-label="Course size">
-            <Fact icon={LayersIcon} title={`${details.modules.length} ${details.modules.length === 1 ? 'module' : 'modules'}`} sub={`${details.totalItems} lessons`} />
+            <Fact icon={LayersIcon} title={`${details.modules.length} ${details.modules.length === 1 ? 'module' : 'modules'}`} sub={`${details.totalItems} ${details.totalItems === 1 ? 'lesson' : 'lessons'}`} />
           </ul>
         </div>
 
