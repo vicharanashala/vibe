@@ -13,25 +13,25 @@
 
 ## 1. Backend: read-model storage
 
-- [ ] 1.1 Create `modules/analytics` (container, types, module registration). Define the `ca_*` document interfaces from design §2 and the `ca_state` interface (watermark, lastRefreshedAt, firstBuildCompletedAt, status, lease). Verify that `npx tsc --noEmit` passes and the module loads in the existing container bootstrap test.
-- [ ] 1.2 Add `AnalyticsRepository`:
+- [x] 1.1 Create `modules/analytics` (container, types, module registration). Define the `ca_*` document interfaces from design §2 and the `ca_state` interface (watermark, lastRefreshedAt, firstBuildCompletedAt, status, lease). Verify that `npx tsc --noEmit` passes and the module loads in the existing container bootstrap test.
+- [x] 1.2 Add `AnalyticsRepository`:
   - collection getters
   - `{versionId, …}` indexes for every `ca_*` collection
   - replace-style writes per learner and per item
   - `acquireLease`/`releaseLease` using `findOneAndUpdate` where `leaseUntil < now`
 
   Verify with mongodb-memory-server tests: two concurrent `acquireLease` calls give exactly one winner, and an expired lease can be retaken.
-- [ ] 1.3 Add the read-side source indexes `anomaly_records {versionId, createdAt}` and `user_activity_events {courseVersionId, updatedAt}`, created in the background on start-up. Verify with a test that the indexes exist after `init()`, and check `git diff` to confirm no write-path code changed.
+- [x] 1.3 Add the read-side source indexes `anomaly_records {versionId, createdAt}` and `user_activity_events {courseVersionId, updatedAt}`, created in the background on start-up. Verify with a test that the indexes exist after `init()`, and check `git diff` to confirm no write-path code changed.
 
 ## 2. Backend: per-learner projection (tiers 1–2)
 
-- [ ] 2.1 Implement roster loading: enrollments of the version with the exclusion filter (non-STUDENT roles, `isShareLinkGuest`, `isQuickShareContainer`), joined with `progress` using a projection. Verify with a test where staff, a guest and a quick-share holder are excluded and an unenrolled learner's rows are deleted.
-- [ ] 2.2 Implement learning-time attribution:
+- [x] 2.1 Implement roster loading: enrollments of the version with the exclusion filter (non-STUDENT roles, `isShareLinkGuest`, `isQuickShareContainer`), joined with `progress` using a projection. Verify with a test where staff, a guest and a quick-share holder are excluded and an unenrolled learner's rows are deleted.
+- [x] 2.2 Implement learning-time attribution:
   - closed `watchTime` viewings capped at 3× video length (3 h for non-video items)
   - split across IST hours and days into `ca_learner_days.secondsByHour`
 
   Verify with unit tests: a viewing crossing midnight IST, an over-long abandoned viewing being capped, and an open viewing being ignored.
-- [ ] 2.3 Implement the `ca_learners` fields:
+- [x] 2.3 Implement the `ca_learners` fields:
   - `percent`, `completedAt`, `lastActiveAt`
   - `currentItemId`/`currentItemSince` (design §4)
   - `furthestModuleIndex` and `completedModuleIds`, using visible items in course order
@@ -39,13 +39,13 @@
   - `incidentCount`
 
   Verify with fixture tests: hidden/deleted items ignored, `currentItemSince` kept when the item is unchanged and reset when it changes.
-- [ ] 2.4 Implement `ca_learner_quizzes`: attempts ordered by `submittedAt`, `firstAttemptPassed`, `attemptsToPass`, first/best score %, and the first attempt's per-question status. Verify with tests: fail-then-pass gives 2 attempts to pass with first attempt not passed; a never-passed learner has no `attemptsToPass`.
-- [ ] 2.5 Implement `ca_learner_videos`: started/completed flags, and rewind counts per 10-second segment from `user_activity_events.rewindData[].to`. Verify with a test where rewinds to 4:12 and 4:18 both land in the 4:10 segment.
-- [ ] 2.6 Implement `ca_learner_days.incidentsByType` and `enrolled` from `anomaly_records` and `enrollmentDate`, bucketed by IST day. Verify with a test placing an incident at 23:50 IST on the correct day.
+- [x] 2.4 Implement `ca_learner_quizzes`: attempts ordered by `submittedAt`, `firstAttemptPassed`, `attemptsToPass`, first/best score %, and the first attempt's per-question status. Verify with tests: fail-then-pass gives 2 attempts to pass with first attempt not passed; a never-passed learner has no `attemptsToPass`.
+- [x] 2.5 Implement `ca_learner_videos`: started/completed flags, and rewind counts per 10-second segment from `user_activity_events.rewindData[].to`. Verify with a test where rewinds to 4:12 and 4:18 both land in the 4:10 segment.
+- [x] 2.6 Implement `ca_learner_days.incidentsByType` and `enrolled` from `anomaly_records` and `enrollmentDate`, bucketed by IST day. Verify with a test placing an incident at 23:50 IST on the correct day.
 
 ## 3. Backend: course summaries (tier 3) and the projector
 
-- [ ] 3.1 Implement the tier-3 aggregation from tiers 1–2, covering:
+- [x] 3.1 Implement the tier-3 aggregation from tiers 1–2, covering:
   - `ca_course_daily`: active learners as distinct learner-days, seconds, new enrolments, incidents
   - `ca_course_heatmap` by day
   - `ca_item_stats` for quizzes: pass rate, attempts to pass, 10-point score bands, 5 hardest questions
@@ -53,7 +53,7 @@
   - `ca_course_snapshot`: headline metrics for each range and its previous period, progress bands, funnel, where-now with median time, check-on top 50, study-mode split, median days to finish
 
   Verify each spec scenario in `specs/backend/course-analytics` as a unit test on fixture tier-1/2 rows, including that the bands add up to the roster and that a quiet day appears as zeros.
-- [ ] 3.2 Implement `AnalyticsProjector.refreshVersion`, following design §3:
+- [x] 3.2 Implement `AnalyticsProjector.refreshVersion`, following design §3:
   1. take the lease
   2. set `upTo = now − 2 min`
   3. find dirty learners from the five sources, plus the roster diff
@@ -66,28 +66,28 @@
   - new activity appears after a refresh
   - a refresh made to throw midway leaves the watermark unchanged, and a rerun gives the same figures with nothing double-counted
   - a version with no new activity is skipped
-- [ ] 3.3 Implement `rebuildVersion` (all learners, then tier 3, then set `firstBuildCompletedAt`) and `refreshAllActive` (versions with active student enrolments, one at a time, failures logged and counted). Verify with a test that a rebuild after incremental refreshes gives identical documents, and that a deliberately drifted figure is corrected by the rebuild.
-- [ ] 3.4 Write a projector guard test: run the projector against a fixture database snapshot, then confirm that the documents in `enrollment`, `progress`, `watchTime`, `quiz_attempts`, `quiz_submission_results`, `anomaly_records`, `studyViews` and `user_activity_events` are byte-identical before and after. This verifies the "derived only from existing records" requirement.
+- [x] 3.3 Implement `rebuildVersion` (all learners, then tier 3, then set `firstBuildCompletedAt`) and `refreshAllActive` (versions with active student enrolments, one at a time, failures logged and counted). Verify with a test that a rebuild after incremental refreshes gives identical documents, and that a deliberately drifted figure is corrected by the rebuild.
+- [x] 3.4 Write a projector guard test: run the projector against a fixture database snapshot, then confirm that the documents in `enrollment`, `progress`, `watchTime`, `quiz_attempts`, `quiz_submission_results`, `anomaly_records`, `studyViews` and `user_activity_events` are byte-identical before and after. This verifies the "derived only from existing records" requirement.
 
 ## 4. Backend: scheduling and entry points
 
-- [ ] 4.1 Add a `build/jobs/analyticsProjector.js` entrypoint (source `src/jobs/analyticsProjector.ts`). It takes `refresh`, `rebuild` or `backfill`, boots the DI container without the HTTP server, runs, and exits with a non-zero code on failure. Verify by running `node build/jobs/analyticsProjector.js backfill` against the local `vibe_v3_local*` database and seeing every seeded course get `firstBuildCompletedAt`.
-- [ ] 4.2 Add the node-cron fallback `bootstrap/jobs/analyticsProjector.ts`, gated by `ENABLE_ANALYTICS_PROJECTOR_JOB`. It runs refresh every 5 min and rebuild at 02:30 Asia/Kolkata, defaults off in production, and is documented next to the flag in `config/app.ts`. Verify with a test that the job does nothing when the flag is false.
-- [ ] 4.3 Document the Cloud Run Job and Cloud Scheduler setup (resources, args, memory, schedule), the backfill and the rollback in `backend/docs/analytics-projector.md`, taking them from design's Migration Plan. Verify that the commands in the doc match the entrypoint arguments.
+- [x] 4.1 Add a `build/jobs/analyticsProjector.js` entrypoint (source `src/jobs/analyticsProjector.ts`). It takes `refresh`, `rebuild` or `backfill`, boots the DI container without the HTTP server, runs, and exits with a non-zero code on failure. Verify by running `node build/jobs/analyticsProjector.js backfill` against the local `vibe_v3_local*` database and seeing every seeded course get `firstBuildCompletedAt`.
+- [x] 4.2 Add the node-cron fallback `bootstrap/jobs/analyticsProjector.ts`, gated by `ENABLE_ANALYTICS_PROJECTOR_JOB`. It runs refresh every 5 min and rebuild at 02:30 Asia/Kolkata, defaults off in production, and is documented next to the flag in `config/app.ts`. Verify with a test that the job does nothing when the flag is false.
+- [x] 4.3 Document the Cloud Run Job and Cloud Scheduler setup (resources, args, memory, schedule), the backfill and the rollback in `backend/docs/analytics-projector.md`, taking them from design's Migration Plan. Verify that the commands in the doc match the entrypoint arguments.
 
 ## 5. Backend: API
 
-- [ ] 5.1 Add `GET /analytics/courses/:courseId/versions/:versionId/overview?range=7|30|90`:
+- [x] 5.1 Add `GET /analytics/courses/:courseId/versions/:versionId/overview?range=7|30|90`:
   - validators and an OpenAPI response schema matching design §6
   - reads only `ca_course_snapshot`, `ca_item_stats`, and range slices of `ca_course_daily`/`ca_course_heatmap`
   - names joined from the course structure
   - `status: 'building'` before the first build
 
   Verify with controller tests: 30-day shape, rejection of `range=14`, building state, and a query-count assertion of at most 5 database reads.
-- [ ] 5.2 Authorise the overview with the same ability check as `/users/enrollments/.../statistics`. Verify with tests: an instructor of the course is allowed; a student and an instructor of another course are both refused with 403.
-- [ ] 5.3 Add `POST /analytics/courses/:courseId/versions/:versionId/rebuild` (admin only). It starts `rebuildVersion` in the background and returns 202. Verify with tests: admin gets 202 and `ca_state` later shows a new refresh time; a non-admin instructor is refused with 403.
-- [ ] 5.4 Load-check the overview against a generated 10,000-student fixture version. Verify that p95 is under 1 s across 50 sequential requests in the local stack, and record the timing in the PR.
-- [ ] 5.5 Regenerate the v3 API types (`pnpm --filter @vibe/api generate` against the local backend). Verify that `npx tsc -b apps/student/tsconfig.app.json` passes in v3.
+- [x] 5.2 Authorise the overview with the same ability check as `/users/enrollments/.../statistics`. Verify with tests: an instructor of the course is allowed; a student and an instructor of another course are both refused with 403.
+- [x] 5.3 Add `POST /analytics/courses/:courseId/versions/:versionId/rebuild` (admin only). It starts `rebuildVersion` in the background and returns 202. Verify with tests: admin gets 202 and `ca_state` later shows a new refresh time; a non-admin instructor is refused with 403.
+- [x] 5.4 Load-check the overview against a generated 10,000-student fixture version. Verify that p95 is under 1 s across 50 sequential requests in the local stack, and record the timing in the PR.
+- [x] 5.5 Regenerate the v3 API types (`pnpm --filter @vibe/api generate` against the local backend). Verify that `npx tsc -b apps/student/tsconfig.app.json` passes in v3.
 
 ## 6. v3: data and page frame
 
