@@ -122,6 +122,23 @@ export class AnalyticsRepository {
         {courseVersionId: 1, firstStudiedAt: 1},
         'analytics_courseVersionId_firstStudiedAt',
       ),
+      // Per-learner recomputes look one student up in a version. Without
+      // these, an event in a large course scans the version's whole roster.
+      ensure(
+        'enrollment',
+        {userId: 1, courseVersionId: 1},
+        'analytics_userId_courseVersionId',
+      ),
+      ensure(
+        'studyViews',
+        {userId: 1, courseVersionId: 1},
+        'analytics_userId_courseVersionId',
+      ),
+      ensure(
+        'user_activity_events',
+        {userId: 1, courseVersionId: 1},
+        'analytics_userId_courseVersionId',
+      ),
     ]);
   }
 

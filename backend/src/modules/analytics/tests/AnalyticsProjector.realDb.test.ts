@@ -64,6 +64,9 @@ describe(
       expect(await names('studyViews')).toContain(
         'analytics_courseVersionId_firstStudiedAt',
       );
+      // Per-learner lookups for event recomputes.
+      for (const col of ['enrollment', 'studyViews', 'user_activity_events'])
+        expect(await names(col)).toContain('analytics_userId_courseVersionId');
     });
   },
 );

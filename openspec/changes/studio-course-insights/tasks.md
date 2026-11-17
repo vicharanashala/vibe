@@ -53,7 +53,7 @@
   - `ca_course_snapshot`: headline metrics for each range and its previous period, progress bands, funnel, where-now with median time, check-on top 50, study-mode split, median days to finish
 
   Verify each spec scenario in `specs/backend/course-analytics` as a unit test on fixture tier-1/2 rows, including that the bands add up to the roster and that a quiet day appears as zeros.
-- [ ] 3.2 Replace the batch refresh with `learnerChanged(versionId, userId)`:
+- [x] 3.2 Replace the batch refresh with `learnerChanged(versionId, userId)`:
   - recompute that learner's tier-1/2 rows with the existing projection functions
   - `findOneAndReplace` guarded by a newer `computedAt`
   - apply the old→new difference to the counter-style tier-3 rows (`ca_course_daily`, `ca_course_heatmap`, `ca_item_stats`)
@@ -63,17 +63,17 @@
   - the same event processed twice changes nothing the second time
   - two concurrent recomputes leave the counters equal to the sum of the learner rows
   - a learner after the cursor is skipped
-- [ ] 3.3 Implement the gradual build in `ca_state` (`none`/`building`/`ready`, cursor, done/total, lease). One step processes up to 500 learners or 3 s, ordered by `userId`. The last step builds the tier-3 counters and sets `ready`. The admin rebuild deletes the version's rows and resets to `building`. Verify with tests:
+- [x] 3.3 Implement the gradual build in `ca_state` (`none`/`building`/`ready`, cursor, done/total, lease). One step processes up to 500 learners or 3 s, ordered by `userId`. The last step builds the tier-3 counters and sets `ready`. The admin rebuild deletes the version's rows and resets to `building`. Verify with tests:
   - repeated steps reach `ready` with figures identical to a single full build
   - an interrupted build resumes from the cursor
   - an event during a build is counted exactly once
   - two concurrent step attempts do one step
-- [ ] 3.4 Compute the read-time figures (progress bands, funnel, where-now with median time, check-on, study-mode split, median days to finish, headline counts) from `ca_learners` with one projected query, cached for 30 s per instance. Remove these from the stored snapshot. Verify with tests: a student with no events for 8 days appears as inactive for 8 days, and the existing tier-3 scenario tests still pass.
-- [ ] 3.5 Keep the guard test from the old task 3.4, extended: drive a build plus a series of events against a fixture database snapshot, then confirm the source collections are byte-identical before and after.
+- [x] 3.4 Compute the read-time figures (progress bands, funnel, where-now with median time, check-on, study-mode split, median days to finish, headline counts) from `ca_learners` with one projected query, cached for 30 s per instance. Remove these from the stored snapshot. Verify with tests: a student with no events for 8 days appears as inactive for 8 days, and the existing tier-3 scenario tests still pass.
+- [x] 3.5 Keep the guard test from the old task 3.4, extended: drive a build plus a series of events against a fixture database snapshot, then confirm the source collections are byte-identical before and after.
 
 ## 4. Backend: event hooks (after commit, fire-and-forget)
 
-- [ ] 4.1 Add `AnalyticsEvents` with a per-learner 2 s in-memory debounce. Hook it after commit into:
+- [x] 4.1 Add `AnalyticsEvents` with a per-learner 2 s in-memory debounce. Hook it after commit into:
   - `AttemptService` quiz submit
   - `ProgressService` `stopItem`, skip, quiz-outcome and admin-advance paths
   - `EnrollmentService` enrol/unenrol
@@ -85,11 +85,11 @@
   - the hook is called with the right version and user
   - a hook that throws still lets the student request succeed with an unchanged response
   - no hook runs for a version without analytics
-- [ ] 4.2 Remove the batch projector's scheduling and infrastructure: the `src/jobs/analyticsProjector.ts` entrypoint, `bootstrap/jobs/analyticsProjector.ts`, `ENABLE_ANALYTICS_PROJECTOR_JOB`, the watermark and dirty-learner detection, and `backend/docs/analytics-projector.md`. Update `backend/docs/analytics-load-check.md`. Verify that `tsc` passes, that grep finds no references to the removed names, and that the server still boots.
+- [x] 4.2 Remove the batch projector's scheduling and infrastructure: the `src/jobs/analyticsProjector.ts` entrypoint, `bootstrap/jobs/analyticsProjector.ts`, `ENABLE_ANALYTICS_PROJECTOR_JOB`, the watermark and dirty-learner detection, and `backend/docs/analytics-projector.md`. Update `backend/docs/analytics-load-check.md`. Verify that `tsc` passes, that grep finds no references to the removed names, and that the server still boots.
 
 ## 5. Backend: API
 
-- [ ] 5.1 Add `GET /analytics/courses/:courseId/versions/:versionId/overview?range=7|30|90`:
+- [x] 5.1 Add `GET /analytics/courses/:courseId/versions/:versionId/overview?range=7|30|90`:
   - validators and an OpenAPI response schema matching design §6
   - reads only `ca_course_snapshot`, `ca_item_stats`, and range slices of `ca_course_daily`/`ca_course_heatmap`
   - names joined from the course structure
@@ -100,10 +100,10 @@
   **Rework:** while building, a request advances one build step and returns `{status:'building', buildProgress}` (design §3), and `updatedAt` is the response time. Verify with controller tests that repeated requests progress from 0 to 100 and then return the full payload.
 - [x] 5.2 Authorise the overview with the same ability check as `/users/enrollments/.../statistics`. Verify with tests: an instructor of the course is allowed; a student and an instructor of another course are both refused with 403.
 - [x] 5.3 Add `POST /analytics/courses/:courseId/versions/:versionId/rebuild` (admin only). It starts `rebuildVersion` in the background and returns 202. Verify with tests: admin gets 202 and `ca_state` later shows a new refresh time; a non-admin instructor is refused with 403.
-- [ ] 5.4 Load-check the overview against a generated 10,000-student fixture version. Verify that p95 is under 1 s across 50 sequential requests in the local stack, and record the timing in the PR.
+- [x] 5.4 Load-check the overview against a generated 10,000-student fixture version. Verify that p95 is under 1 s across 50 sequential requests in the local stack, and record the timing in the PR.
 
   **Redo after the rework:** measure the ready-overview p95 with read-time figures (10,000 students), each build step's duration and peak memory (target under 5 s and well under 512 MiB), and the added latency of a quiz submit and a stop with hooks on (target under 10 ms, because hooks aren't awaited).
-- [ ] 5.5 Regenerate the v3 API types (`pnpm --filter @vibe/api generate` against the local backend). Verify that `npx tsc -b apps/student/tsconfig.app.json` passes in v3.
+- [x] 5.5 Regenerate the v3 API types (`pnpm --filter @vibe/api generate` against the local backend). Verify that `npx tsc -b apps/student/tsconfig.app.json` passes in v3.
 
 ## 6. v3: data and page frame
 

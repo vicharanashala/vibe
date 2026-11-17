@@ -17,7 +17,7 @@ export const BUILD_STEP_LEARNERS = 500;
 /** …or stops after this long, whichever comes first (design §3). */
 export const BUILD_STEP_MS = 3000;
 /** Learners recomputed together (one set of indexed reads per chunk). */
-const CHUNK = 100;
+const CHUNK = 50;
 /** Dirty learners swept per request (crash recovery; normally zero). */
 export const SWEEP_LIMIT = 200;
 const STRUCTURE_TTL_MS = 60 * 1000;
