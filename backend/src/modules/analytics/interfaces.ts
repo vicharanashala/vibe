@@ -1,25 +1,48 @@
 /**
  * Course analytics read models (collections prefixed `ca_`), one set per
  * course version. They are derived only from the existing learning records
- * by AnalyticsProjector and never written anywhere else. See
+ * by AnalyticsProjector (on events and in gradual builds) and never written
+ * anywhere else. See
  * openspec/changes/studio-course-insights/design.md for the model.
  */
 
 export type Range = 7 | 30 | 90;
 export const RANGES: Range[] = [7, 30, 90];
 
-/** Per course version: refresh bookkeeping and the single-refresher lease. */
+/**
+ * Per course version: build status and the single-builder lease. A version
+ * with no row has no analytics yet; its first overview request starts a
+ * gradual build (design §3).
+ */
 export interface CaState {
   versionId: string;
   courseId: string;
-  /** Source records were read up to this time. */
-  watermark: Date | null;
-  lastRefreshedAt: Date | null;
-  firstBuildCompletedAt: Date | null;
-  status: 'idle' | 'refreshing' | 'rebuilding' | 'failed';
-  lastError?: string | null;
+  status: 'building' | 'ready';
+  /** Learners up to and including this user id (string order) are built. */
+  cursorUserId: string;
+  done: number;
+  total: number;
+  startedAt: Date;
+  readyAt?: Date | null;
+  /** Last time the stored learners were compared with the enrolment roster. */
+  rosterCheckedAt?: Date | null;
+  /** Bumped by every learner recompute; readers cache until it changes. */
+  changeSeq?: number;
   leaseOwner?: string | null;
   leaseUntil?: Date | null;
+}
+
+/**
+ * Per learner: serialises recomputes of one learner across events, build
+ * steps and instances. `dirty` means "recompute again": set by every event,
+ * cleared by whoever recomputes.
+ */
+export interface CaLearnerLock {
+  versionId: string;
+  userId: string;
+  dirty: boolean;
+  owner?: string | null;
+  until?: Date | null;
 }
 
 /** Tier 1: one row per enrolled student. */
@@ -42,6 +65,9 @@ export interface CaLearner {
   usedStrict: boolean;
   usedStudy: boolean;
   incidentCount: number;
+  lastIncidentAt: Date | null;
+  /** When these rows were computed; a recompute never replaces newer rows. */
+  computedAt: Date;
 }
 
 export interface CaLearnerQuiz {
@@ -79,7 +105,10 @@ export interface CaLearnerDay {
   incidentsByType: Record<string, number>;
 }
 
-/** Tier 3: course totals per IST day. */
+/**
+ * Tier 3 counters. Each is the sum of the per-learner rows; events keep them
+ * up to date by applying the difference between a learner's old and new rows.
+ */
 export interface CaCourseDaily {
   versionId: string;
   day: string;
@@ -89,36 +118,31 @@ export interface CaCourseDaily {
   incidentsByType: Record<string, number>;
 }
 
-/** Tier 3: learning seconds per IST hour for one day (weekday is derived from the day). */
+/** Learning seconds per IST hour ("0".."23") for one day. */
 export interface CaCourseHeatmapDay {
   versionId: string;
   day: string;
-  secondsByHour: number[];
+  secondsByHour: Record<string, number>;
 }
 
-export interface CaItemStats {
+/** Additive per-item counters; rates and top lists are derived when read. */
+export interface CaItemCounters {
   versionId: string;
   itemId: string;
-  type: 'QUIZ' | 'VIDEO';
-  moduleId: string;
-  sectionId: string;
-  name: string;
-  order: number;
   // QUIZ
   attempted?: number;
-  firstAttemptPassRate?: number | null;
-  avgAttemptsToPass?: number | null;
-  scoreBands?: number[];
-  hardestQuestions?: {
-    questionId: string;
-    text: string;
-    correctRate: number;
-    answered: number;
-  }[];
+  firstPassed?: number;
+  passed?: number;
+  attemptsToPassSum?: number;
+  /** First-attempt score bands "0".."9". */
+  scoreBands?: Record<string, number>;
+  /** Per question: first attempts answered and answered correctly. */
+  questions?: Record<string, {answered: number; correct: number}>;
   // VIDEO
   started?: number;
   completed?: number;
-  rewindHotspots?: {startSecond: number; rewinds: number}[];
+  /** Rewinds keyed by segment start second. */
+  segments?: Record<string, number>;
 }
 
 export interface Metric {
@@ -163,28 +187,12 @@ export interface CheckOnRow {
   daysOnItem: number | null;
 }
 
-export interface CaCourseSnapshot {
-  versionId: string;
-  courseId: string;
-  computedAt: Date;
-  headline: Record<string, Headline>; // keyed by range ("7" | "30" | "90")
-  shareWithIncident: Record<string, number>; // keyed by range
-  progressBands: {band: ProgressBand; students: number}[];
-  funnel: {
-    moduleId: string;
-    name: string;
-    reached: number;
-    completed: number;
-  }[];
-  whereNow: WhereNowRow[];
-  checkOn: CheckOnRow[];
-  studyMode: {strictOnly: number; studyOnly: number; both: number};
-  checksOn: boolean;
-}
-
 /** The overview response (design.md §6). */
 export interface CourseInsights {
   status: 'ready' | 'building';
+  /** 0–100, only while building. */
+  buildProgress?: number;
+  /** When the figures were read (the response time). */
   updatedAt: string | null;
   range: Range;
   headline?: Headline;

@@ -24,7 +24,8 @@ export async function analyticsTestDb() {
   const repo = new AnalyticsRepository(db);
   const source = new AnalyticsSourceReader(db);
   const projector = new AnalyticsProjector(repo, source);
-  const query = new AnalyticsQueryService(repo);
+  const query = new AnalyticsQueryService(repo, source, projector);
+  query.cacheMs = 0;
   return {db, repo, source, projector, query, raw: db.database!};
 }
 

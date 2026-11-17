@@ -136,28 +136,42 @@ export class AnalyticsSourceReader {
     };
   }
 
+  private rosterFilter(courseId: string, versionId: string) {
+    return {
+      courseId: idEq(courseId),
+      courseVersionId: idEq(versionId),
+      role: {$regex: /^student$/i},
+      status: {$regex: /^active$/i},
+      isDeleted: {$ne: true},
+      isShareLinkGuest: {$ne: true},
+      isQuickShareContainer: {$ne: true},
+    };
+  }
+
+  /** Ids of the enrolled students of a version, sorted (string order). */
+  async rosterUserIds(courseId: string, versionId: string): Promise<string[]> {
+    const ids = await (
+      await this.col('enrollment')
+    ).distinct('userId', this.rosterFilter(courseId, versionId));
+    return [...new Set(ids.map((id: unknown) => String(id)))].sort();
+  }
+
   /**
-   * Enrolled students of a version with their progress. Staff, share-link
-   * guests and quick-share holders are excluded, matching the existing
-   * course statistics.
+   * Enrolled students of a version with their progress (all of them, or just
+   * `userIds`). Staff, share-link guests and quick-share holders are
+   * excluded, matching the existing course statistics.
    */
   async loadRoster(
     courseId: string,
     versionId: string,
+    userIds?: string[],
   ): Promise<RosterEntry[]> {
+    const users = userIds ? {userId: idIn(userIds)} : {};
     const enrollments = await (
       await this.col('enrollment')
     )
       .find(
-        {
-          courseId: idEq(courseId),
-          courseVersionId: idEq(versionId),
-          role: {$regex: /^student$/i},
-          status: {$regex: /^active$/i},
-          isDeleted: {$ne: true},
-          isShareLinkGuest: {$ne: true},
-          isQuickShareContainer: {$ne: true},
-        },
+        {...this.rosterFilter(courseId, versionId), ...users},
         {
           projection: {
             userId: 1,
@@ -171,7 +185,7 @@ export class AnalyticsSourceReader {
       .toArray();
     const progress = await (await this.col('progress'))
       .find(
-        {courseId: idEq(courseId), courseVersionId: idEq(versionId)},
+        {courseId: idEq(courseId), courseVersionId: idEq(versionId), ...users},
         {projection: {userId: 1, currentItem: 1, completed: 1, completedAt: 1}},
       )
       .toArray();
@@ -194,61 +208,6 @@ export class AnalyticsSourceReader {
         progress: progressByUser.get(userId) ?? null,
       });
     }
-    return out;
-  }
-
-  /** Students with any record for this version in (from, to]. */
-  async dirtyUserIds(
-    courseId: string,
-    versionId: string,
-    quizIds: string[],
-    from: Date,
-    to: Date,
-  ): Promise<Set<string>> {
-    const range = {$gt: from, $lte: to};
-    const lists = await Promise.all([
-      (await this.col('watchTime')).distinct('userId', {
-        courseId: idEq(courseId),
-        courseVersionId: idEq(versionId),
-        endTime: range,
-      }),
-      // Viewings still open (started since the watermark, not yet stopped).
-      // The {courseId, courseVersionId, endTime} index serves this: a missing
-      // endTime is indexed as null.
-      (await this.col('watchTime')).distinct('userId', {
-        startTime: range,
-        endTime: {$exists: false},
-        courseId: idEq(courseId),
-        courseVersionId: idEq(versionId),
-      }),
-      // Started before the cut-off but stopped after it: open as of `to`.
-      (await this.col('watchTime')).distinct('userId', {
-        courseId: idEq(courseId),
-        courseVersionId: idEq(versionId),
-        endTime: {$gt: to},
-        startTime: range,
-      }),
-      quizIds.length
-        ? (await this.col('quiz_submission_results')).distinct('userId', {
-            quizId: idIn(quizIds),
-            submittedAt: range,
-          })
-        : Promise.resolve([]),
-      (await this.col('anomaly_records')).distinct('userId', {
-        versionId: idEq(versionId),
-        createdAt: range,
-      }),
-      (await this.col('studyViews')).distinct('userId', {
-        courseVersionId: idEq(versionId),
-        firstStudiedAt: range,
-      }),
-      (await this.col('user_activity_events')).distinct('userId', {
-        courseVersionId: idEq(versionId),
-        updatedAt: range,
-      }),
-    ]);
-    const out = new Set<string>();
-    for (const list of lists) for (const id of list) out.add(String(id));
     return out;
   }
 
@@ -359,32 +318,6 @@ export class AnalyticsSourceReader {
       if (entry) entry.user = p;
     }
     return out;
-  }
-
-  /** Course versions with at least one active student. */
-  async activeVersions(): Promise<
-    {courseId: string; courseVersionId: string}[]
-  > {
-    const rows = await (
-      await this.col('enrollment')
-    )
-      .aggregate([
-        {
-          $match: {
-            role: {$regex: /^student$/i},
-            status: {$regex: /^active$/i},
-            isDeleted: {$ne: true},
-            isShareLinkGuest: {$ne: true},
-            isQuickShareContainer: {$ne: true},
-          },
-        },
-        {$group: {_id: {c: '$courseId', v: '$courseVersionId'}}},
-      ])
-      .toArray();
-    return rows.map((r: any) => ({
-      courseId: String(r._id.c),
-      courseVersionId: String(r._id.v),
-    }));
   }
 
   /** Whether any proctoring check is turned on for the course version. */

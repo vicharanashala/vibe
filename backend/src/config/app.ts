@@ -40,15 +40,6 @@ export const appConfig = {
   // it is safe to self-activate on deploy. Until it first runs, the panel
   // reports watch hours as not yet computed rather than as zero.
   ENABLE_ENROLLMENT_STATS_JOB: env('ENABLE_ENROLLMENT_STATS_JOB') !== 'false',
-  // In-process fallback for the course analytics projector (refresh every
-  // 5 minutes, full rebuild nightly). OFF by default in production and
-  // staging, where a Cloud Run Job runs the projector off the serving
-  // instances (backend/docs/analytics-projector.md); ON by default elsewhere
-  // so local and dev stacks get analytics. Set 'true'/'false' to override.
-  ENABLE_ANALYTICS_PROJECTOR_JOB:
-    env('ENABLE_ANALYTICS_PROJECTOR_JOB') === 'true' ||
-    (env('ENABLE_ANALYTICS_PROJECTOR_JOB') !== 'false' &&
-      !['production', 'staging'].includes(env('NODE_ENV') ?? '')),
   GOOGLE_APPLICATION_CREDENTIALS: env('GOOGLE_APPLICATION_CREDENTIALS'),
   GCP_BACKUP_BUCKET: env('GCP_BACKUP_BUCKET'),
   GCP_BACKUP_ACTIVITY_BUCKET: env('GCP_BACKUP_ACTIVITY_BUCKET'),

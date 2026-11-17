@@ -190,6 +190,13 @@ export class InsightsStudyMode {
 export class CourseInsightsResponse {
   @IsIn(['ready', 'building']) status: 'ready' | 'building';
 
+  @JSONSchema({
+    description: 'Percentage of the first build done; only while building.',
+  })
+  @IsOptional()
+  @IsNumber()
+  buildProgress?: number;
+
   @JSONSchema({type: ['string', 'null'] as any, format: 'date-time'})
   @IsOptional()
   @IsString()

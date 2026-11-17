@@ -95,24 +95,20 @@ The Overview tab SHALL show proctoring incidents per 100 learning hours by type 
 - **WHEN** the course has no proctoring checks turned on and no incidents in the range
 - **THEN** the proctoring section says proctoring is off instead of showing an empty chart
 
-### Requirement: Freshness and states
-The Overview tab SHALL show loading placeholders while fetching, show an explanatory empty state for a course with no students, and while the first build is in progress show "Preparing insights" with a progress bar and check again every 3 seconds until the figures are ready.
+### Requirement: Loading, building and empty states
+The Overview tab SHALL show loading placeholders while fetching. While the course's analytics are first being built, it SHALL show "Preparing insights" with the percentage done and check again every 3 seconds until they're ready. For a course with no students, it SHALL show an explanatory empty state.
 
 #### Scenario: Build progress
 - **WHEN** the backend reports the first build is 40% done
-- **THEN** the page shows "Preparing insights" with a progress bar at 40%
+- **THEN** the page shows "Preparing insights" with a progress bar at 40%, and the existing course actions stay available
 
 #### Scenario: Build finishes
 - **WHEN** a later check reports the analytics are ready
-- **THEN** the page stops checking and shows the figures
+- **THEN** the page stops checking and shows the figures, without a reload
 
 #### Scenario: New course
 - **WHEN** the course has no enrolled students
 - **THEN** the page shows an empty state inviting the teacher to invite students, and no empty charts
-
-#### Scenario: First build in progress
-- **WHEN** the backend reports the first build is in progress
-- **THEN** the existing course actions remain available
 
 ### Requirement: Existing overview actions remain
 The Overview tab SHALL keep the existing finished-students list, the Content, Invite people and Proctoring tiles, the registration link and the course description.

@@ -148,19 +148,25 @@ describe('AnalyticsController', {timeout: 30000}, () => {
       )
       .set('Authorization', `Bearer ${token}`);
 
-  it('returns building before the first build, then the 30-day shape (5.1)', async () => {
-    const before = await overview('instructor').expect(200);
-    expect(before.body).toEqual({
+  it('builds on the first requests, reporting progress, then returns the 30-day shape (5.1)', async () => {
+    const projector = container.get<AnalyticsProjector>(
+      ANALYTICS_TYPES.AnalyticsProjector,
+    );
+    // One learner per step so the building state is observable.
+    projector.stepLearners = 1;
+    const first = await overview('instructor').expect(200);
+    expect(first.body).toMatchObject({
       status: 'building',
-      updatedAt: null,
+      buildProgress: 50,
       range: 30,
     });
+    expect(first.body.headline).toBeUndefined();
+    expect(Date.parse(first.body.updatedAt)).not.toBeNaN();
 
-    await container
-      .get<AnalyticsProjector>(ANALYTICS_TYPES.AnalyticsProjector)
-      .rebuildVersion(course.courseId, course.versionId);
     const res = await overview('instructor').expect(200);
+    projector.stepLearners = 500;
     expect(res.body.status).toBe('ready');
+    expect(res.body.buildProgress).toBeUndefined();
     expect(res.body.range).toBe(30);
     expect(res.body.daily).toHaveLength(30);
     expect(res.body.heatmap).toHaveLength(7);
@@ -193,22 +199,42 @@ describe('AnalyticsController', {timeout: 30000}, () => {
     await overview('instructor', 14).expect(400);
   });
 
-  it('answers with at most 5 database reads (5.1)', async () => {
+  it('answers a ready overview from the read models only, with a bounded number of reads (5.1)', async () => {
     const query = container.get<AnalyticsQueryService>(
       ANALYTICS_TYPES.AnalyticsQueryService,
     );
-    await container
-      .get<AnalyticsRepository>(ANALYTICS_TYPES.AnalyticsRepository)
-      .init();
-    // findOne is implemented on top of find, so counting find covers both.
-    const spies = (
-      ['find', 'aggregate', 'countDocuments', 'distinct'] as const
-    ).map(m => vi.spyOn(Collection.prototype as any, m));
-    await query.overview(course.versionId, 30);
-    const reads = spies.reduce((n, s) => n + s.mock.calls.length, 0);
-    spies.forEach(s => s.mockRestore());
-    expect(reads).toBeGreaterThan(0);
-    expect(reads).toBeLessThanOrEqual(5);
+    query.cacheMs = 0;
+    await query.overview(course.courseId, course.versionId, 30); // warm caches
+    const touched: string[] = [];
+    // Count reads by wrapping without changing behaviour.
+    const orig: Record<string, any> = {};
+    const proto = Collection.prototype as any;
+    for (const m of ['find', 'aggregate', 'countDocuments', 'distinct']) {
+      orig[m] = proto[m];
+      proto[m] = function (this: any, ...args: any[]) {
+        touched.push(this.collectionName);
+        return orig[m].apply(this, args);
+      };
+    }
+    try {
+      const res = await query.overview(course.courseId, course.versionId, 30);
+      expect(res.status).toBe('ready');
+    } finally {
+      for (const m of Object.keys(orig)) proto[m] = orig[m];
+    }
+    expect(touched.length).toBeGreaterThan(0);
+    expect(touched.length).toBeLessThanOrEqual(12);
+    // No raw learning records are read to answer a ready overview.
+    for (const raw of [
+      'watchTime',
+      'quiz_submission_results',
+      'anomaly_records',
+      'enrollment',
+      'progress',
+      'studyViews',
+      'user_activity_events',
+    ])
+      expect(touched).not.toContain(raw);
   });
 
   it('allows staff of the course and refuses a student or another course’s instructor (5.2)', async () => {
@@ -223,24 +249,24 @@ describe('AnalyticsController', {timeout: 30000}, () => {
     const repo = container.get<AnalyticsRepository>(
       ANALYTICS_TYPES.AnalyticsRepository,
     );
-    const before = (await repo.getState(course.versionId))!.lastRefreshedAt!;
-    await new Promise(r => setTimeout(r, 5));
+    await overview('instructor').expect(200);
+    const before = (await repo.getState(course.versionId))!;
     const url = `/analytics/courses/${course.courseId}/versions/${course.versionId}/rebuild`;
     await request(app)
       .post(url)
       .set('Authorization', 'Bearer instructor')
       .expect(403);
+    expect(await repo.getState(course.versionId)).toMatchObject({
+      status: before.status,
+    });
     const res = await request(app)
       .post(url)
       .set('Authorization', 'Bearer admin')
       .expect(202);
     expect(res.body).toEqual({accepted: true});
-    await vi.waitFor(
-      async () => {
-        const s = await repo.getState(course.versionId);
-        expect(s!.lastRefreshedAt!.getTime()).toBeGreaterThan(before.getTime());
-      },
-      {timeout: 10000, interval: 100},
-    );
+    expect(await repo.getState(course.versionId)).toBeNull();
+    const again = await overview('instructor').expect(200);
+    expect(again.body.status).toBe('ready'); // two learners: one step
+    expect(again.body.headline.students.current).toBe(2);
   });
 });

@@ -11360,6 +11360,10 @@
        "building"
       ]
      },
+     "buildProgress": {
+      "type": "number",
+      "description": "Percentage of the first build done; only while building."
+     },
      "updatedAt": {
       "type": [
        "string",
@@ -24065,7 +24069,7 @@
     "tags": [
      "Analytics"
     ],
-    "description": "Every overview panel for a course version over the last 7, 30 or 90 days (IST), answered from precomputed read models. `status: building` means the first build has not finished and no figures are returned. Same access as the course enrollment statistics."
+    "description": "Every overview panel for a course version over the last 7, 30 or 90 days (IST), from read models kept up to date as events happen. A course viewed for the first time is built gradually: while building, each request advances the build and returns `status: building` with `buildProgress` (0–100) and no figures. Same access as the course enrollment statistics."
    }
   },
   "/api/analytics/courses/{courseId}/versions/{versionId}/rebuild": {
@@ -24107,7 +24111,7 @@
     "tags": [
      "Analytics"
     ],
-    "description": "Starts a full rebuild in the background and returns straight away. The overview’s `updatedAt` changes once it has finished."
+    "description": "Drops this version’s analytics and returns straight away. The next overview requests rebuild it gradually, reporting progress."
    }
   },
   "/api/announcements/": {

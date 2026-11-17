@@ -109,9 +109,10 @@ function rewindSegment(to: string | undefined): number | null {
 }
 
 /**
- * Builds every tier-1 and tier-2 row for one student from their own records.
- * `previous` is their stored row from the last refresh (null on first build);
- * it only supplies `currentItemSince` when the current item hasn't changed.
+ * Builds every tier-1 and tier-2 row for one student from their own records,
+ * as of `upTo` (normally now). `previous` is their stored row (null the first
+ * time); it only supplies `currentItemSince` when the current item hasn't
+ * changed.
  */
 export function projectLearner(
   structure: CourseStructure,
@@ -235,9 +236,11 @@ export function projectLearner(
 
   // Proctoring incidents.
   let incidentCount = 0;
+  let lastIncident = 0;
   for (const a of src.anomalies) {
     if (!a.createdAt || after(a.createdAt)) continue;
     incidentCount += 1;
+    lastIncident = Math.max(lastIncident, a.createdAt.getTime());
     touch(a.createdAt);
     const row = day(istDay(a.createdAt));
     const type = a.type ?? 'UNKNOWN';
@@ -338,6 +341,8 @@ export function projectLearner(
       src.submissions.some(s => !after(s.submittedAt)),
     usedStudy: src.studyViews.some(v => !after(v.firstStudiedAt)),
     incidentCount,
+    lastIncidentAt: lastIncident ? new Date(lastIncident) : null,
+    computedAt: upTo,
   };
 
   return {learner, quizzes, videos, days: [...days.values()]};
@@ -537,4 +542,96 @@ export function studyModeSplit(learners: CaLearner[]) {
 /** 10 bands of a 0–100 score: 0–9, 10–19, … 90–100. */
 export function scoreBand(pct: number): number {
   return Math.min(9, Math.max(0, Math.floor(pct / 10)));
+}
+
+/** Which tier-3 counter document a contribution goes to. */
+export type CounterTarget =
+  | {col: 'daily'; day: string}
+  | {col: 'heat'; day: string}
+  | {col: 'item'; itemId: string};
+
+export interface CounterIncrement {
+  target: CounterTarget;
+  /** Field path → amount, ready for `$inc`. */
+  inc: Record<string, number>;
+}
+
+const targetKey = (t: CounterTarget) =>
+  t.col === 'item' ? `item:${t.itemId}` : `${t.col}:${t.day}`;
+
+/**
+ * What one learner's rows add to the course counters. The counters are the
+ * sum of this over every learner, so an event applies `counterDelta(old, new)`.
+ */
+export function counterContributions(
+  p: Pick<LearnerProjection, 'quizzes' | 'videos' | 'days'> | null,
+): Map<string, CounterIncrement> {
+  const out = new Map<string, CounterIncrement>();
+  if (!p) return out;
+  const add = (target: CounterTarget, field: string, n: number) => {
+    if (!n) return;
+    const key = targetKey(target);
+    let row = out.get(key);
+    if (!row) {
+      row = {target, inc: {}};
+      out.set(key, row);
+    }
+    row.inc[field] = (row.inc[field] ?? 0) + n;
+  };
+  for (const d of p.days) {
+    const daily = {col: 'daily', day: d.day} as const;
+    add(daily, 'activeLearners', d.active ? 1 : 0);
+    add(daily, 'learningSeconds', d.learningSeconds);
+    add(daily, 'newEnrolments', d.enrolled ? 1 : 0);
+    for (const [type, n] of Object.entries(d.incidentsByType ?? {}))
+      add(daily, `incidentsByType.${type}`, n);
+    const heat = {col: 'heat', day: d.day} as const;
+    d.secondsByHour.forEach((secs, h) => add(heat, `secondsByHour.${h}`, secs));
+  }
+  for (const q of p.quizzes) {
+    const t = {col: 'item', itemId: q.quizId} as const;
+    add(t, 'attempted', 1);
+    add(t, 'firstPassed', q.firstAttemptPassed ? 1 : 0);
+    add(t, 'passed', q.attemptsToPass != null ? 1 : 0);
+    add(t, 'attemptsToPassSum', q.attemptsToPass ?? 0);
+    if (q.firstAttemptScorePct != null)
+      add(t, `scoreBands.${scoreBand(q.firstAttemptScorePct)}`, 1);
+    for (const f of q.firstAttemptQuestions) {
+      add(t, `questions.${f.questionId}.answered`, 1);
+      add(t, `questions.${f.questionId}.correct`, f.correct ? 1 : 0);
+    }
+  }
+  for (const v of p.videos) {
+    const t = {col: 'item', itemId: v.itemId} as const;
+    add(t, 'started', v.started ? 1 : 0);
+    add(t, 'completed', v.completed ? 1 : 0);
+    for (const [seg, n] of Object.entries(v.rewindSegments ?? {}))
+      add(t, `segments.${seg}`, n);
+  }
+  return out;
+}
+
+/** `new − old` per counter field, dropping zeroes. Empty when nothing changed. */
+export function counterDelta(
+  oldRows: Pick<LearnerProjection, 'quizzes' | 'videos' | 'days'> | null,
+  newRows: Pick<LearnerProjection, 'quizzes' | 'videos' | 'days'> | null,
+): CounterIncrement[] {
+  const a = counterContributions(oldRows);
+  const b = counterContributions(newRows);
+  const out: CounterIncrement[] = [];
+  for (const key of new Set([...a.keys(), ...b.keys()])) {
+    const target = (b.get(key) ?? a.get(key))!.target;
+    const inc: Record<string, number> = {};
+    const fields = new Set([
+      ...Object.keys(a.get(key)?.inc ?? {}),
+      ...Object.keys(b.get(key)?.inc ?? {}),
+    ]);
+    for (const f of fields) {
+      const n = (b.get(key)?.inc[f] ?? 0) - (a.get(key)?.inc[f] ?? 0);
+      // Float learning seconds: ignore rounding noise.
+      if (Math.abs(n) > 1e-9) inc[f] = n;
+    }
+    if (Object.keys(inc).length) out.push({target, inc});
+  }
+  return out;
 }

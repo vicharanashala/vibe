@@ -49,9 +49,11 @@ export class AnalyticsController {
     summary: 'Course overview analytics for ViBe Studio',
     description:
       'Every overview panel for a course version over the last 7, 30 or 90 ' +
-      'days (IST), answered from precomputed read models. `status: building` ' +
-      'means the first build has not finished and no figures are returned. ' +
-      'Same access as the course enrollment statistics.',
+      'days (IST), from read models kept up to date as events happen. A ' +
+      'course viewed for the first time is built gradually: while building, ' +
+      'each request advances the build and returns `status: building` with ' +
+      '`buildProgress` (0–100) and no figures. Same access as the course ' +
+      'enrollment statistics.',
   })
   @Authorized()
   @Get('/courses/:courseId/versions/:versionId/overview')
@@ -75,14 +77,14 @@ export class AnalyticsController {
         'You do not have permission to view analytics for this course',
       );
     }
-    return this.query.overview(versionId, q.range ?? 30);
+    return this.query.overview(courseId, versionId, q.range ?? 30);
   }
 
   @OpenAPI({
     summary: 'Rebuild one course version’s analytics (admin only)',
     description:
-      'Starts a full rebuild in the background and returns straight away. ' +
-      'The overview’s `updatedAt` changes once it has finished.',
+      'Drops this version’s analytics and returns straight away. The next ' +
+      'overview requests rebuild it gradually, reporting progress.',
   })
   @Authorized()
   @Post('/courses/:courseId/versions/:versionId/rebuild')
@@ -95,15 +97,7 @@ export class AnalyticsController {
     if (!isAdmin(user?.roles)) {
       throw new ForbiddenError('Only administrators can rebuild analytics');
     }
-    const {courseId, versionId} = params;
-    void this.projector
-      .rebuildVersion(courseId, versionId)
-      .catch(err =>
-        console.error(
-          `[analytics] on-demand rebuild failed for ${courseId}/${versionId}:`,
-          err,
-        ),
-      );
+    await this.projector.resetVersion(params.versionId);
     return {accepted: true};
   }
 }

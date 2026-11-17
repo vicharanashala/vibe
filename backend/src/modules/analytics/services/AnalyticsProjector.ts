@@ -2,51 +2,57 @@ import {injectable, inject} from 'inversify';
 import {randomUUID} from 'crypto';
 import {ANALYTICS_TYPES} from '../types.js';
 import {AnalyticsRepository} from '../repositories/AnalyticsRepository.js';
+import {AnalyticsSourceReader} from '../repositories/AnalyticsSourceReader.js';
+import type {CaState} from '../interfaces.js';
 import {
-  AnalyticsSourceReader,
-  RosterEntry,
-} from '../repositories/AnalyticsSourceReader.js';
-import {
-  CaCourseSnapshot,
-  CaItemStats,
-  CaLearner,
-  Headline,
-  RANGES,
-} from '../interfaces.js';
-import {
+  CounterIncrement,
   CourseStructure,
   LearnerProjection,
-  checkOn,
-  learnerHeadline,
-  moduleFunnel,
-  progressBands,
+  counterDelta,
   projectLearner,
-  scoreBand,
-  studyModeSplit,
-  whereNow,
 } from './projection.js';
-import {addDays, istDay} from './time.js';
 
-/** Writes still in flight when a refresh starts are picked up next time. */
-export const SAFETY_MARGIN_MS = 2 * 60 * 1000;
-const BATCH = 500;
+/** One build step processes at most this many learners… */
+export const BUILD_STEP_LEARNERS = 500;
+/** …or stops after this long, whichever comes first (design §3). */
+export const BUILD_STEP_MS = 3000;
+/** Learners recomputed together (one set of indexed reads per chunk). */
+const CHUNK = 50;
+/** Dirty learners swept per request (crash recovery; normally zero). */
+export const SWEEP_LIMIT = 200;
+const STRUCTURE_TTL_MS = 60 * 1000;
+/** How often a ready version's learners are compared with the roster. */
+export const ROSTER_CHECK_MS = 5 * 60 * 1000;
+/** Learners fixed per roster check (the rest on the next check). */
+const ROSTER_FIX_LIMIT = 500;
 
-export interface RefreshResult {
-  versionId: string;
-  outcome: 'refreshed' | 'rebuilt' | 'skipped' | 'locked' | 'missing';
-  learnersRecomputed: number;
+export interface BuildStepResult {
+  state: CaState | null;
+  /** Learners processed in this step (0 when another holder had the lease). */
+  processed: number;
 }
 
 /**
- * Keeps the course analytics read models up to date from the existing
- * learning records. It only ever reads those records (via
- * AnalyticsSourceReader) and only writes `ca_*` collections, so nothing it
- * does can change a student's progress.
+ * Keeps the course analytics read models up to date.
+ *
+ * - Events: `learnerChanged` recomputes that one learner from their own
+ *   records and applies the old→new difference to the course counters.
+ * - First view: `buildStep` builds a version gradually, a bounded batch of
+ *   learners per overview request.
+ *
+ * Both paths use the same per-learner recompute under a per-learner lock, so
+ * the course counters always equal the sum of the learner rows. It only reads
+ * learning records (via AnalyticsSourceReader) and only writes `ca_*`.
  */
 @injectable()
 export class AnalyticsProjector {
-  /** Test seam: lets tests make a refresh fail midway. */
-  beforeAggregate?: () => Promise<void> | void;
+  /** Test seams: the size and time budget of one build step. */
+  stepLearners = BUILD_STEP_LEARNERS;
+  stepMs = BUILD_STEP_MS;
+  private structures = new Map<
+    string,
+    {at: number; value: CourseStructure | null}
+  >();
 
   constructor(
     @inject(ANALYTICS_TYPES.AnalyticsRepository)
@@ -55,408 +61,222 @@ export class AnalyticsProjector {
     private readonly source: AnalyticsSourceReader,
   ) {}
 
-  /** Incremental refresh: only students with new records since the watermark. */
-  async refreshVersion(
-    courseId: string,
+  /** Course structure, cached briefly per instance. */
+  async structure(versionId: string): Promise<CourseStructure | null> {
+    const hit = this.structures.get(versionId);
+    if (hit && Date.now() - hit.at < STRUCTURE_TTL_MS) return hit.value;
+    const value = await this.source.loadStructure(versionId);
+    this.structures.set(versionId, {at: Date.now(), value});
+    return value;
+  }
+
+  /**
+   * An event changed this learner's records. Does nothing for a version
+   * without analytics. During a build, learners the build hasn't reached yet
+   * are only marked: the build reads their up-to-date records when it gets
+   * there.
+   */
+  async learnerChanged(
     versionId: string,
+    userId: string,
     now = new Date(),
-  ): Promise<RefreshResult> {
+  ): Promise<void> {
     const state = await this.repo.getState(versionId);
-    if (!state?.firstBuildCompletedAt || !state.watermark) {
-      return this.rebuildVersion(courseId, versionId, now);
-    }
+    if (!state) return;
+    await this.repo.markDirty(versionId, userId);
+    if (state.status !== 'ready' && userId > state.cursorUserId) return;
+    const structure = await this.structure(versionId);
+    if (!structure) return;
+    await this.recomputeLearners(structure, [userId], now);
+  }
+
+  /**
+   * Recomputes these learners under their locks. Learners locked by someone
+   * else stay dirty; that holder recomputes them again before releasing.
+   */
+  async recomputeLearners(
+    structure: CourseStructure,
+    userIds: string[],
+    now = new Date(),
+  ): Promise<number> {
+    const {courseId, versionId} = structure;
     const owner = randomUUID();
-    if (!(await this.repo.acquireLease(versionId, courseId, owner, now))) {
-      return {versionId, outcome: 'locked', learnersRecomputed: 0};
-    }
-    try {
-      await this.repo.setStatus(versionId, {status: 'refreshing'});
-      const structure = await this.source.loadStructure(versionId);
-      if (!structure) {
-        await this.repo.releaseLease(versionId, owner, {status: 'idle'});
-        return {versionId, outcome: 'missing', learnersRecomputed: 0};
-      }
-      const upTo = new Date(now.getTime() - SAFETY_MARGIN_MS);
-      const dirty = await this.source.dirtyUserIds(
+    let pending = await this.repo.lockLearners(versionId, userIds, owner, now);
+    let recomputed = 0;
+    while (pending.length) {
+      const [roster, oldRows] = await Promise.all([
+        this.source.loadRoster(courseId, versionId, pending),
+        this.repo.getLearnerRows(versionId, pending),
+      ]);
+      const enrolled = new Map(roster.map(r => [r.userId, r]));
+      const records = await this.source.loadLearnerRecords(
         courseId,
         versionId,
         structure.quizIds,
-        state.watermark,
-        upTo,
+        [...enrolled.keys()],
       );
-
-      // Roster comparison: catches enrolments, unenrolments and progress
-      // changes that leave no timestamped record.
-      const roster = await this.source.loadRoster(courseId, versionId);
-      const stored = await this.repo.getLearnerCurrentState(versionId);
-      const storedById = new Map(stored.map(s => [s.userId, s]));
-      const rosterIds = new Set(roster.map(r => r.userId));
-      for (const r of roster) {
-        const s = storedById.get(r.userId);
-        const cur = r.progress?.currentItem
-          ? String(r.progress.currentItem)
+      const replacements = new Map<string, LearnerProjection | null>();
+      const incs: CounterIncrement[] = [];
+      for (const userId of pending) {
+        const old = oldRows.get(userId) ?? null;
+        // Never replace rows computed later than this pass.
+        if (old && old.learner.computedAt > now) continue;
+        const entry = enrolled.get(userId);
+        const next = entry
+          ? projectLearner(
+              structure,
+              {
+                userId,
+                enrollment: entry.enrollment,
+                progress: entry.progress,
+                ...records.get(userId)!,
+              },
+              old?.learner ?? null,
+              now,
+            )
           : null;
-        const pct = Number(r.enrollment.percentCompleted ?? 0) || 0;
-        if (!s || s.currentItemId !== cur || s.percent !== pct)
-          dirty.add(r.userId);
+        if (!old && !next) continue;
+        replacements.set(userId, next);
+        incs.push(...counterDelta(old, next));
       }
-      const removed = stored
-        .map(s => s.userId)
-        .filter(id => !rosterIds.has(id));
-
-      // After a failed run the per-learner rows may be newer than the course
-      // summaries, so the summaries are rebuilt in full even with no new records.
-      const recovering = state.status === 'failed';
-      if (!dirty.size && !removed.length && !recovering) {
-        await this.repo.releaseLease(versionId, owner, {
-          watermark: upTo,
-          lastRefreshedAt: now,
-          status: 'idle',
-        });
-        return {versionId, outcome: 'skipped', learnersRecomputed: 0};
-      }
-
-      const dirtyRoster = roster.filter(r => dirty.has(r.userId));
-      const affectedDays = new Set<string>();
-      for (const d of await this.repo.getLearnerDayKeys(versionId, [
-        ...dirtyRoster.map(r => r.userId),
-        ...removed,
-      ]))
-        affectedDays.add(d);
-      if (removed.length) await this.repo.deleteLearners(versionId, removed);
-      const recomputed = await this.recomputeLearners(
-        structure,
-        dirtyRoster,
-        upTo,
-        affectedDays,
+      await this.repo.replaceLearnerRows(versionId, replacements);
+      await this.repo.applyIncrements(versionId, incs);
+      if (replacements.size) await this.repo.bumpChangeSeq(versionId);
+      recomputed += replacements.size;
+      pending = await this.repo.releaseLearners(
+        versionId,
+        pending,
+        owner,
+        new Date(),
       );
-
-      await this.beforeAggregate?.();
-      await this.aggregate(
-        structure,
-        recovering ? null : [...affectedDays],
-        now,
-      );
-      await this.repo.releaseLease(versionId, owner, {
-        watermark: upTo,
-        lastRefreshedAt: now,
-        status: 'idle',
-        lastError: null,
-      });
-      return {versionId, outcome: 'refreshed', learnersRecomputed: recomputed};
-    } catch (err) {
-      await this.repo.releaseLease(versionId, owner, {
-        status: 'failed',
-        lastError: String((err as Error)?.message ?? err),
-      });
-      throw err;
     }
+    return recomputed;
   }
 
-  /** Full rebuild of one version from the source records. */
-  async rebuildVersion(
+  /**
+   * Advances a version's gradual build by one bounded step, starting it if
+   * the version has no analytics yet. Returns the state after the step.
+   */
+  async buildStep(
     courseId: string,
     versionId: string,
     now = new Date(),
-  ): Promise<RefreshResult> {
+  ): Promise<BuildStepResult> {
+    let state = await this.repo.getState(versionId);
+    if (!state) {
+      const ids = await this.source.rosterUserIds(courseId, versionId);
+      await this.repo.createBuildState(versionId, courseId, ids.length, now);
+      state = await this.repo.getState(versionId);
+    }
+    if (!state || state.status === 'ready') return {state, processed: 0};
+
     const owner = randomUUID();
-    if (!(await this.repo.acquireLease(versionId, courseId, owner, now))) {
-      return {versionId, outcome: 'locked', learnersRecomputed: 0};
-    }
+    if (!(await this.repo.acquireLease(versionId, owner, now)))
+      return {state, processed: 0};
+    let processed = 0;
     try {
-      await this.repo.setStatus(versionId, {status: 'rebuilding'});
-      const structure = await this.source.loadStructure(versionId);
-      if (!structure) {
-        await this.repo.releaseLease(versionId, owner, {status: 'idle'});
-        return {versionId, outcome: 'missing', learnersRecomputed: 0};
-      }
-      const upTo = new Date(now.getTime() - SAFETY_MARGIN_MS);
-      const roster = await this.source.loadRoster(courseId, versionId);
-      const stored = await this.repo.getLearnerCurrentState(versionId);
-      const rosterIds = new Set(roster.map(r => r.userId));
-      const removed = stored
-        .map(s => s.userId)
-        .filter(id => !rosterIds.has(id));
-      if (removed.length) await this.repo.deleteLearners(versionId, removed);
-      const recomputed = await this.recomputeLearners(
-        structure,
-        roster,
-        upTo,
-        new Set(),
-      );
-      await this.beforeAggregate?.();
-      await this.aggregate(structure, null, now);
-      await this.repo.releaseLease(versionId, owner, {
-        watermark: upTo,
-        lastRefreshedAt: now,
-        firstBuildCompletedAt: now,
-        status: 'idle',
-        lastError: null,
-      });
-      return {versionId, outcome: 'rebuilt', learnersRecomputed: recomputed};
-    } catch (err) {
-      await this.repo.releaseLease(versionId, owner, {
-        status: 'failed',
-        lastError: String((err as Error)?.message ?? err),
-      });
-      throw err;
-    }
-  }
-
-  /** Every version with active students, one at a time. */
-  async refreshAllActive(
-    mode: 'refresh' | 'rebuild',
-    versions: {courseId: string; courseVersionId: string}[],
-  ): Promise<{done: number; failed: number; results: RefreshResult[]}> {
-    let done = 0;
-    let failed = 0;
-    const results: RefreshResult[] = [];
-    for (const v of versions) {
-      try {
-        const r =
-          mode === 'rebuild'
-            ? await this.rebuildVersion(v.courseId, v.courseVersionId)
-            : await this.refreshVersion(v.courseId, v.courseVersionId);
-        results.push(r);
-        done += 1;
-      } catch (err) {
-        failed += 1;
-        console.error(
-          `[analytics] ${mode} failed for ${v.courseId}/${v.courseVersionId}:`,
-          err,
+      const structure = await this.structure(versionId);
+      if (!structure) return {state, processed: 0};
+      const all = await this.source.rosterUserIds(courseId, versionId);
+      let cursor = state.cursorUserId;
+      const todo = all.filter(id => id > cursor);
+      const started = Date.now();
+      let done = state.done;
+      while (
+        processed < todo.length &&
+        processed < this.stepLearners &&
+        Date.now() - started < this.stepMs
+      ) {
+        const chunk = todo.slice(
+          processed,
+          Math.min(processed + CHUNK, this.stepLearners),
         );
+        await this.recomputeLearners(structure, chunk, now);
+        processed += chunk.length;
+        done += chunk.length;
+        cursor = chunk[chunk.length - 1];
+        await this.repo.updateState(versionId, {
+          cursorUserId: cursor,
+          done,
+          total: Math.max(all.length, done),
+        });
       }
+      // Events on learners already built whose recompute didn't finish.
+      await this.sweep(structure, cursor, now);
+      if (processed >= todo.length) {
+        await this.repo.updateState(versionId, {
+          status: 'ready',
+          readyAt: new Date(),
+          rosterCheckedAt: now,
+          done,
+          total: done,
+        });
+      }
+    } finally {
+      await this.repo.releaseLease(versionId, owner);
     }
-    return {done, failed, results};
+    return {state: await this.repo.getState(versionId), processed};
   }
 
-  private async recomputeLearners(
+  /**
+   * Recomputes dirty learners nobody is working on (after a crash or an
+   * interrupted recompute), up to SWEEP_LIMIT. During a build, only learners
+   * the build has already reached.
+   */
+  async sweep(
     structure: CourseStructure,
-    roster: RosterEntry[],
-    upTo: Date,
-    affectedDays: Set<string>,
+    upToUserId?: string,
+    now = new Date(),
+  ): Promise<number> {
+    let ids = await this.repo.dirtyLearners(structure.versionId, SWEEP_LIMIT);
+    if (upToUserId !== undefined) ids = ids.filter(id => id <= upToUserId);
+    if (!ids.length) return 0;
+    return this.recomputeLearners(structure, ids, now);
+  }
+
+  /**
+   * Enrolments made inside another service's transaction can't notify after
+   * commit, so a ready version's stored learners are compared with the roster
+   * at most every ROSTER_CHECK_MS, and differences recomputed.
+   */
+  async reconcileRoster(
+    structure: CourseStructure,
+    now = new Date(),
   ): Promise<number> {
     const {courseId, versionId} = structure;
-    for (let i = 0; i < roster.length; i += BATCH) {
-      const batch = roster.slice(i, i + BATCH);
-      const ids = batch.map(r => r.userId);
-      const [records, previous] = await Promise.all([
-        this.source.loadLearnerRecords(
-          courseId,
-          versionId,
-          structure.quizIds,
-          ids,
-        ),
-        this.repo.getLearners(versionId, ids),
-      ]);
-      const prevById = new Map(previous.map(p => [p.userId, p]));
-      const projections: LearnerProjection[] = batch.map(r =>
-        projectLearner(
-          structure,
-          {
-            userId: r.userId,
-            enrollment: r.enrollment,
-            progress: r.progress,
-            ...records.get(r.userId)!,
-          },
-          prevById.get(r.userId) ?? null,
-          upTo,
-        ),
-      );
-      for (const p of projections)
-        for (const d of p.days) affectedDays.add(d.day);
-      await this.repo.replaceLearners(versionId, ids, {
-        learners: projections.map(p => p.learner),
-        quizzes: projections.flatMap(p => p.quizzes),
-        videos: projections.flatMap(p => p.videos),
-        days: projections.flatMap(p => p.days),
-      });
-    }
-    return roster.length;
-  }
-
-  /** Tier 3: course summaries from the per-learner rows. */
-  private async aggregate(
-    structure: CourseStructure,
-    days: string[] | null,
-    now: Date,
-  ): Promise<void> {
-    const {courseId, versionId} = structure;
-    if (!days || days.length) await this.repo.aggregateDays(versionId, days);
-
-    const learners: CaLearner[] = await this.repo.getLearners(versionId);
-    const today = istDay(now);
-    const headline: Record<string, Headline> = {};
-    const shareWithIncident: Record<string, number> = {};
-    const activeCur = await this.repo.distinctLearnersBetween(
-      versionId,
-      addDays(today, -6),
-      today,
-      'active',
-    );
-    for (const range of RANGES) {
-      const prevEnd = addDays(today, -range);
-      const activePrev = await this.repo.distinctLearnersBetween(
-        versionId,
-        addDays(prevEnd, -6),
-        prevEnd,
-        'active',
-      );
-      const hoursCur = await this.repo.learningSecondsBetween(
-        versionId,
-        addDays(today, -range + 1),
-        today,
-      );
-      const hoursPrev = await this.repo.learningSecondsBetween(
-        versionId,
-        addDays(prevEnd, -range + 1),
-        prevEnd,
-      );
-      const withIncident = await this.repo.distinctLearnersBetween(
-        versionId,
-        addDays(today, -range + 1),
-        today,
-        'incident',
-      );
-      const hours = (s: number) => Math.round((s / 3600) * 10) / 10;
-      headline[String(range)] = learnerHeadline(learners, range, today, {
-        activeThisWeek: {
-          current: activeCur,
-          previous: activePrev || null,
-        },
-        learningHours: {
-          current: hours(hoursCur.seconds),
-          previous: hoursPrev.days ? hours(hoursPrev.seconds) : null,
-        },
-        shareWithIncident: 0,
-      });
-      shareWithIncident[String(range)] = learners.length
-        ? withIncident / learners.length
-        : 0;
-    }
-
-    const snapshot: CaCourseSnapshot = {
-      versionId,
-      courseId,
-      computedAt: now,
-      headline,
-      shareWithIncident,
-      progressBands: progressBands(learners),
-      funnel: moduleFunnel(structure, learners),
-      whereNow: whereNow(structure, learners, now),
-      checkOn: checkOn(structure, learners, now),
-      studyMode: studyModeSplit(learners),
-      checksOn: await this.source.proctoringChecksOn(courseId, versionId),
-    };
-    await this.repo.replaceSnapshot(snapshot);
-    await this.repo.replaceItemStats(
-      versionId,
-      await this.itemStats(structure),
-    );
-  }
-
-  private async itemStats(structure: CourseStructure): Promise<CaItemStats[]> {
-    const {versionId} = structure;
-    const [{perQuiz, perQuestion}, {perVideo, perSegment}] = await Promise.all([
-      this.repo.quizAggregates(versionId),
-      this.repo.videoAggregates(versionId),
+    const state = await this.repo.getState(versionId);
+    const last = state?.rosterCheckedAt?.getTime() ?? 0;
+    if (
+      !state ||
+      state.status !== 'ready' ||
+      now.getTime() - last < ROSTER_CHECK_MS
+    )
+      return 0;
+    await this.repo.updateState(versionId, {rosterCheckedAt: now});
+    const [roster, stored] = await Promise.all([
+      this.source.rosterUserIds(courseId, versionId),
+      this.repo.learnerIds(versionId),
     ]);
-    const quizRows = new Map(perQuiz.map((q: any) => [String(q._id), q]));
-    const questionsByQuiz = new Map<
-      string,
-      {questionId: string; answered: number; correct: number}[]
-    >();
-    for (const q of perQuestion) {
-      const list = questionsByQuiz.get(q._id.quizId) ?? [];
-      list.push({
-        questionId: q._id.questionId,
-        answered: q.answered,
-        correct: q.correct,
-      });
-      questionsByQuiz.set(q._id.quizId, list);
-    }
-    const hardest = new Map<
-      string,
-      {questionId: string; answered: number; correctRate: number}[]
-    >();
-    for (const [quizId, list] of questionsByQuiz) {
-      hardest.set(
-        quizId,
-        list
-          .filter(q => q.answered > 0)
-          .map(q => ({
-            questionId: q.questionId,
-            answered: q.answered,
-            correctRate: q.correct / q.answered,
-          }))
-          .sort(
-            (a, b) => a.correctRate - b.correctRate || b.answered - a.answered,
-          )
-          .slice(0, 5),
+    const inRoster = new Set(roster);
+    const inStore = new Set(stored);
+    const diff = [
+      ...roster.filter(id => !inStore.has(id)),
+      ...stored.filter(id => !inRoster.has(id)),
+    ].slice(0, ROSTER_FIX_LIMIT);
+    if (!diff.length) return 0;
+    let fixed = 0;
+    for (let i = 0; i < diff.length; i += CHUNK)
+      fixed += await this.recomputeLearners(
+        structure,
+        diff.slice(i, i + CHUNK),
+        now,
       );
-    }
-    const texts = await this.source.questionTexts(
-      [...hardest.values()].flat().map(q => q.questionId),
-    );
-    const videoRows = new Map(perVideo.map((v: any) => [String(v._id), v]));
-    const segsByVideo = new Map<
-      string,
-      {startSecond: number; rewinds: number}[]
-    >();
-    for (const s of perSegment) {
-      const list = segsByVideo.get(s._id.itemId) ?? [];
-      list.push({startSecond: Number(s._id.seg), rewinds: s.rewinds});
-      segsByVideo.set(s._id.itemId, list);
-    }
+    return fixed;
+  }
 
-    const out: CaItemStats[] = [];
-    for (const item of structure.items.values()) {
-      const base = {
-        versionId,
-        itemId: item.itemId,
-        moduleId: item.moduleId,
-        sectionId: item.sectionId,
-        name: item.name,
-        order: item.order,
-      };
-      if (item.type === 'QUIZ') {
-        const q: any = quizRows.get(item.itemId);
-        const bands = Array.from({length: 10}, () => 0);
-        for (const s of (q?.scores ?? []) as (number | null)[])
-          if (s != null) bands[scoreBand(s)] += 1;
-        out.push({
-          ...base,
-          type: 'QUIZ',
-          attempted: q?.attempted ?? 0,
-          firstAttemptPassRate: q?.attempted
-            ? q.firstPassed / q.attempted
-            : null,
-          avgAttemptsToPass:
-            q?.avgAttemptsToPass == null
-              ? null
-              : Math.round(q.avgAttemptsToPass * 100) / 100,
-          scoreBands: bands,
-          hardestQuestions: (hardest.get(item.itemId) ?? []).map(h => ({
-            ...h,
-            text: texts.get(h.questionId) ?? '',
-          })),
-        });
-      } else if (item.type === 'VIDEO') {
-        const v: any = videoRows.get(item.itemId);
-        out.push({
-          ...base,
-          type: 'VIDEO',
-          started: v?.started ?? 0,
-          completed: v?.completed ?? 0,
-          rewindHotspots: (segsByVideo.get(item.itemId) ?? [])
-            .filter(s => s.rewinds > 0)
-            .sort(
-              (a, b) => b.rewinds - a.rewinds || a.startSecond - b.startSecond,
-            )
-            .slice(0, 5),
-        });
-      }
-    }
-    return out;
+  /** Admin rebuild: drop the version's analytics; the next view rebuilds. */
+  async resetVersion(versionId: string): Promise<void> {
+    this.structures.delete(versionId);
+    await this.repo.deleteVersion(versionId);
   }
 }

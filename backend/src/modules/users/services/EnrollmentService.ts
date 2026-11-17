@@ -49,6 +49,7 @@ import { SETTING_TYPES } from '#root/modules/setting/types.js';
 import { HP_SYSTEM_TYPES } from '#root/modules/hpSystem/types.js';
 import { LedgerRepository } from '#root/modules/hpSystem/repositories/index.js';
 import { isGuruSetuProgressCourse, GURU_SETU_PROGRESS_COURSES } from '#root/modules/users/constants.js';
+import {notifyLearnerChanged} from '#root/modules/analytics/events.js';
 
 // Only used below to seed GURU_SETU_FEEDBACK_EXPORT_COURSES's first entry.
 // Progress-calculation gating in this file now goes through
@@ -304,7 +305,10 @@ export class EnrollmentService extends BaseService {
       };
     };
     // If session provided, use it; otherwise wrap in a new transaction
-    return session ? execute(session) : this._withTransaction(execute);
+    if (session) return execute(session);
+    const enrolled = await this._withTransaction(execute);
+    notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
+    return enrolled;
   }
 
   async findEnrollment(
@@ -584,6 +588,9 @@ export class EnrollmentService extends BaseService {
         progress: null,
         role: enrollment.role,
       };
+    }).then(unenrolled => {
+      notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
+      return unenrolled;
     });
   }
 

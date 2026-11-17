@@ -358,6 +358,8 @@ describe('course summaries from learner rows (3.1)', () => {
     usedStrict: true,
     usedStudy: false,
     incidentCount: 0,
+    lastIncidentAt: null,
+    computedAt: now,
     ...over,
   });
 
