@@ -1,20 +1,7 @@
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  LabelList,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { TrendingDownIcon } from 'lucide-react';
+import { Fragment } from 'react';
 
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from '@/components/ui/chart';
-
+import { BarList, BarRow, type BarTone } from './bars';
 import { ChartPanel } from './chart-panel';
 import { count } from './format';
 import type { CourseInsights, ProgressBand } from './types';
@@ -35,10 +22,10 @@ const BAND_ORDER: ProgressBand[] = [
   '75-99',
   'finished',
 ];
-
-const bandsConfig = {
-  students: { label: 'Students', color: 'var(--chart-1)' },
-} satisfies ChartConfig;
+const BAND_TONE: Partial<Record<ProgressBand, BarTone>> = {
+  '0': 'muted',
+  finished: 'good',
+};
 
 /** How far students have got, in bands. */
 export function ProgressBands({
@@ -52,14 +39,13 @@ export function ProgressBands({
     students: bands.find((b) => b.band === band)?.students ?? 0,
   }));
   const total = data.reduce((s, d) => s + d.students, 0);
-  const notStarted = data[0].students;
-  const finished = data[5].students;
+  const max = Math.max(1, ...data.map((d) => d.students));
   return (
     <ChartPanel
       title="Progress"
       summary={
         total
-          ? `${count(finished, 'student')} finished and ${notStarted.toLocaleString()} haven’t started, out of ${total.toLocaleString()}.`
+          ? `${data[5].students.toLocaleString()} finished and ${data[0].students.toLocaleString()} not started, of ${count(total, 'student')}.`
           : 'No students yet.'
       }
       table={{
@@ -68,49 +54,25 @@ export function ProgressBands({
         rows: data.map((d) => [d.label, d.students]),
       }}
     >
-      <ChartContainer config={bandsConfig} className="aspect-auto h-52 w-full">
-        <BarChart
-          data={data}
-          margin={{ top: 20, left: 4, right: 4 }}
-          accessibilityLayer
-        >
-          <CartesianGrid vertical={false} />
-          <XAxis
-            dataKey="label"
-            tickLine={false}
-            axisLine={false}
-            tickMargin={8}
-            interval={0}
-            fontSize={11}
-          />
-          <YAxis hide allowDecimals={false} />
-          <ChartTooltip
-            cursor={false}
-            content={<ChartTooltipContent hideIndicator />}
-          />
-          <Bar dataKey="students" radius={[4, 4, 0, 0]}>
-            {data.map((d) => (
-              <Cell
-                key={d.band}
-                fill={
-                  d.band === 'finished'
-                    ? 'var(--chart-3)'
-                    : d.band === '0'
-                      ? 'var(--muted-foreground)'
-                      : 'var(--color-students)'
-                }
-                fillOpacity={d.band === '0' ? 0.35 : 1}
-              />
-            ))}
-            <LabelList
-              dataKey="students"
-              position="top"
-              className="fill-foreground"
-              fontSize={11}
+      <BarList>
+        {data.map((d) => (
+          <li key={d.band}>
+            <BarRow
+              label={d.label}
+              value={
+                <>
+                  {d.students.toLocaleString()}
+                  <span className="ml-2 inline-block w-9 text-right text-xs font-normal text-muted-foreground">
+                    {total ? Math.round((d.students / total) * 100) : 0}%
+                  </span>
+                </>
+              }
+              bar={d.students / max}
+              tone={BAND_TONE[d.band] ?? 'primary'}
             />
-          </Bar>
-        </BarChart>
-      </ChartContainer>
+          </li>
+        ))}
+      </BarList>
     </ChartPanel>
   );
 }
@@ -133,31 +95,24 @@ export function biggestDrop(
   return best;
 }
 
-const funnelConfig = {
-  reached: {
-    label: 'Reached',
-    color: 'color-mix(in oklch, var(--chart-1) 35%, transparent)',
-  },
-  completed: { label: 'Finished', color: 'var(--chart-1)' },
-} satisfies ChartConfig;
-
-const truncate = (s: string, n: number) =>
-  s.length > n ? `${s.slice(0, n - 1)}…` : s;
-
-/** Module by module: how many students reached it and how many finished it. */
+/**
+ * Module by module: one track per module, its faint part the students who
+ * reached it and its solid part those who finished it. The biggest drop
+ * between two modules is called out where it happens.
+ */
 export function ModuleFunnel({
   funnel,
 }: {
   funnel: NonNullable<CourseInsights['funnel']>;
 }) {
   const drop = biggestDrop(funnel);
-  const data = funnel.map((m, i) => ({ ...m, label: `${i + 1}. ${m.name}` }));
+  const max = Math.max(1, ...funnel.map((m) => m.reached));
   return (
     <ChartPanel
       title="Module by module"
       summary={
         drop
-          ? `The biggest drop is after “${funnel[drop.from].name}”: ${count(drop.lost, 'student')} finished it but haven’t reached “${funnel[drop.from + 1].name}”.`
+          ? `Biggest drop: ${count(drop.lost, 'student')} finished “${funnel[drop.from].name}” but haven’t started the next module.`
           : funnel.length
             ? 'No module loses students on the way to the next.'
             : 'This course has no modules yet.'
@@ -165,102 +120,72 @@ export function ModuleFunnel({
       table={{
         caption: 'Students who reached and finished each module',
         columns: ['Module', 'Reached', 'Finished'],
-        rows: data.map((m) => [m.label, m.reached, m.completed]),
+        rows: funnel.map((m, i) => [`${i + 1}. ${m.name}`, m.reached, m.completed]),
       }}
     >
-      {drop && (
+      <BarList>
+        {funnel.map((m, i) => (
+          <Fragment key={m.moduleId}>
+            {drop && i === drop.from + 1 && (
+              <li
+                data-testid="funnel-drop"
+                className="flex items-center gap-2 py-2 text-xs font-medium text-rose-700 dark:text-rose-300"
+              >
+                <TrendingDownIcon aria-hidden className="size-3.5" />−
+                {drop.lost.toLocaleString()} between module {drop.from + 1} and
+                module {drop.from + 2}
+              </li>
+            )}
+            <li>
+              <div className="flex min-w-0 items-start gap-3 py-2.5">
+                <span className="mt-px w-4 shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline gap-3">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                      {m.name}
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      {m.completed.toLocaleString()}
+                      <span className="font-normal text-muted-foreground">
+                        {' '}
+                        / {m.reached.toLocaleString()}
+                      </span>
+                    </span>
+                  </span>
+                  <span
+                    aria-hidden
+                    className="relative mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted"
+                  >
+                    <span
+                      className="absolute inset-y-0 left-0 rounded-full bg-chart-1/30"
+                      style={{ width: `${(m.reached / max) * 100}%` }}
+                    />
+                    <span
+                      className="absolute inset-y-0 left-0 rounded-full bg-chart-1"
+                      style={{ width: `${(m.completed / max) * 100}%` }}
+                    />
+                  </span>
+                </span>
+              </div>
+            </li>
+          </Fragment>
+        ))}
+      </BarList>
+      {funnel.length > 0 && (
         <p
-          className="mb-3 inline-flex items-center gap-2 rounded-full bg-rose-500/10 px-2.5 py-1 text-xs font-medium text-rose-700 dark:text-rose-300"
-          data-testid="funnel-drop"
+          className="mt-2 flex items-center gap-4 text-[11px] text-muted-foreground"
+          aria-hidden
         >
-          −{drop.lost.toLocaleString()} between module {drop.from + 1} and
-          module {drop.from + 2}
+          <span className="flex items-center gap-1.5">
+            <span className="h-1.5 w-3 rounded-full bg-chart-1" /> Finished
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-1.5 w-3 rounded-full bg-chart-1/30" /> Reached
+          </span>
         </p>
       )}
-      <ChartContainer
-        config={funnelConfig}
-        className="aspect-auto w-full"
-        style={{ height: Math.max(120, data.length * 44 + 24) }}
-      >
-        <BarChart
-          data={data}
-          layout="vertical"
-          margin={{ left: 0, right: 36 }}
-          barGap={2}
-          accessibilityLayer
-        >
-          <CartesianGrid horizontal={false} />
-          <XAxis type="number" hide allowDecimals={false} />
-          <YAxis
-            type="category"
-            dataKey="label"
-            tickLine={false}
-            axisLine={false}
-            width={150}
-            tick={({
-              x,
-              y,
-              payload,
-            }: {
-              x: number | string;
-              y: number | string;
-              payload: { value: string };
-            }) => (
-              <text
-                x={x}
-                y={y}
-                dy={4}
-                textAnchor="end"
-                fontSize={11}
-                className="fill-muted-foreground"
-              >
-                <title>{payload.value}</title>
-                {truncate(payload.value, 22)}
-              </text>
-            )}
-          />
-          <ChartTooltip
-            cursor={false}
-            content={<ChartTooltipContent indicator="dot" />}
-          />
-          <Bar
-            dataKey="reached"
-            fill="var(--color-reached)"
-            radius={4}
-            barSize={12}
-          >
-            {data.map((m, i) => (
-              <Cell
-                key={m.moduleId}
-                fill={
-                  drop && i === drop.from + 1
-                    ? 'color-mix(in oklch, var(--color-rose-500, #f43f5e) 45%, transparent)'
-                    : 'var(--color-reached)'
-                }
-              />
-            ))}
-            <LabelList
-              dataKey="reached"
-              position="right"
-              className="fill-muted-foreground"
-              fontSize={10}
-            />
-          </Bar>
-          <Bar
-            dataKey="completed"
-            fill="var(--color-completed)"
-            radius={4}
-            barSize={12}
-          >
-            <LabelList
-              dataKey="completed"
-              position="right"
-              className="fill-foreground"
-              fontSize={10}
-            />
-          </Bar>
-        </BarChart>
-      </ChartContainer>
     </ChartPanel>
   );
 }

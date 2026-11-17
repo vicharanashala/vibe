@@ -4,9 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { courseInsightsFixture } from '@/test/fixtures/studio/course-insights';
 
-import { ActivityChart, EnrolmentsChart, StudyHeatmap } from './activity';
+import { ActivityHero, KeyStats, StudyHeatmap } from './activity';
 import { longDay } from './format';
-import { Headline } from './headline';
 import { biggestDrop, ModuleFunnel, ProgressBands } from './progress';
 
 const f = courseInsightsFixture(30);
@@ -15,9 +14,11 @@ const wrap = (ui: React.ReactNode) =>
 const stat = (label: string) =>
   screen.getByText(label, { selector: 'dt' }).parentElement!;
 
+const tile = (name: RegExp) => screen.getByRole('button', { name });
+
 describe('headline trends', () => {
   it('shows each figure with its change against the previous period', () => {
-    wrap(<Headline headline={f.headline!} />);
+    wrap(<KeyStats headline={f.headline!} />);
     const finished = stat('Finished');
     expect(finished).toHaveTextContent('12');
     expect(within(finished).getByText('+4')).toBeInTheDocument();
@@ -35,7 +36,7 @@ describe('headline trends', () => {
   });
 
   it('treats a shorter time to finish as an improvement', () => {
-    wrap(<Headline headline={f.headline!} />);
+    wrap(<KeyStats headline={f.headline!} />);
     const median = stat('Median time to finish');
     expect(median).toHaveTextContent('19 days');
     expect(median.querySelector('[data-direction]')).toHaveAttribute(
@@ -49,7 +50,7 @@ describe('headline trends', () => {
 
   it('shows no trend when the previous period has no data', () => {
     wrap(
-      <Headline
+      <KeyStats
         headline={{ ...f.headline!, finished: { current: 3, previous: null } }}
       />,
     );
@@ -57,47 +58,58 @@ describe('headline trends', () => {
     expect(finished).toHaveTextContent('3');
     expect(finished.querySelector('[data-direction]')).toBeNull();
   });
+
+  it('shows students, active this week and learning hours as tiles with trends', () => {
+    wrap(<ActivityHero daily={f.daily!} headline={f.headline!} range={30} />);
+    expect(tile(/^Students/)).toHaveTextContent('240');
+    expect(within(tile(/^Students/)).getByText('+28')).toBeInTheDocument();
+    expect(tile(/^Active this week/)).toHaveTextContent('131');
+    expect(tile(/^Learning hours/)).toHaveTextContent('1,649 h');
+  });
 });
 
 describe('activity', () => {
   it('summarises the busiest day and gives screen readers every day’s figures', () => {
-    wrap(<ActivityChart daily={f.daily!} range={30} />);
+    wrap(<ActivityHero daily={f.daily!} headline={f.headline!} range={30} />);
     const chart = screen.getByRole('figure', { name: 'Daily activity' });
-    expect(chart).toHaveAccessibleDescription(
-      /of learning in the last 30 days\. Busiest day:/,
-    );
+    expect(chart).toHaveAccessibleDescription(/^Busiest day: .+, with \d+ active students\.$/);
     const table = within(chart).getByRole('table', {
-      name: 'Active students and learning hours per day',
+      name: 'Active students, learning hours and new enrolments per day',
     });
     expect(within(table).getAllByRole('row')).toHaveLength(31);
     expect(
-      within(table).getByRole('columnheader', { name: 'Learning hours' }),
+      within(table).getByRole('columnheader', { name: 'New enrolments' }),
     ).toBeInTheDocument();
+  });
+
+  it('switches the chart between metrics from the tiles', async () => {
+    const user = userEvent.setup();
+    wrap(<ActivityHero daily={f.daily!} headline={f.headline!} range={30} />);
+    expect(tile(/^Active this week/)).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Active students per day')).toBeInTheDocument();
+    await user.click(tile(/^New enrolments/));
+    expect(tile(/^New enrolments/)).toHaveAttribute('aria-pressed', 'true');
+    expect(tile(/^Active this week/)).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText('New enrolments per day')).toBeInTheDocument();
+    const total = f.daily!.reduce((s, d) => s + d.newEnrolments, 0);
+    expect(tile(/^New enrolments/)).toHaveTextContent(String(total));
   });
 
   it('opens the day’s tooltip from the keyboard', async () => {
     const user = userEvent.setup();
-    wrap(<ActivityChart daily={f.daily!} range={30} />);
+    wrap(<ActivityHero daily={f.daily!} headline={f.headline!} range={30} />);
     const surface = screen.getByRole('application');
     act(() => surface.focus());
     await user.keyboard('{ArrowRight}');
     // Focus selects the first day; ArrowRight moves to the second.
-    const first = f.daily![1];
+    const second = f.daily![1];
     await waitFor(() => {
       const tip = document.querySelector('.recharts-tooltip-wrapper');
-      expect(tip).toHaveTextContent(longDay(first.day));
-      expect(tip).toHaveTextContent(`Active students${first.activeLearners}`);
+      expect(tip).toHaveTextContent(longDay(second.day));
+      expect(tip).toHaveTextContent(
+        `Active students per day${second.activeLearners}`,
+      );
     });
-  });
-
-  it('counts new enrolments across the range', () => {
-    wrap(<EnrolmentsChart daily={f.daily!} range={30} />);
-    const total = f.daily!.reduce((s, d) => s + d.newEnrolments, 0);
-    expect(
-      screen.getByRole('figure', { name: 'New enrolments' }),
-    ).toHaveAccessibleDescription(
-      `${total} students joined in the last 30 days.`,
-    );
   });
 
   it('shows a heatmap cell’s value in a tooltip when it gets keyboard focus', async () => {
@@ -124,7 +136,7 @@ describe('progress', () => {
     wrap(<ProgressBands bands={f.progressBands!} />);
     const chart = screen.getByRole('figure', { name: 'Progress' });
     expect(chart).toHaveAccessibleDescription(
-      '12 students finished and 18 haven’t started, out of 240.',
+      '12 finished and 18 not started, of 240 students.',
     );
     const rows = within(within(chart).getByRole('table'))
       .getAllByRole('row')
@@ -157,7 +169,7 @@ describe('progress', () => {
     expect(
       screen.getByRole('figure', { name: 'Module by module' }),
     ).toHaveAccessibleDescription(
-      'The biggest drop is after “Building with tools”: 85 students finished it but haven’t reached “Evaluating outputs”.',
+      'Biggest drop: 85 students finished “Building with tools” but haven’t started the next module.',
     );
   });
 });

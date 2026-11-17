@@ -29,7 +29,13 @@ export const insightsKey = (
   range: InsightsRange,
 ) => ['admin', 'insights', courseId, versionId, range] as const;
 
-/** The course Overview's analytics for the last `range` days. Refreshed at most every 5 minutes. */
+/** While the first build runs, poll this often: each request also advances the build. */
+export const BUILD_POLL_MS = 3000;
+
+/**
+ * The course Overview's analytics for the last `range` days. While the first
+ * build is running it polls every BUILD_POLL_MS and stops once it's ready.
+ */
 export function useCourseInsights(
   courseId: string,
   versionId: string,
@@ -45,6 +51,8 @@ export function useCourseInsights(
       ),
     enabled: !!courseId && !!versionId,
     staleTime: 5 * 60_000,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'building' ? BUILD_POLL_MS : false,
     placeholderData: (previous) => previous,
   });
 }

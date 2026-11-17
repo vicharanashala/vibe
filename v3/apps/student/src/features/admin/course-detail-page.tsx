@@ -165,7 +165,7 @@ export function CourseDetailPage({
             {course.isPending ? (
               <Skeleton className="h-8 w-64" />
             ) : (
-              <h1 className="font-aleo text-3xl leading-tight tracking-tight text-balance break-words">
+              <h1 className="font-aleo text-2xl leading-tight tracking-tight text-balance break-words sm:text-3xl">
                 {course.data?.name ?? 'Course'}
               </h1>
             )}

@@ -51,14 +51,14 @@ describe('where students are now', () => {
     });
     const row = within(panel)
       .getByText('Tutorial 3: Calling an API from a notebook')
-      .closest('tr')!;
+      .closest('li')!;
     expect(row).toHaveTextContent('15');
     expect(row).toHaveTextContent('4 days');
     expect(within(row).getByText('Possible blocker')).toBeInTheDocument();
     // 11 students for a median of 1.4 days isn't a blocker.
     expect(
       within(
-        within(panel).getByText('Prompting checkpoint quiz').closest('tr')!,
+        within(panel).getByText('Prompting checkpoint quiz').closest('li')!,
       ).queryByText('Possible blocker'),
     ).toBeNull();
     expect(isBlocker({ students: 4, medianDaysThere: 10 })).toBe(false);
@@ -91,13 +91,15 @@ describe('quizzes', () => {
       'Prompting checkpoint quiz',
       'Module 1 check-in',
     ]);
-    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    const rows = within(
+      screen.getByRole('figure', { name: 'Quizzes' }),
+    ).getAllByRole('listitem');
     expect(rows[0]).toHaveTextContent('Tools and APIs quiz');
     expect(rows[0]).toHaveTextContent('35%');
     expect(
       screen.getByRole('figure', { name: 'Quizzes' }),
     ).toHaveAccessibleDescription(
-      'Hardest: “Tools and APIs quiz”, passed first time by 35% of students.',
+      'Hardest: “Tools and APIs quiz”, 35% pass first time.',
     );
   });
 
@@ -134,7 +136,7 @@ describe('videos', () => {
     expect(
       screen.getByRole('figure', { name: 'Videos' }),
     ).toHaveAccessibleDescription(
-      'Least finished: “Tutorial 3: Calling an API from a notebook”, completed by 65% of the students who started it.',
+      'Least finished: “Tutorial 3: Calling an API from a notebook”, 65% completed.',
     );
     await user.click(
       screen.getByRole('button', {

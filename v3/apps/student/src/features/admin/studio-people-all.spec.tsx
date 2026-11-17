@@ -159,9 +159,9 @@ describe('Overview, in a course bigger than one page', () => {
     const stat = async (label: string) =>
       (await screen.findAllByText(label)).find((el) => el.tagName === 'DT')?.parentElement;
     // The headline comes from the course analytics (fixture: 240 students, 46%, 12 finished).
-    await waitFor(async () =>
-      expect(await stat('Students')).toHaveTextContent('240'),
-    );
+    expect(
+      await screen.findByRole('button', { name: /^Students/ }),
+    ).toHaveTextContent('240');
     expect(await stat('Average progress')).toHaveTextContent('46%');
     expect(await stat('Finished')).toHaveTextContent('12');
     // The only list request is the short "Finished the course" preview, never the whole course.

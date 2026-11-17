@@ -31,7 +31,7 @@ The Overview tab SHALL show these headline metrics, each with its change against
 - **THEN** the metric shows its value without a trend indicator
 
 ### Requirement: Activity charts
-The Overview tab SHALL show daily active students and daily learning hours over the range, daily new enrolments, and a weekday × hour heatmap of study time in IST.
+The Overview tab SHALL show daily active students, daily learning hours and daily new enrolments over the range (one chart, switched by selecting a metric tile), and a weekday × hour heatmap of study time in IST.
 
 #### Scenario: Hover a day
 - **WHEN** the teacher points at or focuses a day on the activity chart
@@ -96,11 +96,15 @@ The Overview tab SHALL show proctoring incidents per 100 learning hours by type 
 - **THEN** the proctoring section says proctoring is off instead of showing an empty chart
 
 ### Requirement: Freshness and states
-The Overview tab SHALL show when its analytics were last updated, show loading placeholders while fetching, show an explanatory empty state for a course with no students, and show a "being prepared" message while the first build is in progress.
+The Overview tab SHALL show loading placeholders while fetching, show an explanatory empty state for a course with no students, and while the first build is in progress show "Preparing insights" with a progress bar and check again every 3 seconds until the figures are ready.
 
-#### Scenario: Last updated
-- **WHEN** the analytics were last refreshed 6 minutes ago
-- **THEN** the page shows "Updated 6 minutes ago"
+#### Scenario: Build progress
+- **WHEN** the backend reports the first build is 40% done
+- **THEN** the page shows "Preparing insights" with a progress bar at 40%
+
+#### Scenario: Build finishes
+- **WHEN** a later check reports the analytics are ready
+- **THEN** the page stops checking and shows the figures
 
 #### Scenario: New course
 - **WHEN** the course has no enrolled students
@@ -108,7 +112,7 @@ The Overview tab SHALL show when its analytics were last updated, show loading p
 
 #### Scenario: First build in progress
 - **WHEN** the backend reports the first build is in progress
-- **THEN** the page shows that insights are being prepared and the existing course actions remain available
+- **THEN** the existing course actions remain available
 
 ### Requirement: Existing overview actions remain
 The Overview tab SHALL keep the existing finished-students list, the Content, Invite people and Proctoring tiles, the registration link and the course description.

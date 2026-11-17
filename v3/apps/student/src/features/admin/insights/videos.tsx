@@ -1,8 +1,6 @@
-import { ChevronRightIcon, RotateCcwIcon } from 'lucide-react';
+import { RotateCcwIcon } from 'lucide-react';
 import { useState } from 'react';
 
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import {
   Sheet,
   SheetContent,
@@ -10,15 +8,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 
+import { BarRow, ShowMoreList } from './bars';
 import { ChartPanel } from './chart-panel';
 import { count, percent, timestamp } from './format';
 import type { VideoInsight } from './types';
@@ -38,68 +29,39 @@ export function VideoInsights({ videos }: { videos: VideoInsight[] }) {
       title="Videos"
       summary={
         lowest
-          ? `Least finished: “${lowest.name}”, completed by ${percent(completion(lowest) ?? 0)} of the students who started it.`
+          ? `Least finished: “${lowest.name}”, ${percent(completion(lowest) ?? 0)} completed.`
           : videos.length
             ? 'Completion rates appear once a few students have started each video.'
             : 'This course has no videos.'
       }
     >
       {videos.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Video</TableHead>
-              <TableHead className="w-32 max-sm:w-20">Completed</TableHead>
-              <TableHead className="w-10">
-                <span className="sr-only">Details</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {videos.map((v) => {
+        <>
+          <p className="mb-1 flex justify-between text-[11px] font-medium text-muted-foreground">
+            <span>Video</span>
+            <span>Completed</span>
+          </p>
+          <ShowMoreList
+            items={videos}
+            noun="videos"
+            render={(v) => {
               const rate = completion(v);
               return (
-                <TableRow key={v.itemId}>
-                  <TableCell className="w-full max-w-0">
-                    <p className="line-clamp-2 font-medium whitespace-normal">
-                      {v.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {v.completed.toLocaleString()} of{' '}
-                      {count(v.started, 'student')} who started
-                    </p>
-                  </TableCell>
-                  <TableCell>
-                    {rate == null ? (
-                      <span className="text-muted-foreground">–</span>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Progress
-                          value={Math.round(rate * 100)}
-                          className="flex-1 max-sm:hidden"
-                          aria-hidden
-                        />
-                        <span className="w-9 text-right text-xs tabular-nums">
-                          {percent(rate)}
-                        </span>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={`${v.name}: details`}
-                      onClick={() => setOpenId(v.itemId)}
-                    >
-                      <ChevronRightIcon aria-hidden />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                <li key={v.itemId}>
+                  <BarRow
+                    onClick={() => setOpenId(v.itemId)}
+                    actionLabel={`${v.name}: details`}
+                    label={v.name}
+                    value={rate == null ? '–' : percent(rate)}
+                    bar={rate ?? 0}
+                    tone={rate == null ? 'muted' : rate < 0.7 ? 'warn' : 'primary'}
+                    detail={`${v.completed.toLocaleString()} of ${count(v.started, 'student')} who started`}
+                  />
+                </li>
               );
-            })}
-          </TableBody>
-        </Table>
+            }}
+          />
+        </>
       )}
       <Sheet open={!!open} onOpenChange={(o) => !o && setOpenId(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-md">

@@ -1,8 +1,6 @@
-import { ChevronRightIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
-import { Button } from '@/components/ui/button';
 import {
   ChartContainer,
   ChartTooltip,
@@ -17,15 +15,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 
+import { BarRow, ShowMoreList, type BarTone } from './bars';
 import { ChartPanel } from './chart-panel';
 import { count, percent } from './format';
 import type { QuizInsight } from './types';
@@ -37,14 +28,11 @@ export function sortQuizzes(quizzes: QuizInsight[]) {
   );
 }
 
-const passTone = (rate: number | null) =>
-  rate == null
-    ? 'text-muted-foreground'
-    : rate < 0.5
-      ? 'text-rose-700 dark:text-rose-300'
-      : rate < 0.75
-        ? 'text-amber-700 dark:text-amber-300'
-        : 'text-emerald-700 dark:text-emerald-300';
+const passTone = (rate: number | null): BarTone =>
+  rate == null ? 'muted' : rate < 0.5 ? 'bad' : rate < 0.75 ? 'warn' : 'good';
+
+const attempts = (n: number) =>
+  `${(Math.round(n * 10) / 10).toLocaleString()} ${n === 1 ? 'try' : 'tries'} to pass`;
 
 /** Every quiz's first-attempt pass rate and attempts needed, hardest first. Each opens its detail. */
 export function QuizInsights({ quizzes }: { quizzes: QuizInsight[] }) {
@@ -57,67 +45,45 @@ export function QuizInsights({ quizzes }: { quizzes: QuizInsight[] }) {
       title="Quizzes"
       summary={
         hardest
-          ? `Hardest: “${hardest.name}”, passed first time by ${percent(hardest.firstAttemptPassRate ?? 0)} of students.`
+          ? `Hardest: “${hardest.name}”, ${percent(hardest.firstAttemptPassRate ?? 0)} pass first time.`
           : quizzes.length
             ? 'No quiz has been attempted yet.'
             : 'This course has no quizzes.'
       }
     >
       {sorted.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Quiz</TableHead>
-              <TableHead className="text-right">
-                <span className="max-sm:hidden">Passed </span>first time
-              </TableHead>
-              <TableHead className="text-right max-sm:hidden">
-                Attempts to pass
-              </TableHead>
-              <TableHead className="w-10">
-                <span className="sr-only">Details</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sorted.map((q) => (
-              <TableRow key={q.itemId}>
-                <TableCell className="w-full max-w-0">
-                  <p className="line-clamp-2 font-medium whitespace-normal">
-                    {q.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {count(q.attempted, 'student')} attempted
-                  </p>
-                </TableCell>
-                <TableCell
-                  className={`text-right font-medium tabular-nums ${passTone(q.firstAttemptPassRate)}`}
-                >
-                  {q.firstAttemptPassRate == null
-                    ? '–'
-                    : percent(q.firstAttemptPassRate)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground max-sm:hidden">
-                  {q.avgAttemptsToPass == null
-                    ? '–'
-                    : (
-                        Math.round(q.avgAttemptsToPass * 10) / 10
-                      ).toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`${q.name}: details`}
-                    onClick={() => setOpenId(q.itemId)}
-                  >
-                    <ChevronRightIcon aria-hidden />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <>
+          <p className="mb-1 flex justify-between text-[11px] font-medium text-muted-foreground">
+            <span>Quiz</span>
+            <span>Passed first time</span>
+          </p>
+          <ShowMoreList
+            items={sorted}
+            noun="quizzes"
+            render={(q) => (
+              <li key={q.itemId}>
+                <BarRow
+                  onClick={() => setOpenId(q.itemId)}
+                  actionLabel={`${q.name}: details`}
+                  label={q.name}
+                  value={
+                    q.firstAttemptPassRate == null
+                      ? '–'
+                      : percent(q.firstAttemptPassRate)
+                  }
+                  bar={q.firstAttemptPassRate ?? 0}
+                  tone={passTone(q.firstAttemptPassRate)}
+                  detail={[
+                    `${count(q.attempted, 'student')} attempted`,
+                    q.avgAttemptsToPass != null && attempts(q.avgAttemptsToPass),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                />
+              </li>
+            )}
+          />
+        </>
       )}
       <Sheet open={!!open} onOpenChange={(o) => !o && setOpenId(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-md">

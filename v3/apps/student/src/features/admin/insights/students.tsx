@@ -1,14 +1,17 @@
 import { ChevronRightIcon, PartyPopperIcon } from 'lucide-react';
 
 import { GeneratedAvatar } from '@/components/generated-art';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
+import { ShowMoreList } from './bars';
 import { ChartPanel } from './chart-panel';
-import { count, days } from './format';
+import { days } from './format';
 import type { CheckOnStudent } from './types';
 
-const SHOWN = 10;
+const STATUS = {
+  stuck: { label: 'Stuck', dot: 'bg-amber-500' },
+  inactive: { label: 'Inactive', dot: 'bg-slate-400 dark:bg-slate-500' },
+} as const;
 
 /** Students who've gone quiet or are stuck on one lesson. Each opens People filtered to them. */
 export function StudentsToCheckOn({
@@ -25,7 +28,7 @@ export function StudentsToCheckOn({
       title="Students to check on"
       summary={
         students.length
-          ? `${count(inactive, 'student')} inactive for a week or more, ${stuck.toLocaleString()} on the same lesson for 3+ days.`
+          ? `${inactive.toLocaleString()} inactive 7+ days, ${stuck.toLocaleString()} stuck 3+ days.`
           : 'Everyone is active and moving.'
       }
     >
@@ -35,44 +38,47 @@ export function StudentsToCheckOn({
           quiet or got stuck.
         </p>
       ) : (
-        <ul className="-mx-2 divide-y divide-border">
-          {students.slice(0, SHOWN).map((s) => (
-            <li key={s.userId}>
-              <Button
-                variant="ghost"
-                className="h-auto w-full justify-start gap-3 rounded-lg px-2 py-2.5 text-left font-normal whitespace-normal"
-                onClick={() => onOpenStudent(s.email)}
-              >
-                <GeneratedAvatar seed={s.userId} size={30} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">
-                    {s.name}
-                  </span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {s.reason === 'stuck' && s.item
-                      ? `On “${s.item.name}” for ${days(s.daysOnItem ?? 0)}`
-                      : `Last active ${days(s.daysSinceActive)} ago${s.item ? ` · on “${s.item.name}”` : ''}`}
-                  </span>
-                </span>
-                <Badge
-                  variant={s.reason === 'stuck' ? 'secondary' : 'outline'}
-                  className="shrink-0"
+        <ShowMoreList
+          items={students}
+          noun="students"
+          render={(s) => {
+            const status = STATUS[s.reason];
+            const detail =
+              s.reason === 'stuck' && s.item
+                ? `${days(s.daysOnItem ?? 0)} on “${s.item.name}”`
+                : `Last active ${days(s.daysSinceActive)} ago`;
+            return (
+              <li key={s.userId}>
+                <button
+                  type="button"
+                  onClick={() => onOpenStudent(s.email)}
+                  className="group/row -mx-2 flex w-[calc(100%+1rem)] min-w-0 items-center gap-3 rounded-xl px-2 py-2.5 text-left transition-colors outline-none hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 >
-                  {s.reason === 'stuck' ? 'Stuck' : 'Inactive'}
-                </Badge>
-                <ChevronRightIcon
-                  aria-hidden
-                  className="shrink-0 text-muted-foreground"
-                />
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {students.length > SHOWN && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          And {count(students.length - SHOWN, 'more student')}.
-        </p>
+                  <GeneratedAvatar seed={s.userId} size={28} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {s.name}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {detail}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <span
+                      aria-hidden
+                      className={cn('size-1.5 rounded-full', status.dot)}
+                    />
+                    {status.label}
+                  </span>
+                  <ChevronRightIcon
+                    aria-hidden
+                    className="size-4 shrink-0 text-muted-foreground/70 transition-transform group-hover/row:translate-x-0.5"
+                  />
+                </button>
+              </li>
+            );
+          }}
+        />
       )}
     </ChartPanel>
   );

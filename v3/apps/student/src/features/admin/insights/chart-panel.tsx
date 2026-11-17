@@ -10,9 +10,53 @@ import {
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
+/** A chart's figures as a table only screen readers see. */
+export function SrTable({
+  caption,
+  columns,
+  rows,
+}: {
+  caption: string;
+  columns: string[];
+  rows: (string | number)[][];
+}) {
+  return (
+    // sr-only on the <table> itself doesn't stop it widening the page; on a wrapper it does.
+    <div className="sr-only">
+      <table>
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            {columns.map((c) => (
+              <th key={c} scope="col">
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i}>
+              {r.map((v, j) =>
+                j === 0 ? (
+                  <th key={j} scope="row">
+                    {v}
+                  </th>
+                ) : (
+                  <td key={j}>{v}</td>
+                ),
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /**
  * One chart or list on the Overview: a titled card whose main takeaway is a
- * sentence (visible, and the chart's accessible description), plus an
+ * short sentence (visible, and the chart's accessible description), plus an
  * optional screen-reader table of the chart's data.
  */
 export function ChartPanel({
@@ -36,52 +80,23 @@ export function ChartPanel({
   return (
     <Card
       size="sm"
-      className={cn('min-w-0 rounded-2xl bg-card', className)}
+      className={cn('min-w-0 gap-3 rounded-2xl bg-card sm:py-5', className)}
       role="figure"
       aria-labelledby={`${id}-t`}
       aria-describedby={`${id}-d`}
     >
-      <CardHeader>
+      <CardHeader className="gap-0.5 sm:px-5">
         <CardTitle id={`${id}-t`} className="text-sm font-semibold">
           {title}
         </CardTitle>
-        <CardDescription id={`${id}-d`}>{summary}</CardDescription>
+        <CardDescription id={`${id}-d`} className="text-xs leading-5">
+          {summary}
+        </CardDescription>
         {action && <CardAction>{action}</CardAction>}
       </CardHeader>
-      <CardContent>
+      <CardContent className="sm:px-5">
         {children}
-        {table && (
-          // sr-only on the <table> itself doesn't stop it widening the page; on a wrapper it does.
-          <div className="sr-only">
-            <table>
-              <caption>{table.caption}</caption>
-              <thead>
-                <tr>
-                  {table.columns.map((c) => (
-                    <th key={c} scope="col">
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {table.rows.map((r, i) => (
-                  <tr key={i}>
-                    {r.map((v, j) =>
-                      j === 0 ? (
-                        <th key={j} scope="row">
-                          {v}
-                        </th>
-                      ) : (
-                        <td key={j}>{v}</td>
-                      ),
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {table && <SrTable {...table} />}
       </CardContent>
     </Card>
   );

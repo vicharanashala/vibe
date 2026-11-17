@@ -3,8 +3,6 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
 import {
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -13,6 +11,7 @@ import {
 import { INCIDENT_TYPES } from '../course-integrity';
 import type { IncidentType } from '../integrity-api';
 
+import { Bar as Fill } from './bars';
 import { ChartPanel } from './chart-panel';
 import { count, longDay, percent, shortDay } from './format';
 import type { CourseInsights } from './types';
@@ -77,13 +76,16 @@ export function ProctoringInsights({
     return row;
   });
   const series = Object.keys(config);
+  const maxAvg =
+    Math.max(0, ...ranked.map(([, v]) => v)) /
+    Math.max(1, proctoring.daily.length);
 
   return (
     <ChartPanel
       title="Proctoring"
       summary={
         anyIncidents
-          ? `${percent(proctoring.shareWithIncident)} of students had at least one incident in the last ${range} days. Most common: ${label(ranked[0][0]).toLowerCase()}.`
+          ? `${percent(proctoring.shareWithIncident)} of students had an incident in the last ${range} days. Most common: ${label(ranked[0][0]).toLowerCase()}.`
           : `No incidents in the last ${range} days.`
       }
       table={{
@@ -95,7 +97,44 @@ export function ProctoringInsights({
         ]),
       }}
     >
-      <ChartContainer config={config} className="aspect-auto h-56 w-full">
+      {anyIncidents && (
+        <ul className="mb-4 grid gap-2.5" aria-label="Incidents by type">
+          {series.map((s, i) => {
+            const total =
+              s === 'other'
+                ? ranked.slice(shown.length).reduce((a, [, v]) => a + v, 0)
+                : (totals.get(s.slice(2)) ?? 0);
+            const avg = total / Math.max(1, proctoring.daily.length);
+            return (
+              <li key={s} className="text-sm">
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      aria-hidden
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ background: String(config[s].color) }}
+                    />
+                    <span className="truncate">{String(config[s].label)}</span>
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                    <span className="font-semibold text-foreground">
+                      {(Math.round(avg * 10) / 10).toLocaleString()}
+                    </span>{' '}
+                    per 100 h
+                  </span>
+                </span>
+                <Fill
+                  value={avg / Math.max(1e-9, maxAvg)}
+                  color={String(config[s].color)}
+                  className="mt-1.5"
+                />
+                {i === 0 && <span className="sr-only">Most common</span>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <ChartContainer config={config} className="aspect-auto h-36 w-full">
         <BarChart
           data={data}
           margin={{ left: 4, right: 4, top: 8 }}
@@ -109,8 +148,15 @@ export function ProctoringInsights({
             tickMargin={8}
             minTickGap={24}
             tickFormatter={shortDay}
+            fontSize={11}
           />
-          <YAxis tickLine={false} axisLine={false} width={32} />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            width={30}
+            fontSize={11}
+            tickCount={3}
+          />
           <ChartTooltip
             cursor={false}
             content={
@@ -119,7 +165,6 @@ export function ProctoringInsights({
               />
             }
           />
-          <ChartLegend content={<ChartLegendContent />} />
           {series.map((s, i) => (
             <Bar
               key={s}

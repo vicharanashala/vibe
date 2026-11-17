@@ -12,7 +12,7 @@ describe('proctoring', () => {
     render(<ProctoringInsights proctoring={f.proctoring!} range={7} />);
     const chart = screen.getByRole('figure', { name: 'Proctoring' });
     expect(chart).toHaveAccessibleDescription(
-      '38% of students had at least one incident in the last 7 days. Most common: no face.',
+      '38% of students had an incident in the last 7 days. Most common: no face.',
     );
     const table = within(chart).getByRole('table', {
       name: 'Incidents per 100 learning hours, by day and type',

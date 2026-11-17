@@ -85,27 +85,61 @@ describe('states', () => {
     ).toBeInTheDocument();
   });
 
-  it('says when the figures were last updated', async () => {
-    renderApp(base);
-    expect(
-      (await screen.findAllByText('Updated 6 minutes ago')).length,
-    ).toBeGreaterThan(0);
-  });
-
-  it('says insights are being prepared during the first build, and keeps the course actions', async () => {
+  it('shows how far the first build has got, and keeps the course actions', async () => {
     serve((range) => ({
       status: 'building',
+      buildProgress: 40,
       updatedAt: null,
       range: range as 30,
     }));
     renderApp(base);
+    expect(await screen.findByText('Preparing insights')).toBeInTheDocument();
+    const bar = screen.getByRole('progressbar', { name: 'Preparing insights' });
+    expect(bar).toHaveAttribute('aria-valuenow', '40');
     expect(
-      await screen.findByText('Insights are being prepared'),
-    ).toBeInTheDocument();
+      bar.querySelector<HTMLElement>('[data-slot="progress-indicator"]')?.style
+        .width,
+    ).toBe('40%');
+    expect(screen.queryByText(/^Updated /)).toBeNull();
     expect(screen.getByRole('button', { name: /Content/ })).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /Invite people/ }),
     ).toBeInTheDocument();
+  });
+
+  it('polls while building, then stops and shows the figures once ready', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let polls = 0;
+      serve((range) => {
+        polls += 1;
+        return polls < 3
+          ? {
+              status: 'building',
+              buildProgress: polls * 40,
+              updatedAt: null,
+              range: range as 30,
+            }
+          : courseInsightsFixture(range as 30);
+      });
+      renderApp(base);
+      expect(await screen.findByText('Preparing insights')).toBeInTheDocument();
+      await vi.advanceTimersByTimeAsync(3000);
+      await waitFor(() =>
+        expect(
+          screen.getByRole('progressbar', { name: 'Preparing insights' }),
+        ).toHaveAttribute('aria-valuenow', '80'),
+      );
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(
+        await screen.findByRole('figure', { name: 'Daily activity' }),
+      ).toBeInTheDocument();
+      const after = insightsCalls().length;
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(insightsCalls().length).toBe(after);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('invites the teacher to add students when the course has none, with no empty charts', async () => {
@@ -149,14 +183,13 @@ describe('accessibility', () => {
       ),
     ).toEqual([
       'Daily activity',
-      'New enrolments',
-      'When students study',
-      'Progress',
-      'Module by module',
       'Where students are now',
       'Students to check on',
+      'Progress',
+      'Module by module',
       'Quizzes',
       'Videos',
+      'When students study',
       'Proctoring',
       'Study mode and strict mode',
     ]);

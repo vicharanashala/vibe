@@ -28,7 +28,9 @@ export type ProgressBand =
 
 export interface CourseInsights {
   status: 'ready' | 'building';
-  /** ISO time of the last successful refresh. */
+  /** 0–100: how far the first build has got. Only while `status` is 'building'. */
+  buildProgress?: number;
+  /** ISO time the response was made (read models update on events, so they're always current). */
   updatedAt: string | null;
   range: InsightsRange;
   headline?: {

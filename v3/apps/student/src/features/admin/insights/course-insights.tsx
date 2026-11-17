@@ -13,15 +13,14 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
+import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
-import { ErrorText, SectionHeading } from '../studio-ui';
+import { ErrorText } from '../studio-ui';
 
-import { ActivityChart, EnrolmentsChart, StudyHeatmap } from './activity';
-import { timeAgo } from './format';
-import { Headline } from './headline';
-import { WhereNow } from './lessons';
+import { ActivityHero, StudyHeatmap } from './activity';
+import { BlockerCallout, WhereNow } from './lessons';
 import { ModuleFunnel, ProgressBands } from './progress';
 import { ProctoringInsights, StudyModeSplit } from './proctoring';
 import { useCourseInsights } from './queries';
@@ -54,7 +53,7 @@ export default function CourseInsightsSection({
 
   const rangePicker = (
     <ToggleGroup
-      variant="outline"
+      spacing={1}
       size="sm"
       aria-label="Time range"
       value={[String(range)]}
@@ -68,6 +67,7 @@ export default function CourseInsightsSection({
           key={r}
           value={String(r)}
           aria-label={`Last ${r} days`}
+          className="h-8 rounded-full border border-border px-3 text-xs aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background dark:aria-pressed:bg-foreground hover:aria-pressed:bg-foreground/90 hover:aria-pressed:text-background"
         >
           {r} days
         </ToggleGroupItem>
@@ -76,23 +76,12 @@ export default function CourseInsightsSection({
   );
 
   const header = (
-    <SectionHeading
-      action={
-        <div className="flex items-center gap-3">
-          {data?.status === 'ready' && data.updatedAt && (
-            <span
-              className="text-xs text-muted-foreground max-sm:hidden"
-              title={new Date(data.updatedAt).toLocaleString()}
-            >
-              Updated {timeAgo(data.updatedAt)}
-            </span>
-          )}
-          {rangePicker}
-        </div>
-      }
-    >
-      Insights
-    </SectionHeading>
+    <div className="mb-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold">Insights</h2>
+        {rangePicker}
+      </div>
+    </div>
   );
 
   let content: React.ReactNode;
@@ -101,18 +90,29 @@ export default function CourseInsightsSection({
   } else if (insights.isError) {
     content = <ErrorText error={insights.error} />;
   } else if (data?.status === 'building' || !data?.headline) {
+    const pct = Math.max(0, Math.min(100, Math.round(data?.buildProgress ?? 0)));
     content = (
       <Empty className="rounded-2xl border border-dashed border-border bg-card">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <SparklesIcon aria-hidden />
           </EmptyMedia>
-          <EmptyTitle>Insights are being prepared</EmptyTitle>
+          <EmptyTitle>Preparing insights</EmptyTitle>
           <EmptyDescription>
-            We’re adding up this course’s activity for the first time. Check
-            back in a few minutes.
+            We’re adding up this course’s activity for the first time. This
+            page fills in on its own when it’s done.
           </EmptyDescription>
         </EmptyHeader>
+        <EmptyContent className="w-full max-w-xs">
+          <Progress
+            value={pct}
+            aria-label="Preparing insights"
+            className="w-full"
+          />
+          <p className="text-xs text-muted-foreground tabular-nums" aria-hidden>
+            {pct}%
+          </p>
+        </EmptyContent>
       </Empty>
     );
   } else if ((data.headline.students.current ?? 0) === 0) {
@@ -137,56 +137,56 @@ export default function CourseInsightsSection({
     );
   } else {
     content = (
-      <div className="grid min-w-0 grid-cols-1 gap-8">
-        <Headline headline={data.headline} />
-
-        <InsightGroup title="Activity">
-          {data.daily && <ActivityChart daily={data.daily} range={range} />}
-          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
-            {data.daily && <EnrolmentsChart daily={data.daily} range={range} />}
-            {data.heatmap && <StudyHeatmap heatmap={data.heatmap} />}
-          </div>
-        </InsightGroup>
-
-        <InsightGroup title="Progress">
-          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
-            {data.progressBands && <ProgressBands bands={data.progressBands} />}
-            {data.funnel && <ModuleFunnel funnel={data.funnel} />}
-          </div>
-        </InsightGroup>
+      <div className="grid min-w-0 grid-cols-1 gap-6 sm:gap-8">
+        <div className="grid min-w-0 gap-3">
+          {data.daily && (
+            <ActivityHero
+              daily={data.daily}
+              headline={data.headline}
+              range={range}
+            />
+          )}
+          {data.whereNow && (
+            <BlockerCallout
+              courseId={courseId}
+              versionId={versionId}
+              whereNow={data.whereNow}
+            />
+          )}
+        </div>
 
         <InsightGroup title="Needs attention">
-          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
-            {data.whereNow && (
-              <WhereNow
-                courseId={courseId}
-                versionId={versionId}
-                whereNow={data.whereNow}
-              />
-            )}
-            {data.checkOn && (
-              <StudentsToCheckOn
-                students={data.checkOn}
-                onOpenStudent={onOpenStudent}
-              />
-            )}
-          </div>
+          {data.whereNow && (
+            <WhereNow
+              courseId={courseId}
+              versionId={versionId}
+              whereNow={data.whereNow}
+            />
+          )}
+          {data.checkOn && (
+            <StudentsToCheckOn
+              students={data.checkOn}
+              onOpenStudent={onOpenStudent}
+            />
+          )}
+        </InsightGroup>
+
+        <InsightGroup title="Course progress">
+          {data.progressBands && <ProgressBands bands={data.progressBands} />}
+          {data.funnel && <ModuleFunnel funnel={data.funnel} />}
         </InsightGroup>
 
         <InsightGroup title="Lessons">
-          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
-            {data.quizzes && <QuizInsights quizzes={data.quizzes} />}
-            {data.videos && <VideoInsights videos={data.videos} />}
-          </div>
+          {data.quizzes && <QuizInsights quizzes={data.quizzes} />}
+          {data.videos && <VideoInsights videos={data.videos} />}
         </InsightGroup>
 
-        <InsightGroup title="Integrity and study habits">
-          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
-            {data.proctoring && (
-              <ProctoringInsights proctoring={data.proctoring} range={range} />
-            )}
-            {data.studyMode && <StudyModeSplit studyMode={data.studyMode} />}
-          </div>
+        <InsightGroup title="Study habits and integrity">
+          {data.heatmap && <StudyHeatmap heatmap={data.heatmap} />}
+          {data.proctoring && (
+            <ProctoringInsights proctoring={data.proctoring} range={range} />
+          )}
+          {data.studyMode && <StudyModeSplit studyMode={data.studyMode} />}
         </InsightGroup>
       </div>
     );
@@ -199,11 +199,6 @@ export default function CourseInsightsSection({
       aria-busy={insights.isPending || undefined}
     >
       {header}
-      {data?.status === 'ready' && data.updatedAt && (
-        <p className="-mt-1 mb-3 text-xs text-muted-foreground sm:hidden">
-          Updated {timeAgo(data.updatedAt)}
-        </p>
-      )}
       {content}
     </section>
   );
@@ -217,20 +212,24 @@ function InsightGroup({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid min-w-0 grid-cols-1 gap-4">
-      <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-        {title}
-      </h3>
-      {children}
-    </div>
+    <section className="grid min-w-0 gap-3" aria-label={title}>
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <div className="grid min-w-0 grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-4">
+        {children}
+      </div>
+    </section>
   );
 }
 
 export function InsightsSkeleton() {
   return (
     <div className="grid gap-4" data-testid="insights-skeleton">
-      <Skeleton className="h-44 rounded-2xl" />
-      <Skeleton className="h-64 rounded-2xl" />
+      <div className="flex gap-2 overflow-hidden">
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-16 min-w-36 flex-1 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-56 rounded-2xl" />
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         <Skeleton className="h-52 rounded-2xl" />
         <Skeleton className="h-52 rounded-2xl" />
