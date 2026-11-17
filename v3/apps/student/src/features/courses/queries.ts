@@ -118,7 +118,8 @@ export const courseKeys = {
   currentPath: (courseId: string, versionId: string) => ['progress', 'current-path', courseId, versionId] as const,
   moduleProgress: (courseId: string, versionId: string) => ['progress', 'modules', courseId, versionId] as const,
   ethicsConsent: (courseId: string, versionId: string) => ['ethics-consent', courseId, versionId] as const,
-  faceReference: (courseId: string, versionId: string) => ['face-reference', courseId, versionId] as const,
+  faceReference: (courseId: string, versionId: string, itemId?: string) =>
+    ['face-reference', courseId, versionId, itemId] as const,
 };
 
 export function useEnrollments(tab: 'active' | 'archived' = 'active', search = '') {
@@ -231,13 +232,17 @@ export interface FaceReference {
   faceEmbedding: number[] | null;
 }
 
-/** The embedding only comes back if `courseId`/`versionId` has faceRecognition enabled. */
-export function useFaceReference(courseId: string, versionId: string) {
+/**
+ * The embedding only comes back if faceRecognition resolves enabled for
+ * `courseId`/`versionId` -- through `itemId`'s own override when supplied,
+ * else the course-wide setting (resolveProctoringDetectors' precedence).
+ */
+export function useFaceReference(courseId: string, versionId: string, itemId?: string) {
   return useQuery({
-    queryKey: courseKeys.faceReference(courseId, versionId),
+    queryKey: courseKeys.faceReference(courseId, versionId, itemId),
     queryFn: async () =>
       unwrap(
-        await api.GET('/api/users/me/face-reference', { params: { query: { courseId, versionId } } }),
+        await api.GET('/api/users/me/face-reference', { params: { query: { courseId, versionId, itemId } } }),
       ) as unknown as FaceReference,
   });
 }

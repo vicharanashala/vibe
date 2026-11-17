@@ -17562,6 +17562,8 @@ export interface operations {
             query?: {
                 courseId?: string;
                 versionId?: string;
+                moduleId?: string;
+                itemId?: string;
             };
             header?: never;
             path?: never;
