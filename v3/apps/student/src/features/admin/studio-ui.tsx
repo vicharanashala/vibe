@@ -101,16 +101,27 @@ export function PageHeader({
 /** Substack-style overview strip: a row of numbers joined in one card. */
 export function StatStrip({
   stats,
+  layout = 'strip',
 }: {
-  stats: { label: string; value: ReactNode; hint?: string }[];
+  stats: { label: string; value: ReactNode; hint?: string; trend?: ReactNode }[];
+  /** `grid` wraps into 2–3 columns, for more figures than fit on one row. */
+  layout?: 'strip' | 'grid';
 }) {
   return (
-    <dl className="grid overflow-hidden rounded-2xl border border-border bg-card sm:grid-cols-[repeat(auto-fit,minmax(0,1fr))] sm:divide-x max-sm:divide-y divide-border">
+    <dl
+      className={cn(
+        'grid overflow-hidden rounded-2xl border border-border bg-card',
+        layout === 'strip'
+          ? 'divide-border sm:grid-cols-[repeat(auto-fit,minmax(0,1fr))] sm:divide-x max-sm:divide-y'
+          : 'grid-cols-2 gap-px bg-border sm:grid-cols-3',
+      )}
+    >
       {stats.map((s, i) => (
         <div
           key={s.label}
           className={cn(
             'relative px-5 py-4',
+            layout === 'grid' && 'bg-card max-sm:px-4',
             i === 0 &&
               'before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-primary',
           )}
@@ -118,8 +129,9 @@ export function StatStrip({
           <dt className="text-xs font-medium text-muted-foreground">
             {s.label}
           </dt>
-          <dd className="mt-1 text-2xl font-semibold tabular-nums">
-            {s.value}
+          <dd className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-2xl font-semibold tabular-nums">{s.value}</span>
+            {s.trend}
           </dd>
           {s.hint && (
             <p className="mt-0.5 text-xs text-muted-foreground">{s.hint}</p>

@@ -154,15 +154,16 @@ describe('People, in a course bigger than one page', () => {
 });
 
 describe('Overview, in a course bigger than one page', () => {
-  it('shows the backend’s whole-course numbers', async () => {
+  it('shows whole-course figures from the analytics, not from paging through students', async () => {
     renderApp(url('overview'));
     const stat = async (label: string) =>
-      (await screen.findByText(label)).parentElement;
-    await waitFor(async () =>
-      expect(await stat('Students')).toHaveTextContent('120'),
-    );
-    expect(await stat('Average progress')).toHaveTextContent('42%');
-    expect(await stat('Finished')).toHaveTextContent('7');
+      (await screen.findAllByText(label)).find((el) => el.tagName === 'DT')?.parentElement;
+    // The headline comes from the course analytics (fixture: 240 students, 46%, 12 finished).
+    expect(
+      await screen.findByRole('button', { name: /^Students/ }),
+    ).toHaveTextContent('240');
+    expect(await stat('Average progress')).toHaveTextContent('46%');
+    expect(await stat('Finished')).toHaveTextContent('12');
     // The only list request is the short "Finished the course" preview, never the whole course.
     expect(listCalls()).toEqual([{ page: 1, limit: 5, filter: 'STUDENT', sortBy: 'progress', sortOrder: 'desc' }]);
   });

@@ -97,6 +97,8 @@ export function CoursePeople({
   onInviteOpenChange,
   sort = DEFAULT_PEOPLE_SORT,
   onSortChange,
+  query: urlQuery = '',
+  onQueryChange,
 }: {
   courseId: string;
   versionId: string;
@@ -105,12 +107,20 @@ export function CoursePeople({
   /** Whole-course order, done by the backend (it lives in the URL). */
   sort?: PeopleSort;
   onSortChange: (sort: PeopleSort) => void;
+  /** The search, as kept in the URL (so a link can open People filtered to one student). */
+  query?: string;
+  onQueryChange?: (query: string) => void;
 }) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(urlQuery);
   const [role, setRole] = useState<RoleFilter>('all');
   const [page, setPage] = useState(1);
   const [search] = useDebounceValue(query.trim(), 300);
   useEffect(() => setPage(1), [search, role, sort.by, sort.order]);
+  // Typing updates the URL once it settles; a new link (e.g. from the Overview) updates the box.
+  useEffect(() => onQueryChange?.(search), [search]);
+  useEffect(() => {
+    if (urlQuery !== search) setQuery(urlQuery);
+  }, [urlQuery]);
 
   const enrollments = useCourseEnrollmentsPage(courseId, versionId, {
     page,

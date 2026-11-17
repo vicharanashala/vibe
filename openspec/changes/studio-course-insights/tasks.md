@@ -107,9 +107,9 @@
 
 ## 6. v3: data and page frame
 
-- [ ] 6.1 Add the shadcn `chart` component through the shadcn CLI (it brings in Recharts), and code-split the insights section so student routes don't load it. Verify that the student course page bundle has no `recharts` chunk (`pnpm nx build student` and inspect the chunk list).
-- [ ] 6.2 Add `features/admin/insights/queries.ts` with `useCourseInsights(courseId, versionId, range)` (`staleTime` 5 min). Add `range` (7/30/90, default 30) to the course route's search params. Verify with a spec that changing the range updates the URL and refetches with the new range.
-- [ ] 6.3 Build the Overview frame:
+- [x] 6.1 Add the shadcn `chart` component through the shadcn CLI (it brings in Recharts), and code-split the insights section so student routes don't load it. Verify that the student course page bundle has no `recharts` chunk (`pnpm nx build student` and inspect the chunk list).
+- [x] 6.2 Add `features/admin/insights/queries.ts` with `useCourseInsights(courseId, versionId, range)` (`staleTime` 5 min). Add `range` (7/30/90, default 30) to the course route's search params. Verify with a spec that changing the range updates the URL and refetches with the new range.
+- [x] 6.3 Build the Overview frame:
   - range `ToggleGroup`
   - "Updated N minutes ago"
   - skeletons while loading
@@ -119,26 +119,26 @@
 
   Verify with specs for each state and that the registration link is still present.
 
-- [ ] 6.4 Rework the building state: show "Preparing insights" with a percentage progress bar from `buildProgress`, poll every 3 s while building (each poll advances the build), drop the "Updated N minutes ago" label, and switch the insights query to the regenerated `@vibe/api` types. Verify with specs: 40% renders a 40% bar; polling stops and the figures render when the status turns `ready`.
+- [x] 6.4 Rework the building state: show "Preparing insights" with a percentage progress bar from `buildProgress`, poll every 3 s while building (each poll advances the build), drop the "Updated N minutes ago" label, and switch the insights query to the regenerated `@vibe/api` types. Verify with specs: 40% renders a 40% bar; polling stops and the figures render when the status turns `ready`.
 
 ## 7. v3: headline, activity and progress
 
-- [ ] 7.1 Extend `StatStrip` with trend badges (up/down with delta, hidden when there's no previous data) for the six headline metrics. Verify with specs: Finished 12 vs 8 shows +4 up, and no badge appears without previous data.
-- [ ] 7.2 Add the activity area chart (active students and hours), new-enrolments bars, and the weekday × hour heatmap built from shadcn `Tooltip` cells, all with titles, summary text and hidden data tables. Verify with specs: tooltip content on focus, heatmap cell value, screen-reader table present.
-- [ ] 7.3 Add progress bands bar chart and module funnel with the largest drop highlighted and labelled; verify with specs (bands rendered from fixture, correct step highlighted with students lost).
+- [x] 7.1 Extend `StatStrip` with trend badges (up/down with delta, hidden when there's no previous data) for the six headline metrics. Verify with specs: Finished 12 vs 8 shows +4 up, and no badge appears without previous data.
+- [x] 7.2 Add the activity area chart (active students and hours), new-enrolments bars, and the weekday × hour heatmap built from shadcn `Tooltip` cells, all with titles, summary text and hidden data tables. Verify with specs: tooltip content on focus, heatmap cell value, screen-reader table present.
+- [x] 7.3 Add progress bands bar chart and module funnel with the largest drop highlighted and labelled; verify with specs (bands rendered from fixture, correct step highlighted with students lost).
 
 ## 8. v3: lessons, quizzes, videos and students
 
-- [ ] 8.1 Add the "Where students are now" table, with a possible-blocker badge when there are ≥5 students and a median of ≥3 days, and a row action that opens the lesson editor. Verify with specs: the badge shows for the 15-students/4-days fixture, and selecting a row navigates to the lesson editor route.
-- [ ] 8.2 Add the quiz list, sorted by lowest first-attempt pass rate, and a quiz detail `Sheet` showing the score distribution and up to 5 hardest questions with text and percent correct. Verify with specs for the sort order and the sheet content.
-- [ ] 8.3 Add the video list with completion rate, and a video detail `Sheet` listing rewind hotspots as `m:ss` with counts. Verify with a spec where "4:10" is listed first.
-- [ ] 8.4 Move the People tab's search into a `q` search param, then add the "Students to check on" table (name, reason, lesson, last active) that links to `?tab=people&q=<email>`, with an "everyone is active and moving" empty state. Verify with specs: selecting a student opens People filtered to them, and the empty state renders.
+- [x] 8.1 Add the "Where students are now" table, with a possible-blocker badge when there are ≥5 students and a median of ≥3 days, and a row action that opens the lesson editor. Verify with specs: the badge shows for the 15-students/4-days fixture, and selecting a row navigates to the lesson editor route.
+- [x] 8.2 Add the quiz list, sorted by lowest first-attempt pass rate, and a quiz detail `Sheet` showing the score distribution and up to 5 hardest questions with text and percent correct. Verify with specs for the sort order and the sheet content.
+- [x] 8.3 Add the video list with completion rate, and a video detail `Sheet` listing rewind hotspots as `m:ss` with counts. Verify with a spec where "4:10" is listed first.
+- [x] 8.4 Move the People tab's search into a `q` search param, then add the "Students to check on" table (name, reason, lesson, last active) that links to `?tab=people&q=<email>`, with an "everyone is active and moving" empty state. Verify with specs: selecting a student opens People filtered to them, and the empty state renders.
 
 ## 9. v3: proctoring, study mode, accessibility and integration
 
-- [ ] 9.1 Add the proctoring chart (incidents per 100 hours by type), the share-with-incident figure, the "proctoring is off" state, and the study-mode split. Verify with specs for the chart data and the off state.
-- [ ] 9.2 Check accessibility and responsiveness: every chart has a title and summary, tooltips are keyboard reachable, nothing relies on colour alone, light and dark themes work, and the layout is one column at 375px. Verify with specs that use keyboard focus to open tooltips, and with screenshots at 375px and 1280px in both themes attached to the PR.
-- [ ] 9.3 End-to-end on the local stack:
+- [x] 9.1 Add the proctoring chart (incidents per 100 hours by type), the share-with-incident figure, the "proctoring is off" state, and the study-mode split. Verify with specs for the chart data and the off state.
+- [x] 9.2 Check accessibility and responsiveness: every chart has a title and summary, tooltips are keyboard reachable, nothing relies on colour alone, light and dark themes work, and the layout is one column at 375px. Verify with specs that use keyboard focus to open tooltips, and with screenshots at 375px and 1280px in both themes attached to the PR.
+- [x] 9.3 End-to-end on the local stack:
   1. seed a course with students and activity
   2. run the projector backfill
   3. open the Overview

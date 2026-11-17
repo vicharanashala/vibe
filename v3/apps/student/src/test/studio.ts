@@ -4,6 +4,9 @@
  * @vibe.local test accounts. Anything not listed here falls back to the
  * student fixtures in session.ts.
  */
+import type { InsightsRange } from '@/features/admin/insights/types';
+
+import { courseInsightsFixture } from './fixtures/studio/course-insights';
 import { api, fakeAuth, ok, respond, type STUDENT } from './session';
 
 import courses from './fixtures/studio/courses.json';
@@ -267,6 +270,8 @@ export function studioGet(path: string, opts?: Params) {
       return ok(feedbackSubmissions);
     case '/api/courses/{courseId}/item/{feedbackId}/feedback/summary':
       return ok(feedbackSummary);
+    case '/api/analytics/courses/{courseId}/versions/{versionId}/overview':
+      return ok(courseInsightsFixture((opts?.params?.query?.range as InsightsRange) ?? 30));
     case '/api/courses/{courseId}/versions/{versionId}/feedback/forms':
       return ok(feedbackForms);
     default:

@@ -31,7 +31,7 @@ The Overview tab SHALL show these headline metrics, each with its change against
 - **THEN** the metric shows its value without a trend indicator
 
 ### Requirement: Activity charts
-The Overview tab SHALL show daily active students and daily learning hours over the range, daily new enrolments, and a weekday × hour heatmap of study time in IST.
+The Overview tab SHALL show daily active students, daily learning hours and daily new enrolments over the range (one chart, switched by selecting a metric tile), and a weekday × hour heatmap of study time in IST.
 
 #### Scenario: Hover a day
 - **WHEN** the teacher points at or focuses a day on the activity chart
@@ -96,11 +96,15 @@ The Overview tab SHALL show proctoring incidents per 100 learning hours by type 
 - **THEN** the proctoring section says proctoring is off instead of showing an empty chart
 
 ### Requirement: Loading, building and empty states
-The Overview tab SHALL show loading placeholders while fetching. While the course's analytics are first being built, it SHALL show that insights are being prepared, with the percentage done, and keep requesting until they're ready. For a course with no students, it SHALL show an explanatory empty state.
+The Overview tab SHALL show loading placeholders while fetching. While the course's analytics are first being built, it SHALL show "Preparing insights" with the percentage done and check again every 3 seconds until they're ready. For a course with no students, it SHALL show an explanatory empty state.
 
-#### Scenario: First build in progress
-- **WHEN** the backend reports the build is 40% done
-- **THEN** the page shows that insights are being prepared with a 40% progress bar, keeps the existing course actions available, and shows the figures once the build completes, without a reload
+#### Scenario: Build progress
+- **WHEN** the backend reports the first build is 40% done
+- **THEN** the page shows "Preparing insights" with a progress bar at 40%, and the existing course actions stay available
+
+#### Scenario: Build finishes
+- **WHEN** a later check reports the analytics are ready
+- **THEN** the page stops checking and shows the figures, without a reload
 
 #### Scenario: New course
 - **WHEN** the course has no enrolled students
