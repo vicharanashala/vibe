@@ -147,6 +147,8 @@ export async function addStudent(
   const userId = new ObjectId();
   await raw.collection('users').insertOne({
     _id: userId,
+    // Unique: other suites sharing this database index firebaseUID as unique.
+    firebaseUID: `analytics-${userId.toHexString()}`,
     firstName: 'Student',
     lastName: userId.toHexString().slice(-4),
     email: opts.email ?? `${userId.toHexString()}@example.com`,

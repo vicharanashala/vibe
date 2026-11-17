@@ -213,7 +213,8 @@ export class AnalyticsSourceReader {
         endTime: range,
       }),
       // Viewings still open (started since the watermark, not yet stopped).
-      // Served by the existing partial index on open sessions' startTime.
+      // The {courseId, courseVersionId, endTime} index serves this: a missing
+      // endTime is indexed as null.
       (await this.col('watchTime')).distinct('userId', {
         startTime: range,
         endTime: {$exists: false},
@@ -358,6 +359,32 @@ export class AnalyticsSourceReader {
       if (entry) entry.user = p;
     }
     return out;
+  }
+
+  /** Course versions with at least one active student. */
+  async activeVersions(): Promise<
+    {courseId: string; courseVersionId: string}[]
+  > {
+    const rows = await (
+      await this.col('enrollment')
+    )
+      .aggregate([
+        {
+          $match: {
+            role: {$regex: /^student$/i},
+            status: {$regex: /^active$/i},
+            isDeleted: {$ne: true},
+            isShareLinkGuest: {$ne: true},
+            isQuickShareContainer: {$ne: true},
+          },
+        },
+        {$group: {_id: {c: '$courseId', v: '$courseVersionId'}}},
+      ])
+      .toArray();
+    return rows.map((r: any) => ({
+      courseId: String(r._id.c),
+      courseVersionId: String(r._id.v),
+    }));
   }
 
   /** Whether any proctoring check is turned on for the course version. */

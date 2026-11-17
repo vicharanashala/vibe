@@ -10918,6 +10918,542 @@
      "currentPage"
     ]
    },
+   "AnalyticsVersionParams": {
+    "properties": {
+     "courseId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string"
+     },
+     "versionId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "required": [
+     "courseId",
+     "versionId"
+    ]
+   },
+   "CourseInsightsQuery": {
+    "properties": {
+     "range": {
+      "type": "number",
+      "enum": [
+       7,
+       30,
+       90
+      ],
+      "description": "Range in days: 7, 30 or 90 (default 30)."
+     }
+    },
+    "type": "object"
+   },
+   "InsightsMetric": {
+    "properties": {
+     "current": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "previous": {
+      "type": [
+       "number",
+       "null"
+      ]
+     }
+    },
+    "type": "object"
+   },
+   "InsightsHeadline": {
+    "properties": {
+     "students": {
+      "$ref": "#/components/schemas/InsightsMetric"
+     },
+     "activeThisWeek": {
+      "$ref": "#/components/schemas/InsightsMetric"
+     },
+     "averageProgress": {
+      "$ref": "#/components/schemas/InsightsMetric",
+      "description": "Average progress in percent, 0–100."
+     },
+     "finished": {
+      "$ref": "#/components/schemas/InsightsMetric"
+     },
+     "medianDaysToFinish": {
+      "$ref": "#/components/schemas/InsightsMetric"
+     },
+     "learningHours": {
+      "$ref": "#/components/schemas/InsightsMetric"
+     }
+    },
+    "type": "object",
+    "required": [
+     "students",
+     "activeThisWeek",
+     "averageProgress",
+     "finished",
+     "medianDaysToFinish",
+     "learningHours"
+    ]
+   },
+   "InsightsDailyRow": {
+    "properties": {
+     "day": {
+      "type": "string",
+      "description": "IST day, YYYY-MM-DD"
+     },
+     "activeLearners": {
+      "type": "number"
+     },
+     "learningHours": {
+      "type": "number"
+     },
+     "newEnrolments": {
+      "type": "number"
+     }
+    },
+    "type": "object",
+    "required": [
+     "day",
+     "activeLearners",
+     "learningHours",
+     "newEnrolments"
+    ]
+   },
+   "InsightsProgressBand": {
+    "properties": {
+     "band": {
+      "type": "string",
+      "enum": [
+       "0",
+       "1-24",
+       "25-49",
+       "50-74",
+       "75-99",
+       "finished"
+      ]
+     },
+     "students": {
+      "type": "number"
+     }
+    },
+    "type": "object",
+    "required": [
+     "band",
+     "students"
+    ]
+   },
+   "InsightsFunnelRow": {
+    "properties": {
+     "moduleId": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "reached": {
+      "type": "number"
+     },
+     "completed": {
+      "type": "number"
+     }
+    },
+    "type": "object",
+    "required": [
+     "moduleId",
+     "name",
+     "reached",
+     "completed"
+    ]
+   },
+   "InsightsWhereNowRow": {
+    "properties": {
+     "itemId": {
+      "type": "string"
+     },
+     "moduleId": {
+      "type": "string"
+     },
+     "sectionId": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "type": {
+      "type": "string"
+     },
+     "students": {
+      "type": "number"
+     },
+     "medianDaysThere": {
+      "type": "number"
+     }
+    },
+    "type": "object",
+    "required": [
+     "itemId",
+     "moduleId",
+     "sectionId",
+     "name",
+     "type",
+     "students",
+     "medianDaysThere"
+    ]
+   },
+   "InsightsHardestQuestion": {
+    "properties": {
+     "questionId": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string"
+     },
+     "correctRate": {
+      "type": "number",
+      "description": "Share answered correctly on first attempts, 0–1."
+     },
+     "answered": {
+      "type": "number"
+     }
+    },
+    "type": "object",
+    "required": [
+     "questionId",
+     "text",
+     "correctRate",
+     "answered"
+    ]
+   },
+   "InsightsQuizRow": {
+    "properties": {
+     "itemId": {
+      "type": "string"
+     },
+     "moduleId": {
+      "type": "string"
+     },
+     "sectionId": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "attempted": {
+      "type": "number"
+     },
+     "firstAttemptPassRate": {
+      "type": [
+       "number",
+       "null"
+      ],
+      "description": "0–1"
+     },
+     "avgAttemptsToPass": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "scoreBands": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array",
+      "description": "10 bands of first-attempt score %: 0–9, 10–19, … 90–100."
+     },
+     "hardestQuestions": {
+      "items": {
+       "$ref": "#/components/schemas/InsightsHardestQuestion"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object",
+    "required": [
+     "itemId",
+     "moduleId",
+     "sectionId",
+     "name",
+     "attempted",
+     "scoreBands",
+     "hardestQuestions"
+    ]
+   },
+   "InsightsRewindHotspot": {
+    "properties": {
+     "startSecond": {
+      "type": "number"
+     },
+     "rewinds": {
+      "type": "number"
+     }
+    },
+    "type": "object",
+    "required": [
+     "startSecond",
+     "rewinds"
+    ]
+   },
+   "InsightsVideoRow": {
+    "properties": {
+     "itemId": {
+      "type": "string"
+     },
+     "moduleId": {
+      "type": "string"
+     },
+     "sectionId": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "started": {
+      "type": "number"
+     },
+     "completed": {
+      "type": "number"
+     },
+     "rewindHotspots": {
+      "items": {
+       "$ref": "#/components/schemas/InsightsRewindHotspot"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object",
+    "required": [
+     "itemId",
+     "moduleId",
+     "sectionId",
+     "name",
+     "started",
+     "completed",
+     "rewindHotspots"
+    ]
+   },
+   "InsightsCheckOnItem": {
+    "properties": {
+     "itemId": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "required": [
+     "itemId",
+     "name"
+    ]
+   },
+   "InsightsCheckOnRow": {
+    "properties": {
+     "userId": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "email": {
+      "type": "string"
+     },
+     "reason": {
+      "type": "string",
+      "enum": [
+       "inactive",
+       "stuck"
+      ]
+     },
+     "daysSinceActive": {
+      "type": "number"
+     },
+     "item": {
+      "$ref": "#/components/schemas/InsightsCheckOnItem",
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/InsightsCheckOnItem"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "daysOnItem": {
+      "type": [
+       "number",
+       "null"
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "userId",
+     "name",
+     "email",
+     "reason",
+     "daysSinceActive"
+    ]
+   },
+   "InsightsProctoringDay": {
+    "properties": {
+     "day": {
+      "type": "string"
+     }
+    },
+    "type": "object",
+    "required": [
+     "day"
+    ]
+   },
+   "InsightsProctoring": {
+    "properties": {
+     "checksOn": {
+      "type": "boolean"
+     },
+     "daily": {
+      "items": {
+       "$ref": "#/components/schemas/InsightsProctoringDay"
+      },
+      "type": "array"
+     },
+     "shareWithIncident": {
+      "type": "number",
+      "description": "0–1"
+     }
+    },
+    "type": "object",
+    "required": [
+     "checksOn",
+     "daily",
+     "shareWithIncident"
+    ]
+   },
+   "InsightsStudyMode": {
+    "properties": {
+     "strictOnly": {
+      "type": "number"
+     },
+     "studyOnly": {
+      "type": "number"
+     },
+     "both": {
+      "type": "number"
+     }
+    },
+    "type": "object",
+    "required": [
+     "strictOnly",
+     "studyOnly",
+     "both"
+    ]
+   },
+   "CourseInsightsResponse": {
+    "properties": {
+     "status": {
+      "type": "string",
+      "enum": [
+       "ready",
+       "building"
+      ]
+     },
+     "updatedAt": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date-time"
+     },
+     "range": {
+      "type": "number",
+      "enum": [
+       7,
+       30,
+       90
+      ]
+     },
+     "headline": {
+      "$ref": "#/components/schemas/InsightsHeadline"
+     },
+     "daily": {
+      "items": {
+       "$ref": "#/components/schemas/InsightsDailyRow"
+      },
+      "type": "array"
+     },
+     "heatmap": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       }
+      },
+      "description": "[weekday 0=Mon..6=Sun][hour 0..23] learning hours, IST"
+     },
+     "progressBands": {
+      "items": {
+       "$ref": "#/components/schemas/InsightsProgressBand"
+      },
+      "type": "array"
+     },
+     "funnel": {
+      "items": {
+       "$ref": "#/components/schemas/InsightsFunnelRow"
+      },
+      "type": "array"
+     },
+     "whereNow": {
+      "items": {
+       "$ref": "#/components/schemas/InsightsWhereNowRow"
+      },
+      "type": "array"
+     },
+     "quizzes": {
+      "items": {
+       "$ref": "#/components/schemas/InsightsQuizRow"
+      },
+      "type": "array"
+     },
+     "videos": {
+      "items": {
+       "$ref": "#/components/schemas/InsightsVideoRow"
+      },
+      "type": "array"
+     },
+     "checkOn": {
+      "items": {
+       "$ref": "#/components/schemas/InsightsCheckOnRow"
+      },
+      "type": "array"
+     },
+     "proctoring": {
+      "$ref": "#/components/schemas/InsightsProctoring"
+     },
+     "studyMode": {
+      "$ref": "#/components/schemas/InsightsStudyMode"
+     }
+    },
+    "type": "object",
+    "required": [
+     "status",
+     "range"
+    ]
+   },
+   "RebuildAcceptedResponse": {
+    "properties": {
+     "accepted": {
+      "type": "boolean"
+     }
+    },
+    "type": "object",
+    "required": [
+     "accepted"
+    ]
+   },
    "AnnouncementIdParams": {
     "properties": {
      "announcementId": {
@@ -23475,6 +24011,103 @@
      "Anomalies"
     ],
     "description": "Deletes an anomaly record and its encrypted image<br/>\n    It returns an empty body with a 200 status code."
+   }
+  },
+  "/api/analytics/courses/{courseId}/versions/{versionId}/overview": {
+   "get": {
+    "operationId": "AnalyticsController.getOverview",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "range",
+      "schema": {
+       "type": "number",
+       "enum": [
+        7,
+        30,
+        90
+       ],
+       "description": "Range in days: 7, 30 or 90 (default 30)."
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CourseInsightsResponse"
+        }
+       }
+      },
+      "description": "Course overview analytics"
+     }
+    },
+    "summary": "Course overview analytics for ViBe Studio",
+    "tags": [
+     "Analytics"
+    ],
+    "description": "Every overview panel for a course version over the last 7, 30 or 90 days (IST), answered from precomputed read models. `status: building` means the first build has not finished and no figures are returned. Same access as the course enrollment statistics."
+   }
+  },
+  "/api/analytics/courses/{courseId}/versions/{versionId}/rebuild": {
+   "post": {
+    "operationId": "AnalyticsController.rebuild",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RebuildAcceptedResponse"
+        }
+       }
+      },
+      "description": ""
+     }
+    },
+    "summary": "Rebuild one course version’s analytics (admin only)",
+    "tags": [
+     "Analytics"
+    ],
+    "description": "Starts a full rebuild in the background and returns straight away. The overview’s `updatedAt` changes once it has finished."
    }
   },
   "/api/announcements/": {
@@ -37845,7 +38478,7 @@
      "description": "Localhost for API server"
     },
     "port": {
-     "default": "4012",
+     "default": "4005",
      "description": "Port for the API server"
     }
    }

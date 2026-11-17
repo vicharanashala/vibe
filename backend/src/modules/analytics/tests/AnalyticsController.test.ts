@@ -51,8 +51,8 @@ describe('AnalyticsController', () => {
     const _id = new ObjectId();
     const user = {
       _id,
-      firebaseUID: token,
-      email: `${token}@example.com`,
+      firebaseUID: `analytics-${token}-${_id.toHexString()}`,
+      email: `${token}-${_id.toHexString()}@example.com`,
       firstName: token,
       lastName: 'X',
       roles,
