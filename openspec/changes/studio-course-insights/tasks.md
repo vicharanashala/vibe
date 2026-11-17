@@ -105,9 +105,9 @@
 
 ## 7. v3: headline, activity and progress
 
-- [ ] 7.1 Extend `StatStrip` with trend badges (up/down with delta, hidden when there's no previous data) for the six headline metrics. Verify with specs: Finished 12 vs 8 shows +4 up, and no badge appears without previous data.
-- [ ] 7.2 Add the activity area chart (active students and hours), new-enrolments bars, and the weekday × hour heatmap built from shadcn `Tooltip` cells, all with titles, summary text and hidden data tables. Verify with specs: tooltip content on focus, heatmap cell value, screen-reader table present.
-- [ ] 7.3 Add progress bands bar chart and module funnel with the largest drop highlighted and labelled; verify with specs (bands rendered from fixture, correct step highlighted with students lost).
+- [x] 7.1 Extend `StatStrip` with trend badges (up/down with delta, hidden when there's no previous data) for the six headline metrics. Verify with specs: Finished 12 vs 8 shows +4 up, and no badge appears without previous data.
+- [x] 7.2 Add the activity area chart (active students and hours), new-enrolments bars, and the weekday × hour heatmap built from shadcn `Tooltip` cells, all with titles, summary text and hidden data tables. Verify with specs: tooltip content on focus, heatmap cell value, screen-reader table present.
+- [x] 7.3 Add progress bands bar chart and module funnel with the largest drop highlighted and labelled; verify with specs (bands rendered from fixture, correct step highlighted with students lost).
 
 ## 8. v3: lessons, quizzes, videos and students
 
