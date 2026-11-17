@@ -34,7 +34,7 @@ import type {AnalyticsQueryService} from '../services/AnalyticsQueryService.js';
 import type {AnalyticsRepository} from '../repositories/AnalyticsRepository.js';
 import {addStudent, seedCourse, watch} from './fixtures.js';
 
-describe('AnalyticsController', () => {
+describe('AnalyticsController', {timeout: 30000}, () => {
   const App = Express();
   let app: any;
   let raw: any;

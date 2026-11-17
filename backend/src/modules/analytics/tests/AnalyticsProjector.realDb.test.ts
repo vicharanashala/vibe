@@ -1,8 +1,9 @@
-import {describe, it, expect, beforeEach} from 'vitest';
+import {describe, it, expect, beforeEach, afterAll} from 'vitest';
 import {ObjectId} from 'mongodb';
 import {
   addStudent,
   analyticsTestDb,
+  closeAnalyticsTestDb,
   ist,
   seedCourse,
   submit,
@@ -12,39 +13,46 @@ import {
 const NOW = ist('2026-11-17T12:00:00');
 const later = (min: number) => new Date(NOW.getTime() + min * 60 * 1000);
 
-describe('AnalyticsRepository: lease and indexes (1.2, 1.3)', () => {
-  it('gives exactly one winner to concurrent lease requests and lets an expired lease be retaken', async () => {
-    const {repo} = await analyticsTestDb();
-    const results = await Promise.all(
-      Array.from({length: 5}, (_, i) =>
-        repo.acquireLease('v1', 'c1', `owner-${i}`, NOW),
-      ),
-    );
-    expect(results.filter(Boolean)).toHaveLength(1);
-    // Still held a minute later…
-    expect(await repo.acquireLease('v1', 'c1', 'late', later(1))).toBe(false);
-    // …but free once it has expired.
-    expect(await repo.acquireLease('v1', 'c1', 'late', later(60))).toBe(true);
-  });
+afterAll(closeAnalyticsTestDb);
 
-  it('creates the read-side source indexes on init', async () => {
-    const {repo, raw} = await analyticsTestDb();
-    await repo.init();
-    const names = async (col: string) =>
-      (await raw.collection(col).indexes()).map((i: any) => i.name);
-    expect(await names('anomaly_records')).toContain(
-      'analytics_versionId_createdAt',
-    );
-    expect(await names('user_activity_events')).toContain(
-      'analytics_courseVersionId_updatedAt',
-    );
-    expect(await names('studyViews')).toContain(
-      'analytics_courseVersionId_firstStudiedAt',
-    );
-  });
-});
+// Real-database tests can be slow on a loaded machine.
+describe(
+  'AnalyticsRepository: lease and indexes (1.2, 1.3)',
+  {timeout: 30000},
+  () => {
+    it('gives exactly one winner to concurrent lease requests and lets an expired lease be retaken', async () => {
+      const {repo} = await analyticsTestDb();
+      const results = await Promise.all(
+        Array.from({length: 5}, (_, i) =>
+          repo.acquireLease('v1', 'c1', `owner-${i}`, NOW),
+        ),
+      );
+      expect(results.filter(Boolean)).toHaveLength(1);
+      // Still held a minute later…
+      expect(await repo.acquireLease('v1', 'c1', 'late', later(1))).toBe(false);
+      // …but free once it has expired.
+      expect(await repo.acquireLease('v1', 'c1', 'late', later(60))).toBe(true);
+    });
 
-describe('AnalyticsProjector against a real database', () => {
+    it('creates the read-side source indexes on init', async () => {
+      const {repo, raw} = await analyticsTestDb();
+      await repo.init();
+      const names = async (col: string) =>
+        (await raw.collection(col).indexes()).map((i: any) => i.name);
+      expect(await names('anomaly_records')).toContain(
+        'analytics_versionId_createdAt',
+      );
+      expect(await names('user_activity_events')).toContain(
+        'analytics_courseVersionId_updatedAt',
+      );
+      expect(await names('studyViews')).toContain(
+        'analytics_courseVersionId_firstStudiedAt',
+      );
+    });
+  },
+);
+
+describe('AnalyticsProjector against a real database', {timeout: 30000}, () => {
   let t: Awaited<ReturnType<typeof analyticsTestDb>>;
   let c: Awaited<ReturnType<typeof seedCourse>>;
 

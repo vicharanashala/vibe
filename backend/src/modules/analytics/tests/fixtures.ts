@@ -5,17 +5,32 @@ import {AnalyticsSourceReader} from '../repositories/AnalyticsSourceReader.js';
 import {AnalyticsProjector} from '../services/AnalyticsProjector.js';
 import {AnalyticsQueryService} from '../services/AnalyticsQueryService.js';
 
+let shared: MongoDatabase | null = null;
+
+/**
+ * One connection per test file (MongoDatabase keeps a pool open), with the
+ * database emptied for each test and fresh analytics objects.
+ */
 export async function analyticsTestDb() {
-  const db = new MongoDatabase(
-    process.env.DB_URL!,
-    `analytics_${new ObjectId().toHexString()}`,
-  );
-  await db.connect();
+  if (!shared) {
+    shared = new MongoDatabase(
+      process.env.DB_URL!,
+      `analytics_${new ObjectId().toHexString()}`,
+    );
+    await shared.connect();
+  }
+  const db = shared;
+  await db.database!.dropDatabase();
   const repo = new AnalyticsRepository(db);
   const source = new AnalyticsSourceReader(db);
   const projector = new AnalyticsProjector(repo, source);
   const query = new AnalyticsQueryService(repo);
   return {db, repo, source, projector, query, raw: db.database!};
+}
+
+export async function closeAnalyticsTestDb() {
+  await shared?.disconnect();
+  shared = null;
 }
 
 export const ist = (s: string) => new Date(`${s}+05:30`);
