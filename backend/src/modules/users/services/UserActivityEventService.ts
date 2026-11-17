@@ -9,6 +9,7 @@ import {
   InternalServerError,
 } from 'routing-controllers';
 import { GLOBAL_TYPES } from '#root/types.js';
+import {notifyLearnerChanged} from '#root/modules/analytics/events.js';
 
 // Interface for the request body
 interface UserActivityEventRequest {
@@ -131,6 +132,9 @@ class UserActivityEventService extends BaseService {
         );
         return updatedResult;
       }
+    }).then(saved => {
+      notifyLearnerChanged(data.versionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
+      return saved;
     });
   }
 }

@@ -1669,7 +1669,7 @@ export interface paths {
         };
         /**
          * Get the current user face reference
-         * @description Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if the course has face recognition enabled.
+         * @description Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if face recognition is enabled -- resolved through the item/module override (moduleId/itemId) when supplied, else the course-wide setting.
          */
         get: operations["UserController.getCurrentUserFaceReference"];
         put?: never;
@@ -2003,6 +2003,46 @@ export interface paths {
          *         It returns an empty body with a 200 status code.
          */
         delete: operations["AnomalyController.deleteAnomaly"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/courses/{courseId}/versions/{versionId}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Course overview analytics for ViBe Studio
+         * @description Every overview panel for a course version over the last 7, 30 or 90 days (IST), from read models kept up to date as events happen. A course viewed for the first time is built gradually: while building, each request advances the build and returns `status: building` with `buildProgress` (0–100) and no figures. Same access as the course enrollment statistics.
+         */
+        get: operations["AnalyticsController.getOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/courses/{courseId}/versions/{versionId}/rebuild": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rebuild one course version’s analytics (admin only)
+         * @description Drops this version’s analytics and returns straight away. The next overview requests rebuild it gradually, reporting progress.
+         */
+        post: operations["AnalyticsController.rebuild"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -12127,6 +12167,148 @@ export interface components {
              */
             currentPage: number;
         };
+        AnalyticsVersionParams: {
+            courseId: string;
+            versionId: string;
+        };
+        CourseInsightsQuery: {
+            /**
+             * @description Range in days: 7, 30 or 90 (default 30).
+             * @enum {number}
+             */
+            range?: 7 | 30 | 90;
+        };
+        InsightsMetric: {
+            current?: number | null;
+            previous?: number | null;
+        };
+        InsightsHeadline: {
+            students: components["schemas"]["InsightsMetric"];
+            activeThisWeek: components["schemas"]["InsightsMetric"];
+            /** @description Average progress in percent, 0–100. */
+            averageProgress: components["schemas"]["InsightsMetric"];
+            finished: components["schemas"]["InsightsMetric"];
+            medianDaysToFinish: components["schemas"]["InsightsMetric"];
+            learningHours: components["schemas"]["InsightsMetric"];
+        };
+        InsightsDailyRow: {
+            /** @description IST day, YYYY-MM-DD */
+            day: string;
+            activeLearners: number;
+            learningHours: number;
+            newEnrolments: number;
+        };
+        InsightsProgressBand: {
+            /** @enum {string} */
+            band: "0" | "1-24" | "25-49" | "50-74" | "75-99" | "finished";
+            students: number;
+        };
+        InsightsFunnelRow: {
+            moduleId: string;
+            name: string;
+            reached: number;
+            completed: number;
+        };
+        InsightsWhereNowRow: {
+            itemId: string;
+            moduleId: string;
+            sectionId: string;
+            name: string;
+            type: string;
+            students: number;
+            medianDaysThere: number;
+        };
+        InsightsHardestQuestion: {
+            questionId: string;
+            text: string;
+            /** @description Share answered correctly on first attempts, 0–1. */
+            correctRate: number;
+            answered: number;
+        };
+        InsightsQuizRow: {
+            itemId: string;
+            moduleId: string;
+            sectionId: string;
+            name: string;
+            attempted: number;
+            /** @description 0–1 */
+            firstAttemptPassRate?: number | null;
+            avgAttemptsToPass?: number | null;
+            /** @description 10 bands of first-attempt score %: 0–9, 10–19, … 90–100. */
+            scoreBands: number[];
+            hardestQuestions: components["schemas"]["InsightsHardestQuestion"][];
+        };
+        InsightsRewindHotspot: {
+            startSecond: number;
+            rewinds: number;
+        };
+        InsightsVideoRow: {
+            itemId: string;
+            moduleId: string;
+            sectionId: string;
+            name: string;
+            started: number;
+            completed: number;
+            rewindHotspots: components["schemas"]["InsightsRewindHotspot"][];
+        };
+        InsightsCheckOnItem: {
+            itemId: string;
+            name: string;
+        };
+        InsightsCheckOnTotals: {
+            inactive: number;
+            stuck: number;
+        };
+        InsightsCheckOnRow: {
+            userId: string;
+            name: string;
+            email: string;
+            /** @enum {string} */
+            reason: "inactive" | "stuck";
+            daysSinceActive: number;
+            item?: components["schemas"]["InsightsCheckOnItem"];
+            daysOnItem?: number | null;
+        };
+        InsightsProctoringDay: {
+            day: string;
+        };
+        InsightsProctoring: {
+            checksOn: boolean;
+            daily: components["schemas"]["InsightsProctoringDay"][];
+            /** @description 0–1 */
+            shareWithIncident: number;
+        };
+        InsightsStudyMode: {
+            strictOnly: number;
+            studyOnly: number;
+            both: number;
+        };
+        CourseInsightsResponse: {
+            /** @enum {string} */
+            status: "ready" | "building";
+            /** @description Percentage of the first build done; only while building. */
+            buildProgress?: number;
+            /** Format: date-time */
+            updatedAt?: string | null;
+            /** @enum {number} */
+            range: 7 | 30 | 90;
+            headline?: components["schemas"]["InsightsHeadline"];
+            daily?: components["schemas"]["InsightsDailyRow"][];
+            /** @description [weekday 0=Mon..6=Sun][hour 0..23] learning hours, IST */
+            heatmap?: number[][];
+            progressBands?: components["schemas"]["InsightsProgressBand"][];
+            funnel?: components["schemas"]["InsightsFunnelRow"][];
+            whereNow?: components["schemas"]["InsightsWhereNowRow"][];
+            quizzes?: components["schemas"]["InsightsQuizRow"][];
+            videos?: components["schemas"]["InsightsVideoRow"][];
+            checkOn?: components["schemas"]["InsightsCheckOnRow"][];
+            checkOnTotals?: components["schemas"]["InsightsCheckOnTotals"];
+            proctoring?: components["schemas"]["InsightsProctoring"];
+            studyMode?: components["schemas"]["InsightsStudyMode"];
+        };
+        RebuildAcceptedResponse: {
+            accepted: boolean;
+        };
         AnnouncementIdParams: {
             /** @description Unique identifier for the announcement */
             announcementId: string;
@@ -18129,6 +18311,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "AnalyticsController.getOverview": {
+        parameters: {
+            query?: {
+                range?: 7 | 30 | 90;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Course overview analytics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseInsightsResponse"];
+                };
+            };
+        };
+    };
+    "AnalyticsController.rebuild": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RebuildAcceptedResponse"];
                 };
             };
         };

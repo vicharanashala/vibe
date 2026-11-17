@@ -58,6 +58,7 @@ import {
   NoAuthLeaderboardRow,
 } from './NoAuthLeaderboardCache.js';
 import { isGuruSetuProgressCourse } from '#root/modules/users/constants.js';
+import {notifyLearnerChanged} from '#root/modules/analytics/events.js';
 
 // Public-leaderboard timestamps, e.g. "11/09/2026, 03:35:09 pm". One shared
 // formatter: identical output to Date#toLocaleString with these options, but
@@ -1980,6 +1981,9 @@ class ProgressService extends BaseService {
       }
 
       return result;
+    }).then(watchItemId => {
+      notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
+      return watchItemId;
     });
   }
 
@@ -2670,6 +2674,7 @@ class ProgressService extends BaseService {
           watchItemId,
           cohortId,
         );
+        notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
       }
       return;
     }
@@ -3052,6 +3057,7 @@ class ProgressService extends BaseService {
 
       justCompleted = newProgress.completed === true && !wasAlreadyCompleted;
     });
+    notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
 
     // Best-effort: when the student crosses the follow-up threshold (>=98%) or
     // just completed this course, create an exclusive invite to the configured
@@ -3249,7 +3255,7 @@ class ProgressService extends BaseService {
     skippedBy: string,
     cohortId?: string,
   ): Promise<boolean> {
-    return this._withTransaction(async session => {
+    const done = await this._withTransaction(async session => {
       const progress = await this.progressRepository.findProgress(
         userId,
         courseId,
@@ -3314,6 +3320,8 @@ class ProgressService extends BaseService {
 
       return true;
     });
+    notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
+    return done;
   }
 
   /**
@@ -4881,6 +4889,7 @@ class ProgressService extends BaseService {
         session,
       );
 
+      if (!session) notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
       return { message: 'Course completed - reset to start', alreadyCompleted };
     }
 
@@ -4898,6 +4907,7 @@ class ProgressService extends BaseService {
       session,
     );
 
+    if (!session) notifyLearnerChanged(courseVersionId, userId); // analytics: after commit, fire-and-forget (never awaited, never throws)
     return {
       message: alreadyCompleted
         ? 'Item was already completed – progress advanced'
