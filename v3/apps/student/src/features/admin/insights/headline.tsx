@@ -4,10 +4,15 @@ import { days, hours } from './format';
 import { TrendBadge } from './trend';
 import type { CourseInsights, Metric } from './types';
 
-const show = (m: Metric, f: (n: number) => string) => (m.current == null ? '–' : f(m.current));
+const show = (m: Metric, f: (n: number) => string) =>
+  m.current == null ? '–' : f(m.current);
 
 /** The six headline figures, each with its change against the previous period. */
-export function Headline({ headline }: { headline: NonNullable<CourseInsights['headline']> }) {
+export function Headline({
+  headline,
+}: {
+  headline: NonNullable<CourseInsights['headline']>;
+}) {
   const num = (n: number) => n.toLocaleString();
   const pct = (n: number) => `${Math.round(n)}%`;
   const pts = (n: number) => `${Math.round(n)} pts`;
@@ -16,7 +21,11 @@ export function Headline({ headline }: { headline: NonNullable<CourseInsights['h
     <StatStrip
       layout="grid"
       stats={[
-        { label: 'Students', value: show(headline.students, num), trend: <TrendBadge metric={headline.students} /> },
+        {
+          label: 'Students',
+          value: show(headline.students, num),
+          trend: <TrendBadge metric={headline.students} />,
+        },
         {
           label: 'Active this week',
           value: show(headline.activeThisWeek, num),
@@ -27,11 +36,21 @@ export function Headline({ headline }: { headline: NonNullable<CourseInsights['h
           value: show(headline.averageProgress, pct),
           trend: <TrendBadge metric={headline.averageProgress} format={pts} />,
         },
-        { label: 'Finished', value: show(headline.finished, num), trend: <TrendBadge metric={headline.finished} /> },
+        {
+          label: 'Finished',
+          value: show(headline.finished, num),
+          trend: <TrendBadge metric={headline.finished} />,
+        },
         {
           label: 'Median time to finish',
           value: show(headline.medianDaysToFinish, d),
-          trend: <TrendBadge metric={headline.medianDaysToFinish} format={d} lowerIsBetter />,
+          trend: (
+            <TrendBadge
+              metric={headline.medianDaysToFinish}
+              format={d}
+              lowerIsBetter
+            />
+          ),
         },
         {
           label: 'Learning hours',

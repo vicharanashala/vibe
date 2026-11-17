@@ -141,7 +141,7 @@ export function CourseDetailPage({
   }
 
   return (
-    <StudioPage className="max-w-4xl">
+    <StudioPage className={tab === 'overview' ? 'max-w-6xl' : 'max-w-4xl'}>
       <nav
         aria-label="Breadcrumb"
         className="flex items-center gap-1 text-sm text-muted-foreground"
@@ -297,7 +297,7 @@ function CourseOverview({
     .join(' · ');
 
   return (
-    <div className="grid gap-8">
+    <div className="grid grid-cols-1 gap-8">
       <Suspense
         fallback={
           <div className="grid gap-4" data-testid="insights-loading" aria-busy="true">
@@ -319,7 +319,7 @@ function CourseOverview({
 
       <FinishedStudents courseId={courseId} versionId={versionId} onSeeAll={onSeeFinished} />
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <ActionTile
           icon={LayersIcon}
           title="Content"

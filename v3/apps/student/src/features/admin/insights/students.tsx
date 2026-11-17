@@ -31,7 +31,8 @@ export function StudentsToCheckOn({
     >
       {students.length === 0 ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <PartyPopperIcon aria-hidden className="size-4" /> No one has gone quiet or got stuck.
+          <PartyPopperIcon aria-hidden className="size-4" /> No one has gone
+          quiet or got stuck.
         </p>
       ) : (
         <ul className="-mx-2 divide-y divide-border">
@@ -44,24 +45,34 @@ export function StudentsToCheckOn({
               >
                 <GeneratedAvatar seed={s.userId} size={30} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{s.name}</span>
+                  <span className="block truncate text-sm font-medium">
+                    {s.name}
+                  </span>
                   <span className="block truncate text-xs text-muted-foreground">
                     {s.reason === 'stuck' && s.item
                       ? `On “${s.item.name}” for ${days(s.daysOnItem ?? 0)}`
                       : `Last active ${days(s.daysSinceActive)} ago${s.item ? ` · on “${s.item.name}”` : ''}`}
                   </span>
                 </span>
-                <Badge variant={s.reason === 'stuck' ? 'secondary' : 'outline'} className="shrink-0">
+                <Badge
+                  variant={s.reason === 'stuck' ? 'secondary' : 'outline'}
+                  className="shrink-0"
+                >
                   {s.reason === 'stuck' ? 'Stuck' : 'Inactive'}
                 </Badge>
-                <ChevronRightIcon aria-hidden className="shrink-0 text-muted-foreground" />
+                <ChevronRightIcon
+                  aria-hidden
+                  className="shrink-0 text-muted-foreground"
+                />
               </Button>
             </li>
           ))}
         </ul>
       )}
       {students.length > SHOWN && (
-        <p className="mt-2 text-xs text-muted-foreground">And {count(students.length - SHOWN, 'more student')}.</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          And {count(students.length - SHOWN, 'more student')}.
+        </p>
       )}
     </ChartPanel>
   );

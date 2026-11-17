@@ -12,7 +12,9 @@ export const DEFAULT_INSIGHTS_RANGE: InsightsRange = 30;
 
 export function parseInsightsRange(raw: unknown): InsightsRange | undefined {
   const n = typeof raw === 'string' ? Number(raw) : raw;
-  return INSIGHTS_RANGES.includes(n as InsightsRange) ? (n as InsightsRange) : undefined;
+  return INSIGHTS_RANGES.includes(n as InsightsRange)
+    ? (n as InsightsRange)
+    : undefined;
 }
 
 /** `null` means there's no data for that period. */
@@ -21,7 +23,8 @@ export interface Metric {
   previous: number | null;
 }
 
-export type ProgressBand = '0' | '1-24' | '25-49' | '50-74' | '75-99' | 'finished';
+export type ProgressBand =
+  '0' | '1-24' | '25-49' | '50-74' | '75-99' | 'finished';
 
 export interface CourseInsights {
   status: 'ready' | 'building';
@@ -37,11 +40,21 @@ export interface CourseInsights {
     medianDaysToFinish: Metric;
     learningHours: Metric;
   };
-  daily?: { day: string; activeLearners: number; learningHours: number; newEnrolments: number }[];
+  daily?: {
+    day: string;
+    activeLearners: number;
+    learningHours: number;
+    newEnrolments: number;
+  }[];
   /** [weekday 0=Mon..6=Sun][hour 0..23], learning hours in IST. */
   heatmap?: number[][];
   progressBands?: { band: ProgressBand; students: number }[];
-  funnel?: { moduleId: string; name: string; reached: number; completed: number }[];
+  funnel?: {
+    moduleId: string;
+    name: string;
+    reached: number;
+    completed: number;
+  }[];
   whereNow?: {
     itemId: string;
     moduleId: string;
@@ -74,7 +87,12 @@ export interface QuizInsight {
   avgAttemptsToPass: number | null;
   /** 10 bands of first-attempt score: 0–9, 10–19, … 90–100. */
   scoreBands: number[];
-  hardestQuestions: { questionId: string; text: string; correctRate: number; answered: number }[];
+  hardestQuestions: {
+    questionId: string;
+    text: string;
+    correctRate: number;
+    answered: number;
+  }[];
 }
 
 export interface VideoInsight {

@@ -1,6 +1,14 @@
 /** Formatting shared by the Overview's insights. */
 
-export const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+export const WEEKDAYS = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
 export const WEEKDAYS_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function count(n: number, one: string, many = `${one}s`) {
@@ -47,7 +55,11 @@ export function timeAgo(iso: string, now = Date.now()) {
 /** "2026-11-17" (an IST calendar day) → "17 Nov". */
 export function shortDay(day: string) {
   const [y, m, d] = day.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
 }
 
 /** "2026-11-17" → "Tue, 17 Nov 2026". */

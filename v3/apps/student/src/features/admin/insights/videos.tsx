@@ -3,14 +3,28 @@ import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 import { ChartPanel } from './chart-panel';
 import { count, percent, timestamp } from './format';
 import type { VideoInsight } from './types';
 
-const completion = (v: VideoInsight) => (v.started ? v.completed / v.started : null);
+const completion = (v: VideoInsight) =>
+  v.started ? v.completed / v.started : null;
 
 /** Each video's completion rate (finished ÷ started). Each opens its rewind hotspots. */
 export function VideoInsights({ videos }: { videos: VideoInsight[] }) {
@@ -47,9 +61,12 @@ export function VideoInsights({ videos }: { videos: VideoInsight[] }) {
               return (
                 <TableRow key={v.itemId}>
                   <TableCell className="w-full max-w-0">
-                    <p className="truncate font-medium">{v.name}</p>
+                    <p className="line-clamp-2 font-medium whitespace-normal">
+                      {v.name}
+                    </p>
                     <p className="text-xs text-muted-foreground">
-                      {v.completed.toLocaleString()} of {count(v.started, 'student')} who started
+                      {v.completed.toLocaleString()} of{' '}
+                      {count(v.started, 'student')} who started
                     </p>
                   </TableCell>
                   <TableCell>
@@ -57,13 +74,24 @@ export function VideoInsights({ videos }: { videos: VideoInsight[] }) {
                       <span className="text-muted-foreground">–</span>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <Progress value={Math.round(rate * 100)} className="flex-1 max-sm:hidden" aria-hidden />
-                        <span className="w-9 text-right text-xs tabular-nums">{percent(rate)}</span>
+                        <Progress
+                          value={Math.round(rate * 100)}
+                          className="flex-1 max-sm:hidden"
+                          aria-hidden
+                        />
+                        <span className="w-9 text-right text-xs tabular-nums">
+                          {percent(rate)}
+                        </span>
                       </div>
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon-sm" aria-label={`${v.name}: details`} onClick={() => setOpenId(v.itemId)}>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`${v.name}: details`}
+                      onClick={() => setOpenId(v.itemId)}
+                    >
                       <ChevronRightIcon aria-hidden />
                     </Button>
                   </TableCell>
@@ -80,7 +108,8 @@ export function VideoInsights({ videos }: { videos: VideoInsight[] }) {
               <SheetHeader>
                 <SheetTitle>{open.name}</SheetTitle>
                 <SheetDescription>
-                  {open.completed.toLocaleString()} of {count(open.started, 'student')} who started finished it.
+                  {open.completed.toLocaleString()} of{' '}
+                  {count(open.started, 'student')} who started finished it.
                 </SheetDescription>
               </SheetHeader>
               <section className="px-4 pb-6" aria-labelledby="rewinds">
@@ -88,22 +117,35 @@ export function VideoInsights({ videos }: { videos: VideoInsight[] }) {
                   Moments students rewind to
                 </h3>
                 <p className="mb-3 text-xs text-muted-foreground">
-                  Often a part that needs a second look: a fast explanation or a key step.
+                  Often a part that needs a second look: a fast explanation or a
+                  key step.
                 </p>
                 {open.rewindHotspots.length ? (
                   <ol className="grid gap-2">
                     {[...open.rewindHotspots]
                       .sort((a, b) => b.rewinds - a.rewinds)
                       .map((h) => (
-                        <li key={h.startSecond} className="flex items-center gap-3 rounded-xl border border-border px-3 py-2">
-                          <RotateCcwIcon aria-hidden className="size-4 text-muted-foreground" />
-                          <span className="font-medium tabular-nums">{timestamp(h.startSecond)}</span>
-                          <span className="ml-auto text-xs text-muted-foreground tabular-nums">{count(h.rewinds, 'rewind')}</span>
+                        <li
+                          key={h.startSecond}
+                          className="flex items-center gap-3 rounded-xl border border-border px-3 py-2"
+                        >
+                          <RotateCcwIcon
+                            aria-hidden
+                            className="size-4 text-muted-foreground"
+                          />
+                          <span className="font-medium tabular-nums">
+                            {timestamp(h.startSecond)}
+                          </span>
+                          <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                            {count(h.rewinds, 'rewind')}
+                          </span>
                         </li>
                       ))}
                   </ol>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No rewinds recorded yet.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No rewinds recorded yet.
+                  </p>
                 )}
               </section>
             </>

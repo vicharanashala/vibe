@@ -1,9 +1,20 @@
 import { useNavigate } from '@tanstack/react-router';
-import { ChevronRightIcon, FileTextIcon, TriangleAlertIcon } from 'lucide-react';
+import {
+  ChevronRightIcon,
+  FileTextIcon,
+  TriangleAlertIcon,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 import { ITEM_TYPES } from '../course-content';
 
@@ -31,7 +42,9 @@ export function WhereNow({
   whereNow: NonNullable<CourseInsights['whereNow']>;
 }) {
   const navigate = useNavigate();
-  const rows = [...whereNow].sort((a, b) => b.students - a.students).slice(0, SHOWN);
+  const rows = [...whereNow]
+    .sort((a, b) => b.students - a.students)
+    .slice(0, SHOWN);
   const blockers = rows.filter(isBlocker);
   return (
     <ChartPanel
@@ -49,8 +62,15 @@ export function WhereNow({
           <TableHeader>
             <TableRow>
               <TableHead>Lesson</TableHead>
-              <TableHead className="text-right">Students</TableHead>
-              <TableHead className="text-right">There for</TableHead>
+              <TableHead className="text-right">
+                <span className="max-sm:sr-only">Students</span>
+                <span className="sm:hidden" aria-hidden>
+                  #
+                </span>
+              </TableHead>
+              <TableHead className="text-right max-sm:hidden">
+                There for
+              </TableHead>
               <TableHead className="w-10">
                 <span className="sr-only">Open</span>
               </TableHead>
@@ -58,34 +78,62 @@ export function WhereNow({
           </TableHeader>
           <TableBody>
             {rows.map((l) => {
-              const meta = ITEM_TYPES[l.type] ?? { label: 'Lesson', icon: FileTextIcon, tone: 'bg-muted text-foreground/80' };
+              const meta = ITEM_TYPES[l.type] ?? {
+                label: 'Lesson',
+                icon: FileTextIcon,
+                tone: 'bg-muted text-foreground/80',
+              };
               const Icon = meta.icon;
               const open = () =>
                 void navigate({
                   to: '/admin/courses/$courseId/$versionId/lesson',
                   params: { courseId, versionId },
-                  search: { module: l.moduleId, section: l.sectionId, item: l.itemId },
+                  search: {
+                    module: l.moduleId,
+                    section: l.sectionId,
+                    item: l.itemId,
+                  },
                 });
               return (
                 <TableRow key={l.itemId}>
                   <TableCell className="max-w-0 w-full">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className={`grid size-6 shrink-0 place-items-center rounded-md ${meta.tone}`}>
+                    <div className="flex min-w-0 items-start gap-2">
+                      <span
+                        className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-md ${meta.tone}`}
+                      >
                         <Icon aria-hidden className="size-3.5" />
                         <span className="sr-only">{meta.label}</span>
                       </span>
-                      <span className="truncate font-medium">{l.name}</span>
-                      {isBlocker(l) && (
-                        <Badge variant="destructive" className="shrink-0 gap-1">
-                          <TriangleAlertIcon aria-hidden className="size-3" /> Possible blocker
-                        </Badge>
-                      )}
+                      <div className="min-w-0">
+                        <p className="line-clamp-2 font-medium whitespace-normal">
+                          {l.name}
+                        </p>
+                        {/* The "There for" column is hidden on phones, so the time shows here. */}
+                        <p className="text-xs text-muted-foreground sm:hidden">
+                          {days(l.medianDaysThere)} here
+                        </p>
+                        {isBlocker(l) && (
+                          <Badge variant="destructive" className="mt-1 gap-1">
+                            <TriangleAlertIcon aria-hidden className="size-3" />{' '}
+                            Possible blocker
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{l.students.toLocaleString()}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap text-muted-foreground">{days(l.medianDaysThere)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {l.students.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap text-muted-foreground max-sm:hidden">
+                    {days(l.medianDaysThere)}
+                  </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon-sm" aria-label={`Open ${l.name}`} onClick={open}>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Open ${l.name}`}
+                      onClick={open}
+                    >
                       <ChevronRightIcon aria-hidden />
                     </Button>
                   </TableCell>

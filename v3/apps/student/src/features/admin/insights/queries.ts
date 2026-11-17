@@ -5,7 +5,8 @@ import { api } from '@/lib/api';
 
 import type { CourseInsights, InsightsRange } from './types';
 
-export const OVERVIEW_PATH = '/api/analytics/courses/{courseId}/versions/{versionId}/overview';
+export const OVERVIEW_PATH =
+  '/api/analytics/courses/{courseId}/versions/{versionId}/overview';
 
 /**
  * The analytics endpoint isn't in the generated API schema yet (the backend
@@ -14,14 +15,26 @@ export const OVERVIEW_PATH = '/api/analytics/courses/{courseId}/versions/{versio
  */
 type OverviewGet = (
   path: typeof OVERVIEW_PATH,
-  init: { params: { path: { courseId: string; versionId: string }; query: { range: InsightsRange } } },
+  init: {
+    params: {
+      path: { courseId: string; versionId: string };
+      query: { range: InsightsRange };
+    };
+  },
 ) => Promise<{ data?: CourseInsights; error?: unknown; response: Response }>;
 
-export const insightsKey = (courseId: string, versionId: string, range: InsightsRange) =>
-  ['admin', 'insights', courseId, versionId, range] as const;
+export const insightsKey = (
+  courseId: string,
+  versionId: string,
+  range: InsightsRange,
+) => ['admin', 'insights', courseId, versionId, range] as const;
 
 /** The course Overview's analytics for the last `range` days. Refreshed at most every 5 minutes. */
-export function useCourseInsights(courseId: string, versionId: string, range: InsightsRange) {
+export function useCourseInsights(
+  courseId: string,
+  versionId: string,
+  range: InsightsRange,
+) {
   return useQuery({
     queryKey: insightsKey(courseId, versionId, range),
     queryFn: async () =>

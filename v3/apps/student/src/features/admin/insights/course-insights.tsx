@@ -1,7 +1,18 @@
-import { ChartNoAxesCombinedIcon, MailPlusIcon, SparklesIcon } from 'lucide-react';
+import {
+  ChartNoAxesCombinedIcon,
+  MailPlusIcon,
+  SparklesIcon,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
@@ -53,7 +64,11 @@ export default function CourseInsightsSection({
       }}
     >
       {INSIGHTS_RANGES.map((r) => (
-        <ToggleGroupItem key={r} value={String(r)} aria-label={`Last ${r} days`}>
+        <ToggleGroupItem
+          key={r}
+          value={String(r)}
+          aria-label={`Last ${r} days`}
+        >
           {r} days
         </ToggleGroupItem>
       ))}
@@ -65,7 +80,10 @@ export default function CourseInsightsSection({
       action={
         <div className="flex items-center gap-3">
           {data?.status === 'ready' && data.updatedAt && (
-            <span className="text-xs text-muted-foreground max-sm:hidden" title={new Date(data.updatedAt).toLocaleString()}>
+            <span
+              className="text-xs text-muted-foreground max-sm:hidden"
+              title={new Date(data.updatedAt).toLocaleString()}
+            >
               Updated {timeAgo(data.updatedAt)}
             </span>
           )}
@@ -91,7 +109,8 @@ export default function CourseInsightsSection({
           </EmptyMedia>
           <EmptyTitle>Insights are being prepared</EmptyTitle>
           <EmptyDescription>
-            We’re adding up this course’s activity for the first time. Check back in a few minutes.
+            We’re adding up this course’s activity for the first time. Check
+            back in a few minutes.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -105,7 +124,8 @@ export default function CourseInsightsSection({
           </EmptyMedia>
           <EmptyTitle>No students yet</EmptyTitle>
           <EmptyDescription>
-            Once students join, you’ll see how they’re doing here: activity, progress, quizzes and who needs a nudge.
+            Once students join, you’ll see how they’re doing here: activity,
+            progress, quizzes and who needs a nudge.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
@@ -117,41 +137,54 @@ export default function CourseInsightsSection({
     );
   } else {
     content = (
-      <div className="grid gap-8">
+      <div className="grid min-w-0 grid-cols-1 gap-8">
         <Headline headline={data.headline} />
 
         <InsightGroup title="Activity">
           {data.daily && <ActivityChart daily={data.daily} range={range} />}
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
             {data.daily && <EnrolmentsChart daily={data.daily} range={range} />}
             {data.heatmap && <StudyHeatmap heatmap={data.heatmap} />}
           </div>
         </InsightGroup>
 
         <InsightGroup title="Progress">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
             {data.progressBands && <ProgressBands bands={data.progressBands} />}
             {data.funnel && <ModuleFunnel funnel={data.funnel} />}
           </div>
         </InsightGroup>
 
         <InsightGroup title="Needs attention">
-          <div className="grid gap-4 lg:grid-cols-2">
-            {data.whereNow && <WhereNow courseId={courseId} versionId={versionId} whereNow={data.whereNow} />}
-            {data.checkOn && <StudentsToCheckOn students={data.checkOn} onOpenStudent={onOpenStudent} />}
+          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+            {data.whereNow && (
+              <WhereNow
+                courseId={courseId}
+                versionId={versionId}
+                whereNow={data.whereNow}
+              />
+            )}
+            {data.checkOn && (
+              <StudentsToCheckOn
+                students={data.checkOn}
+                onOpenStudent={onOpenStudent}
+              />
+            )}
           </div>
         </InsightGroup>
 
         <InsightGroup title="Lessons">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
             {data.quizzes && <QuizInsights quizzes={data.quizzes} />}
             {data.videos && <VideoInsights videos={data.videos} />}
           </div>
         </InsightGroup>
 
         <InsightGroup title="Integrity and study habits">
-          <div className="grid gap-4 lg:grid-cols-2">
-            {data.proctoring && <ProctoringInsights proctoring={data.proctoring} range={range} />}
+          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+            {data.proctoring && (
+              <ProctoringInsights proctoring={data.proctoring} range={range} />
+            )}
             {data.studyMode && <StudyModeSplit studyMode={data.studyMode} />}
           </div>
         </InsightGroup>
@@ -160,20 +193,34 @@ export default function CourseInsightsSection({
   }
 
   return (
-    <section aria-label={insights.isPending ? 'Insights loading' : 'Insights'} aria-busy={insights.isPending || undefined}>
+    <section
+      className="min-w-0"
+      aria-label={insights.isPending ? 'Insights loading' : 'Insights'}
+      aria-busy={insights.isPending || undefined}
+    >
       {header}
       {data?.status === 'ready' && data.updatedAt && (
-        <p className="-mt-1 mb-3 text-xs text-muted-foreground sm:hidden">Updated {timeAgo(data.updatedAt)}</p>
+        <p className="-mt-1 mb-3 text-xs text-muted-foreground sm:hidden">
+          Updated {timeAgo(data.updatedAt)}
+        </p>
       )}
       {content}
     </section>
   );
 }
 
-function InsightGroup({ title, children }: { title: string; children: React.ReactNode }) {
+function InsightGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="grid gap-4">
-      <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{title}</h3>
+    <div className="grid min-w-0 grid-cols-1 gap-4">
+      <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+        {title}
+      </h3>
       {children}
     </div>
   );
@@ -184,7 +231,7 @@ export function InsightsSkeleton() {
     <div className="grid gap-4" data-testid="insights-skeleton">
       <Skeleton className="h-44 rounded-2xl" />
       <Skeleton className="h-64 rounded-2xl" />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         <Skeleton className="h-52 rounded-2xl" />
         <Skeleton className="h-52 rounded-2xl" />
       </div>

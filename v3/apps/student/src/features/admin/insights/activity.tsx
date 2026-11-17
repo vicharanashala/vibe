@@ -1,10 +1,35 @@
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 import { ChartPanel } from './chart-panel';
-import { count, hourLabel, hours, longDay, shortDay, WEEKDAYS, WEEKDAYS_SHORT } from './format';
+import {
+  count,
+  hourLabel,
+  hours,
+  longDay,
+  shortDay,
+  WEEKDAYS,
+  WEEKDAYS_SHORT,
+} from './format';
 import type { CourseInsights } from './types';
 
 type Daily = NonNullable<CourseInsights['daily']>;
@@ -14,11 +39,22 @@ const activityConfig = {
   learningHours: { label: 'Learning hours', color: 'var(--chart-3)' },
 } satisfies ChartConfig;
 
-const enrolConfig = { newEnrolments: { label: 'New enrolments', color: 'var(--chart-2)' } } satisfies ChartConfig;
+const enrolConfig = {
+  newEnrolments: { label: 'New enrolments', color: 'var(--chart-1)' },
+} satisfies ChartConfig;
 
 /** Daily active students and learning hours, on their own axes. */
-export function ActivityChart({ daily, range }: { daily: Daily; range: number }) {
-  const peak = daily.reduce((best, d) => (d.activeLearners > (best?.activeLearners ?? -1) ? d : best), daily[0]);
+export function ActivityChart({
+  daily,
+  range,
+}: {
+  daily: Daily;
+  range: number;
+}) {
+  const peak = daily.reduce(
+    (best, d) => (d.activeLearners > (best?.activeLearners ?? -1) ? d : best),
+    daily[0],
+  );
   const totalHours = daily.reduce((s, d) => s + d.learningHours, 0);
   return (
     <ChartPanel
@@ -31,22 +67,68 @@ export function ActivityChart({ daily, range }: { daily: Daily; range: number })
       table={{
         caption: 'Active students and learning hours per day',
         columns: ['Day', 'Active students', 'Learning hours'],
-        rows: daily.map((d) => [longDay(d.day), d.activeLearners, d.learningHours]),
+        rows: daily.map((d) => [
+          longDay(d.day),
+          d.activeLearners,
+          d.learningHours,
+        ]),
       }}
     >
-      <ChartContainer config={activityConfig} className="aspect-auto h-56 w-full">
-        <AreaChart data={daily} margin={{ left: 4, right: 4, top: 8 }} accessibilityLayer>
+      <ChartContainer
+        config={activityConfig}
+        className="aspect-auto h-56 w-full"
+      >
+        <AreaChart
+          data={daily}
+          margin={{ left: 4, right: 4, top: 8 }}
+          accessibilityLayer
+        >
           <defs>
             <linearGradient id="fill-active" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--color-activeLearners)" stopOpacity={0.35} />
-              <stop offset="95%" stopColor="var(--color-activeLearners)" stopOpacity={0.02} />
+              <stop
+                offset="5%"
+                stopColor="var(--color-activeLearners)"
+                stopOpacity={0.35}
+              />
+              <stop
+                offset="95%"
+                stopColor="var(--color-activeLearners)"
+                stopOpacity={0.02}
+              />
             </linearGradient>
           </defs>
           <CartesianGrid vertical={false} />
-          <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} tickFormatter={shortDay} />
-          <YAxis yAxisId="students" tickLine={false} axisLine={false} width={32} allowDecimals={false} />
-          <YAxis yAxisId="hours" orientation="right" tickLine={false} axisLine={false} width={32} />
-          <ChartTooltip cursor={false} content={<ChartTooltipContent labelFormatter={(v) => longDay(String(v))} indicator="dot" />} />
+          <XAxis
+            dataKey="day"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            minTickGap={24}
+            tickFormatter={shortDay}
+          />
+          <YAxis
+            yAxisId="students"
+            tickLine={false}
+            axisLine={false}
+            width={32}
+            allowDecimals={false}
+          />
+          <YAxis
+            yAxisId="hours"
+            orientation="right"
+            tickLine={false}
+            axisLine={false}
+            width={32}
+          />
+          <ChartTooltip
+            cursor={false}
+            content={
+              <ChartTooltipContent
+                labelFormatter={(v) => longDay(String(v))}
+                indicator="dot"
+              />
+            }
+          />
           <Area
             yAxisId="students"
             dataKey="activeLearners"
@@ -66,12 +148,17 @@ export function ActivityChart({ daily, range }: { daily: Daily; range: number })
           />
         </AreaChart>
       </ChartContainer>
-      <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-hidden>
+      <ul
+        className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"
+        aria-hidden
+      >
         <li className="flex items-center gap-1.5">
-          <span className="h-0.5 w-4 rounded bg-chart-1" /> Active students (left axis)
+          <span className="h-0.5 w-4 rounded bg-chart-1" /> Active students
+          (left axis)
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="h-0 w-4 border-t-2 border-dashed border-chart-3" /> Learning hours (right axis)
+          <span className="h-0 w-4 border-t-2 border-dashed border-chart-3" />{' '}
+          Learning hours (right axis)
         </li>
       </ul>
     </ChartPanel>
@@ -79,12 +166,22 @@ export function ActivityChart({ daily, range }: { daily: Daily; range: number })
 }
 
 /** New enrolments per day. */
-export function EnrolmentsChart({ daily, range }: { daily: Daily; range: number }) {
+export function EnrolmentsChart({
+  daily,
+  range,
+}: {
+  daily: Daily;
+  range: number;
+}) {
   const total = daily.reduce((s, d) => s + d.newEnrolments, 0);
   return (
     <ChartPanel
       title="New enrolments"
-      summary={total ? `${count(total, 'student')} joined in the last ${range} days.` : `Nobody joined in the last ${range} days.`}
+      summary={
+        total
+          ? `${count(total, 'student')} joined in the last ${range} days.`
+          : `Nobody joined in the last ${range} days.`
+      }
       table={{
         caption: 'New enrolments per day',
         columns: ['Day', 'New enrolments'],
@@ -92,12 +189,40 @@ export function EnrolmentsChart({ daily, range }: { daily: Daily; range: number 
       }}
     >
       <ChartContainer config={enrolConfig} className="aspect-auto h-44 w-full">
-        <BarChart data={daily} margin={{ left: 4, right: 4, top: 8 }} accessibilityLayer>
+        <BarChart
+          data={daily}
+          margin={{ left: 4, right: 4, top: 8 }}
+          accessibilityLayer
+        >
           <CartesianGrid vertical={false} />
-          <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} tickFormatter={shortDay} />
-          <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} />
-          <ChartTooltip cursor={false} content={<ChartTooltipContent labelFormatter={(v) => longDay(String(v))} hideIndicator />} />
-          <Bar dataKey="newEnrolments" fill="var(--color-newEnrolments)" radius={[3, 3, 0, 0]} />
+          <XAxis
+            dataKey="day"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            minTickGap={24}
+            tickFormatter={shortDay}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            width={28}
+            allowDecimals={false}
+          />
+          <ChartTooltip
+            cursor={false}
+            content={
+              <ChartTooltipContent
+                labelFormatter={(v) => longDay(String(v))}
+                hideIndicator
+              />
+            }
+          />
+          <Bar
+            dataKey="newEnrolments"
+            fill="var(--color-newEnrolments)"
+            radius={[3, 3, 0, 0]}
+          />
         </BarChart>
       </ChartContainer>
     </ChartPanel>
@@ -163,13 +288,20 @@ export function StudyHeatmap({ heatmap }: { heatmap: number[][] }) {
           </span>
         ))}
       </div>
-      <div className="mt-3 flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground" aria-hidden>
+      <div
+        className="mt-3 flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground"
+        aria-hidden
+      >
         Less
         {[0, 0.25, 0.5, 0.75, 1].map((s) => (
           <span
             key={s}
             className="size-2.5 rounded-[3px]"
-            style={{ background: s ? `color-mix(in oklch, var(--chart-1) ${Math.round(15 + s * 85)}%, transparent)` : 'var(--muted)' }}
+            style={{
+              background: s
+                ? `color-mix(in oklch, var(--chart-1) ${Math.round(15 + s * 85)}%, transparent)`
+                : 'var(--muted)',
+            }}
           />
         ))}
         More

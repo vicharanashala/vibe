@@ -117,10 +117,10 @@ export function CoursePeople({
   const [search] = useDebounceValue(query.trim(), 300);
   useEffect(() => setPage(1), [search, role, sort.by, sort.order]);
   // Typing updates the URL once it settles; a new link (e.g. from the Overview) updates the box.
-  useEffect(() => onQueryChange?.(search), [search]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => onQueryChange?.(search), [search]);
   useEffect(() => {
     if (urlQuery !== search) setQuery(urlQuery);
-  }, [urlQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlQuery]);
 
   const enrollments = useCourseEnrollmentsPage(courseId, versionId, {
     page,
