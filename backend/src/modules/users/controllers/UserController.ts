@@ -1,7 +1,7 @@
-import { User } from '#auth/classes/transformers/User.js';
-import { UserService } from '#users/services/UserService.js';
-import { USERS_TYPES } from '#users/types.js';
-import { injectable, inject } from 'inversify';
+import {User} from '#auth/classes/transformers/User.js';
+import {UserService} from '#users/services/UserService.js';
+import {USERS_TYPES} from '#users/types.js';
+import {injectable, inject} from 'inversify';
 import {
   JsonController,
   Get,
@@ -16,7 +16,7 @@ import {
   CurrentUser,
   QueryParam,
 } from 'routing-controllers';
-import { OpenAPI, ResponseSchema } from 'routing-controllers-openapi';
+import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {
   EditUserBody,
   GetUserParams,
@@ -24,19 +24,27 @@ import {
   UpdateFaceReferenceBody,
   UserNotFoundErrorResponse,
 } from '../classes/validators/UserValidators.js';
-import { UserEnrollmentStatisticsResponse } from '../classes/validators/EnrollmentValidators.js';
-import { EnrollmentService } from '#users/services/EnrollmentService.js';
-import { AUTH_TYPES } from '#root/modules/auth/types.js';
-import { IAuthService } from '#root/modules/auth/interfaces/IAuthService.js';
-import { IUser } from '#root/shared/interfaces/models.js';
-import { SETTING_TYPES } from '#root/modules/setting/types.js';
-import { CourseSettingService } from '#root/modules/setting/services/CourseSettingService.js';
-import { ProctoringComponent } from '#root/shared/database/interfaces/ISettingRepository.js';
+import {UserEnrollmentStatisticsResponse} from '../classes/validators/EnrollmentValidators.js';
+import {EnrollmentService} from '#users/services/EnrollmentService.js';
+import {AUTH_TYPES} from '#root/modules/auth/types.js';
+import {IAuthService} from '#root/modules/auth/interfaces/IAuthService.js';
+import {IUser} from '#root/shared/interfaces/models.js';
+import {SETTING_TYPES} from '#root/modules/setting/types.js';
+import {CourseSettingService} from '#root/modules/setting/services/CourseSettingService.js';
+import {ProctoringComponent} from '#root/shared/database/interfaces/ISettingRepository.js';
+import {
+  resolveProctoringDetectors,
+  isDetectorEnabled,
+} from '#root/shared/index.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {COURSES_TYPES} from '#root/modules/courses/types.js';
+import type {ICourseRepository} from '#root/shared/database/interfaces/ICourseRepository.js';
+import type {IItemRepository} from '#root/shared/database/interfaces/IItemRepository.js';
 
 @OpenAPI({
   tags: ['Users'],
 })
-@JsonController('/users', { transformResponse: true })
+@JsonController('/users', {transformResponse: true})
 @injectable()
 export class UserController {
   constructor(
@@ -51,11 +59,18 @@ export class UserController {
 
     @inject(SETTING_TYPES.CourseSettingService)
     private readonly courseSettingService: CourseSettingService,
-  ) { }
+
+    @inject(GLOBAL_TYPES.CourseRepo)
+    private readonly courseRepo: ICourseRepository,
+
+    @inject(COURSES_TYPES.ItemRepo)
+    private readonly itemRepo: IItemRepository,
+  ) {}
 
   @OpenAPI({
     summary: 'Get user-level enrollment statistics',
-    description: 'Provides aggregated statistics across all courses for the current user.',
+    description:
+      'Provides aggregated statistics across all courses for the current user.',
   })
   @Authorized()
   @Get('/enrollment-stats')
@@ -64,7 +79,7 @@ export class UserController {
     description: 'User-level enrollment statistics',
   })
   async getUserEnrollmentStatistics(
-    @CurrentUser({ required: true }) user: IUser,
+    @CurrentUser({required: true}) user: IUser,
   ): Promise<UserEnrollmentStatisticsResponse> {
     return await this.enrollmentService.getUserEnrollmentStatistics(
       user._id!.toString(),
@@ -85,16 +100,15 @@ export class UserController {
     description: 'User not found',
     statusCode: 404,
   })
-  async getUserById(
-    @Params() params: GetUserParams,
-  ): Promise<GetUserResponse> {
-    const { userId } = params;
+  async getUserById(@Params() params: GetUserParams): Promise<GetUserResponse> {
+    const {userId} = params;
     return await this.userService.getUserById(userId);
   }
 
   @OpenAPI({
     summary: 'Get current user profile',
-    description: 'Retrieves user information for the currently authenticated user.',
+    description:
+      'Retrieves user information for the currently authenticated user.',
   })
   @Authorized()
   @Get('/me')
@@ -113,7 +127,8 @@ export class UserController {
 
   @OpenAPI({
     summary: 'Get the current user face reference',
-    description: 'Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if the course has face recognition enabled.',
+    description:
+      'Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if face recognition is enabled -- resolved through the item/module override (moduleId/itemId) when supplied, else the course-wide setting.',
   })
   @Authorized()
   @Get('/me/face-reference')
@@ -122,6 +137,8 @@ export class UserController {
     @Req() req: any,
     @QueryParam('courseId') courseId?: string,
     @QueryParam('versionId') versionId?: string,
+    @QueryParam('moduleId') moduleId?: string,
+    @QueryParam('itemId') itemId?: string,
   ): Promise<{
     label: string;
     profileImage: string | null;
@@ -132,33 +149,54 @@ export class UserController {
 
     let faceRecognitionAllowed = true;
     if (courseId && versionId) {
-      const courseSetting = await this.courseSettingService.readCourseSettings(
-        courseId,
-        versionId,
+      const [courseSetting, item, courseVersion] = await Promise.all([
+        this.courseSettingService.readCourseSettings(courseId, versionId),
+        itemId ? this.itemRepo.readItemById(itemId) : null,
+        // Only needed to resolve the module's own override -- skip if the
+        // client didn't send moduleId (item-level + universal still resolve
+        // correctly without it, per resolveProctoringDetectors' precedence).
+        moduleId ? this.courseRepo.readVersion(versionId) : null,
+      ]);
+
+      const itemModule = moduleId
+        ? courseVersion?.modules?.find(m => m.moduleId?.toString() === moduleId)
+        : undefined;
+
+      // Resolves the item's/module's own detector override before falling
+      // back to the course-wide list, matching AnomalyController's own
+      // FACE_RECOGNITION check -- the old course-only lookup here ignored a
+      // selective-proctoring override, withholding an already-registered
+      // student's embedding (or exposing one that should stay withheld).
+      const resolvedDetectors = resolveProctoringDetectors(
+        item ?? undefined,
+        itemModule,
+        courseSetting ?? undefined,
       );
-      const detector = courseSetting?.settings?.proctors?.detectors?.find(
-        d => d.detectorName === ProctoringComponent.FACERECOGNITION,
+      faceRecognitionAllowed = isDetectorEnabled(
+        resolvedDetectors,
+        ProctoringComponent.FACERECOGNITION,
       );
-      faceRecognitionAllowed = detector?.settings?.enabled ?? false;
     }
 
     return {
-      label: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+      label:
+        `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
       profileImage: user.profileImage || null,
-      faceEmbedding: faceRecognitionAllowed ? (user.faceEmbedding || null) : null,
+      faceEmbedding: faceRecognitionAllowed ? user.faceEmbedding || null : null,
     };
   }
 
   @OpenAPI({
     summary: 'Set or replace the current user face reference',
-    description: 'Stores a profile image and 128-length face embedding on the current user. Used when a student adds their face after initial signup.',
+    description:
+      'Stores a profile image and 128-length face embedding on the current user. Used when a student adds their face after initial signup.',
   })
   @Authorized()
   @Patch('/me/face-reference')
   @OnUndefined(200)
   async updateCurrentUserFaceReference(
     @Req() req: any,
-    @Body({ options: { limit: '10mb' } }) body: UpdateFaceReferenceBody,
+    @Body({options: {limit: '10mb'}}) body: UpdateFaceReferenceBody,
   ): Promise<void> {
     const token = req.headers.authorization?.split(' ')[1];
     const user = await this.authService.getCurrentUserFromToken(token);
@@ -181,10 +219,7 @@ export class UserController {
     description: 'User not found',
     statusCode: 404,
   })
-  async editUser(
-    @Req() req: any,
-    @Body() body: EditUserBody,
-  ): Promise<void> {
+  async editUser(@Req() req: any, @Body() body: EditUserBody): Promise<void> {
     const token = req.headers.authorization?.split(' ')[1];
     const user = await this.authService.getCurrentUserFromToken(token);
     const userId = user._id!.toString();
@@ -207,10 +242,10 @@ export class UserController {
     statusCode: 404,
   })
   async makeAdmin(
-    @CurrentUser({ required: true }) currentUser: IUser,
+    @CurrentUser({required: true}) currentUser: IUser,
     @Params() params: GetUserParams,
   ): Promise<void> {
-    const { userId } = params;
+    const {userId} = params;
     await this.userService.makeAdmin(userId, currentUser);
   }
 }
