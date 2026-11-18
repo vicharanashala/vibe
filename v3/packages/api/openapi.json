@@ -10487,6 +10487,46 @@
      "message"
     ]
    },
+   "ChangeUserEmailBody": {
+    "properties": {
+     "email": {
+      "maxLength": 254,
+      "type": "string",
+      "format": "email",
+      "description": "The new sign-in email for the user",
+      "example": "new.address@example.com"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email"
+    ]
+   },
+   "ChangeUserEmailResponse": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "description": "The new email"
+     },
+     "previousEmail": {
+      "type": "string",
+      "description": "The email before the change"
+     },
+     "signInMethods": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "description": "The account's sign-in methods, e.g. 'password' and 'google.com'"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email",
+     "previousEmail",
+     "signInMethods"
+    ]
+   },
    "ReportStatusEntry": {
     "properties": {
      "status": {
@@ -22577,6 +22617,62 @@
      "Users"
     ],
     "description": "Promotes a user to admin status based on the provided user ID.<br/>\n    Only an existing admin may call this endpoint.<br/>\n    It returns an empty body with a 200 status code."
+   }
+  },
+  "/api/users/{userId}/email": {
+   "patch": {
+    "operationId": "UserController.changeUserEmail",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "userId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "description": "User ID of the person",
+       "example": "cKy6H2O04PgTh8O3DpUXjgJYUr53"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ChangeUserEmailBody"
+       }
+      }
+     },
+     "description": "ChangeUserEmailBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ChangeUserEmailResponse"
+        }
+       }
+      },
+      "description": "The new email and the account sign-in methods"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "User not found"
+     }
+    },
+    "summary": "Change a user's sign-in email (admin)",
+    "tags": [
+     "Users"
+    ],
+    "description": "Changes the email a user signs in with, on both their Firebase account and their user record.<br/>\n    They keep their password, enrolments and progress. No email is sent.<br/>\n    Only an admin may call this endpoint."
    }
   },
   "/api/users/user-activity-events/": {
@@ -37845,7 +37941,7 @@
      "description": "Localhost for API server"
     },
     "port": {
-     "default": "4012",
+     "default": "4007",
      "description": "Port for the API server"
     }
    }
