@@ -18,6 +18,7 @@ export enum AuditCategory {
   ANNOUNCEMENT = 'ANNOUNCEMENT',
   COHORT = 'COHORT',
   EJECTION_POLICY = 'EJECTION_POLICY',
+  USER = 'USER',
 }
 
 export enum AuditAction {
@@ -128,6 +129,9 @@ export enum AuditAction {
   EJECTION_POLICY_TOGGLE = 'EJECTION_POLICY_TOGGLE',
   EJECTION_POLICY_DELETE = 'EJECTION_POLICY_DELETE',
   COHORT_MOVE = 'COHORT_MOVE',
+
+  // Users
+  USER_EMAIL_CHANGE = 'USER_EMAIL_CHANGE',
 }
 
 export enum OutComeStatus {

@@ -7,7 +7,11 @@ import {
 import {IAuthService} from '#auth/interfaces/IAuthService.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
-import {BadRequestError, InternalServerError} from 'routing-controllers';
+import {
+  BadRequestError,
+  HttpError,
+  InternalServerError,
+} from 'routing-controllers';
 import admin from 'firebase-admin';
 import {IUser} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
@@ -557,6 +561,44 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       }
       console.error('Failed to look up sign-in providers:', error);
       return [];
+    }
+  }
+
+  async findFirebaseUidByEmail(email: string): Promise<string | null> {
+    try {
+      const userRecord = await this.auth.getUserByEmail(email);
+      return userRecord.uid;
+    } catch (error: any) {
+      if (error?.code === 'auth/user-not-found') return null;
+      throw error;
+    }
+  }
+
+  async setFirebaseEmail(
+    firebaseUID: string,
+    email: string,
+  ): Promise<{previousEmail: string | null; signInMethods: string[]}> {
+    const before = await this.auth.getUser(firebaseUID);
+    try {
+      const updated = await this.auth.updateUser(firebaseUID, {
+        email,
+        emailVerified: true,
+      });
+      return {
+        previousEmail: before.email ?? null,
+        signInMethods: updated.providerData.map(p => p.providerId),
+      };
+    } catch (error: any) {
+      if (error?.code === 'auth/email-already-exists') {
+        throw new HttpError(
+          409,
+          'This email is already used by another account',
+        );
+      }
+      if (error?.code === 'auth/invalid-email') {
+        throw new BadRequestError('That email address is not valid');
+      }
+      throw error;
     }
   }
 }
