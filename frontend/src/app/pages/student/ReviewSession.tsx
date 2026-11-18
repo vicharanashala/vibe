@@ -61,6 +61,7 @@ import { loadStreak, recordReviewToday } from '@/lib/streak';
 // Question → QuestionBanks → Quizzes join and returns the FIRST match. When
 // the question isn't referenced by any quiz (orphaned / bank-only), these
 // are null and the attribution line falls back to course + question index.
+import { filterDueItems } from '@/lib/spaced-repetition-schedule';
 
 interface ReviewQuestionResponse {
   id: string;
@@ -757,14 +758,7 @@ export default function ReviewSession() {
     //    underlying item's next_review_at was pushed 30 days into
     //    the future by skipReview(), but we also filter here as
     //    belt-and-braces in case the push failed or wasn't applied.
-    const filtered = schedule.filter(
-      item =>
-        !item.notification_opt_out &&
-        !item.skipped_at &&
-        new Date(item.next_review_at).getTime() <= now &&
-        (!targetCourseId || item.course_id === targetCourseId)
-    );
-
+    const filtered = filterDueItems(schedule, targetCourseId, now);
     // 2. Sort: Exam Prep items FIRST, then chronological
     return filtered.sort((a, b) => {
       if (a.exam_prep_mode && !b.exam_prep_mode) return -1;
@@ -912,12 +906,7 @@ export default function ReviewSession() {
         spacedRepetitionKeys.schedule(studentId),
       ) ?? [];
     const now = Date.now();
-    const freshDue = freshSchedule.filter(
-      item =>
-        !item.notification_opt_out &&
-        new Date(item.next_review_at).getTime() <= now &&
-        (!targetCourseId || item.course_id === targetCourseId),
-    );
+    const freshDue = filterDueItems(freshSchedule, targetCourseId, now);
     dispatch({ type: 'restart', items: freshDue });
   }
 
