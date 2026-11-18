@@ -1165,7 +1165,10 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
     if (failedRedirectCountdown === null) return;
 
     if (failedRedirectCountdown <= 0) {
-      setQuizCompleted(false);
+      // The quiz stays completed while the page goes back to the video: un-completing
+      // it re-armed the NO_DEADLINE auto-start, which opened a new attempt before
+      // the page left — using up one of the student's attempts on every fail (or,
+      // with no attempts left, skipping them past the quiz).
       setFailedRedirectCountdown(null);
       onPrevVideo?.();
       return;
@@ -1626,7 +1629,7 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
                   {onPrevVideo && (
                     <Button
                       onClick={() => {
-                        setQuizCompleted(false);
+                        // Stays completed: see the failed-redirect countdown.
                         setFailedRedirectCountdown(null);
                         onPrevVideo();
                       }}
@@ -1814,8 +1817,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
               {onPrevVideo && (
                 <Button
                   onClick={() => {
-                    setNoAttemptsLeft(false);
-                    setQuizStarted(false);
+                    // State is left as is (see the failed-redirect countdown):
+                    // resetting it re-armed the auto-start, whose "no attempts
+                    // left" answer then skipped the student forward instead.
                     onPrevVideo();
                   }}
                   disabled={isProgressUpdating}

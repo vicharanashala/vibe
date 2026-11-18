@@ -2410,7 +2410,6 @@ class ProgressService extends BaseService {
     };
   }
 
-
   /**
    * In a linear course, failing a quiz (with attempts left) sends the student
    * back to the video before it. That video is already complete, so it is
