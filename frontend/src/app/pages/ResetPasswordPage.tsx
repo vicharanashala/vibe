@@ -79,8 +79,8 @@ export default function ResetPasswordPage() {
   const passwordStrength = calculatePasswordStrength(password);
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
     if (!password || !confirmPassword) {
       setError("Please fill in all fields.");
