@@ -71,7 +71,12 @@ jobs:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
          
       - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v1
+        # v2, not v1: v1 joins env vars with commas for gcloud, so a value with a
+        # comma (APP_ORIGINS with several origins) can never deploy. In v2 a comma
+        # inside a secret must be backslash-escaped, or the value is silently cut:
+        #   APP_ORIGINS secret: https://site-one.example\,https://site-two.example
+        # List the main site first: invite and share links use the first origin.
+        uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.GCP_SERVICE }}
           region: ${{ env.GCP_REGION }}
@@ -118,7 +123,12 @@ jobs:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
       - name: Deploy to Cloud Run (Production)
-        uses: google-github-actions/deploy-cloudrun@v1
+        # v2, not v1: v1 joins env vars with commas for gcloud, so a value with a
+        # comma (APP_ORIGINS with several origins) can never deploy. In v2 a comma
+        # inside a secret must be backslash-escaped, or the value is silently cut:
+        #   APP_ORIGINS secret: https://site-one.example\,https://site-two.example
+        # List the main site first: invite and share links use the first origin.
+        uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: vibe-backend-production
           region: ${{ env.GCP_REGION }}
