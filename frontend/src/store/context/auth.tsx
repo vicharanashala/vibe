@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useRef, useCallback } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, isMockFirebase } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth-store';
 import { logout, loginWithGoogle, loginWithEmail, refreshFirebaseToken } from '@/utils/auth';
 import { setTokenRefreshFunction } from '@/lib/openapi';
@@ -34,6 +34,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Firebase auth state listener and token management
   useEffect(() => {
+    if (isMockFirebase) {
+      const mockToken = 'mock-firebase-token';
+      setUser({
+        uid: 'mock-student-001',
+        email: 'student@vibe.local',
+        name: 'Alex Morgan',
+        firstName: 'Alex',
+        lastName: 'Morgan',
+        role: 'student',
+      });
+      setToken(mockToken);
+      setAuthReady(true);
+      return;
+    }
+
     // Register the token refresh function with the API client
     setTokenRefreshFunction(refreshFirebaseToken);
 
