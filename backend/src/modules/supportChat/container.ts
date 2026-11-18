@@ -1,7 +1,12 @@
 import { ContainerModule } from 'inversify';
 import { SUPPORT_CHAT_TYPES } from './types.js';
 import { FAQRepository, SupportQuestionRepository } from './repositories/providers/mongodb/index.js';
-import { ChatService, FAQRetrievalService, AdminService } from './services/index.js';
+import {
+  ChatService,
+  FAQRetrievalService,
+  AdminService,
+  SupportAnswerGenerator,
+} from './services/index.js';
 import { ChatController, AdminController } from './controllers/index.js';
 
 // Everything here is injected by symbol, and the symbol bindings carry the
@@ -24,6 +29,13 @@ export const supportChatContainerModule = new ContainerModule(options => {
   options
     .bind(SUPPORT_CHAT_TYPES.FAQRetrievalService)
     .to(FAQRetrievalService)
+    .inSingletonScope();
+
+  // Singleton for the same reason: its provider cooldown must be shared.
+  options.bind(SupportAnswerGenerator).toSelf().inSingletonScope();
+  options
+    .bind(SUPPORT_CHAT_TYPES.SupportAnswerGenerator)
+    .to(SupportAnswerGenerator)
     .inSingletonScope();
 
   options.bind(ChatService).toSelf().inSingletonScope();
