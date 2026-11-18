@@ -8,13 +8,17 @@ const STUDENT = {
   email: 'old@x.org',
 } as any;
 
-function setup(overrides: {
-  byEmail?: any;
-  firebaseUid?: string | null;
-  editError?: any;
-} = {}) {
+function setup(
+  overrides: {
+    byEmail?: any;
+    firebaseUid?: string | null;
+    editError?: any;
+  } = {},
+) {
   const userRepo = {
-    findById: vi.fn(async (id: string) => (id === STUDENT._id ? STUDENT : null)),
+    findById: vi.fn(async (id: string) =>
+      id === STUDENT._id ? STUDENT : null,
+    ),
     findByEmail: vi.fn(async () => overrides.byEmail ?? null),
     edit: vi.fn(async () => {
       if (overrides.editError) throw overrides.editError;
@@ -37,8 +41,13 @@ describe('UserService.changeEmail', () => {
   it('changes the email on Firebase and the user record, normalised', async () => {
     const {service, userRepo, auth} = setup();
     const res = await service.changeEmail(STUDENT._id, '  New@X.org ', ADMIN);
-    expect(auth.setFirebaseEmail).toHaveBeenCalledWith('uid-student', 'new@x.org');
-    expect(userRepo.edit).toHaveBeenCalledWith(STUDENT._id, {email: 'new@x.org'});
+    expect(auth.setFirebaseEmail).toHaveBeenCalledWith(
+      'uid-student',
+      'new@x.org',
+    );
+    expect(userRepo.edit).toHaveBeenCalledWith(STUDENT._id, {
+      email: 'new@x.org',
+    });
     expect(res).toEqual({
       email: 'new@x.org',
       previousEmail: 'old@x.org',
@@ -65,7 +74,10 @@ describe('UserService.changeEmail', () => {
     const {service, auth} = setup();
     await expect(
       service.changeEmail(STUDENT._id, 'OLD@x.org', ADMIN),
-    ).rejects.toMatchObject({httpCode: 400, message: "That's already their email"});
+    ).rejects.toMatchObject({
+      httpCode: 400,
+      message: "That's already their email",
+    });
     expect(auth.setFirebaseEmail).not.toHaveBeenCalled();
   });
 
@@ -93,12 +105,22 @@ describe('UserService.changeEmail', () => {
     await expect(
       service.changeEmail(STUDENT._id, 'new@x.org', ADMIN),
     ).rejects.toThrow('db down');
-    expect(auth.setFirebaseEmail).toHaveBeenNthCalledWith(1, 'uid-student', 'new@x.org');
-    expect(auth.setFirebaseEmail).toHaveBeenNthCalledWith(2, 'uid-student', 'old@x.org');
+    expect(auth.setFirebaseEmail).toHaveBeenNthCalledWith(
+      1,
+      'uid-student',
+      'new@x.org',
+    );
+    expect(auth.setFirebaseEmail).toHaveBeenNthCalledWith(
+      2,
+      'uid-student',
+      'old@x.org',
+    );
   });
 
   it('maps a duplicate-key race on the user record to 409, after reverting Firebase', async () => {
-    const {service, auth} = setup({editError: Object.assign(new Error('dup'), {code: 11000})});
+    const {service, auth} = setup({
+      editError: Object.assign(new Error('dup'), {code: 11000}),
+    });
     await expect(
       service.changeEmail(STUDENT._id, 'new@x.org', ADMIN),
     ).rejects.toMatchObject({httpCode: 409});

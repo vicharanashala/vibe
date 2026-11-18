@@ -7,7 +7,11 @@ import {
 import {IAuthService} from '#auth/interfaces/IAuthService.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
-import {BadRequestError, HttpError, InternalServerError} from 'routing-controllers';
+import {
+  BadRequestError,
+  HttpError,
+  InternalServerError,
+} from 'routing-controllers';
 import admin from 'firebase-admin';
 import {IUser} from '#root/shared/interfaces/models.js';
 import {BaseService} from '#root/shared/classes/BaseService.js';
