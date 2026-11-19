@@ -644,6 +644,30 @@ export function useMakeAdmin() {
   });
 }
 
+export interface ChangedEmail {
+  email: string;
+  previousEmail: string;
+  /** Firebase sign-in providers, e.g. 'password', 'google.com'. */
+  signInMethods: string[];
+}
+
+/** Admin: change the email a user signs in with (PATCH /users/{userId}/email). */
+export function useChangeUserEmail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, email }: { userId: string; email: string }) =>
+      unwrap(
+        await api.PATCH('/api/users/{userId}/email', {
+          params: { path: { userId } },
+          body: { email },
+        }),
+      ) as ChangedEmail,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+  });
+}
+
 const PEOPLE_PAGE_SIZE = 50;
 
 /**

@@ -1669,7 +1669,7 @@ export interface paths {
         };
         /**
          * Get the current user face reference
-         * @description Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if the course has face recognition enabled.
+         * @description Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if face recognition is enabled -- resolved through the item/module override (moduleId/itemId) when supplied, else the course-wide setting.
          */
         get: operations["UserController.getCurrentUserFaceReference"];
         put?: never;
@@ -1725,6 +1725,28 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/users/{userId}/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change a user's sign-in email (admin)
+         * @description Changes the email a user signs in with, on both their Firebase account and their user record.<br/>
+         *         They keep their password, enrolments and progress. No email is sent.<br/>
+         *         Only an admin may call this endpoint.
+         */
+        patch: operations["UserController.changeUserEmail"];
         trace?: never;
     };
     "/api/users/user-activity-events/": {
@@ -11917,6 +11939,22 @@ export interface components {
              */
             readonly message: string;
         };
+        ChangeUserEmailBody: {
+            /**
+             * Format: email
+             * @description The new sign-in email for the user
+             * @example new.address@example.com
+             */
+            email: string;
+        };
+        ChangeUserEmailResponse: {
+            /** @description The new email */
+            email: string;
+            /** @description The email before the change */
+            previousEmail: string;
+            /** @description The account's sign-in methods, e.g. 'password' and 'google.com' */
+            signInMethods: string[];
+        };
         ReportStatusEntry: {
             /**
              * Status
@@ -17659,6 +17697,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "UserController.changeUserEmail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ChangeUserEmailBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ChangeUserEmailBody"];
+            };
+        };
+        responses: {
+            /** @description The new email and the account sign-in methods */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeUserEmailResponse"];
                 };
             };
             /** @description User not found */

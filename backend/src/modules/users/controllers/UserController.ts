@@ -16,9 +16,12 @@ import {
   CurrentUser,
   QueryParam,
   ForbiddenError,
+  UseInterceptor,
 } from 'routing-controllers';
 import {OpenAPI, ResponseSchema} from 'routing-controllers-openapi';
 import {
+  ChangeUserEmailBody,
+  ChangeUserEmailResponse,
   EditUserBody,
   GetUserParams,
   GetUserResponse,
@@ -28,6 +31,14 @@ import {
 import {UserEnrollmentStatisticsResponse} from '../classes/validators/EnrollmentValidators.js';
 import {EnrollmentService} from '#users/services/EnrollmentService.js';
 import {AUTH_TYPES} from '#root/modules/auth/types.js';
+import {ObjectId} from 'mongodb';
+import {AuditTrailsHandler} from '#root/shared/middleware/auditTrails.js';
+import {setAuditTrail} from '#root/utils/setAuditTrail.js';
+import {
+  AuditAction,
+  AuditCategory,
+  OutComeStatus,
+} from '#root/modules/auditTrails/interfaces/IAuditTrails.js';
 import {IAuthService} from '#root/modules/auth/interfaces/IAuthService.js';
 import {IUser} from '#root/shared/interfaces/models.js';
 import {SETTING_TYPES} from '#root/modules/setting/types.js';
@@ -262,5 +273,53 @@ export class UserController {
   ): Promise<void> {
     const {userId} = params;
     await this.userService.makeAdmin(userId, currentUser);
+  }
+
+  @OpenAPI({
+    summary: "Change a user's sign-in email (admin)",
+    description: `Changes the email a user signs in with, on both their Firebase account and their user record.<br/>
+    They keep their password, enrolments and progress. No email is sent.<br/>
+    Only an admin may call this endpoint.`,
+  })
+  @Authorized(['admin'])
+  @Patch('/:userId/email')
+  @UseInterceptor(AuditTrailsHandler)
+  @ResponseSchema(ChangeUserEmailResponse, {
+    description: 'The new email and the account sign-in methods',
+  })
+  @ResponseSchema(UserNotFoundErrorResponse, {
+    description: 'User not found',
+    statusCode: 404,
+  })
+  async changeUserEmail(
+    @Req() req: any,
+    @CurrentUser({required: true}) currentUser: IUser,
+    @Params() params: GetUserParams,
+    @Body() body: ChangeUserEmailBody,
+  ): Promise<ChangeUserEmailResponse> {
+    const result = await this.userService.changeEmail(
+      params.userId,
+      body.email,
+      currentUser,
+    );
+    setAuditTrail(req, {
+      category: AuditCategory.USER,
+      action: AuditAction.USER_EMAIL_CHANGE,
+      actor: {
+        id: ObjectId.createFromHexString(currentUser._id!.toString()),
+        name: `${currentUser.firstName ?? ''} ${currentUser.lastName ?? ''}`.trim(),
+        email: currentUser.email,
+        role: currentUser.roles,
+      },
+      context: {
+        userId: ObjectId.createFromHexString(params.userId),
+      },
+      changes: {
+        before: {email: result.previousEmail},
+        after: {email: result.email},
+      },
+      outcome: {status: OutComeStatus.SUCCESS},
+    });
+    return result;
   }
 }
