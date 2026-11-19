@@ -1,0 +1,1 @@
+export { UserDirectoryRepository, OptOutRepository } from './providers/mongodb/index.js';

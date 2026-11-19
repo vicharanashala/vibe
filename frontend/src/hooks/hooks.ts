@@ -798,6 +798,56 @@ export function useUpdateCourse(): {
   };
 }
 
+// PATCH /courses/{courseId}/mentors  (admin-only, hand-written)
+// Manages the `course.mentorIds` list. The backend's auto-generated
+// openapi spec doesn't include this route yet (CourseMentorController
+// is hand-written, not generated from routing-controllers decorators
+// in the normal generator path), so the typed hook has to live here.
+// Mirrors the shape of `useUpdateCourse()` for caller consistency.
+export function useManageCourseMentors(): {
+  mutate: (variables: {
+    params: { path: { courseId: string } },
+    body: { add?: string[]; remove?: string[] },
+  }) => void,
+  mutateAsync: (variables: {
+    params: { path: { courseId: string } },
+    body: { add?: string[]; remove?: string[] },
+  }) => Promise<{
+    courseId: string;
+    mentorIds: string[];
+    added: string[];
+    removed: string[];
+    matchedCount: number;
+    modifiedCount: number;
+  }>,
+  data: {
+    courseId: string;
+    mentorIds: string[];
+    added: string[];
+    removed: string[];
+    matchedCount: number;
+    modifiedCount: number;
+  } | undefined,
+  error: string | null,
+  isPending: boolean,
+  isSuccess: boolean,
+  isError: boolean,
+  isIdle: boolean,
+  reset: () => void,
+  status: 'idle' | 'pending' | 'success' | 'error'
+} {
+  const result = api.useMutation(
+    'patch',
+    '/courses/{courseId}/mentors' as any,
+  );
+  return {
+    ...result,
+    error: result.error
+      ? result.error.message || 'Manage course mentors failed'
+      : null,
+  };
+}
+
 // DELETE /courses/{id}
 export function useDeleteCourse(): {
   mutate: (variables: { params: { path: { id: string } } }) => void,
