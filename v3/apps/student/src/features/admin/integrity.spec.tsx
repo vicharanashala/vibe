@@ -211,3 +211,36 @@ describe('appeals', () => {
     expect(await screen.findByText('No appeals waiting')).toBeInTheDocument();
   });
 });
+
+describe('course settings and progression', () => {
+  it('toggles linear progression and saves the setting', async () => {
+    const user = userEvent.setup();
+    renderApp(url);
+    await user.click(await screen.findByRole('tab', { name: 'Settings' }));
+
+    const linearSwitch = await screen.findByRole('switch', {
+      name: /Linear course progression/,
+    });
+    expect(linearSwitch).toBeChecked();
+
+    await user.click(linearSwitch);
+    expect(linearSwitch).not.toBeChecked();
+
+    const saveButton = await screen.findByRole('button', {
+      name: 'Save changes',
+    });
+    await user.click(saveButton);
+
+    await waitFor(() =>
+      expect(api.PUT).toHaveBeenCalledWith(
+        '/api/setting/course-setting/{courseId}/{versionId}/proctoring',
+        expect.objectContaining({
+          params: { path: { courseId: FEEDBACK.courseId, versionId: FEEDBACK.versionId } },
+          body: expect.objectContaining({
+            linearProgressionEnabled: false,
+          }),
+        }),
+      ),
+    );
+  });
+});
