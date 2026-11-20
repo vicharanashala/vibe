@@ -1,4 +1,4 @@
-import { MoreHorizontalIcon, SearchIcon, ShieldCheckIcon } from 'lucide-react';
+import { AtSignIcon, MoreHorizontalIcon, SearchIcon, ShieldCheckIcon } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+import { ChangeEmailDialog } from './change-email-dialog';
 import { useAllUsers, useMakeAdmin, useStudioAccess, type AdminUser } from './queries';
 import { ConfirmDialog, ErrorText, pageOf, PageHeader, Pager, RoleBadge, sinceCutoff, SINCE_OPTIONS, StudioPage, type Since } from './studio-ui';
 
@@ -56,6 +57,7 @@ function AllUsers() {
   const [joined, setJoined] = useState<Since>('any');
   const [page, setPage] = useState(0);
   const [promoting, setPromoting] = useState<AdminUser | null>(null);
+  const [changingEmail, setChangingEmail] = useState<AdminUser | null>(null);
 
   // Back to the first page whenever what's shown changes.
   useEffect(() => setPage(0), [search, filter, sort, joined]);
@@ -161,18 +163,21 @@ function AllUsers() {
                       <RoleBadge role={u.roles === 'admin' ? 'admin' : 'learner'} />
                     </TableCell>
                     <TableCell className="pr-4 text-right">
-                      {u.roles !== 'admin' && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${u.email}`} className="text-muted-foreground" />}>
-                            <MoreHorizontalIcon aria-hidden />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${u.email}`} className="text-muted-foreground" />}>
+                          <MoreHorizontalIcon aria-hidden />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem onClick={() => setChangingEmail(u)}>
+                            <AtSignIcon /> Change email
+                          </DropdownMenuItem>
+                          {u.roles !== 'admin' && (
                             <DropdownMenuItem onClick={() => setPromoting(u)}>
                               <ShieldCheckIcon /> Make admin
                             </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -189,6 +194,8 @@ function AllUsers() {
           </div>
         )}
       </div>
+
+      <ChangeEmailDialog user={changingEmail} onOpenChange={(o) => !o && setChangingEmail(null)} />
 
       <ConfirmDialog
         open={!!promoting}

@@ -1,5 +1,15 @@
-import { IUser } from '#root/shared/interfaces/models.js';
-import {IsNotEmpty, IsString, IsEmail, IsOptional, IsArray, IsNumber, ArrayMinSize, ArrayMaxSize} from 'class-validator';
+import {IUser} from '#root/shared/interfaces/models.js';
+import {
+  IsNotEmpty,
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsArray,
+  IsNumber,
+  ArrayMinSize,
+  ArrayMaxSize,
+  MaxLength,
+} from 'class-validator';
 import {JSONSchema} from 'class-validator-jsonschema';
 import { ObjectId } from 'mongodb';
 
@@ -208,3 +218,33 @@ export const USER_VALIDATORS = [
   GetUserResponse,
   UserNotFoundErrorResponse
 ]
+
+export class ChangeUserEmailBody {
+  @JSONSchema({
+    description: 'The new sign-in email for the user',
+    example: 'new.address@example.com',
+    type: 'string',
+  })
+  @IsEmail({}, {message: 'Enter a valid email address'})
+  @MaxLength(254)
+  email: string;
+}
+
+export class ChangeUserEmailResponse {
+  @JSONSchema({description: 'The new email', type: 'string'})
+  @IsString()
+  email: string;
+
+  @JSONSchema({description: 'The email before the change', type: 'string'})
+  @IsString()
+  previousEmail: string;
+
+  @JSONSchema({
+    description:
+      "The account's sign-in methods, e.g. 'password' and 'google.com'",
+    type: 'array',
+    items: {type: 'string'},
+  })
+  @IsString({each: true})
+  signInMethods: string[];
+}

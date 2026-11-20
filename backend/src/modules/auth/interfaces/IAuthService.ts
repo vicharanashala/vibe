@@ -74,6 +74,22 @@ export interface IAuthService {
    * account exists for that email.
    */
   getSignInProviders(email: string): Promise<string[]>;
+
+  /**
+   * The Firebase uid that owns this email, or null if no Firebase account
+   * uses it. Firebase compares emails case-insensitively.
+   */
+  findFirebaseUidByEmail(email: string): Promise<string | null>;
+
+  /**
+   * Changes a Firebase account's sign-in email (marked verified, since an
+   * admin set it). Returns the email it had before and its sign-in providers.
+   * Sends no email to anyone.
+   */
+  setFirebaseEmail(
+    firebaseUID: string,
+    email: string,
+  ): Promise<{previousEmail: string | null; signInMethods: string[]}>;
 }
 
 /**

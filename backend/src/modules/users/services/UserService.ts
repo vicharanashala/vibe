@@ -4,7 +4,14 @@ import {MongoDatabase} from '#root/shared/database/providers/mongo/MongoDatabase
 import { IUser } from '#root/shared/index.js';
 import {GLOBAL_TYPES} from '#root/types.js';
 import {injectable, inject} from 'inversify';
-import {ForbiddenError, NotFoundError} from 'routing-controllers';
+import {
+  BadRequestError,
+  ForbiddenError,
+  HttpError,
+  NotFoundError,
+} from 'routing-controllers';
+import {AUTH_TYPES} from '#root/modules/auth/types.js';
+import type {IAuthService} from '#root/modules/auth/interfaces/IAuthService.js';
 
 @injectable()
 export class UserService extends BaseService {
@@ -12,6 +19,8 @@ export class UserService extends BaseService {
     @inject(GLOBAL_TYPES.UserRepo) private readonly userRepo: IUserRepository,
     @inject(GLOBAL_TYPES.Database)
     private readonly database: MongoDatabase,
+    @inject(AUTH_TYPES.AuthService)
+    private readonly authService: IAuthService,
   ) {
     super(database);
   }
@@ -85,5 +94,67 @@ export class UserService extends BaseService {
       }
       await this.userRepo.makeAdmin(userId, session);
     });
+  }
+
+  /**
+   * Changes a user's sign-in email, as an admin. Identity is the Firebase uid,
+   * so the user keeps their password, enrolments and progress: only the email
+   * on their Firebase account and on their user record change. Sends no email.
+   */
+  async changeEmail(
+    userId: string,
+    rawEmail: string,
+    currentUser: IUser,
+  ): Promise<{email: string; previousEmail: string; signInMethods: string[]}> {
+    // Same guard as makeAdmin: the authorizationChecker only verifies the
+    // token, not roles, so the admin check must live here.
+    if (currentUser?.roles !== 'admin') {
+      throw new ForbiddenError("Only an admin can change a user's email");
+    }
+    const email = rawEmail.trim().toLowerCase();
+
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new NotFoundError(`User with ID ${userId} not found`);
+    }
+    if ((user.email ?? '').trim().toLowerCase() === email) {
+      throw new BadRequestError("That's already their email");
+    }
+    if (!user.firebaseUID) {
+      throw new BadRequestError('This account has no sign-in to change');
+    }
+
+    const inMongo = await this.userRepo.findByEmail(email);
+    if (inMongo && inMongo._id?.toString() !== user._id?.toString()) {
+      throw new HttpError(409, 'This email is already used by another account');
+    }
+    const inFirebase = await this.authService.findFirebaseUidByEmail(email);
+    if (inFirebase && inFirebase !== user.firebaseUID) {
+      throw new HttpError(409, 'This email is already used by another account');
+    }
+
+    const {previousEmail, signInMethods} =
+      await this.authService.setFirebaseEmail(user.firebaseUID, email);
+    try {
+      await this.userRepo.edit(userId, {email});
+    } catch (error: any) {
+      // Keep Firebase and the user record in step: put the old email back.
+      await this.authService
+        .setFirebaseEmail(user.firebaseUID, previousEmail ?? user.email)
+        .catch(revertError =>
+          console.error(
+            `Could not revert Firebase email for user ${userId}:`,
+            revertError,
+          ),
+        );
+      if (error?.code === 11000) {
+        throw new HttpError(
+          409,
+          'This email is already used by another account',
+        );
+      }
+      throw error;
+    }
+    return {email, previousEmail: user.email, signInMethods};
   }
 }
