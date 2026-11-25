@@ -329,6 +329,93 @@ class FlaggedQuestion {
   }
 }
 
+import {ReviewQuestionResponse, ReviewOption} from '#quizzes/interfaces/review.js';
+
+/**
+ * Convert any Question (SOL / SML / OTL / NAT / DES) into the
+ * student-facing review-screen shape.
+ *
+ * Critical contract:
+ *   - NEVER expose `explaination` (correct-answer explanations).
+ *   - NEVER expose the `correctLotItem` / `correctLotItems` location
+ *     (correct and incorrect are merged into the options array
+ *     in storage order — the UI picks by index on submit and the
+ *     backend evaluates correctness from the same index).
+ *   - NEVER expose `solutionText` (DES) or `value` / `expression` (NAT).
+ *
+ * Used by `GET /quizzes/questions/:questionId/review` to power the spaced-
+ * repetition review session card.
+ */
+export function toReviewQuestionResponse(
+  question: IQuestion & Record<string, any>,
+): ReviewQuestionResponse {
+  const id = question._id ? question._id.toString() : '';
+  const base = {
+    id,
+    body: question.text,
+    type: question.type,
+    hint: question.hint,
+    isParameterized: question.isParameterized ?? false,
+  };
+
+  let options: ReviewOption[] = [];
+  switch (question.type) {
+    case 'SELECT_ONE_IN_LOT': {
+      const incorrects = (question.incorrectLotItems ?? []).map(
+        (it: {text: string}) => ({key: '', text: it.text}),
+      );
+      const correct = question.correctLotItem
+        ? [{key: '', text: question.correctLotItem.text}]
+        : [];
+      options = [...incorrects, ...correct];
+      break;
+    }
+    case 'SELECT_MANY_IN_LOT': {
+      const incorrects = (question.incorrectLotItems ?? []).map(
+        (it: {text: string}) => ({key: '', text: it.text}),
+      );
+      const corrects = (question.correctLotItems ?? []).map(
+        (it: {text: string}) => ({key: '', text: it.text}),
+      );
+      options = [...incorrects, ...corrects];
+      break;
+    }
+    case 'ORDER_THE_LOTS': {
+      options = (question.ordering ?? [])
+        .slice()
+        .sort((a: {order: number}, b: {order: number}) => b.order - a.order)
+        .map((o: {lotItem: {text: string}}) => ({
+          key: '',
+          text: o.lotItem.text,
+        }));
+      break;
+    }
+    case 'NUMERIC_ANSWER_TYPE':
+    case 'DESCRIPTIVE':
+    default:
+      options = [];
+      break;
+  }
+
+  // Cap to 8 (H) for UI sanity on long multiple-choice questions
+  if (options.length > 8) options = options.slice(0, 8);
+
+  const keyed: ReviewOption[] = options.map((opt, i) => ({
+    ...opt,
+    key: String.fromCharCode(65 + i), // A, B, C, ...
+  }));
+
+  return {
+    ...base,
+    options: keyed,
+    // quizTitle / quizId are injected by QuestionService.getForReview
+    // after the parent quiz lookup. Default null here so the shape
+    // is always complete.
+    quizTitle: null,
+    quizId: null,
+  };
+}
+
 export {
   BaseQuestion,
   SOLQuestion,
