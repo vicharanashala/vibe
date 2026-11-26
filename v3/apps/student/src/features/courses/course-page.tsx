@@ -121,14 +121,20 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
           </p>
         )}
         <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          <li>{shownModules.length} modules</li>
-          <li>{totalItems} lessons</li>
-          {counts.map(([type, n]) => (
-            <li key={type}>
-              {n} {itemTypeMeta(type).label.toLowerCase()}
-              {n === 1 ? '' : 's'}
-            </li>
-          ))}
+          <li>
+            {shownModules.length} {shownModules.length === 1 ? 'module' : 'modules'}
+          </li>
+          <li>
+            {totalItems} {totalItems === 1 ? 'lesson' : 'lessons'}
+          </li>
+          {counts.map(([type, n]) => {
+            const meta = itemTypeMeta(type);
+            return (
+              <li key={type}>
+                {n} {(n === 1 ? meta.label : meta.plural).toLowerCase()}
+              </li>
+            );
+          })}
         </ul>
 
         {/* Progress sits up top below lg; the sidebar card shows it on wide screens. */}
@@ -172,7 +178,8 @@ export function CoursePage({ courseId, versionId }: { courseId: string; versionI
             Syllabus
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {shownModules.length} modules · {totalItems} lessons
+            {shownModules.length} {shownModules.length === 1 ? 'module' : 'modules'} · {totalItems}{' '}
+            {totalItems === 1 ? 'lesson' : 'lessons'}
           </p>
           <ol className="mt-6 flex flex-col gap-8">
             {shownModules.map((m, i) => (

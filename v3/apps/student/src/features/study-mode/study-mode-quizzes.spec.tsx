@@ -62,7 +62,7 @@ describe('quizzes in study mode', () => {
     expect(within(syllabus).getByText(video.name)).toBeInTheDocument();
     expect(within(syllabus).queryByText(quiz.name)).not.toBeInTheDocument();
     await waitFor(() => expect(within(syllabus).queryByText(secondModule.name)).not.toBeInTheDocument());
-    expect(within(syllabus).getByText('1 modules · 2 lessons')).toBeInTheDocument();
+    expect(within(syllabus).getByText('1 module · 2 lessons')).toBeInTheDocument();
     expect(screen.queryByText(/\d+ quiz/)).not.toBeInTheDocument();
   });
 
