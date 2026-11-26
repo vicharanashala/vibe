@@ -114,7 +114,7 @@ export default function EscalationForm({
           value={category}
           onChange={(e) => setCategory(e.target.value as FAQCategory)}
           disabled={submitting}
-          className='w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100'
+          className='w-full rounded border border-gray-300 px-2 py-1.5 text-xs text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100'
         >
           {CATEGORY_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -139,7 +139,7 @@ export default function EscalationForm({
           disabled={submitting}
           rows={3}
           maxLength={2000}
-          className='w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100'
+          className='w-full rounded border border-gray-300 px-2 py-1.5 text-xs text-black bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100'
         />
       </div>
 
@@ -157,7 +157,7 @@ export default function EscalationForm({
           onChange={(e) => setContactEmail(e.target.value)}
           placeholder='Only if it differs from your account email'
           disabled={submitting}
-          className='w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100'
+          className='w-full rounded border border-gray-300 px-2 py-1.5 text-xs text-black bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100'
         />
       </div>
 
