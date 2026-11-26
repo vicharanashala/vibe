@@ -24,6 +24,3 @@ pnpm-lock.yaml
 *.sln
 *.sw?
 *.txt
-
-package.json
-package-lock.json

@@ -1,0 +1,156 @@
+{
+  "0.1": {
+    "frameCount": 211,
+    "overallAccuracy": 0.11374407582938388,
+    "noFace": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 4,
+      "tn": 207,
+      "precision": null,
+      "recall": 0,
+      "f1": null
+    },
+    "multipleFaces": {
+      "tp": 20,
+      "fp": 187,
+      "fn": 0,
+      "tn": 4,
+      "precision": 0.0966183574879227,
+      "recall": 1,
+      "f1": 0.1762114537444934
+    }
+  },
+  "0.3": {
+    "frameCount": 211,
+    "overallAccuracy": 0.46919431279620855,
+    "noFace": {
+      "tp": 0,
+      "fp": 8,
+      "fn": 4,
+      "tn": 199,
+      "precision": 0,
+      "recall": 0,
+      "f1": null
+    },
+    "multipleFaces": {
+      "tp": 20,
+      "fp": 100,
+      "fn": 0,
+      "tn": 91,
+      "precision": 0.16666666666666666,
+      "recall": 1,
+      "f1": 0.2857142857142857
+    }
+  },
+  "0.5": {
+    "frameCount": 211,
+    "overallAccuracy": 0.5924170616113744,
+    "noFace": {
+      "tp": 4,
+      "fp": 39,
+      "fn": 0,
+      "tn": 168,
+      "precision": 0.09302325581395349,
+      "recall": 1,
+      "f1": 0.1702127659574468
+    },
+    "multipleFaces": {
+      "tp": 17,
+      "fp": 44,
+      "fn": 3,
+      "tn": 147,
+      "precision": 0.2786885245901639,
+      "recall": 0.85,
+      "f1": 0.41975308641975306
+    }
+  },
+  "0.6": {
+    "frameCount": 211,
+    "overallAccuracy": 0.6919431279620853,
+    "noFace": {
+      "tp": 4,
+      "fp": 51,
+      "fn": 0,
+      "tn": 156,
+      "precision": 0.07272727272727272,
+      "recall": 1,
+      "f1": 0.13559322033898305
+    },
+    "multipleFaces": {
+      "tp": 12,
+      "fp": 7,
+      "fn": 8,
+      "tn": 184,
+      "precision": 0.631578947368421,
+      "recall": 0.6,
+      "f1": 0.6153846153846154
+    }
+  },
+  "0.7": {
+    "frameCount": 211,
+    "overallAccuracy": 0.6824644549763034,
+    "noFace": {
+      "tp": 4,
+      "fp": 60,
+      "fn": 0,
+      "tn": 147,
+      "precision": 0.0625,
+      "recall": 1,
+      "f1": 0.11764705882352941
+    },
+    "multipleFaces": {
+      "tp": 12,
+      "fp": 1,
+      "fn": 8,
+      "tn": 190,
+      "precision": 0.9230769230769231,
+      "recall": 0.6,
+      "f1": 0.7272727272727274
+    }
+  },
+  "0.8": {
+    "frameCount": 211,
+    "overallAccuracy": 0.5545023696682464,
+    "noFace": {
+      "tp": 4,
+      "fp": 90,
+      "fn": 0,
+      "tn": 117,
+      "precision": 0.0425531914893617,
+      "recall": 1,
+      "f1": 0.08163265306122448
+    },
+    "multipleFaces": {
+      "tp": 10,
+      "fp": 0,
+      "fn": 10,
+      "tn": 191,
+      "precision": 1,
+      "recall": 0.5,
+      "f1": 0.6666666666666666
+    }
+  },
+  "0.9": {
+    "frameCount": 211,
+    "overallAccuracy": 0.3459715639810427,
+    "noFace": {
+      "tp": 4,
+      "fp": 135,
+      "fn": 0,
+      "tn": 72,
+      "precision": 0.02877697841726619,
+      "recall": 1,
+      "f1": 0.055944055944055944
+    },
+    "multipleFaces": {
+      "tp": 9,
+      "fp": 0,
+      "fn": 11,
+      "tn": 191,
+      "precision": 1,
+      "recall": 0.45,
+      "f1": 0.6206896551724138
+    }
+  }
+}

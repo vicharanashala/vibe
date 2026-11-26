@@ -1,0 +1,917 @@
+{
+  "modelConfig": {
+    "detector": "@mediapipe/tasks-vision FaceDetector",
+    "model": "blaze_face_short_range.tflite",
+    "runningMode": "IMAGE",
+    "minDetectionConfidence": 0.5,
+    "delegate": "CPU"
+  },
+  "frameCount": 211,
+  "overallAccuracy": 0.5924170616113744,
+  "overallConfusion": {
+    "NO_FACE": {
+      "NO_FACE": 4,
+      "OK": 0,
+      "MULTIPLE_FACES": 0
+    },
+    "OK": {
+      "NO_FACE": 39,
+      "OK": 104,
+      "MULTIPLE_FACES": 44
+    },
+    "MULTIPLE_FACES": {
+      "NO_FACE": 0,
+      "OK": 3,
+      "MULTIPLE_FACES": 17
+    }
+  },
+  "noFaceMetrics": {
+    "tp": 4,
+    "fp": 39,
+    "fn": 0,
+    "tn": 168,
+    "precision": 0.09302325581395349,
+    "recall": 1,
+    "f1": 0.1702127659574468
+  },
+  "multiFaceMetrics": {
+    "tp": 17,
+    "fp": 44,
+    "fn": 3,
+    "tn": 147,
+    "precision": 0.2786885245901639,
+    "recall": 0.85,
+    "f1": 0.41975308641975306
+  },
+  "conditionBreakdown": {
+    "mask": {
+      "frameCount": 20,
+      "accuracy": 0.8,
+      "noFace": {
+        "tp": 0,
+        "fp": 4,
+        "fn": 0,
+        "tn": 16,
+        "precision": 0,
+        "recall": null,
+        "f1": null
+      },
+      "multipleFaces": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 20,
+        "precision": null,
+        "recall": null,
+        "f1": null
+      },
+      "confusion": {
+        "NO_FACE": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        },
+        "OK": {
+          "NO_FACE": 4,
+          "OK": 16,
+          "MULTIPLE_FACES": 0
+        },
+        "MULTIPLE_FACES": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        }
+      }
+    },
+    "absent": {
+      "frameCount": 4,
+      "accuracy": 1,
+      "noFace": {
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "tn": 0,
+        "precision": 1,
+        "recall": 1,
+        "f1": 1
+      },
+      "multipleFaces": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 4,
+        "precision": null,
+        "recall": null,
+        "f1": null
+      },
+      "confusion": {
+        "NO_FACE": {
+          "NO_FACE": 4,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        },
+        "OK": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        },
+        "MULTIPLE_FACES": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        }
+      }
+    },
+    "occlusion;angle": {
+      "frameCount": 19,
+      "accuracy": 0.15789473684210525,
+      "noFace": {
+        "tp": 0,
+        "fp": 16,
+        "fn": 0,
+        "tn": 3,
+        "precision": 0,
+        "recall": null,
+        "f1": null
+      },
+      "multipleFaces": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 19,
+        "precision": null,
+        "recall": null,
+        "f1": null
+      },
+      "confusion": {
+        "NO_FACE": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        },
+        "OK": {
+          "NO_FACE": 16,
+          "OK": 3,
+          "MULTIPLE_FACES": 0
+        },
+        "MULTIPLE_FACES": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        }
+      }
+    },
+    "angle": {
+      "frameCount": 20,
+      "accuracy": 0.6,
+      "noFace": {
+        "tp": 0,
+        "fp": 8,
+        "fn": 0,
+        "tn": 12,
+        "precision": 0,
+        "recall": null,
+        "f1": null
+      },
+      "multipleFaces": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 20,
+        "precision": null,
+        "recall": null,
+        "f1": null
+      },
+      "confusion": {
+        "NO_FACE": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        },
+        "OK": {
+          "NO_FACE": 8,
+          "OK": 12,
+          "MULTIPLE_FACES": 0
+        },
+        "MULTIPLE_FACES": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        }
+      }
+    },
+    "occlusion": {
+      "frameCount": 15,
+      "accuracy": 0.3333333333333333,
+      "noFace": {
+        "tp": 0,
+        "fp": 10,
+        "fn": 0,
+        "tn": 5,
+        "precision": 0,
+        "recall": null,
+        "f1": null
+      },
+      "multipleFaces": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 15,
+        "precision": null,
+        "recall": null,
+        "f1": null
+      },
+      "confusion": {
+        "NO_FACE": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        },
+        "OK": {
+          "NO_FACE": 10,
+          "OK": 5,
+          "MULTIPLE_FACES": 0
+        },
+        "MULTIPLE_FACES": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        }
+      }
+    },
+    "peer_present": {
+      "frameCount": 20,
+      "accuracy": 0.85,
+      "noFace": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 20,
+        "precision": null,
+        "recall": null,
+        "f1": null
+      },
+      "multipleFaces": {
+        "tp": 17,
+        "fp": 0,
+        "fn": 3,
+        "tn": 0,
+        "precision": 1,
+        "recall": 0.85,
+        "f1": 0.9189189189189189
+      },
+      "confusion": {
+        "NO_FACE": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        },
+        "OK": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        },
+        "MULTIPLE_FACES": {
+          "NO_FACE": 0,
+          "OK": 3,
+          "MULTIPLE_FACES": 17
+        }
+      }
+    },
+    "glasses": {
+      "frameCount": 50,
+      "accuracy": 0.12,
+      "noFace": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 50,
+        "precision": null,
+        "recall": null,
+        "f1": null
+      },
+      "multipleFaces": {
+        "tp": 0,
+        "fp": 44,
+        "fn": 0,
+        "tn": 6,
+        "precision": 0,
+        "recall": null,
+        "f1": null
+      },
+      "confusion": {
+        "NO_FACE": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        },
+        "OK": {
+          "NO_FACE": 0,
+          "OK": 6,
+          "MULTIPLE_FACES": 44
+        },
+        "MULTIPLE_FACES": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        }
+      }
+    },
+    "normal": {
+      "frameCount": 43,
+      "accuracy": 1,
+      "noFace": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 43,
+        "precision": null,
+        "recall": null,
+        "f1": null
+      },
+      "multipleFaces": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 43,
+        "precision": null,
+        "recall": null,
+        "f1": null
+      },
+      "confusion": {
+        "NO_FACE": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        },
+        "OK": {
+          "NO_FACE": 0,
+          "OK": 43,
+          "MULTIPLE_FACES": 0
+        },
+        "MULTIPLE_FACES": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        }
+      }
+    },
+    "lighting": {
+      "frameCount": 20,
+      "accuracy": 0.95,
+      "noFace": {
+        "tp": 0,
+        "fp": 1,
+        "fn": 0,
+        "tn": 19,
+        "precision": 0,
+        "recall": null,
+        "f1": null
+      },
+      "multipleFaces": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 20,
+        "precision": null,
+        "recall": null,
+        "f1": null
+      },
+      "confusion": {
+        "NO_FACE": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        },
+        "OK": {
+          "NO_FACE": 1,
+          "OK": 19,
+          "MULTIPLE_FACES": 0
+        },
+        "MULTIPLE_FACES": {
+          "NO_FACE": 0,
+          "OK": 0,
+          "MULTIPLE_FACES": 0
+        }
+      }
+    }
+  },
+  "misclassified": [
+    {
+      "frame_id": "mask_0005.jpg",
+      "condition_tags": "mask",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "mask_0007.jpg",
+      "condition_tags": "mask",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "mask_0013.jpg",
+      "condition_tags": "mask",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "mask_0017.jpg",
+      "condition_tags": "mask",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject10_00054s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject10_00064s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject10_00076s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject10_00089s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject10_00099s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject10_00104s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject10_00146s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject11_00034s.jpg",
+      "condition_tags": "angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject11_00099s.jpg",
+      "condition_tags": "angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject11_00203s.jpg",
+      "condition_tags": "angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject11_00312s.jpg",
+      "condition_tags": "angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject11_00401s.jpg",
+      "condition_tags": "angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject11_00513s.jpg",
+      "condition_tags": "angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject11_00570s.jpg",
+      "condition_tags": "angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject11_00657s.jpg",
+      "condition_tags": "angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject12_00188s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject12_00195s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject12_00213s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject12_00215s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject13_00188s.jpg",
+      "condition_tags": "occlusion",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject13_00307s.jpg",
+      "condition_tags": "occlusion",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject13_00317s.jpg",
+      "condition_tags": "occlusion",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject13_00347s.jpg",
+      "condition_tags": "occlusion",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject13_00840s.jpg",
+      "condition_tags": "occlusion",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject15_00843s.jpg",
+      "condition_tags": "occlusion",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject18_00461s.jpg",
+      "condition_tags": "occlusion",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject18_00766s.jpg",
+      "condition_tags": "occlusion",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject18_00771s.jpg",
+      "condition_tags": "occlusion",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject18_00808s.jpg",
+      "condition_tags": "occlusion",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject19_00317s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject19_00404s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject19_00409s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject19_00429s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject19_00734s.jpg",
+      "condition_tags": "occlusion;angle",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    },
+    {
+      "frame_id": "oep_subject18_00166s.jpg",
+      "condition_tags": "peer_present",
+      "groundTruth": "MULTIPLE_FACES (2)",
+      "predicted": "OK (1)"
+    },
+    {
+      "frame_id": "oep_subject19_00208s.jpg",
+      "condition_tags": "peer_present",
+      "groundTruth": "MULTIPLE_FACES (2)",
+      "predicted": "OK (1)"
+    },
+    {
+      "frame_id": "oep_subject19_00352s.jpg",
+      "condition_tags": "peer_present",
+      "groundTruth": "MULTIPLE_FACES (2)",
+      "predicted": "OK (1)"
+    },
+    {
+      "frame_id": "oep_subject12_00714s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject12_00788s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject13_00007s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject13_00213s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject13_00391s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject13_00468s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject13_00582s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject13_00689s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject13_00758s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject13_00825s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject14_00014s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject14_00047s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject14_00121s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject14_00220s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject14_00337s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject14_00461s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject14_00491s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject15_00101s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject15_00190s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject15_00312s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject15_00441s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject15_00644s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject16_00024s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject16_00104s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject16_00193s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject16_00312s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject16_00411s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject16_00508s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject16_00716s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject19_00034s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject19_00054s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject19_00086s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject19_00153s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject19_00362s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject19_00486s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject19_00627s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject19_00704s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject20_00047s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject20_00121s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject20_00195s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject20_00372s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject20_00545s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject20_00674s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "oep_subject20_00798s.jpg",
+      "condition_tags": "glasses",
+      "groundTruth": "OK (1)",
+      "predicted": "MULTIPLE_FACES (2)"
+    },
+    {
+      "frame_id": "synthlight_dark_006.jpg",
+      "condition_tags": "lighting",
+      "groundTruth": "OK (1)",
+      "predicted": "NO_FACE (0)"
+    }
+  ]
+}
