@@ -10,6 +10,7 @@ import { Link, Navigate, useRouter } from "@tanstack/react-router";
 import StudentProjectItem from "./components/StudentProjectItem";
 import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
 import { classifyItemForbiddenError } from "@/utils/itemForbiddenError";
+import { consumeLaunchOrigin, type LaunchOrigin } from "@/lib/page-transition";
 const LazyStudentTimeslotModal = lazy(() => import("@/components/course/StudentTimeslotModal"));
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import type { PendingStudentQuestionContext } from "@/types/student-question.types";
@@ -237,6 +238,29 @@ export default function CoursePage() {
   // Pause the lesson video imperatively (without the anomaly overlay) whenever a
   // floating control is used.
   const pauseVideoForControl = useCallback(() => setPauseSignal((n) => n + 1), []);
+
+  // --- Enter/exit "app launch" animation for the focused stage ---
+  // Consumed once on mount: when set, the dashboard's Continue button just
+  // handed us its on-screen rect so the stage can visibly expand out of it
+  // instead of just appearing. Absent on a reload/direct visit, in which
+  // case the stage renders at full size immediately (no animation to run).
+  const [launchOrigin] = useState<LaunchOrigin | null>(() => consumeLaunchOrigin());
+  const [stageEntered, setStageEntered] = useState(!launchOrigin);
+  useEffect(() => {
+    if (!launchOrigin) return;
+    // Two rAFs: the first lets the browser paint the initial (shrunk) frame;
+    // only the second one is guaranteed to be a new frame the CSS transition
+    // can animate from, otherwise it can get coalesced into the first paint.
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setStageEntered(true)));
+    return () => cancelAnimationFrame(id);
+  }, [launchOrigin]);
+  // Set true to play the "shrink back to the dashboard" close animation
+  // before the navigation it's covering for actually happens.
+  const [stageExiting, setStageExiting] = useState(false);
+  const exitToDashboard = useCallback(() => {
+    setStageExiting(true);
+    setTimeout(() => router.navigate({ to: "/student" }), 280);
+  }, [router]);
 
   // Fullscreen is entered from the "Continue" click that brings the student here.
   // Exit it when they leave the learn page so fullscreen is scoped to this page only.
@@ -2007,6 +2031,19 @@ return false;
       <main
         className="fixed inset-0 flex flex-col bg-stage overflow-hidden text-stage-foreground"
         onClick={() => setAiExpanded(false)}
+        style={{
+          transformOrigin: stageExiting ? "center bottom" : "top left",
+          transform: stageExiting
+            ? "scale(0.86) translateY(3vh)"
+            : !stageEntered && launchOrigin
+              ? `translate(${launchOrigin.left}px, ${launchOrigin.top}px) scale(${launchOrigin.width / window.innerWidth}, ${launchOrigin.height / window.innerHeight})`
+              : "translate(0, 0) scale(1, 1)",
+          opacity: stageExiting ? 0 : !stageEntered && launchOrigin ? 0.4 : 1,
+          borderRadius: stageExiting ? 28 : !stageEntered && launchOrigin ? 20 : 0,
+          transition: stageExiting
+            ? "transform 280ms cubic-bezier(0.4, 0, 1, 1), opacity 240ms ease, border-radius 280ms ease"
+            : "transform 480ms cubic-bezier(0.19, 1, 0.22, 1), opacity 360ms ease, border-radius 480ms ease",
+        }}
       >
         {/* Lesson content */}
         {currentItem ? (
@@ -2248,6 +2285,7 @@ return false;
         onToggleSection={toggleSection}
         onSelectItem={(m, s, i) => { handleSelectItem(m, s, i); setDrawerOpen(false); }}
         isItemLocked={isItemLocked}
+        onExitToDashboard={exitToDashboard}
         emotion={
           currentItem
             ? {
@@ -2297,7 +2335,7 @@ return false;
 
       {/* Fullscreen gate — after a reload or an Esc, a request can only succeed
           inside a click, so block the lesson until the student clicks to re-enter. */}
-      {needsFullscreen && !drawerOpen && (
+      {needsFullscreen && !drawerOpen && !stageExiting && (
         <div
           className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6 bg-black/85 backdrop-blur-md text-center px-6"
           role="dialog"
@@ -2336,7 +2374,7 @@ return false;
             </button>
             <button
               type="button"
-              onClick={() => router.navigate({ to: "/student" })}
+              onClick={exitToDashboard}
               className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-medium text-white/80 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
             >
               <Home className="h-3.5 w-3.5" /> Go to dashboard

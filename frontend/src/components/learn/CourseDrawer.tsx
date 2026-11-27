@@ -114,6 +114,13 @@ type Props = {
   isItemLocked: (moduleId: string, sectionId: string, itemId: string) => boolean;
 
   emotion?: EmotionConfig;
+
+  /**
+   * Plays the "close" stage animation before leaving, instead of the
+   * Dashboard link's default instant navigation. Falls back to a plain
+   * link (no animation) when the caller doesn't pass one.
+   */
+  onExitToDashboard?: () => void;
 };
 
 // Theme-aware row transition (works in light & dark). Every interactive row
@@ -147,6 +154,7 @@ export function CourseDrawer({
   onSelectItem,
   isItemLocked,
   emotion,
+  onExitToDashboard,
 }: Props) {
   const supportHref = (() => {
     if (!supportLink) return null;
@@ -469,7 +477,15 @@ export function CourseDrawer({
           <div className={`grid gap-2 ${supportHref ? "grid-cols-2" : "grid-cols-1"}`}>
             <Link
               to="/student"
-              onClick={() => onOpenChange(false)}
+              onClick={(e) => {
+                onOpenChange(false);
+                // Let the stage play its close animation before navigating,
+                // when the caller gave us one, instead of leaving instantly.
+                if (onExitToDashboard) {
+                  e.preventDefault();
+                  onExitToDashboard();
+                }
+              }}
               className={`flex flex-col items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-medium text-foreground/80 ${rowBase} hover:border-foreground/20 hover:bg-foreground/[0.06] hover:text-foreground`}
             >
               <Home className="h-4 w-4" />
