@@ -15,6 +15,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState, lazy, useEffect } from "react";
 import { bufferToHex } from "@/utils/helpers";
 import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
+import { setLaunchOrigin } from "@/lib/page-transition";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
@@ -130,7 +131,12 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
 
   })
 
-  const handleContinue = async () => {
+  const handleContinue = async (e?: React.MouseEvent) => {
+    // Captured synchronously: a DOM event's currentTarget is only valid while
+    // the handler is still dispatching, so this has to happen before the
+    // `await` below, not when we actually use it near the navigate() call.
+    const originRect = e?.currentTarget?.getBoundingClientRect();
+
     if (variant === 'available') {
       navigate({
         to: "/student/course-registration/$versionId/{-$cohort}",
@@ -164,6 +170,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
       cohortId: enrollment.cohortId || null
     });
 
+    if (originRect) setLaunchOrigin(originRect);
     navigate({ to: "/student/learn" });
   };
 
@@ -270,7 +277,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                   <div className="gap-3 grid grid-cols-1 pt-1">
                     <div className="flex items-center gap-2">
                       <Button
-                        onClick={(e) => { e.stopPropagation(); handleContinue(); }}
+                        onClick={(e) => { e.stopPropagation(); handleContinue(e); }}
                         className={cn(
                           "flex flex-1 justify-center items-center gap-2 shadow-md rounded-xl h-10 font-bold text-sm active:scale-95 transition-all duration-300",
                           variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"
