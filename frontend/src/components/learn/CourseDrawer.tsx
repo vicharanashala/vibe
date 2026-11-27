@@ -329,8 +329,18 @@ export function CourseDrawer({
                             const sectionId = section.sectionId;
                             const isSectionExpanded = expandedSections[sectionId];
                             const isCurrentSection = sectionId === selectedSectionId;
+                            // A section expanded while another's fetch is still in
+                            // flight gets queued (see toggleSection/pendingSectionRef
+                            // in course-page.tsx) rather than fetched right away -- it
+                            // isn't activeSectionInfo yet, so the plain "is this the
+                            // fetching section" check missed it and fell through to
+                            // "No items found" until its queued turn came up. Any
+                            // expanded section with no cached items yet is either
+                            // fetching now or about to be, so show the same skeleton
+                            // either way.
                             const isLoadingItems =
-                              activeSectionInfo?.sectionId === sectionId && itemsLoading;
+                              (activeSectionInfo?.sectionId === sectionId && itemsLoading) ||
+                              (isSectionExpanded && !sectionItems[sectionId]);
 
                             return (
                               <div
