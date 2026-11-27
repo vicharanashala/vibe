@@ -4047,6 +4047,12 @@ class ProgressService extends BaseService {
     cohortId?: string,
     quizModuleId?: string,
     quizSectionId?: string,
+    attemptsExhausted?: boolean,
+    // Old-vibe only -- v3 shares this exact method via the same submit
+    // endpoint. Gates both the exhausted-attempt-advances behavior below and
+    // the enrollment-percent recalculation further down so v3's behavior is
+    // unchanged unless it explicitly opts in too.
+    isOldVibeClient?: boolean,
   ) {
     return this._withTransaction(async session => {
       // Fetch progress and course version in parallel
@@ -4061,7 +4067,17 @@ class ProgressService extends BaseService {
 
     // const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
-      if (isPassed) {
+      // A failed attempt normally sends the student back to rewatch the
+      // previous video before retaking the quiz. If this was the student's
+      // last available attempt, there's no retake to rewatch for -- sending
+      // the pointer backward would be a dead end (the frontend has nowhere
+      // useful to send them either). Treat it like a pass instead: advance
+      // past the quiz and mark it completed, the same as any other
+      // exhausted/resolved item. Old-vibe only (see isOldVibeClient above) --
+      // v3 keeps its original isPassed-only behavior unless it opts in too.
+      const shouldAdvance = isPassed || (!!isOldVibeClient && !!attemptsExhausted);
+
+      if (shouldAdvance) {
         // Prefer the quiz's actual module/section over the cursor's current
         // position — the cursor can be stale if it drifted ahead via optimistic
         // UI, which would make getNextItemInSequence check "is this the last
@@ -4155,8 +4171,11 @@ class ProgressService extends BaseService {
     }
     // if we refresh the quiz page after passing then the student will land on next item
     //  and as the stop item is not called for that quiz endtime will never be created
-    // Only mark quiz as completed (set endTime) if it was actually passed
-    if (isPassed) {
+    // Mark quiz as completed (set endTime) if it was passed, or if attempts
+    // are exhausted (shouldAdvance) -- leaving it uncompleted would make
+    // verifyProgress block the next item's immediate-predecessor check even
+    // though the student has correctly been moved past this quiz above.
+    if (shouldAdvance) {
       let resolvedWatchItemId = watchItemId;
 
       if (!resolvedWatchItemId) {
@@ -4207,6 +4226,28 @@ class ProgressService extends BaseService {
             resolvedWatchItemId,
             session,
           );
+          // Unlike VIDEO/BLOG items (completed via stopItem, which already
+          // recomputes this as its own last step), a quiz completes here --
+          // without this call, enrollment.percentCompleted/completedItemsCount
+          // never account for the quiz, undercounting by one for every quiz
+          // that isn't immediately followed by another item's stopItem call
+          // (most visibly: the course's very last item being a quiz leaves
+          // the dashboard permanently short by exactly that one item).
+          // Old-vibe only (see isOldVibeClient above) -- this pre-existing
+          // undercount also affects v3, but fixing it there is a separate,
+          // deliberate decision v3 hasn't opted into yet.
+          if (isOldVibeClient) {
+            await this.updateEnrollmentProgressPercent(
+              userId.toString(),
+              courseId,
+              courseVersionId,
+              session,
+              false,
+              undefined,
+              undefined,
+              cohortId,
+            );
+          }
         }
       }
     }); // close transaction

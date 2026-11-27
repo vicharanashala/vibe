@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress, useInvites, useAcceptInvite } from "@/hooks/hooks";
+import { invalidateItemCache } from "@/lib/item-cache";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { useShareLinkStore } from "@/store/share-link-store";
@@ -87,6 +89,7 @@ export default function CoursePage() {
   const [showProctorDialog, setShowProctorDialog] = useState(true);
   const { user } = useAuthStore();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const currentCourse = useCourseStore((state) => state.currentCourse);
   const COURSE_ID = currentCourse?.courseId || "";
   const VERSION_ID = currentCourse?.versionId || "";
@@ -332,6 +335,13 @@ export default function CoursePage() {
     moduleId: string;
     sectionId: string;
   } | null>(null);
+
+  // A section clicked in the drawer while another section's fetch is still
+  // in flight -- reassigning activeSectionInfo right away would abandon that
+  // fetch (nothing is left observing its query once activeSectionInfo moves
+  // on), so its row never gets its items and is stuck showing "No items
+  // found". Queue it and let the loading-done effect below pick it up.
+  const pendingSectionRef = useRef<{ moduleId: string; sectionId: string } | null>(null);
 
   // Fetch course version data
   const { data: courseVersionData, isLoading: versionLoading, error: versionError, refetch: refetchVersion } =
@@ -592,7 +602,7 @@ export default function CoursePage() {
       // symmetrically already; this check only decides the outer gate.)
       const resolvedDetectors =
         (itemData as {item?: {proctoringDetectors?: {settings: {enabled: boolean}}[]}})
-          ?.item?.proctoringDetectors ?? data.settings.proctors.detectors;
+          ?.item?.proctoringDetectors ?? data.settings?.proctors?.detectors ?? [];
       const noDetectorsActive = resolvedDetectors.every(
         (detector: any) => detector.settings.enabled === false,
       );
@@ -1085,13 +1095,28 @@ export default function CoursePage() {
 
   // Toggle section expansion
   const toggleSection = (moduleId: string, sectionId: string) => {
+    setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+
+    if (itemsLoading && activeSectionInfo?.sectionId !== sectionId) {
+      pendingSectionRef.current = { moduleId, sectionId };
+      return;
+    }
+
     setActiveSectionInfo({
       moduleId,
       sectionId
     });
-
-    setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
   };
+
+  // Once the in-flight fetch finishes, move on to whichever section was
+  // clicked (last one wins) while it was busy.
+  useEffect(() => {
+    if (!itemsLoading && pendingSectionRef.current) {
+      const next = pendingSectionRef.current;
+      pendingSectionRef.current = null;
+      setActiveSectionInfo(next);
+    }
+  }, [itemsLoading]);
 
   // Helper function to find the next item in the course structure
   const findNextItem = useCallback((): {
@@ -1750,6 +1775,43 @@ export default function CoursePage() {
     sectionItems,
     updateCourseNavigation,
   ]);
+
+  // The moment a failed quiz is known to require a rewatch of the video
+  // before it — not tied to any particular way the student later gets back
+  // to that video (the quiz's own "back" button, the auto-redirect
+  // countdown, or navigating there manually via the course drawer
+  // afterward). Invalidating here instead of inside handlePrevVideo covers
+  // all of those with one targeted call, instead of only the first.
+  useEffect(() => {
+    if (quizPassed !== 0) return;
+    const prevVideoItem = findPreviousVideoItem();
+    if (!prevVideoItem?.itemId) return;
+    invalidateItemCache(queryClient, { itemId: prevVideoItem.itemId });
+  }, [quizPassed, findPreviousVideoItem, queryClient]);
+
+  // Mirrors the video-finish update a few lines up: the drawer's per-item
+  // isCompleted flags live in local sectionItems state (fetched once per
+  // section -- see "SECTION ITEM FETCH (ONCE PER SECTION)" above -- not
+  // re-fetched from the server), so a quiz pass needs the same local patch a
+  // finished video already gets. Without it the drawer (and the counts
+  // derived from it) kept showing the pre-pass snapshot until a full reload.
+  // quizPassed === 3 covers both "no attempts left to start a new one" and a
+  // failed attempt that was the student's last -- the backend marks the quiz
+  // completed (endTime set) in both cases too, see handleQuizeProgressAfterSubmission.
+  useEffect(() => {
+    if (quizPassed !== 1 && quizPassed !== 3) return;
+    if (!selectedSectionId || !selectedItemId) return;
+    setSectionItems(prev => {
+      const items = prev[selectedSectionId];
+      if (!items) return prev;
+      return {
+        ...prev,
+        [selectedSectionId]: items.map(item =>
+          item._id === selectedItemId ? { ...item, isCompleted: true } : item
+        ),
+      };
+    });
+  }, [quizPassed, selectedSectionId, selectedItemId]);
 
 const nextItemInfo = findNextItem();
 

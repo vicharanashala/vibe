@@ -227,7 +227,7 @@ class AttemptController {
         req.on('error', err => reject(err));
       },
     );
-    const { isSkipped, answers, courseId, courseVersionId, watchItemId, cohortId, moduleId, sectionId } = body;
+    const { isSkipped, answers, courseId, courseVersionId, watchItemId, cohortId, moduleId, sectionId, isOldVibeClient } = body;
     const userId = user._id.toString();
     // Build subject context first
     const attemptSubject = subject('Attempt', {quizId});
@@ -250,6 +250,7 @@ class AttemptController {
         cohortId,
         moduleId,
         sectionId,
+        isOldVibeClient,
       );
       return result as SubmitAttemptResponse;
     } catch (error: any) {
