@@ -163,6 +163,59 @@ export class FAQRetrievalService {
     return total === 0 ? 0 : matched / total;
   }
 
+  /** Every FAQ with its lexical score for the question, best first. */
+  private rankLexically(
+    question: string,
+    faqs: IFAQ[],
+  ): Array<{faq: IFAQ; lexical: number}> {
+    const queryTerms = this.tokenize(question);
+    const idf = this.buildIdf(faqs);
+    // A term no FAQ contains is as informative as one in a single FAQ.
+    const unseenTermIdf = Math.log(1 + faqs.length);
+
+    return faqs
+      .map(faq => ({
+        faq,
+        lexical: this.lexicalScore(queryTerms, idf, unseenTermIdf, faq),
+      }))
+      .sort((a, b) => b.lexical - a.lexical);
+  }
+
+  /**
+   * The FAQs to give the AI fallback as context, closest to the question
+   * first, up to `maxFaqs` entries and `maxChars` characters of FAQ text.
+   *
+   * Unlike retrieveFAQ this applies no confidence bar: it runs precisely when
+   * no FAQ cleared it, typically because the learner used different words.
+   * While the FAQ set is small every entry fits, so the model sees all of it;
+   * as the set grows the lexical ranking decides what is left out. Never
+   * throws — an empty list just means the question escalates.
+   */
+  async rankForContext(
+    question: string,
+    maxFaqs: number,
+    maxChars: number,
+  ): Promise<IFAQ[]> {
+    try {
+      const faqs = await this.faqRepo.findAll({isActive: true});
+
+      const selected: IFAQ[] = [];
+      let usedChars = 0;
+      for (const {faq} of this.rankLexically(question, faqs)) {
+        if (selected.length >= maxFaqs) break;
+        const size = faq.question.length + faq.answer.length;
+        // Skip an entry that would overflow, but keep trying smaller ones.
+        if (usedChars + size > maxChars) continue;
+        selected.push(faq);
+        usedChars += size;
+      }
+      return selected;
+    } catch (error) {
+      console.error('Error ranking FAQs for the AI fallback', error);
+      return [];
+    }
+  }
+
   private embeddingProviderAvailable(): boolean {
     return Boolean(this.minimaxApiKey) && Date.now() >= this.embeddingCooldownUntil;
   }
@@ -277,16 +330,7 @@ export class FAQRetrievalService {
 
       // Lexical first: it always works, and its ranking decides which FAQs are
       // worth spending embedding calls on.
-      const queryTerms = this.tokenize(question);
-      const idf = this.buildIdf(faqs);
-      // A term no FAQ contains is as informative as one in a single FAQ.
-      const unseenTermIdf = Math.log(1 + faqs.length);
-      const byLexical = faqs
-        .map((faq) => ({
-          faq,
-          lexical: this.lexicalScore(queryTerms, idf, unseenTermIdf, faq),
-        }))
-        .sort((a, b) => b.lexical - a.lexical);
+      const byLexical = this.rankLexically(question, faqs);
 
       const queryEmbedding = await this.tryGetEmbedding(question, 'query');
       if (queryEmbedding) {

@@ -15,6 +15,7 @@ import {
 import { ObjectId } from 'mongodb';
 import { ChatMessageResponse, SUPPORT_CHAT_TYPES } from '../types.js';
 import { ChatService } from '../services/index.js';
+import {currentUserId} from './currentUserId.js';
 import {
   ChatHistoryQuery,
   ChatMessageBody,
@@ -24,6 +25,29 @@ import {
   RateQuestionBody,
   SupportQuestionPathParams,
 } from '../classes/validators/SupportChatValidators.js';
+
+/** A chat reply as sent to the browser: ids as hex strings. */
+export type ChatMessageJson = Omit<
+  ChatMessageResponse,
+  'questionId' | 'faqId'
+> & {
+  questionId: string;
+  faqId?: string;
+};
+
+/**
+ * routing-controllers runs replies through class-transformer, which turns an
+ * ObjectId into a plain object. The widget then built `/[object Object]/rate`
+ * and `/[object Object]/escalate`, so rating and issue reports always failed
+ * with 400. Sending strings fixes both.
+ */
+export function toChatMessageJson(reply: ChatMessageResponse): ChatMessageJson {
+  return {
+    ...reply,
+    questionId: reply.questionId.toString(),
+    faqId: reply.faqId?.toString(),
+  };
+}
 
 // The app mounts routing-controllers with routePrefix '/api', so the prefix is
 // omitted here — declaring it would serve the routes at /api/api/support/chat.
@@ -38,13 +62,13 @@ export class ChatController {
     @CurrentUser() user: any,
     @Body() messageRequest: ChatMessageBody,
     @QueryParams() query: ChatMessageQuery
-  ): Promise<ChatMessageResponse> {
-    const userId = new ObjectId(user.id);
+  ): Promise<ChatMessageJson> {
+    const userId = new ObjectId(currentUserId(user));
     const courseId = query.courseId ? new ObjectId(query.courseId) : undefined;
     const courseVersionId = query.courseVersionId ? new ObjectId(query.courseVersionId) : undefined;
     const cohortId = query.cohortId ? new ObjectId(query.cohortId) : undefined;
 
-    return this.chatService.handleUserQuestion(
+    const reply = await this.chatService.handleUserQuestion(
       userId,
       {
         question: messageRequest.question,
@@ -62,6 +86,8 @@ export class ChatController {
       courseVersionId,
       cohortId
     );
+
+    return toChatMessageJson(reply);
   }
 
   @Get('/history')
@@ -70,7 +96,7 @@ export class ChatController {
     @CurrentUser() user: any,
     @QueryParams() query: ChatHistoryQuery
   ) {
-    const userId = new ObjectId(user.id);
+    const userId = new ObjectId(currentUserId(user));
     const limit = query.limit ?? 50;
 
     const questions = await this.chatService.getQuestionHistory(userId, limit);
@@ -105,7 +131,7 @@ export class ChatController {
     }
 
     // Verify ownership
-    if (question.userId.toString() !== user.id) {
+    if (question.userId.toString() !== currentUserId(user)) {
       throw new ForbiddenError('Unauthorized');
     }
 
@@ -120,7 +146,7 @@ export class ChatController {
     @Body() body: RateQuestionBody
   ) {
     const qId2 = new ObjectId(params.questionId);
-    await this.getOwnQuestion(qId2, user.id);
+    await this.getOwnQuestion(qId2, currentUserId(user));
 
     return await this.chatService.rateResolution(qId2, body.rating);
   }
@@ -138,7 +164,7 @@ export class ChatController {
     @Body() body: EscalateQuestionBody
   ) {
     const qId = new ObjectId(params.questionId);
-    await this.getOwnQuestion(qId, user.id);
+    await this.getOwnQuestion(qId, currentUserId(user));
 
     return await this.chatService.escalateQuestion(qId, body);
   }

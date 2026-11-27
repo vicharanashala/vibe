@@ -42,7 +42,7 @@ export default function ChatWidget({
       className='fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3'
     >
       {isOpen && (
-        <div className='w-96 h-96 bg-white rounded-lg shadow-2xl flex flex-col border border-gray-200'>
+        <div className='flex h-[32rem] max-h-[calc(100vh-6rem)] w-96 max-w-[calc(100vw-2rem)] flex-col rounded-xl border border-border bg-card shadow-2xl'>
           <ChatWindow
             courseId={courseId}
             courseVersionId={courseVersionId}
@@ -54,7 +54,7 @@ export default function ChatWidget({
 
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className='relative w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors flex items-center justify-center'
+        className='relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-opacity hover:opacity-90'
         aria-label='Open support chat'
         title='Support Chat'
       >

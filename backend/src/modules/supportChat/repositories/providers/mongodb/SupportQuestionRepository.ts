@@ -140,6 +140,24 @@ export class SupportQuestionRepository {
     return this.updateById(id, {
       matchedFaqId: faqId,
       confidenceScore: confidence,
+      answerSource: 'faq',
+      status: SupportQuestionStatus.ANSWERED,
+    });
+  }
+
+  /**
+   * Records a model-written answer. `faqId` is the main FAQ it was grounded
+   * in, so FAQ usage stats and the admin view keep working as for FAQ answers.
+   */
+  async setAIAnswer(
+    id: ObjectId,
+    faqId: ObjectId,
+    response: string,
+  ): Promise<ISupportQuestion | null> {
+    return this.updateById(id, {
+      matchedFaqId: faqId,
+      answerSource: 'ai',
+      aiResponse: response,
       status: SupportQuestionStatus.ANSWERED,
     });
   }

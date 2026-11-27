@@ -100,6 +100,10 @@ FAQ_CONFIDENCE_THRESHOLD=0.75                     # Bar when embeddings are avai
 FAQ_LEXICAL_CONFIDENCE_THRESHOLD=0.45             # Bar when they are not
 MONGODB_FAQ_COLLECTION=supportFaqs
 MONGODB_QUESTIONS_COLLECTION=supportQuestions
+
+# AI fallback: answers from the FAQs when none matches closely, before escalating.
+# On whenever MINIMAX_API_KEY is set; see the module README for other providers.
+SUPPORT_CHAT_AI_ENABLED=true
 ```
 
 ### Step 5: Seed Initial FAQs
