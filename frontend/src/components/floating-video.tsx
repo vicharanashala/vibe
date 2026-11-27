@@ -1520,8 +1520,11 @@ const maybeReportImageAnomaly = useCallback((tag: string, isActive: boolean, rep
             }}
             settings={{
               isFaceCountDetectionEnabled,
-              isFaceRecognitionEnabled, 
-              isFocusEnabled
+              isFaceRecognitionEnabled,
+              isFocusEnabled,
+              faceMatchThreshold: getComponentOption('faceRecognition', 'matchThreshold'),
+              faceRequiredMatches: getComponentOption('faceRecognition', 'requiredMatches'),
+              faceRequiredMismatches: getComponentOption('faceRecognition', 'requiredMismatches')
             }}
           />
   

@@ -79,6 +79,9 @@ export function ProctoringModal({
   const [isAdditionalSettingsExpanded, setIsAdditionalSettingsExpanded] = useState(false);
   const [enableRandomize, setEnableRandomize] = useState<boolean>(false);
   const [noFaceFlagFrames, setNoFaceFlagFrames] = useState<number>(4);
+  const [faceMatchThreshold, setFaceMatchThreshold] = useState<number>(0.55);
+  const [faceRequiredMatches, setFaceRequiredMatches] = useState<number>(3);
+  const [faceRequiredMismatches, setFaceRequiredMismatches] = useState<number>(2);
   const [crowdsourcedQuestionSubmissionEnabled, setCrowdsourcedQuestionSubmissionEnabled] = useState(false);
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(courseVersionId || "")
 
@@ -138,6 +141,12 @@ export function ProctoringModal({
             (d: any) => d.detectorName === ProctoringComponent.FACECOUNTDETECTION,
           )
           setNoFaceFlagFrames(faceCountDetector?.settings?.options?.noFaceFlagFrames ?? 4)
+          const faceRecognitionDetector = result.settings?.proctors?.detectors?.find(
+            (d: any) => d.detectorName === ProctoringComponent.FACERECOGNITION,
+          )
+          setFaceMatchThreshold(faceRecognitionDetector?.settings?.options?.matchThreshold ?? 0.55)
+          setFaceRequiredMatches(faceRecognitionDetector?.settings?.options?.requiredMatches ?? 3)
+          setFaceRequiredMismatches(faceRecognitionDetector?.settings?.options?.requiredMismatches ?? 2)
           setLinearProgressionEnabled(result.settings?.linearProgressionEnabled)
           setSeekForwardEnabled(result.settings?.seekForwardEnabled ?? false)
           setIsPublic(result.settings?.isPublic ?? false)
@@ -194,8 +203,21 @@ export function ProctoringModal({
       return
     }
 
+    if (!(faceMatchThreshold > 0 && faceMatchThreshold <= 1)) {
+      toast.error("The match threshold must be a number greater than 0 and at most 1.")
+      return
+    }
+    if (!Number.isInteger(faceRequiredMatches) || faceRequiredMatches < 1) {
+      toast.error("Consecutive matches required must be a whole number of at least 1.")
+      return
+    }
+    if (!Number.isInteger(faceRequiredMismatches) || faceRequiredMismatches < 1) {
+      toast.error("Consecutive mismatches required must be a whole number of at least 1.")
+      return
+    }
+
     try {
-      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled, baseHp, enableRandomize, crowdsourcedQuestionSubmissionEnabled, noFaceFlagFrames)
+      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled, baseHp, enableRandomize, crowdsourcedQuestionSubmissionEnabled, noFaceFlagFrames, faceMatchThreshold, faceRequiredMatches, faceRequiredMismatches)
 
       // Persist the follow-up invite configuration (separate endpoint).
       await updateFollowUpInvite(courseId, courseVersionId, {
@@ -323,6 +345,56 @@ export function ProctoringModal({
               placeholder="4"
               className="max-w-32"
             />
+          </div>
+        )}
+        {detector.name === ProctoringComponent.FACERECOGNITION && detector.enabled && (
+          <div className="space-y-3 pl-6">
+            <div className="space-y-1">
+              <Label className="text-xs font-medium">Match Threshold</Label>
+              <p className="text-xs text-muted-foreground">
+                Max face-embedding distance counted as a match (lower = stricter). Default: 0.55.
+              </p>
+              <Input
+                type="number"
+                value={faceMatchThreshold}
+                min={0.1}
+                max={1}
+                step={0.01}
+                onChange={(e) => setFaceMatchThreshold(Number(e.target.value))}
+                placeholder="0.55"
+                className="max-w-32"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-medium">Consecutive Matches Required</Label>
+              <p className="text-xs text-muted-foreground">
+                Consecutive matching frames (~1 per second) before confirming identity again after a mismatch. Default: 3.
+              </p>
+              <Input
+                type="number"
+                value={faceRequiredMatches}
+                min={1}
+                max={10}
+                onChange={(e) => setFaceRequiredMatches(Number(e.target.value))}
+                placeholder="3"
+                className="max-w-32"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-medium">Consecutive Mismatches Required</Label>
+              <p className="text-xs text-muted-foreground">
+                Consecutive non-matching frames (~1 per second) before flagging an identity mismatch. Lower = flags faster but more false positives. Default: 2.
+              </p>
+              <Input
+                type="number"
+                value={faceRequiredMismatches}
+                min={1}
+                max={10}
+                onChange={(e) => setFaceRequiredMismatches(Number(e.target.value))}
+                placeholder="2"
+                className="max-w-32"
+              />
+            </div>
           </div>
         )}
       </div>
