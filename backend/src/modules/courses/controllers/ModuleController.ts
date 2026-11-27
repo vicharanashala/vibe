@@ -36,6 +36,8 @@ import {
   getCourseVersionAbility,
 } from '../abilities/versionAbilities.js';
 import { subject } from '@casl/ability';
+import {StudyModeBody} from '../classes/validators/StudyModeValidators.js';
+import {ContentLockBody} from '../classes/validators/ContentLockValidators.js';
 import { AuditTrailsHandler } from '#root/shared/middleware/auditTrails.js';
 import { setAuditTrail } from '#root/utils/setAuditTrail.js';
 import {
@@ -292,6 +294,148 @@ Accessible to:
     });
 
     return { version: instanceToPlain(updated) };
+  }
+
+  @OpenAPI({
+    summary: "Set this module's study-mode setting",
+    description: `Allows or disallows study mode for every section and item in the module that has no setting of its own, or clears the setting (null) so the module is open to study mode again.<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
+  @Authorized()
+  @HttpCode(200)
+  @Put('/versions/:versionId/modules/:moduleId/study-mode')
+  @UseInterceptor(AuditTrailsHandler)
+  @ResponseSchema(ModuleDataResponse, {
+    description: 'Module study-mode setting updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ModuleNotFoundErrorResponse, {
+    description: 'Module not found',
+    statusCode: 404,
+  })
+  async updateStudyMode(
+    @Params() params: VersionModuleParams,
+    @Body() body: StudyModeBody,
+    @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request,
+  ) {
+    const {versionId, moduleId} = params;
+
+    const courseVersionSubject = subject('CourseVersion', {versionId});
+    if (!ability.can(CourseVersionActions.Modify, courseVersionSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to update modules in this course version',
+      );
+    }
+
+    const getCourse = await this.courseVersionService.readCourseVersion(
+      versionId,
+      user._id,
+    );
+    const existingModule = getCourse.modules.find(
+      module => module.moduleId === moduleId,
+    );
+
+    const updated = await this.service.updateModuleStudyMode(
+      versionId,
+      moduleId,
+      body.studyModeEnabled,
+    );
+
+    setAuditTrail(req, {
+      category: AuditCategory.MODULE,
+      action: AuditAction.MODULE_UPDATE_STUDY_MODE,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseId: ObjectId.createFromHexString(getCourse.courseId.toString()),
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        moduleId: ObjectId.createFromHexString(moduleId),
+      },
+      changes: {
+        before: {studyModeEnabled: existingModule?.studyModeEnabled ?? null},
+        after: {studyModeEnabled: body.studyModeEnabled},
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
+
+    return {version: instanceToPlain(updated)};
+  }
+
+  @OpenAPI({
+    summary: "Set this module's lock setting",
+    description: `Locks every section and item in the module that has no setting of its own for students, keeps them open, or clears the setting (null).<br/>
+Accessible to:
+- Instructors or managers of the course.`,
+  })
+  @Authorized()
+  @HttpCode(200)
+  @Put('/versions/:versionId/modules/:moduleId/lock')
+  @UseInterceptor(AuditTrailsHandler)
+  @ResponseSchema(ModuleDataResponse, {
+    description: 'Module lock setting updated successfully',
+  })
+  @ResponseSchema(BadRequestErrorResponse, {
+    description: 'Bad Request Error',
+    statusCode: 400,
+  })
+  @ResponseSchema(ModuleNotFoundErrorResponse, {
+    description: 'Module not found',
+    statusCode: 404,
+  })
+  async updateLock(
+    @Params() params: VersionModuleParams,
+    @Body() body: ContentLockBody,
+    @Ability(getCourseVersionAbility) {ability, user},
+    @Req() req: Request,
+  ) {
+    const {versionId, moduleId} = params;
+
+    const courseVersionSubject = subject('CourseVersion', {versionId});
+    if (!ability.can(CourseVersionActions.Modify, courseVersionSubject)) {
+      throw new ForbiddenError(
+        'You do not have permission to update modules in this course version',
+      );
+    }
+
+    const updated = await this.service.updateModuleLock(
+      versionId,
+      moduleId,
+      body.isLocked,
+    );
+
+    setAuditTrail(req, {
+      category: AuditCategory.MODULE,
+      action: AuditAction.MODULE_UPDATE_LOCK,
+      actor: {
+        id: ObjectId.createFromHexString(user._id.toString()),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.roles,
+      },
+      context: {
+        courseVersionId: ObjectId.createFromHexString(versionId),
+        moduleId: ObjectId.createFromHexString(moduleId),
+      },
+      changes: {
+        after: {isLocked: body.isLocked},
+      },
+      outcome: {
+        status: OutComeStatus.SUCCESS,
+      },
+    });
+
+    return {version: instanceToPlain(updated)};
   }
 
   @OpenAPI({

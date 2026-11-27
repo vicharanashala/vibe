@@ -10,16 +10,20 @@ import { api } from '@/lib/api';
  *  - PUT build-form REPLACES the whole registration settings object. Sending
  *    only the form would reopen a closed registration (isActive defaults to
  *    true) and wipe auto-approval, so saves always carry those values too.
- *  - Auto-approval with no emails approves everyone; otherwise an address is
- *    approved when it contains any listed pattern (e.g. "@iitrpr.ac.in").
+ *  - Auto-approval has a mode. EVERYONE approves all; LIST approves only exact
+ *    addresses and exact domains, so an empty list approves nobody. The backend
+ *    reports the mode for courses saved before it existed.
  *  - Approving enrols the student and emails them. Bulk update is approve-only.
  */
+
+export type AutoApprovalMode = 'EVERYONE' | 'LIST';
 
 export interface RegistrationSettings {
   jsonSchema: Record<string, unknown> | null;
   uiSchema: Record<string, unknown> | null;
   isActive: boolean;
   registrationsAutoApproved: boolean;
+  autoApprovalMode: AutoApprovalMode;
   autoapproval_emails: string[];
 }
 
@@ -55,6 +59,7 @@ export function useRegistrationSettings(versionId: string) {
         uiSchema: raw.uiSchema ?? null,
         isActive: raw.isActive ?? true,
         registrationsAutoApproved: !!raw.registrationsAutoApproved,
+        autoApprovalMode: raw.autoApprovalMode ?? 'EVERYONE',
         autoapproval_emails: raw.autoapproval_emails ?? [],
       } satisfies RegistrationSettings;
     },
@@ -84,6 +89,7 @@ export function useSaveRegistrationForm(versionId: string) {
               uiSchema,
               isActive: settings.isActive,
               registrationsAutoApproved: settings.registrationsAutoApproved,
+              autoApprovalMode: settings.autoApprovalMode,
               autoapproval_emails: settings.autoapproval_emails,
             } as never,
           },
@@ -121,6 +127,7 @@ export function useSaveAutoApproval(versionId: string) {
   return useMutation({
     mutationFn: async (body: {
       registrationsAutoApproved: boolean;
+      autoApprovalMode: AutoApprovalMode;
       autoapproval_emails: string[];
     }) =>
       unwrap(

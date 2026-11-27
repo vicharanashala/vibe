@@ -2,6 +2,8 @@
 import {USERS_TYPES} from './types.js';
 import {EnrollmentRepository} from '#root/shared/database/providers/mongo/repositories/EnrollmentRepository.js';
 import {ProgressRepository} from '#root/shared/database/providers/mongo/repositories/ProgressRepository.js';
+import {StudyViewRepository} from '#root/shared/database/providers/mongo/repositories/StudyViewRepository.js';
+import {StudyProgressService} from './services/StudyProgressService.js';
 import {EnrollmentController} from './controllers/EnrollmentController.js';
 import {ProgressController} from './controllers/ProgressController.js';
 import {UserController} from './controllers/UserController.js';
@@ -23,6 +25,14 @@ export const usersContainerModule = new ContainerModule(options => {
   options
     .bind(USERS_TYPES.EnrollmentRepo)
     .to(EnrollmentRepository)
+    .inSingletonScope();
+  options
+    .bind(USERS_TYPES.StudyViewRepo)
+    .to(StudyViewRepository)
+    .inSingletonScope();
+  options
+    .bind(USERS_TYPES.StudyProgressService)
+    .to(StudyProgressService)
     .inSingletonScope();
 
   // Services

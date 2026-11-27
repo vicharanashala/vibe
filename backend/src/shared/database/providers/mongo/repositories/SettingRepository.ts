@@ -441,6 +441,7 @@ export class SettingRepository implements ISettingRepository {
       isActive: boolean;
       registrationsAutoApproved?: boolean;
       autoapproval_emails?: string[];
+      autoApprovalMode?: 'EVERYONE' | 'LIST';
     },
     session?: ClientSession,
   ): Promise<UpdateResult | null> {
@@ -460,6 +461,7 @@ export class SettingRepository implements ISettingRepository {
             schemas.registrationsAutoApproved,
           'settings.registration.autoapproval_emails':
             schemas.autoapproval_emails,
+          'settings.registration.autoApprovalMode': schemas.autoApprovalMode,
         },
       },
       {session},
@@ -488,6 +490,44 @@ export class SettingRepository implements ISettingRepository {
       {session},
     );
     return result;
+  }
+
+  /**
+   * Whether students may send feedback forms in study mode (how phones answer,
+   * since strict mode is PC-only). On unless the course turned it off.
+   */
+  async isStudyModeFeedbackAllowed(
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const doc = await this.courseSettingsCollection.findOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {projection: {'settings.studyModeFeedback': 1}, session},
+    );
+    return doc?.settings?.studyModeFeedback !== false;
+  }
+
+  async updateStudyModeFeedback(
+    courseId: string,
+    courseVersionId: string,
+    enabled: boolean,
+    session?: ClientSession,
+  ): Promise<boolean> {
+    await this.init();
+    const result = await this.courseSettingsCollection.updateOne(
+      {
+        courseId: new ObjectId(courseId),
+        courseVersionId: new ObjectId(courseVersionId),
+      },
+      {$set: {'settings.studyModeFeedback': enabled}},
+      {upsert: true, session},
+    );
+    return result.acknowledged;
   }
 
   async updateFollowUpInvite(

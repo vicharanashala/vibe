@@ -42,12 +42,20 @@ export class ErrorResponse<T> {
   errors?: T;
   sentryEventId?: string;
   name?: string;
+  details?: Record<string, unknown>;
 
-  constructor(message: string, errors?: T, sentryEventId?: string, name?: string) {
+  constructor(
+    message: string,
+    errors?: T,
+    sentryEventId?: string,
+    name?: string,
+    details?: Record<string, unknown>,
+  ) {
     if (errors) this.errors = errors;
     this.message = message;
     if (sentryEventId) this.sentryEventId = sentryEventId;
     if (name) this.name = name;
+    if (details) this.details = details;
   }
 }
 
@@ -284,9 +292,17 @@ export class HttpErrorHandler implements ExpressErrorMiddlewareInterface {
             new ErrorResponse<typeof error.errors>(error.message, error.errors, eventId),
           );
       } else {
-        response
-          .status(error.httpCode)
-          .json(new ErrorResponse<null>(error.message, null, eventId, error.name));
+        response.status(error.httpCode).json(
+          new ErrorResponse<null>(
+            error.message,
+            null,
+            eventId,
+            error.name,
+            // Only errors that carry machine-readable context (e.g.
+            // StudyModeError) set this; every other body is unchanged.
+            (error as {details?: Record<string, unknown>}).details,
+          ),
+        );
       }
     } else if (error instanceof Error) {
       response.status(500).json(

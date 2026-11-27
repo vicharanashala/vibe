@@ -1659,6 +1659,10 @@
        "seekForwardEnabled": {
         "type": "boolean"
        },
+       "studyModeFeedback": {
+        "type": "boolean",
+        "description": "Whether students can send feedback forms in study mode (how phones answer). Default true."
+       },
        "hpSystem": {
         "type": "boolean"
        },
@@ -4991,6 +4995,24 @@
      },
      "limit": {
       "type": "string"
+     },
+     "userId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string",
+      "description": "Only this student’s responses"
+     },
+     "cohortId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string",
+      "description": "Only responses from this cohort"
+     },
+     "history": {
+      "type": "string",
+      "enum": [
+       "latest",
+       "all"
+      ],
+      "description": "'latest' (default): each student's current answer only; 'all': include replaced answers"
      }
     },
     "type": "object",
@@ -4999,6 +5021,81 @@
      "page",
      "limit"
     ]
+   },
+   "FeedbackExportQuery": {
+    "properties": {
+     "format": {
+      "type": "string",
+      "enum": [
+       "xlsx",
+       "csv"
+      ],
+      "description": "File format: 'xlsx' (default) or 'csv'"
+     },
+     "type": {
+      "type": "string",
+      "enum": [
+       "all",
+       "watch"
+      ],
+      "description": "Course CSV only: 'all' (default, every answer) or 'watch' (one row per student per video)"
+     },
+     "cohortId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string",
+      "description": "Only this cohort"
+     },
+     "history": {
+      "type": "string",
+      "enum": [
+       "latest",
+       "all"
+      ],
+      "description": "'latest' (default): current answers only; 'all': include replaced answers"
+     }
+    },
+    "type": "object"
+   },
+   "CourseVersionFeedbackParams": {
+    "properties": {
+     "courseId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string",
+      "description": "Course ID"
+     },
+     "versionId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string",
+      "description": "Course version ID"
+     }
+    },
+    "type": "object",
+    "required": [
+     "courseId",
+     "versionId"
+    ]
+   },
+   "UpdateFeedbackSettingsBody": {
+    "properties": {
+     "studyModeFeedback": {
+      "type": "boolean",
+      "description": "Whether students can send feedback forms in study mode (how phones answer)."
+     }
+    },
+    "type": "object",
+    "required": [
+     "studyModeFeedback"
+    ]
+   },
+   "GetFeedbackSummaryQuery": {
+    "properties": {
+     "cohortId": {
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "type": "string",
+      "description": "Only responses from this cohort"
+     }
+    },
+    "type": "object"
    },
    "CSVRow": {
     "properties": {
@@ -5196,6 +5293,14 @@
      "isOptional": {
       "type": "boolean"
      },
+     "studyModeEnabled": {
+      "type": "boolean",
+      "description": "Study-mode setting: true allows, false disallows; absent or null inherits from the level above."
+     },
+     "isLocked": {
+      "type": "boolean",
+      "description": "Lock setting: true locks, false keeps open; absent or null inherits from the level above."
+     },
      "details": {
       "type": "object",
       "description": "Type-specific payload (video URL and offsets, blog content, quiz settings, ...). For QUIZ items questionBankRefs is lifted out into the sibling field below."
@@ -5228,6 +5333,14 @@
      "isHidden": {
       "type": "boolean"
      },
+     "studyModeEnabled": {
+      "type": "boolean",
+      "description": "Study-mode setting: true allows, false disallows; absent or null inherits from the level above."
+     },
+     "isLocked": {
+      "type": "boolean",
+      "description": "Lock setting: true locks, false keeps open; absent or null inherits from the level above."
+     },
      "items": {
       "items": {
        "$ref": "#/components/schemas/BundleItem"
@@ -5255,6 +5368,14 @@
      },
      "isHidden": {
       "type": "boolean"
+     },
+     "studyModeEnabled": {
+      "type": "boolean",
+      "description": "Study-mode setting: true allows, false disallows; absent or null inherits from the level above."
+     },
+     "isLocked": {
+      "type": "boolean",
+      "description": "Lock setting: true locks, false keeps open; absent or null inherits from the level above."
      },
      "sections": {
       "items": {
@@ -5403,6 +5524,28 @@
      "name",
      "message"
     ]
+   },
+   "StudyModeBody": {
+    "properties": {
+     "studyModeEnabled": {
+      "type": "boolean",
+      "title": "Study mode setting",
+      "description": "true allows study mode here, false disallows it (students must use strict mode), null clears the setting so it inherits from the level above (item → section → module; allowed when nothing is set).",
+      "nullable": true
+     }
+    },
+    "type": "object"
+   },
+   "ContentLockBody": {
+    "properties": {
+     "isLocked": {
+      "type": "boolean",
+      "title": "Lock setting",
+      "description": "true locks this for students, false keeps it open inside something locked, null clears the setting so it inherits.",
+      "nullable": true
+     }
+    },
+    "type": "object"
    },
    "InviteIdParams": {
     "properties": {
@@ -7264,6 +7407,14 @@
       "pattern": "^[0-9a-fA-F]{24}$",
       "description": "ID of the course version",
       "example": "60d21b4667d0d8992e610c99"
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "strict",
+       "study"
+      ],
+      "description": "The mode the student answered in. Study-mode answers need the course to allow them and, after a video, a study view of it; they never change strict progress. Defaults to 'strict'."
      },
      "cohortId": {
       "type": "string",
@@ -9255,6 +9406,34 @@
      "watchItemId"
     ]
    },
+   "StudyViewBody": {
+    "properties": {
+     "itemId": {
+      "minLength": 1,
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "description": "The video or article studied"
+     },
+     "moduleId": {
+      "minLength": 1,
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "description": "Module containing the item"
+     },
+     "sectionId": {
+      "minLength": 1,
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{24}$",
+      "description": "Section containing the item"
+     }
+    },
+    "type": "object",
+    "required": [
+     "itemId",
+     "moduleId",
+     "sectionId"
+    ]
+   },
    "ContentCountsValidator": {
     "properties": {
      "totalItems": {
@@ -10306,6 +10485,46 @@
     "type": "object",
     "required": [
      "message"
+    ]
+   },
+   "ChangeUserEmailBody": {
+    "properties": {
+     "email": {
+      "maxLength": 254,
+      "type": "string",
+      "format": "email",
+      "description": "The new sign-in email for the user",
+      "example": "new.address@example.com"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email"
+    ]
+   },
+   "ChangeUserEmailResponse": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "description": "The new email"
+     },
+     "previousEmail": {
+      "type": "string",
+      "description": "The email before the change"
+     },
+     "signInMethods": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "description": "The account's sign-in methods, e.g. 'password' and 'google.com'"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email",
+     "previousEmail",
+     "signInMethods"
     ]
    },
    "ReportStatusEntry": {
@@ -11832,6 +12051,25 @@
      "uiSchema": {
       "type": "object",
       "description": "Dynamic UI Schema for the form"
+     },
+     "registrationsAutoApproved": {
+      "type": "boolean",
+      "description": "Auto-approval on or off. Kept as stored when not sent."
+     },
+     "autoapproval_emails": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "description": "Auto-approval list. Kept as stored when not sent."
+     },
+     "autoApprovalMode": {
+      "type": "string",
+      "enum": [
+       "EVERYONE",
+       "LIST"
+      ],
+      "description": "Auto-approval mode. Kept as stored when not sent."
      }
     },
     "type": "object",
@@ -11867,12 +12105,20 @@
        "type": "string"
       },
       "type": "array",
-      "uniqueItems": true,
       "example": [
        "iitm.ac.in",
-       "gmail.com"
+       "bob@gmail.com"
       ],
-      "description": "Email patterns to auto-approve (if empty, all emails are approved)"
+      "description": "Full addresses, which match exactly, and domains, which match only that domain and not its subdomains. Ignored when the mode is EVERYONE."
+     },
+     "autoApprovalMode": {
+      "type": "string",
+      "enum": [
+       "EVERYONE",
+       "LIST"
+      ],
+      "example": "LIST",
+      "description": "EVERYONE approves every registration; LIST approves only matching emails, so an empty list approves nobody. When not sent: EVERYONE for an empty list, otherwise LIST."
      },
      "cohortId": {
       "type": "string",
@@ -20939,6 +21185,123 @@
     ]
    }
   },
+  "/api/users/progress/courses/{courseId}/versions/{versionId}/study-views": {
+   "post": {
+    "operationId": "ProgressController.recordStudyView",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "minLength": 1,
+       "description": "Course ID to retrieve progress for"
+      }
+     },
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "minLength": 1,
+       "description": "Course version ID to retrieve progress for"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StudyViewBody"
+       }
+      }
+     },
+     "description": "StudyViewBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "description": "Unresolved backend $ref: #/components/schemas/StudyViewResponse"
+        }
+       }
+      },
+      "description": "Study view recorded (or not tracked for this role)"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Not a video or article"
+     }
+    },
+    "summary": "Record that the caller studied a lesson in study mode",
+    "tags": [
+     "Progress"
+    ],
+    "description": "Marks a video or article as studied by the calling student (study mode). Idempotent: a repeat keeps the first time. Never changes strict progress.<br/>\nRejected for quizzes and other lesson types (400), lessons outside the course version (404) and lessons where study mode is disabled (403 STUDY_MODE_DISABLED). Instructors get recorded: false."
+   }
+  },
+  "/api/users/progress/courses/{courseId}/versions/{versionId}/study-progress": {
+   "get": {
+    "operationId": "ProgressController.getStudyProgress",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "minLength": 1,
+       "description": "Course ID to retrieve progress for"
+      }
+     },
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "minLength": 1,
+       "description": "Course version ID to retrieve progress for"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "description": "Unresolved backend $ref: #/components/schemas/StudyProgressResponse"
+        }
+       }
+      },
+      "description": "Study progress"
+     }
+    },
+    "summary": "Get the caller's study progress in a course version",
+    "tags": [
+     "Progress"
+    ],
+    "description": "Study-allowed videos and articles the caller studied in study mode or completed in strict mode, over all study-allowed videos and articles. Separate from (and never part of) strict progress."
+   }
+  },
   "/api/users/progress/courses/{courseId}/versions/{versionId}/": {
    "get": {
     "operationId": "ProgressController.getUserProgress",
@@ -22116,6 +22479,22 @@
       "schema": {
        "type": "string"
       }
+     },
+     {
+      "in": "query",
+      "name": "moduleId",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "itemId",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
      }
     ],
     "responses": {
@@ -22130,7 +22509,7 @@
     "tags": [
      "Users"
     ],
-    "description": "Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if the course has face recognition enabled."
+    "description": "Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if face recognition is enabled -- resolved through the item/module override (moduleId/itemId) when supplied, else the course-wide setting."
    },
    "patch": {
     "operationId": "UserController.updateCurrentUserFaceReference",
@@ -22238,6 +22617,62 @@
      "Users"
     ],
     "description": "Promotes a user to admin status based on the provided user ID.<br/>\n    Only an existing admin may call this endpoint.<br/>\n    It returns an empty body with a 200 status code."
+   }
+  },
+  "/api/users/{userId}/email": {
+   "patch": {
+    "operationId": "UserController.changeUserEmail",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "userId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "description": "User ID of the person",
+       "example": "cKy6H2O04PgTh8O3DpUXjgJYUr53"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ChangeUserEmailBody"
+       }
+      }
+     },
+     "description": "ChangeUserEmailBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ChangeUserEmailResponse"
+        }
+       }
+      },
+      "description": "The new email and the account sign-in methods"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "User not found"
+     }
+    },
+    "summary": "Change a user's sign-in email (admin)",
+    "tags": [
+     "Users"
+    ],
+    "description": "Changes the email a user signs in with, on both their Firebase account and their user record.<br/>\n    They keep their password, enrolments and progress. No email is sent.<br/>\n    Only an admin may call this endpoint."
    }
   },
   "/api/users/user-activity-events/": {
@@ -25495,6 +25930,14 @@
       "schema": {
        "type": "string"
       }
+     },
+     {
+      "in": "query",
+      "name": "mode",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
      }
     ],
     "responses": {
@@ -25590,6 +26033,39 @@
       "schema": {
        "type": "string"
       }
+     },
+     {
+      "in": "query",
+      "name": "userId",
+      "required": false,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Only this student’s responses"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cohortId",
+      "required": false,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Only responses from this cohort"
+      }
+     },
+     {
+      "in": "query",
+      "name": "history",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "latest",
+        "all"
+       ],
+       "description": "'latest' (default): each student's current answer only; 'all': include replaced answers"
+      }
      }
     ],
     "responses": {
@@ -25629,6 +26105,59 @@
      "Course Items"
     ],
     "description": "Get the feedback submissions of a particular course item"
+   }
+  },
+  "/api/courses/{courseId}/item/{feedbackId}/feedback/summary": {
+   "get": {
+    "operationId": "ItemController.getFeedbackSummary",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Course ID",
+       "description": "ID of the course in which user is enrolled",
+       "example": "60d5ec49b3f1c8e4a8f8b8g9"
+      }
+     },
+     {
+      "in": "path",
+      "name": "feedbackId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Item ID",
+       "description": "ID of the item",
+       "example": "60d5ec49b3f1c8e4a8f8b8f8"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cohortId",
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Only responses from this cohort"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "Summarise feedback responses",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Per-question counts, averages and latest text answers over each student's current answer to a feedback form. Course staff only."
    }
   },
   "/api/courses/{courseId}/item/{feedbackId}/feedback/submissions/export": {
@@ -25672,7 +26201,319 @@
     "tags": [
      "Course Items"
     ],
-    "description": "Export all feedback submissions for a particular course item."
+    "description": "One feedback form's current answers as CSV, with the student's account name and email, cohort, place in the course, the lesson it is about, IST and ISO times and a column per question. Course staff only."
+   }
+  },
+  "/api/courses/{courseId}/item/{feedbackId}/feedback/export": {
+   "get": {
+    "operationId": "ItemController.exportFeedbackForm",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Course ID",
+       "description": "ID of the course in which user is enrolled",
+       "example": "60d5ec49b3f1c8e4a8f8b8g9"
+      }
+     },
+     {
+      "in": "path",
+      "name": "feedbackId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Item ID",
+       "description": "ID of the item",
+       "example": "60d5ec49b3f1c8e4a8f8b8f8"
+      }
+     },
+     {
+      "in": "query",
+      "name": "format",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "xlsx",
+        "csv"
+       ],
+       "description": "File format: 'xlsx' (default) or 'csv'"
+      }
+     },
+     {
+      "in": "query",
+      "name": "type",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "all",
+        "watch"
+       ],
+       "description": "Course CSV only: 'all' (default, every answer) or 'watch' (one row per student per video)"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cohortId",
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Only this cohort"
+      }
+     },
+     {
+      "in": "query",
+      "name": "history",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "latest",
+        "all"
+       ],
+       "description": "'latest' (default): current answers only; 'all': include replaced answers"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "Export one feedback form",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "One feedback form's answers as .xlsx or CSV (latest answers by default, or every version). Course staff only, within their cohorts."
+   }
+  },
+  "/api/courses/{courseId}/versions/{versionId}/feedback/forms": {
+   "get": {
+    "operationId": "ItemController.listFeedbackForms",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course ID"
+      }
+     },
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course version ID"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cohortId",
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Only responses from this cohort"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "List the feedback forms in a course version",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Every feedback form in course order with its module, section, the lesson it is about and how many students' current answers it has. Course staff only, within their cohorts."
+   }
+  },
+  "/api/courses/{courseId}/versions/{versionId}/feedback/settings": {
+   "get": {
+    "operationId": "ItemController.getFeedbackSettings",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course ID"
+      }
+     },
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course version ID"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "Read a course version's feedback settings",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Whether students can send feedback forms in study mode (how phones answer, since strict mode is PC-only). Course staff only."
+   },
+   "put": {
+    "operationId": "ItemController.updateFeedbackSettings",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course ID"
+      }
+     },
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course version ID"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UpdateFeedbackSettingsBody"
+       }
+      }
+     },
+     "description": "UpdateFeedbackSettingsBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "Change a course version's feedback settings",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Turns study-mode feedback on or off. Off means students on phones cannot send feedback. Requires permission to edit the course content."
+   }
+  },
+  "/api/courses/{courseId}/versions/{versionId}/feedback/export": {
+   "get": {
+    "operationId": "ItemController.exportCourseFeedback",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "courseId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course ID"
+      }
+     },
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Course version ID"
+      }
+     },
+     {
+      "in": "query",
+      "name": "format",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "xlsx",
+        "csv"
+       ],
+       "description": "File format: 'xlsx' (default) or 'csv'"
+      }
+     },
+     {
+      "in": "query",
+      "name": "type",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "all",
+        "watch"
+       ],
+       "description": "Course CSV only: 'all' (default, every answer) or 'watch' (one row per student per video)"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cohortId",
+      "schema": {
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "type": "string",
+       "description": "Only this cohort"
+      }
+     },
+     {
+      "in": "query",
+      "name": "history",
+      "schema": {
+       "type": "string",
+       "enum": [
+        "latest",
+        "all"
+       ],
+       "description": "'latest' (default): current answers only; 'all': include replaced answers"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "Export all feedback in a course version",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Every feedback form in the course version, for any course. .xlsx: an Overview sheet, a sheet per form and a Watch + feedback sheet. CSV: every answer in one table (type=all) or one row per student per video (type=watch). Course staff only, within their cohorts."
    }
   },
   "/api/courses/versions/{versionId}/items/{itemId}/optional": {
@@ -25825,6 +26666,164 @@
      "Course Items"
     ],
     "description": "Sets or clears this item's proctoring override, taking precedence over the module and course-wide (universal) proctoring settings.\nAccessible to:\n- Instructors, managers, and teaching assistants of the course."
+   }
+  },
+  "/api/courses/versions/{versionId}/items/{itemId}/study-mode": {
+   "put": {
+    "operationId": "ItemController.updateStudyMode",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Version ID",
+       "description": "ID of the course version"
+      }
+     },
+     {
+      "in": "path",
+      "name": "itemId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Item ID",
+       "description": "ID of the item"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StudyModeBody"
+       }
+      }
+     },
+     "description": "StudyModeBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "description": "Unresolved backend $ref: #/components/schemas/ItemStudyModeResponse"
+        }
+       }
+      },
+      "description": "Item study-mode setting updated successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ItemNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "Item not found"
+     }
+    },
+    "summary": "Set this item's study-mode setting",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Allows or disallows study mode for this item, overriding its section and module, or clears the setting (null) so it inherits again.<br/>\nAccessible to:\n- Instructors, managers, and teaching assistants of the course."
+   }
+  },
+  "/api/courses/versions/{versionId}/items/{itemId}/lock": {
+   "put": {
+    "operationId": "ItemController.updateLock",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Version ID",
+       "description": "ID of the course version"
+      }
+     },
+     {
+      "in": "path",
+      "name": "itemId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Item ID",
+       "description": "ID of the item"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContentLockBody"
+       }
+      }
+     },
+     "description": "ContentLockBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "description": "Unresolved backend $ref: #/components/schemas/ItemContentLockResponse"
+        }
+       }
+      },
+      "description": "Item lock setting updated successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ItemNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "Item not found"
+     }
+    },
+    "summary": "Set this item's lock setting",
+    "tags": [
+     "Course Items"
+    ],
+    "description": "Locks this item for students or keeps it open, overriding its section and module, or clears the setting (null) so it inherits again.<br/>\nAccessible to:\n- Instructors, managers, and teaching assistants of the course."
    }
   },
   "/api/courses/{courseId}/versions/{versionId}/items/{itemId}/toggle-visibility": {
@@ -26300,6 +27299,160 @@
     "description": "Sets or clears this module's proctoring override, taking precedence over the course-wide (universal) proctoring setting for every item in the module that does not have its own item-level override.<br/>\nAccessible to:\n- Instructors or managers of the course."
    }
   },
+  "/api/courses/versions/{versionId}/modules/{moduleId}/study-mode": {
+   "put": {
+    "operationId": "ModuleController.updateStudyMode",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Version ID",
+       "description": "ID of the course version containing the module"
+      }
+     },
+     {
+      "in": "path",
+      "name": "moduleId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Module ID",
+       "description": "ID of the module to be updated"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StudyModeBody"
+       }
+      }
+     },
+     "description": "StudyModeBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ModuleDataResponse"
+        }
+       }
+      },
+      "description": "Module study-mode setting updated successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ModuleNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "Module not found"
+     }
+    },
+    "summary": "Set this module's study-mode setting",
+    "tags": [
+     "Course Modules"
+    ],
+    "description": "Allows or disallows study mode for every section and item in the module that has no setting of its own, or clears the setting (null) so the module is open to study mode again.<br/>\nAccessible to:\n- Instructors or managers of the course."
+   }
+  },
+  "/api/courses/versions/{versionId}/modules/{moduleId}/lock": {
+   "put": {
+    "operationId": "ModuleController.updateLock",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Version ID",
+       "description": "ID of the course version containing the module"
+      }
+     },
+     {
+      "in": "path",
+      "name": "moduleId",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Module ID",
+       "description": "ID of the module to be updated"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContentLockBody"
+       }
+      }
+     },
+     "description": "ContentLockBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ModuleDataResponse"
+        }
+       }
+      },
+      "description": "Module lock setting updated successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ModuleNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "Module not found"
+     }
+    },
+    "summary": "Set this module's lock setting",
+    "tags": [
+     "Course Modules"
+    ],
+    "description": "Locks every section and item in the module that has no setting of its own for students, keeps them open, or clears the setting (null).<br/>\nAccessible to:\n- Instructors or managers of the course."
+   }
+  },
   "/api/courses/versions/{versionId}/modules/{moduleId}/toggle-visibility": {
    "put": {
     "operationId": "ModuleController.toggleVisibility",
@@ -26529,6 +27682,188 @@
      "Course Sections"
     ],
     "description": "Creates a new section within a module of a specific course version.<br/>\nAccessible to:\n- Instructors or managers of the course."
+   }
+  },
+  "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/study-mode": {
+   "put": {
+    "operationId": "SectionController.updateStudyMode",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Version ID",
+       "description": "ID of the course version containing the module"
+      }
+     },
+     {
+      "in": "path",
+      "name": "moduleId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Module ID",
+       "description": "ID of the module containing the section"
+      }
+     },
+     {
+      "in": "path",
+      "name": "sectionId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Section ID",
+       "description": "ID of the section"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StudyModeBody"
+       }
+      }
+     },
+     "description": "StudyModeBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SectionDataResponse"
+        }
+       }
+      },
+      "description": "Section study-mode setting updated successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SectionNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "Section not found"
+     }
+    },
+    "summary": "Set this section's study-mode setting",
+    "tags": [
+     "Course Sections"
+    ],
+    "description": "Allows or disallows study mode for every item in the section that has no setting of its own (overriding the module), or clears the setting (null) so the section inherits from its module again.<br/>\nAccessible to:\n- Instructors or managers of the course."
+   }
+  },
+  "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/lock": {
+   "put": {
+    "operationId": "SectionController.updateLock",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "versionId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Version ID",
+       "description": "ID of the course version containing the module"
+      }
+     },
+     {
+      "in": "path",
+      "name": "moduleId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Module ID",
+       "description": "ID of the module containing the section"
+      }
+     },
+     {
+      "in": "path",
+      "name": "sectionId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "title": "Section ID",
+       "description": "ID of the section"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContentLockBody"
+       }
+      }
+     },
+     "description": "ContentLockBody",
+     "required": false
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SectionDataResponse"
+        }
+       }
+      },
+      "description": "Section lock setting updated successfully"
+     },
+     "400": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BadRequestErrorResponse"
+        }
+       }
+      },
+      "description": "Bad Request Error"
+     },
+     "404": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SectionNotFoundErrorResponse"
+        }
+       }
+      },
+      "description": "Section not found"
+     }
+    },
+    "summary": "Set this section's lock setting",
+    "tags": [
+     "Course Sections"
+    ],
+    "description": "Locks every item in the section that has no setting of its own for students, keeps them open (overriding the module), or clears the setting (null) so the section inherits again.<br/>\nAccessible to:\n- Instructors or managers of the course."
    }
   },
   "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}": {
@@ -29828,7 +31163,7 @@
     "responses": {
      "200": {
       "content": {
-       "text/html; charset=utf-8": {
+       "application/json": {
         "schema": {
          "$ref": "#/components/schemas/CreateAttemptResponse"
         }
@@ -29838,7 +31173,7 @@
      },
      "400": {
       "content": {
-       "text/html; charset=utf-8": {
+       "application/json": {
         "schema": {
          "$ref": "#/components/schemas/BadRequestErrorResponse"
         }
@@ -29848,7 +31183,7 @@
      },
      "404": {
       "content": {
-       "text/html; charset=utf-8": {
+       "application/json": {
         "schema": {
          "$ref": "#/components/schemas/AttemptNotFoundErrorResponse"
         }
@@ -30061,6 +31396,38 @@
      "Quiz Attempts"
     ],
     "description": "Submits the feedback form response for a given item and stores the results."
+   }
+  },
+  "/api/quizzes/{itemId}/feedback/mine": {
+   "get": {
+    "operationId": "AttemptController.getMyFeedback",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "itemId",
+      "required": true,
+      "schema": {
+       "minLength": 1,
+       "type": "string",
+       "pattern": "^[0-9a-fA-F]{24}$",
+       "description": "ID of the feedback form",
+       "example": "60d21b4667d0d8992e610c85"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {}
+      },
+      "description": "Successful response"
+     }
+    },
+    "summary": "Get my current feedback answer",
+    "tags": [
+     "Quiz Attempts"
+    ],
+    "description": "Returns the signed-in student's current answer to a feedback form (their latest submission), or null when they haven't answered it."
    }
   },
   "/api/quizzes/{quizId}/attempt/{attemptId}": {
@@ -36566,8 +37933,22 @@
  ],
  "servers": [
   {
+   "url": "http://{host}:{port}",
+   "description": "Local Development Server",
+   "variables": {
+    "host": {
+     "default": "localhost",
+     "description": "Localhost for API server"
+    },
+    "port": {
+     "default": "4007",
+     "description": "Port for the API server"
+    }
+   }
+  },
+  {
    "url": "https://localhost",
-   "description": "Staging Server"
+   "description": "Dev Server (Remote)"
   }
  ],
  "security": [

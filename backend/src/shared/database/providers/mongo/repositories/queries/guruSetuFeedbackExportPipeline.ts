@@ -265,6 +265,8 @@ export function buildGuruSetuFeedbackAggPipeline(
         details: { $first: '$details' },
         feedbackFormId: { $first: '$feedbackFormId' },
         createdAt: { $first: '$createdAt' },
+        // Only the course feedback export reads this; the Gurusetu rows don't.
+        mode: {$first: '$mode'},
       },
     },
   ];

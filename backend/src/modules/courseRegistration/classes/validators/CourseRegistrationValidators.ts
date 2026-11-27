@@ -60,9 +60,13 @@ export class CourseRegistrationBody {
 //   detail: CourseRegistrationDetail;
 // }
 
-import { IsOptional, IsInt, Min, IsIn } from 'class-validator';
-import { Type } from 'class-transformer';
-import { ICourseRegistration } from '#root/shared/index.js';
+import {IsOptional, IsInt, Min, IsIn} from 'class-validator';
+import {Type} from 'class-transformer';
+import {ICourseRegistration} from '#root/shared/index.js';
+import {
+  AUTO_APPROVAL_MODES,
+  AutoApprovalMode,
+} from '../../utils/autoApproval.js';
 
 export class RegistrationFilterQuery {
   @IsOptional()
@@ -187,9 +191,27 @@ export class UpdateRegistrationSchemasBody {
   @JSONSchema({ description: "Dynamic UI Schema for the form" })
   uiSchema: Record<string, any>;
 
+  @IsOptional()
+  @IsBoolean()
+  @JSONSchema({
+    description: 'Auto-approval on or off. Kept as stored when not sent.',
+  })
+  registrationsAutoApproved?: boolean;
 
+  @IsOptional()
+  @IsArray()
+  @IsString({each: true})
+  @JSONSchema({
+    description: 'Auto-approval list. Kept as stored when not sent.',
+  })
+  autoapproval_emails?: string[];
 
-
+  @IsOptional()
+  @IsIn(AUTO_APPROVAL_MODES)
+  @JSONSchema({
+    description: 'Auto-approval mode. Kept as stored when not sent.',
+  })
+  autoApprovalMode?: AutoApprovalMode;
 }
 
 
@@ -213,13 +235,22 @@ export class AutoApprovalSettingsBody {
   registrationsAutoApproved: boolean;
 
   @IsArray()
-  @IsString({ each: true })
-  @ArrayUnique()
+  @IsString({each: true})
   @JSONSchema({
-    example: ['iitm.ac.in', 'gmail.com'],
-    description: 'Email patterns to auto-approve (if empty, all emails are approved)'
+    example: ['iitm.ac.in', 'bob@gmail.com'],
+    description:
+      'Full addresses, which match exactly, and domains, which match only that domain and not its subdomains. Ignored when the mode is EVERYONE.',
   })
   autoapproval_emails?: string[];
+
+  @IsOptional()
+  @IsIn(AUTO_APPROVAL_MODES)
+  @JSONSchema({
+    example: 'LIST',
+    description:
+      'EVERYONE approves every registration; LIST approves only matching emails, so an empty list approves nobody. When not sent: EVERYONE for an empty list, otherwise LIST.',
+  })
+  autoApprovalMode?: AutoApprovalMode;
 
   @IsOptional()
   @IsString()

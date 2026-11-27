@@ -8,6 +8,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { enterClass, stagger } from '@/lib/motion';
 
 import { NewCourseDialog } from './new-course-dialog';
 import { objectIdTime, useStudioAccess, useStudioCourses, type AdminCourse } from './queries';
@@ -141,8 +142,8 @@ export function CoursesPage() {
 export function CourseList({ courses }: { courses: AdminCourse[] }) {
   return (
     <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
-      {courses.map((course) => (
-        <li key={course._id}>
+      {courses.map((course, i) => (
+        <li key={course._id} className={enterClass} style={stagger(i)}>
           <CourseRow course={course} />
         </li>
       ))}

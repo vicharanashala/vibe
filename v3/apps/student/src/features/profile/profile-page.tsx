@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { unwrap } from '@vibe/api';
 import { updateProfile } from 'firebase/auth';
-import { CheckCircle2Icon, LogOutIcon } from 'lucide-react';
+import { CheckCircle2Icon, LogOutIcon, StethoscopeIcon } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 
 import { PasswordInput } from '@/components/password-input';
@@ -12,6 +12,7 @@ import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
 import { GeneratedAvatar } from '@/components/generated-art';
 import { useAuth } from '@/features/auth/auth-provider';
+import { DiagnosticsDialog } from '@/features/learn/proctoring/diagnostics-view';
 import { NAME_PATTERN, PASSWORD_RULES } from '@/features/auth/signup-page';
 import { api } from '@/lib/api';
 import { auth } from '@/lib/firebase';
@@ -65,6 +66,9 @@ export function ProfilePage() {
         <Panel title="Appearance" description="Applies across ViBe on this device, including the studio.">
           <AppearancePicker />
         </Panel>
+        <Panel title="Proctored lessons" description="If a proctored lesson won’t start, check what your device and browser need.">
+          <CheckDeviceButton />
+        </Panel>
         <Panel title="Session">
           <Button
             type="button"
@@ -81,6 +85,18 @@ export function ProfilePage() {
         </Panel>
       </div>
     </div>
+  );
+}
+
+function CheckDeviceButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => setOpen(true)}>
+        <StethoscopeIcon /> Check my device
+      </Button>
+      <DiagnosticsDialog open={open} onOpenChange={setOpen} />
+    </>
   );
 }
 

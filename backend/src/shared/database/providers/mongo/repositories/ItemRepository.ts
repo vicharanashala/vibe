@@ -123,6 +123,18 @@ export class ItemRepository implements IItemRepository {
     );
   }
 
+  async readItemsGroupsByIds(
+    itemsGroupIds: string[],
+    session?: ClientSession,
+  ): Promise<ItemsGroup[]> {
+    await this.init();
+    const ids = itemsGroupIds.filter(id => ObjectId.isValid(id));
+    if (ids.length === 0) return [];
+    return (await this.itemsGroupCollection
+      .find({_id: {$in: ids.map(id => new ObjectId(id))}} as any, {session})
+      .toArray()) as ItemsGroup[];
+  }
+
   async readItemsGroup(
     itemsGroupId: string | any,
     session?: ClientSession,
@@ -205,6 +217,13 @@ export class ItemRepository implements IItemRepository {
           type: item.type,
           order: item.order,
           isHidden: item.isHidden,
+          // Rebuilt from an allowlist, and callers write the whole items
+          // array back (updateItemsGroup), so a field missing here is erased
+          // on the next hide/reorder of any item in the section.
+          ...(item.studyModeEnabled != null
+            ? {studyModeEnabled: item.studyModeEnabled}
+            : {}),
+          ...(item.isLocked != null ? {isLocked: item.isLocked} : {}),
           name: existingItem.name || 'Untitled',
         };
         // console.log(`[ItemRepository] Item ${item._id} (${item.type}): name="${itemRef.name}"`);

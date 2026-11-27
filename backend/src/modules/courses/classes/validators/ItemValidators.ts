@@ -1174,6 +1174,89 @@ class GetFeedbackSubmissionsQuery {
 
   @IsString()
   limit?: string;
+
+  @JSONSchema({description: 'Only this student’s responses', type: 'string'})
+  @IsOptional()
+  @IsMongoId()
+  userId?: string;
+
+  @JSONSchema({description: 'Only responses from this cohort', type: 'string'})
+  @IsOptional()
+  @IsMongoId()
+  cohortId?: string;
+
+  @JSONSchema({
+    description:
+      "'latest' (default): each student's current answer only; 'all': include replaced answers",
+    type: 'string',
+    enum: ['latest', 'all'],
+  })
+  @IsOptional()
+  @IsIn(['latest', 'all'])
+  history?: 'latest' | 'all';
+}
+
+class FeedbackExportQuery {
+  @JSONSchema({
+    description: "File format: 'xlsx' (default) or 'csv'",
+    type: 'string',
+    enum: ['xlsx', 'csv'],
+  })
+  @IsOptional()
+  @IsIn(['xlsx', 'csv'])
+  format?: 'xlsx' | 'csv';
+
+  @JSONSchema({
+    description:
+      "Course CSV only: 'all' (default, every answer) or 'watch' (one row per student per video)",
+    type: 'string',
+    enum: ['all', 'watch'],
+  })
+  @IsOptional()
+  @IsIn(['all', 'watch'])
+  type?: 'all' | 'watch';
+
+  @JSONSchema({description: 'Only this cohort', type: 'string'})
+  @IsOptional()
+  @IsMongoId()
+  cohortId?: string;
+
+  @JSONSchema({
+    description:
+      "'latest' (default): current answers only; 'all': include replaced answers",
+    type: 'string',
+    enum: ['latest', 'all'],
+  })
+  @IsOptional()
+  @IsIn(['latest', 'all'])
+  history?: 'latest' | 'all';
+}
+
+class CourseVersionFeedbackParams {
+  @JSONSchema({description: 'Course ID', type: 'string'})
+  @IsMongoId()
+  courseId: string;
+
+  @JSONSchema({description: 'Course version ID', type: 'string'})
+  @IsMongoId()
+  versionId: string;
+}
+
+class UpdateFeedbackSettingsBody {
+  @JSONSchema({
+    description:
+      'Whether students can send feedback forms in study mode (how phones answer).',
+    type: 'boolean',
+  })
+  @IsBoolean()
+  studyModeFeedback: boolean;
+}
+
+class GetFeedbackSummaryQuery {
+  @JSONSchema({description: 'Only responses from this cohort', type: 'string'})
+  @IsOptional()
+  @IsMongoId()
+  cohortId?: string;
 }
 
 class CSVRow {
@@ -1265,6 +1348,7 @@ class csvResponse {
 }
 
 export {
+  UpdateFeedbackSettingsBody,
   CreateItemBody,
   UpdateItemBody,
   MoveItemBody,
@@ -1287,6 +1371,9 @@ export {
   GetItemParams,
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
+  GetFeedbackSummaryQuery,
+  FeedbackExportQuery,
+  CourseVersionFeedbackParams,
   CSVRow,
   csvResponse
 };
@@ -1312,6 +1399,9 @@ export const ITEM_VALIDATORS = [
   GetItemParams,
   GetFeedbackSubmissionsParams,
   GetFeedbackSubmissionsQuery,
+  GetFeedbackSummaryQuery,
+  FeedbackExportQuery,
+  CourseVersionFeedbackParams,
   CSVRow,
   csvResponse
 ];

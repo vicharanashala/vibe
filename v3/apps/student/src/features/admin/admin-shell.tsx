@@ -66,6 +66,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/features/auth/auth-provider';
+import { useEnterOnChange } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 
@@ -167,6 +168,8 @@ export function StudioEditorShell() {
 function StudioChrome({ email }: { email: string }) {
   const [newCourseOpen, setNewCourseOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // Each Studio page fades in softly when you move between pages.
+  const pageRef = useEnterOnChange<HTMLDivElement>(pathname);
   // Creating courses and the Users page are admin-only on the backend.
   const { isAdmin } = useStudioAccess();
   const navGroups = isAdmin ? NAV_GROUPS : NAV_GROUPS.filter((g) => g.label !== 'People');
@@ -253,6 +256,7 @@ function StudioChrome({ email }: { email: string }) {
           {/* Bottom padding keeps content clear of the phone tab bar. */}
           <div
             id="main"
+            ref={pageRef}
             className="relative flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0"
           >
             <Outlet />

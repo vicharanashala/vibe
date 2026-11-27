@@ -9,8 +9,10 @@ import {
   MailPlusIcon,
   type LucideIcon,
 } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 
 import { Badge } from '@/components/ui/badge';
+import { enterClass, popIn, stagger } from '@/lib/motion';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from '@/components/ui/empty';
 import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
@@ -68,11 +70,16 @@ export function NotificationBell() {
         }
       >
         <BellIcon className="size-[18px]" aria-hidden />
-        {unreadCount > 0 && (
-          <Badge variant="destructive" className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 text-[10px] tabular-nums">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </Badge>
-        )}
+        <AnimatePresence initial={false}>
+          {unreadCount > 0 && (
+            // Pops whenever the count changes, so a new notification is noticed.
+            <motion.span key={unreadCount} className="absolute -top-0.5 -right-0.5" variants={popIn} initial="hidden" animate="shown" exit="hidden">
+              <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px] tabular-nums">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Badge>
+            </motion.span>
+          )}
+        </AnimatePresence>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] gap-0 p-0">
         <PopoverHeader className="flex-row items-center justify-between border-b border-border px-3 py-2">
@@ -110,8 +117,10 @@ export function NotificationBell() {
               </EmptyHeader>
             </Empty>
           )}
-          {notifications.data?.notifications?.map((n) => (
-            <NotificationRow key={n._id} notification={n} onMarkRead={() => markRead.mutate(n._id)} />
+          {notifications.data?.notifications?.map((n, i) => (
+            <div key={n._id} className={enterClass} style={stagger(i)}>
+              <NotificationRow notification={n} onMarkRead={() => markRead.mutate(n._id)} />
+            </div>
           ))}
         </div>
       </PopoverContent>

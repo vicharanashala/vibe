@@ -168,6 +168,7 @@ export interface ICourseRepository {
     cohortId: string,
     registrationsAutoApproved: boolean,
     autoapproval_emails: string[],
+    autoApprovalMode: 'EVERYONE' | 'LIST',
     session?: ClientSession
   ): Promise<string>;
 
@@ -181,6 +182,7 @@ export interface ICourseRepository {
     settingId: string,
     registrationsAutoApproved: boolean,
     autoapproval_emails: string[],
+    autoApprovalMode: 'EVERYONE' | 'LIST',
     session?: ClientSession
   ): Promise<boolean>;
 

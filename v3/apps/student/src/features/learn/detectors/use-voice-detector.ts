@@ -1,76 +1,104 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AudioClassifier, FilesetResolver } from '@mediapipe/tasks-audio';
 
-const YAMNET_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/audio_classifier/yamnet/float32/1/yamnet.tflite';
-const WASM_FILESET_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@0.10.22-rc.20250304/wasm';
+import { voiceAssets } from '../proctoring/assets';
+import { loadAssets } from '../proctoring/model-loader';
+import { READY, useReadiness, type Readiness } from '../proctoring/readiness';
+
 const SAMPLE_RATE = 16_000;
 const PROCESS_INTERVAL_MS = 500;
 const SPEECH_SCORE_THRESHOLD = 0.5;
 
+/** A blob URL for downloaded bytes, so a library that wants a URL can use the saved copy. */
+function blobUrl(bytes: Uint8Array<ArrayBuffer>, type: string): string {
+  return URL.createObjectURL(new Blob([bytes], { type }));
+}
+
 /**
  * Classifies the already-open camera stream's audio track with MediaPipe's
- * YAMNet model (loaded from Google's CDN/model host at runtime - no weights
- * bundled) and reports whether speech is currently present.
+ * YAMNet model and reports whether speech is currently present. The runtime
+ * and model are downloaded through the shared proctoring loader (pinned,
+ * saved on the device, with progress) as soon as the check is on.
  */
-export function useVoiceDetector(stream: MediaStream | null, enabled: boolean): boolean {
+export function useVoiceDetector(
+  stream: MediaStream | null,
+  enabled: boolean,
+): { isSpeaking: boolean; readiness: Readiness; retry: () => void } {
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const classifierRef = useRef<AudioClassifier | null>(null);
+  const [classifier, setClassifier] = useState<AudioClassifier | null>(null);
+  const { readiness, attempt, retry, track } = useReadiness();
 
   useEffect(() => {
-    if (!enabled || !stream) {
-      setIsSpeaking(false);
-      return;
-    }
-
+    if (!enabled) return;
     let cancelled = false;
-    let audioCtx: AudioContext | null = null;
-    let source: MediaStreamAudioSourceNode | null = null;
-    let processor: ScriptProcessorNode | null = null;
-    let lastProcessed = 0;
-
+    let created: AudioClassifier | null = null;
+    const urls: string[] = [];
+    track.begin();
     (async () => {
-      const fileset = await FilesetResolver.forAudioTasks(WASM_FILESET_URL);
-      const classifier = await AudioClassifier.createFromOptions(fileset, {
-        baseOptions: { modelAssetPath: YAMNET_MODEL_URL },
+      const simd = await FilesetResolver.isSimdSupported();
+      const { files, fromCache, saved } = await loadAssets(voiceAssets(simd), (progress) => {
+        if (!cancelled) track.progress(progress);
       });
+      if (cancelled) return;
+      track.loaded({ fromCache, saved });
+      const fileset = {
+        wasmLoaderPath: blobUrl(files['wasm-loader'], 'text/javascript'),
+        wasmBinaryPath: blobUrl(files['wasm-binary'], 'application/wasm'),
+      };
+      urls.push(fileset.wasmLoaderPath, fileset.wasmBinaryPath);
+      created = await AudioClassifier.createFromOptions(fileset, { baseOptions: { modelAssetBuffer: files.model } });
       if (cancelled) {
-        classifier.close();
+        created.close();
         return;
       }
-      classifierRef.current = classifier;
-
-      audioCtx = new AudioContext({ sampleRate: SAMPLE_RATE });
-      source = audioCtx.createMediaStreamSource(stream);
-      // ScriptProcessorNode is deprecated but still broadly supported, and this is a
-      // 1:1 port of the old frontend's working implementation — not worth a rewrite
-      // onto AudioWorkletNode for this phase.
-      processor = audioCtx.createScriptProcessor(4096, 1, 1);
-      processor.onaudioprocess = (event) => {
-        const now = performance.now();
-        if (now - lastProcessed < PROCESS_INTERVAL_MS || !classifierRef.current) return;
-        lastProcessed = now;
-        try {
-          const results = classifierRef.current.classify(event.inputBuffer.getChannelData(0), SAMPLE_RATE);
-          const top = results[0]?.classifications[0]?.categories?.[0];
-          setIsSpeaking(top?.categoryName === 'Speech' && top.score > SPEECH_SCORE_THRESHOLD);
-        } catch {
-          // Transient classify failure — try again next buffer.
-        }
-      };
-      source.connect(processor);
-      processor.connect(audioCtx.destination);
-    })().catch(() => setIsSpeaking(false));
+      setClassifier(created);
+      track.ready();
+    })().catch((error: unknown) => {
+      if (!cancelled) track.fail(error);
+    });
 
     return () => {
       cancelled = true;
-      processor?.disconnect();
-      source?.disconnect();
-      void audioCtx?.close();
-      classifierRef.current?.close();
-      classifierRef.current = null;
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      created?.close();
+      setClassifier(null);
+    };
+  }, [enabled, attempt, track]);
+
+  useEffect(() => {
+    if (!classifier || !stream) {
+      setIsSpeaking(false);
+      return;
+    }
+    const audioCtx = new AudioContext({ sampleRate: SAMPLE_RATE });
+    const source = audioCtx.createMediaStreamSource(stream);
+    // ScriptProcessorNode is deprecated but still broadly supported, and this is a
+    // 1:1 port of the old frontend's working implementation — not worth a rewrite
+    // onto AudioWorkletNode for this phase.
+    const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+    let lastProcessed = 0;
+    processor.onaudioprocess = (event) => {
+      const now = performance.now();
+      if (now - lastProcessed < PROCESS_INTERVAL_MS) return;
+      lastProcessed = now;
+      try {
+        const results = classifier.classify(event.inputBuffer.getChannelData(0), SAMPLE_RATE);
+        const top = results[0]?.classifications[0]?.categories?.[0];
+        setIsSpeaking(top?.categoryName === 'Speech' && top.score > SPEECH_SCORE_THRESHOLD);
+      } catch {
+        // Transient classify failure — try again next buffer.
+      }
+    };
+    source.connect(processor);
+    processor.connect(audioCtx.destination);
+
+    return () => {
+      processor.disconnect();
+      source.disconnect();
+      void audioCtx.close();
       setIsSpeaking(false);
     };
-  }, [enabled, stream]);
+  }, [classifier, stream]);
 
-  return isSpeaking;
+  return { isSpeaking, readiness: enabled ? readiness : READY, retry };
 }

@@ -200,6 +200,85 @@ export class ModuleService extends BaseService {
     });
   }
 
+  /**
+   * Sets or clears this module's study-mode setting. `null` clears it back to
+   * "inherit" by deleting the key, for the same reason as
+   * updateModuleProctoringStatus. Not cascaded onto sections or items:
+   * resolveStudyMode resolves the effective value at read time.
+   */
+  public async updateModuleStudyMode(
+    versionId: string,
+    moduleId: string,
+    studyModeEnabled: boolean | null,
+  ) {
+    return this._withTransaction(async session => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        versionId,
+        session,
+      );
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is archived and cannot be updated.',
+        );
+      }
+      const version = await this.courseRepo.readVersion(versionId, session);
+      if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
+      const module = version.modules.find(
+        m => m.moduleId?.toString() === moduleId,
+      );
+      if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
+
+      if (studyModeEnabled === null) {
+        delete module.studyModeEnabled;
+      } else {
+        module.studyModeEnabled = studyModeEnabled;
+      }
+      module.updatedAt = new Date();
+      version.updatedAt = new Date();
+
+      return this.courseRepo.updateVersion(versionId, version, session);
+    });
+  }
+
+  /**
+   * Sets or clears this module's lock setting. `null` clears it back to
+   * "inherit" by deleting the key. Not cascaded: resolveContentLock resolves
+   * the effective value at read time, so a lesson's own setting survives.
+   */
+  public async updateModuleLock(
+    versionId: string,
+    moduleId: string,
+    isLocked: boolean | null,
+  ) {
+    return this._withTransaction(async session => {
+      const versionStatus = await this.courseRepo.getCourseVersionStatus(
+        versionId,
+        session,
+      );
+      if (versionStatus === 'archived') {
+        throw new ForbiddenError(
+          'This course version is archived and cannot be updated.',
+        );
+      }
+      const version = await this.courseRepo.readVersion(versionId, session);
+      if (!version) throw new NotFoundError(`Version ${versionId} not found.`);
+      const module = version.modules.find(
+        m => m.moduleId?.toString() === moduleId,
+      );
+      if (!module) throw new NotFoundError(`Module ${moduleId} not found.`);
+
+      if (isLocked === null) {
+        delete module.isLocked;
+      } else {
+        module.isLocked = isLocked;
+      }
+      module.updatedAt = new Date();
+      version.updatedAt = new Date();
+
+      return this.courseRepo.updateVersion(versionId, version, session);
+    });
+  }
+
   public async moveModule(
     versionId: string,
     moduleId: string,

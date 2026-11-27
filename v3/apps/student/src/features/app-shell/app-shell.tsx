@@ -6,6 +6,7 @@ import {
   LogOutIcon,
   MoonIcon,
   ShieldIcon,
+  StethoscopeIcon,
   SunIcon,
   UserIcon,
   type LucideIcon,
@@ -38,8 +39,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useStudioAccess } from '@/features/admin/queries';
+import { DiagnosticsDialog } from '@/features/learn/proctoring/diagnostics-view';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 import { Wordmark } from '@/features/landing/wordmark';
+import { useEnterOnChange } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 const NAV: { label: string; to: '/home' | '/courses' | '/explore' | '/profile'; icon: LucideIcon }[] = [
@@ -53,6 +56,8 @@ const COLLAPSE_KEY = 'sidebar-collapsed';
 
 /** Uxcel-style shell on shadcn Sidebar: collapses to icons (⌘/Ctrl+B), slim top bar, account menu. */
 export function AppShell() {
+  // Each page fades in softly when you move between pages.
+  const pageRef = useEnterOnChange<HTMLDivElement>(useRouterState({ select: (st) => st.location.pathname }));
   const [open, setOpen] = useState(() => {
     try {
       return localStorage.getItem(COLLAPSE_KEY) !== '1';
@@ -108,7 +113,7 @@ export function AppShell() {
         <div id="main" className="relative flex-1 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">
           {/* Soft Luma-style tint behind the top of every app page */}
           <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-primary/8 to-transparent" />
-          <div className="relative">
+          <div ref={pageRef} className="relative">
             <Outlet />
           </div>
         </div>
@@ -177,12 +182,15 @@ function AccountMenu() {
   // Admins and anyone teaching a course (instructor, manager, TA) can open the studio.
   const { canEnter: canTeach } = useStudioAccess();
 
+  const [checkingDevice, setCheckingDevice] = useState(false);
+
   async function onSignOut() {
     await signOut();
     await navigate({ to: '/login', replace: true });
   }
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="rounded-full p-0" aria-label="Account menu" />}>
         <GeneratedAvatar seed={user?.uid ?? user?.email ?? 'student'} size={36} />
@@ -201,6 +209,9 @@ function AccountMenu() {
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           {theme === 'dark' ? 'Light theme' : 'Dark theme'}
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setCheckingDevice(true)}>
+          <StethoscopeIcon /> Check my device
+        </DropdownMenuItem>
         {canTeach && (
           <DropdownMenuItem onClick={() => navigate({ to: '/admin' })}>
             <ShieldIcon /> Studio
@@ -212,5 +223,7 @@ function AccountMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    <DiagnosticsDialog open={checkingDevice} onOpenChange={setCheckingDevice} />
+    </>
   );
 }

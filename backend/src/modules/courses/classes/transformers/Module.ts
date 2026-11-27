@@ -41,6 +41,15 @@ class Module implements IModule {
   @Expose()
   proctoringDetectors?: IDetectorSettings[] | null;
 
+  // Absent/null means "inherit" (study mode allowed) — see resolveStudyMode.
+  // No default, for the same reason as proctoringDetectors.
+  @Expose()
+  studyModeEnabled?: boolean | null;
+
+  // Absent/null means "inherit" (open) — see resolveContentLock.
+  @Expose()
+  isLocked?: boolean | null;
+
   @Expose()
   @Type(() => Section)
   sections: Section[];

@@ -113,6 +113,7 @@ export interface ISettingRepository {
       isActive: boolean;
       registrationsAutoApproved?: boolean;
       autoapproval_emails?: string[];
+      autoApprovalMode?: 'EVERYONE' | 'LIST';
       cohortSettings?: ObjectId[];
     },
     session?: ClientSession,

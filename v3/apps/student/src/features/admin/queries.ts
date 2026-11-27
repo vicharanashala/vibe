@@ -192,16 +192,110 @@ function invalidateVersion(queryClient: ReturnType<typeof useQueryClient>, versi
   void queryClient.invalidateQueries({ queryKey: courseKeys.version(versionId) });
 }
 
+// ---- Content lock ----
+
+/** Set, or with `value: null` clear back to "inherit", a module's, section's or lesson's lock. */
+export function useSetContentLock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ target, value }: { target: StudyModeTarget; value: boolean | null }) => {
+      const body = { isLocked: value };
+      if (target.level === 'module')
+        return unwrap(
+          await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/lock', {
+            params: { path: { versionId: target.versionId, moduleId: target.moduleId } },
+            body,
+          }),
+        );
+      if (target.level === 'section')
+        return unwrap(
+          await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/lock', {
+            params: { path: { versionId: target.versionId, moduleId: target.moduleId, sectionId: target.sectionId } },
+            body,
+          }),
+        );
+      return unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/items/{itemId}/lock', {
+          params: { path: { versionId: target.versionId, itemId: target.itemId } },
+          body,
+        }),
+      );
+    },
+    onSuccess: (_data, { target }) => {
+      if (target.level === 'item')
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.sectionItems(target.versionId, target.moduleId, target.sectionId),
+        });
+      else invalidateVersion(queryClient, target.versionId);
+    },
+  });
+}
+
+// ---- Study mode ----
+
+/** Where a study-mode setting is written; `value: null` clears it back to "inherit". */
+export type StudyModeTarget =
+  | { level: 'module'; versionId: string; moduleId: string }
+  | { level: 'section'; versionId: string; moduleId: string; sectionId: string }
+  | { level: 'item'; versionId: string; moduleId: string; sectionId: string; itemId: string };
+
+export function useSetStudyMode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ target, value }: { target: StudyModeTarget; value: boolean | null }) => {
+      const body = { studyModeEnabled: value };
+      if (target.level === 'module')
+        return unwrap(
+          await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/study-mode', {
+            params: { path: { versionId: target.versionId, moduleId: target.moduleId } },
+            body,
+          }),
+        );
+      if (target.level === 'section')
+        return unwrap(
+          await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/study-mode', {
+            params: { path: { versionId: target.versionId, moduleId: target.moduleId, sectionId: target.sectionId } },
+            body,
+          }),
+        );
+      return unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/items/{itemId}/study-mode', {
+          params: { path: { versionId: target.versionId, itemId: target.itemId } },
+          body,
+        }),
+      );
+    },
+    onSuccess: (_data, { target }) => {
+      if (target.level === 'item')
+        void queryClient.invalidateQueries({
+          queryKey: courseKeys.sectionItems(target.versionId, target.moduleId, target.sectionId),
+        });
+      else invalidateVersion(queryClient, target.versionId);
+    },
+  });
+}
+
 // ---- Modules ----
 
 export function useCreateModule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ versionId, name, description }: { versionId: string; name: string; description: string }) =>
+    mutationFn: async ({
+      versionId,
+      name,
+      description,
+      position,
+    }: {
+      versionId: string;
+      name: string;
+      description: string;
+      /** Create it next to this module instead of at the end. */
+      position?: { beforeModuleId: string } | { afterModuleId: string };
+    }) =>
       unwrap(
         await api.POST('/api/courses/versions/{versionId}/modules', {
           params: { path: { versionId } },
-          body: { name, description },
+          body: { name, description, ...position },
         }),
       ),
     onSuccess: (_data, { versionId }) => invalidateVersion(queryClient, versionId),
@@ -250,11 +344,19 @@ export function useCreateSection() {
       moduleId,
       name,
       description,
-    }: { versionId: string; moduleId: string; name: string; description: string }) =>
+      position,
+    }: {
+      versionId: string;
+      moduleId: string;
+      name: string;
+      description: string;
+      /** Create it next to this section instead of at the end. */
+      position?: { beforeSectionId: string } | { afterSectionId: string };
+    }) =>
       unwrap(
         await api.POST('/api/courses/versions/{versionId}/modules/{moduleId}/sections', {
           params: { path: { versionId, moduleId } },
-          body: { name, description },
+          body: { name, description, ...position },
         }),
       ),
     onSuccess: (_data, { versionId }) => invalidateVersion(queryClient, versionId),
@@ -318,6 +420,147 @@ export function useDeleteItem() {
   });
 }
 
+/** Moves a lesson within its section: right before or right after another lesson. */
+/** Gives `next` (a list in its new order) the list's existing order keys, so sorting by `order` shows the new order. */
+export function withOrders<T extends { order: string }>(next: T[]): T[] {
+  const keys = next.map((x) => x.order).sort((x, y) => x.localeCompare(y));
+  return next.map((x, i) => ({ ...x, order: keys[i] }));
+}
+
+/** Replaces the entries of `list` that appear in `next` (matched by `key`), keeping the rest. */
+function mergeBy<T>(list: T[], next: T[], key: (x: T) => string): T[] {
+  const byId = new Map(next.map((x) => [key(x), x]));
+  return list.map((x) => byId.get(key(x)) ?? x);
+}
+
+/**
+ * Moves a lesson within its section. With `next` (the section's lessons in
+ * their new order) the new order shows at once and is put back if saving fails.
+ */
+export function useMoveItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      versionId,
+      moduleId,
+      sectionId,
+      itemId,
+      to,
+    }: {
+      versionId: string;
+      moduleId: string;
+      sectionId: string;
+      itemId: string;
+      to: { beforeItemId: string } | { afterItemId: string };
+      next?: { order: string }[];
+    }) =>
+      unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items/{itemId}/move', {
+          params: { path: { versionId, moduleId, sectionId, itemId } },
+          body: to,
+        }),
+      ),
+    onMutate: async ({ versionId, moduleId, sectionId, next }) => {
+      if (!next) return undefined;
+      const key = courseKeys.sectionItems(versionId, moduleId, sectionId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData(key);
+      queryClient.setQueryData(key, withOrders(next));
+      return { key, previous };
+    },
+    onError: (_e, _vars, context) => {
+      if (context) queryClient.setQueryData(context.key, context.previous);
+    },
+    onSettled: (_data, _e, { versionId, moduleId, sectionId }) =>
+      queryClient.invalidateQueries({ queryKey: courseKeys.sectionItems(versionId, moduleId, sectionId) }),
+  });
+}
+
+type VersionData = { modules: { moduleId: string; order: string; sections: { sectionId: string; order: string }[] }[] };
+
+/** Moves a module within the course; `next` (the modules in their new order) shows it at once. */
+export function useMoveModule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      versionId,
+      moduleId,
+      to,
+    }: {
+      versionId: string;
+      moduleId: string;
+      to: { beforeModuleId: string } | { afterModuleId: string };
+      next?: VersionData['modules'];
+    }) =>
+      unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/move', {
+          params: { path: { versionId, moduleId } },
+          body: to,
+        }),
+      ),
+    onMutate: async ({ versionId, next }) => {
+      if (!next) return undefined;
+      const key = courseKeys.version(versionId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData(key);
+      queryClient.setQueryData(key, (v: VersionData | undefined) =>
+        v ? { ...v, modules: mergeBy(v.modules, withOrders(next), (m) => m.moduleId) } : v,
+      );
+      return { key, previous };
+    },
+    onError: (_e, _vars, context) => {
+      if (context) queryClient.setQueryData(context.key, context.previous);
+    },
+    onSettled: (_data, _e, { versionId }) => invalidateVersion(queryClient, versionId),
+  });
+}
+
+/** Moves a section within its module; `next` (the module's sections in their new order) shows it at once. */
+export function useMoveSection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      versionId,
+      moduleId,
+      sectionId,
+      to,
+    }: {
+      versionId: string;
+      moduleId: string;
+      sectionId: string;
+      to: { beforeSectionId: string } | { afterSectionId: string };
+      next?: VersionData['modules'][number]['sections'];
+    }) =>
+      unwrap(
+        await api.PUT('/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/move', {
+          params: { path: { versionId, moduleId, sectionId } },
+          body: to,
+        }),
+      ),
+    onMutate: async ({ versionId, moduleId, next }) => {
+      if (!next) return undefined;
+      const key = courseKeys.version(versionId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData(key);
+      queryClient.setQueryData(key, (v: VersionData | undefined) =>
+        v
+          ? {
+              ...v,
+              modules: v.modules.map((m) =>
+                m.moduleId === moduleId ? { ...m, sections: mergeBy(m.sections, withOrders(next), (s) => s.sectionId) } : m,
+              ),
+            }
+          : v,
+      );
+      return { key, previous };
+    },
+    onError: (_e, _vars, context) => {
+      if (context) queryClient.setQueryData(context.key, context.previous);
+    },
+    onSettled: (_data, _e, { versionId }) => invalidateVersion(queryClient, versionId),
+  });
+}
+
 export function useCourse(courseId: string) {
   return useQuery({
     queryKey: ['admin', 'course', courseId],
@@ -335,6 +578,8 @@ export interface CourseEnrollment {
   enrollmentDate: string;
   /** Percent complete, 0-100. */
   progress?: number;
+  /** Study progress (students only; null for other roles, absent on older backends). */
+  studyProgress?: { studiedItems: number; totalItems: number; percentStudied: number } | null;
   completedItemsCount?: number;
   user: { _id: string; email: string; firstName: string; lastName?: string };
 }
@@ -399,17 +644,91 @@ export function useMakeAdmin() {
   });
 }
 
-export function useCourseEnrollments(courseId: string, versionId: string) {
+export interface ChangedEmail {
+  email: string;
+  previousEmail: string;
+  /** Firebase sign-in providers, e.g. 'password', 'google.com'. */
+  signInMethods: string[];
+}
+
+/** Admin: change the email a user signs in with (PATCH /users/{userId}/email). */
+export function useChangeUserEmail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, email }: { userId: string; email: string }) =>
+      unwrap(
+        await api.PATCH('/api/users/{userId}/email', {
+          params: { path: { userId } },
+          body: { email },
+        }),
+      ) as ChangedEmail,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+  });
+}
+
+const PEOPLE_PAGE_SIZE = 50;
+
+/**
+ * One page of a course version's people, searched and filtered by the backend.
+ * Always pass a limit: the backend's default of 10 looks like the whole course.
+ * `OTHER` means everyone who isn't a student.
+ */
+/** Columns the backend can sort the whole course by. */
+export type PeopleSortBy = 'name' | 'progress' | 'enrollmentDate';
+
+export function useCourseEnrollmentsPage(
+  courseId: string,
+  versionId: string,
+  opts: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    filter?: 'STUDENT' | 'OTHER';
+    sortBy?: PeopleSortBy;
+    sortOrder?: 'asc' | 'desc';
+  } = {},
+) {
+  const { page = 1, limit = PEOPLE_PAGE_SIZE, search = '', filter, sortBy, sortOrder } = opts;
   return useQuery({
-    queryKey: ['admin', 'enrollments', courseId, versionId],
+    queryKey: ['admin', 'enrollments', courseId, versionId, 'page', { page, limit, search, filter, sortBy, sortOrder }],
     queryFn: async () => {
       const raw = unwrap(
         await api.GET('/api/users/enrollments/courses/{courseId}/versions/{versionId}', {
+          params: {
+            path: { courseId, versionId },
+            query: {
+              page,
+              limit,
+              ...(search && { search }),
+              ...(filter && { filter }),
+              ...(sortBy && { sortBy, sortOrder: sortOrder ?? 'desc' }),
+            } as never,
+          },
+        }),
+      ) as unknown as { enrollments?: CourseEnrollment[]; totalDocuments?: number; totalPages?: number };
+      return {
+        enrollments: (raw.enrollments ?? []).map((e) => ({ ...e, role: normalizeCourseRole(e.role) as CourseEnrollment['role'] })),
+        total: raw.totalDocuments ?? 0,
+        totalPages: raw.totalPages ?? 1,
+      };
+    },
+    placeholderData: (prev) => prev,
+    enabled: !!courseId && !!versionId,
+  });
+}
+
+/** Whole-course numbers for active students, worked out by the backend. */
+export function useCourseEnrollmentStats(courseId: string, versionId: string) {
+  return useQuery({
+    queryKey: ['admin', 'enrollments', courseId, versionId, 'stats'],
+    queryFn: async () =>
+      unwrap(
+        await api.GET('/api/users/enrollments/courses/{courseId}/versions/{versionId}/statistics', {
           params: { path: { courseId, versionId } },
         }),
-      ) as unknown as { enrollments: CourseEnrollment[] };
-      return (raw.enrollments ?? []).map((e) => ({ ...e, role: normalizeCourseRole(e.role) as CourseEnrollment['role'] }));
-    },
+      ) as unknown as { totalEnrollments: number; completedCount: number; averageProgressPercent: number },
     enabled: !!courseId && !!versionId,
   });
 }

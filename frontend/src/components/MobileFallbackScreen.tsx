@@ -1,7 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
 
-const MobileFallbackScreen = () => {
+/**
+ * Phone screen for lessons that need a computer. `reason` explains why when
+ * it's more specific than "this course needs a computer", e.g. the instructor
+ * disabled study mode for this module.
+ */
+const MobileFallbackScreen = ({ reason }: { reason?: string } = {}) => {
   const navigate = useNavigate();
   
   return (
@@ -31,6 +36,9 @@ const MobileFallbackScreen = () => {
         The course requires a laptop or desktop computer for full functionality. 
         Please switch to a desktop or laptop with camera and mic functionality to access your learning resources.
       </p>
+      {reason && (
+        <p className="text-base text-gray-700 max-w-md -mt-4 mb-8">{reason}</p>
+      )}
       
       <div className="flex flex-col sm:flex-row gap-4">
         <Button

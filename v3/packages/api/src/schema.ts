@@ -1207,6 +1207,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/study-views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that the caller studied a lesson in study mode
+         * @description Marks a video or article as studied by the calling student (study mode). Idempotent: a repeat keeps the first time. Never changes strict progress.<br/>
+         *     Rejected for quizzes and other lesson types (400), lessons outside the course version (404) and lessons where study mode is disabled (403 STUDY_MODE_DISABLED). Instructors get recorded: false.
+         */
+        post: operations["ProgressController.recordStudyView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/progress/courses/{courseId}/versions/{versionId}/study-progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the caller's study progress in a course version
+         * @description Study-allowed videos and articles the caller studied in study mode or completed in strict mode, over all study-allowed videos and articles. Separate from (and never part of) strict progress.
+         */
+        get: operations["ProgressController.getStudyProgress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/progress/courses/{courseId}/versions/{versionId}/": {
         parameters: {
             query?: never;
@@ -1628,7 +1669,7 @@ export interface paths {
         };
         /**
          * Get the current user face reference
-         * @description Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if the course has face recognition enabled.
+         * @description Returns the authenticated user label and stored profile image for face comparison. When courseId and versionId are supplied, the face embedding is only returned if face recognition is enabled -- resolved through the item/module override (moduleId/itemId) when supplied, else the course-wide setting.
          */
         get: operations["UserController.getCurrentUserFaceReference"];
         put?: never;
@@ -1684,6 +1725,28 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/users/{userId}/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change a user's sign-in email (admin)
+         * @description Changes the email a user signs in with, on both their Firebase account and their user record.<br/>
+         *         They keep their password, enrolments and progress. No email is sent.<br/>
+         *         Only an admin may call this endpoint.
+         */
+        patch: operations["UserController.changeUserEmail"];
         trace?: never;
     };
     "/api/users/user-activity-events/": {
@@ -2615,6 +2678,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/courses/{courseId}/item/{feedbackId}/feedback/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Summarise feedback responses
+         * @description Per-question counts, averages and latest text answers over each student's current answer to a feedback form. Course staff only.
+         */
+        get: operations["ItemController.getFeedbackSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses/{courseId}/item/{feedbackId}/feedback/submissions/export": {
         parameters: {
             query?: never;
@@ -2624,9 +2707,93 @@ export interface paths {
         };
         /**
          * Export feedback submissions as CSV
-         * @description Export all feedback submissions for a particular course item.
+         * @description One feedback form's current answers as CSV, with the student's account name and email, cohort, place in the course, the lesson it is about, IST and ISO times and a column per question. Course staff only.
          */
         get: operations["ItemController.exportFeedbackSubmissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/item/{feedbackId}/feedback/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export one feedback form
+         * @description One feedback form's answers as .xlsx or CSV (latest answers by default, or every version). Course staff only, within their cohorts.
+         */
+        get: operations["ItemController.exportFeedbackForm"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/feedback/forms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the feedback forms in a course version
+         * @description Every feedback form in course order with its module, section, the lesson it is about and how many students' current answers it has. Course staff only, within their cohorts.
+         */
+        get: operations["ItemController.listFeedbackForms"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/feedback/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a course version's feedback settings
+         * @description Whether students can send feedback forms in study mode (how phones answer, since strict mode is PC-only). Course staff only.
+         */
+        get: operations["ItemController.getFeedbackSettings"];
+        /**
+         * Change a course version's feedback settings
+         * @description Turns study-mode feedback on or off. Off means students on phones cannot send feedback. Requires permission to edit the course content.
+         */
+        put: operations["ItemController.updateFeedbackSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/{courseId}/versions/{versionId}/feedback/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export all feedback in a course version
+         * @description Every feedback form in the course version, for any course. .xlsx: an Overview sheet, a sheet per form and a Watch + feedback sheet. CSV: every answer in one table (type=all) or one row per student per video (type=watch). Course staff only, within their cohorts.
+         */
+        get: operations["ItemController.exportCourseFeedback"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2672,6 +2839,50 @@ export interface paths {
          *     - Instructors, managers, and teaching assistants of the course.
          */
         put: operations["ItemController.updateProctoringStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/items/{itemId}/study-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set this item's study-mode setting
+         * @description Allows or disallows study mode for this item, overriding its section and module, or clears the setting (null) so it inherits again.<br/>
+         *     Accessible to:
+         *     - Instructors, managers, and teaching assistants of the course.
+         */
+        put: operations["ItemController.updateStudyMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/items/{itemId}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set this item's lock setting
+         * @description Locks this item for students or keeps it open, overriding its section and module, or clears the setting (null) so it inherits again.<br/>
+         *     Accessible to:
+         *     - Instructors, managers, and teaching assistants of the course.
+         */
+        put: operations["ItemController.updateLock"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2795,6 +3006,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/study-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set this module's study-mode setting
+         * @description Allows or disallows study mode for every section and item in the module that has no setting of its own, or clears the setting (null) so the module is open to study mode again.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        put: operations["ModuleController.updateStudyMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set this module's lock setting
+         * @description Locks every section and item in the module that has no setting of its own for students, keeps them open, or clears the setting (null).<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        put: operations["ModuleController.updateLock"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/courses/versions/{versionId}/modules/{moduleId}/toggle-visibility": {
         parameters: {
             query?: never;
@@ -2855,6 +3110,50 @@ export interface paths {
          *     - Instructors or managers of the course.
          */
         post: operations["SectionController.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/study-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set this section's study-mode setting
+         * @description Allows or disallows study mode for every item in the section that has no setting of its own (overriding the module), or clears the setting (null) so the section inherits from its module again.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        put: operations["SectionController.updateStudyMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set this section's lock setting
+         * @description Locks every item in the section that has no setting of its own for students, keeps them open (overriding the module), or clears the setting (null) so the section inherits again.<br/>
+         *     Accessible to:
+         *     - Instructors or managers of the course.
+         */
+        put: operations["SectionController.updateLock"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3971,6 +4270,26 @@ export interface paths {
          * @description Submits the feedback form response for a given item and stores the results.
          */
         post: operations["AttemptController.submitFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quizzes/{itemId}/feedback/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get my current feedback answer
+         * @description Returns the signed-in student's current answer to a feedback form (their latest submission), or null when they haven't answered it.
+         */
+        get: operations["AttemptController.getMyFeedback"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6971,6 +7290,8 @@ export interface components {
                 };
                 linearProgressionEnabled?: boolean;
                 seekForwardEnabled?: boolean;
+                /** @description Whether students can send feedback forms in study mode (how phones answer). Default true. */
+                studyModeFeedback?: boolean;
                 hpSystem?: boolean;
                 /** @description Whether the Case Studies tab is enabled for this course version. */
                 caseStudiesEnabled?: boolean;
@@ -8866,6 +9187,48 @@ export interface components {
             search: string;
             page: string;
             limit: string;
+            /** @description Only this student’s responses */
+            userId?: string;
+            /** @description Only responses from this cohort */
+            cohortId?: string;
+            /**
+             * @description 'latest' (default): each student's current answer only; 'all': include replaced answers
+             * @enum {string}
+             */
+            history?: "latest" | "all";
+        };
+        FeedbackExportQuery: {
+            /**
+             * @description File format: 'xlsx' (default) or 'csv'
+             * @enum {string}
+             */
+            format?: "xlsx" | "csv";
+            /**
+             * @description Course CSV only: 'all' (default, every answer) or 'watch' (one row per student per video)
+             * @enum {string}
+             */
+            type?: "all" | "watch";
+            /** @description Only this cohort */
+            cohortId?: string;
+            /**
+             * @description 'latest' (default): current answers only; 'all': include replaced answers
+             * @enum {string}
+             */
+            history?: "latest" | "all";
+        };
+        CourseVersionFeedbackParams: {
+            /** @description Course ID */
+            courseId: string;
+            /** @description Course version ID */
+            versionId: string;
+        };
+        UpdateFeedbackSettingsBody: {
+            /** @description Whether students can send feedback forms in study mode (how phones answer). */
+            studyModeFeedback: boolean;
+        };
+        GetFeedbackSummaryQuery: {
+            /** @description Only responses from this cohort */
+            cohortId?: string;
         };
         CSVRow: {
             /**
@@ -8938,6 +9301,10 @@ export interface components {
             order: string;
             isHidden?: boolean;
             isOptional?: boolean;
+            /** @description Study-mode setting: true allows, false disallows; absent or null inherits from the level above. */
+            studyModeEnabled?: boolean;
+            /** @description Lock setting: true locks, false keeps open; absent or null inherits from the level above. */
+            isLocked?: boolean;
             /** @description Type-specific payload (video URL and offsets, blog content, quiz settings, ...). For QUIZ items questionBankRefs is lifted out into the sibling field below. */
             details?: Record<string, never>;
             questionBankRefs?: components["schemas"]["BundleQuestionBankRef"][];
@@ -8947,6 +9314,10 @@ export interface components {
             description?: string;
             order: string;
             isHidden?: boolean;
+            /** @description Study-mode setting: true allows, false disallows; absent or null inherits from the level above. */
+            studyModeEnabled?: boolean;
+            /** @description Lock setting: true locks, false keeps open; absent or null inherits from the level above. */
+            isLocked?: boolean;
             items: components["schemas"]["BundleItem"][];
         };
         BundleModule: {
@@ -8954,6 +9325,10 @@ export interface components {
             description?: string;
             order: string;
             isHidden?: boolean;
+            /** @description Study-mode setting: true allows, false disallows; absent or null inherits from the level above. */
+            studyModeEnabled?: boolean;
+            /** @description Lock setting: true locks, false keeps open; absent or null inherits from the level above. */
+            isLocked?: boolean;
             sections: components["schemas"]["BundleSection"][];
         };
         BundleCourse: {
@@ -8998,6 +9373,20 @@ export interface components {
             /** @description Name the course was created under */
             name: string;
             message: string;
+        };
+        StudyModeBody: {
+            /**
+             * Study mode setting
+             * @description true allows study mode here, false disallows it (students must use strict mode), null clears the setting so it inherits from the level above (item → section → module; allowed when nothing is set).
+             */
+            studyModeEnabled?: boolean | null;
+        };
+        ContentLockBody: {
+            /**
+             * Lock setting
+             * @description true locks this for students, false keeps it open inside something locked, null clears the setting so it inherits.
+             */
+            isLocked?: boolean | null;
         };
         InviteIdParams: {
             /** @description Unique identifier for the invite */
@@ -10005,6 +10394,11 @@ export interface components {
              * @example 60d21b4667d0d8992e610c99
              */
             courseVersionId: string;
+            /**
+             * @description The mode the student answered in. Study-mode answers need the course to allow them and, after a video, a study view of it; they never change strict progress. Defaults to 'strict'.
+             * @enum {string}
+             */
+            mode?: "strict" | "study";
             /**
              * @description Cohort of the student
              * @example cohort-1
@@ -11039,6 +11433,14 @@ export interface components {
              */
             watchItemId: string;
         };
+        StudyViewBody: {
+            /** @description The video or article studied */
+            itemId: string;
+            /** @description Module containing the item */
+            moduleId: string;
+            /** @description Section containing the item */
+            sectionId: string;
+        };
         ContentCountsValidator: {
             /**
              * @description Total number of items in the course
@@ -11536,6 +11938,22 @@ export interface components {
              * @example User not found with the provided Firebase UID
              */
             readonly message: string;
+        };
+        ChangeUserEmailBody: {
+            /**
+             * Format: email
+             * @description The new sign-in email for the user
+             * @example new.address@example.com
+             */
+            email: string;
+        };
+        ChangeUserEmailResponse: {
+            /** @description The new email */
+            email: string;
+            /** @description The email before the change */
+            previousEmail: string;
+            /** @description The account's sign-in methods, e.g. 'password' and 'google.com' */
+            signInMethods: string[];
         };
         ReportStatusEntry: {
             /**
@@ -12130,6 +12548,15 @@ export interface components {
             jsonSchema: Record<string, never>;
             /** @description Dynamic UI Schema for the form */
             uiSchema: Record<string, never>;
+            /** @description Auto-approval on or off. Kept as stored when not sent. */
+            registrationsAutoApproved?: boolean;
+            /** @description Auto-approval list. Kept as stored when not sent. */
+            autoapproval_emails?: string[];
+            /**
+             * @description Auto-approval mode. Kept as stored when not sent.
+             * @enum {string}
+             */
+            autoApprovalMode?: "EVERYONE" | "LIST";
         };
         ToggleRegistrationBody: {
             /**
@@ -12145,13 +12572,19 @@ export interface components {
              */
             registrationsAutoApproved: boolean;
             /**
-             * @description Email patterns to auto-approve (if empty, all emails are approved)
+             * @description Full addresses, which match exactly, and domains, which match only that domain and not its subdomains. Ignored when the mode is EVERYONE.
              * @example [
              *       "iitm.ac.in",
-             *       "gmail.com"
+             *       "bob@gmail.com"
              *     ]
              */
             autoapproval_emails: string[];
+            /**
+             * @description EVERYONE approves every registration; LIST approves only matching emails, so an empty list approves nobody. When not sent: EVERYONE for an empty list, otherwise LIST.
+             * @example LIST
+             * @enum {string}
+             */
+            autoApprovalMode?: "EVERYONE" | "LIST";
             /**
              * @description Cohort ID for which the auto-approval settings apply (required if course version has cohorts)
              * @example cohortId123
@@ -16392,6 +16825,70 @@ export interface operations {
             };
         };
     };
+    "ProgressController.recordStudyView": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description StudyViewBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StudyViewBody"];
+            };
+        };
+        responses: {
+            /** @description Study view recorded (or not tracked for this role) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not a video or article */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+        };
+    };
+    "ProgressController.getStudyProgress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Study progress */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     "ProgressController.getUserProgress": {
         parameters: {
             query?: {
@@ -17103,6 +17600,8 @@ export interface operations {
             query?: {
                 courseId?: string;
                 versionId?: string;
+                moduleId?: string;
+                itemId?: string;
             };
             header?: never;
             path?: never;
@@ -17198,6 +17697,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "UserController.changeUserEmail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ChangeUserEmailBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ChangeUserEmailBody"];
+            };
+        };
+        responses: {
+            /** @description The new email and the account sign-in methods */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeUserEmailResponse"];
                 };
             };
             /** @description User not found */
@@ -18993,6 +19528,7 @@ export interface operations {
         parameters: {
             query?: {
                 cohortId?: string;
+                mode?: string;
             };
             header?: never;
             path: {
@@ -19041,6 +19577,9 @@ export interface operations {
                 search: string;
                 page: string;
                 limit: string;
+                userId?: string;
+                cohortId?: string;
+                history?: "latest" | "all";
             };
             header?: never;
             path: {
@@ -19080,6 +19619,31 @@ export interface operations {
             };
         };
     };
+    "ItemController.getFeedbackSummary": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                feedbackId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     "ItemController.exportFeedbackSubmissions": {
         parameters: {
             query?: never;
@@ -19087,6 +19651,138 @@ export interface operations {
             path: {
                 courseId: string;
                 feedbackId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ItemController.exportFeedbackForm": {
+        parameters: {
+            query?: {
+                format?: "xlsx" | "csv";
+                type?: "all" | "watch";
+                cohortId?: string;
+                history?: "latest" | "all";
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                feedbackId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ItemController.listFeedbackForms": {
+        parameters: {
+            query?: {
+                cohortId?: string;
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ItemController.getFeedbackSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ItemController.updateFeedbackSettings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description UpdateFeedbackSettingsBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateFeedbackSettingsBody"];
+            };
+        };
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    "ItemController.exportCourseFeedback": {
+        parameters: {
+            query?: {
+                format?: "xlsx" | "csv";
+                type?: "all" | "watch";
+                cohortId?: string;
+                history?: "latest" | "all";
+            };
+            header?: never;
+            path: {
+                courseId: string;
+                versionId: string;
             };
             cookie?: never;
         };
@@ -19172,6 +19868,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ItemDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.updateStudyMode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        /** @description StudyModeBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StudyModeBody"];
+            };
+        };
+        responses: {
+            /** @description Item study-mode setting updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Item not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ItemController.updateLock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ContentLockBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ContentLockBody"];
+            };
+        };
+        responses: {
+            /** @description Item lock setting updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Bad Request Error */
@@ -19469,6 +20261,98 @@ export interface operations {
             };
         };
     };
+    "ModuleController.updateStudyMode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                moduleId: string;
+            };
+            cookie?: never;
+        };
+        /** @description StudyModeBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StudyModeBody"];
+            };
+        };
+        responses: {
+            /** @description Module study-mode setting updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Module not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "ModuleController.updateLock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                moduleId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ContentLockBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ContentLockBody"];
+            };
+        };
+        responses: {
+            /** @description Module lock setting updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Module not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
     "ModuleController.toggleVisibility": {
         parameters: {
             query?: never;
@@ -19580,6 +20464,100 @@ export interface operations {
         responses: {
             /** @description Section created successfully */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Section not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "SectionController.updateStudyMode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                moduleId: string;
+                sectionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description StudyModeBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StudyModeBody"];
+            };
+        };
+        responses: {
+            /** @description Section study-mode setting updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionDataResponse"];
+                };
+            };
+            /** @description Bad Request Error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
+                };
+            };
+            /** @description Section not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "SectionController.updateLock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+                moduleId: string;
+                sectionId: string;
+            };
+            cookie?: never;
+        };
+        /** @description ContentLockBody */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ContentLockBody"];
+            };
+        };
+        responses: {
+            /** @description Section lock setting updated successfully */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -21712,7 +22690,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/html; charset=utf-8": components["schemas"]["CreateAttemptResponse"];
+                    "application/json": components["schemas"]["CreateAttemptResponse"];
                 };
             };
             /** @description Bad Request */
@@ -21721,7 +22699,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/html; charset=utf-8": components["schemas"]["BadRequestErrorResponse"];
+                    "application/json": components["schemas"]["BadRequestErrorResponse"];
                 };
             };
             /** @description Quiz not found */
@@ -21730,7 +22708,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/html; charset=utf-8": components["schemas"]["AttemptNotFoundErrorResponse"];
+                    "application/json": components["schemas"]["AttemptNotFoundErrorResponse"];
                 };
             };
         };
@@ -21858,6 +22836,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttemptNotFoundErrorResponse"];
+                };
+            };
+        };
+    };
+    "AttemptController.getMyFeedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                itemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

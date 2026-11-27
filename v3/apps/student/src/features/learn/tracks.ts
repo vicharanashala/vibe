@@ -6,15 +6,18 @@ import { courseKeys, visibleInOrder, type CourseVersion, type SectionItem } from
 import { api } from '@/lib/api';
 
 /**
- * Two ways through every course (frontend-only; the backend has no notion of tracks).
- * Students see them as "Study mode" (blue) and "Certified mode" (green); the
- * ids stay blue/green so saved choices and `?track=` links keep working:
+ * Two ways through every course. Students see them as "Study mode" (blue) and
+ * "Strict mode" (green); the ids stay blue/green so saved choices and
+ * `?track=` links keep working.
  *
- * - **blue**  — study mode. Open any lesson the backend will serve, rewatch and
- *   seek freely, take notes. Camera must be on, but nothing is detected or
- *   reported, and **no progress is saved**.
- * - **green** — certified mode. Lessons in order, one at a time, with every
- *   restriction and proctoring detector the course has. Only green progress counts.
+ * - **blue**  — study mode. Any device, no proctoring, any order (even in
+ *   linear courses), rewatch and seek freely. **No progress is saved** and
+ *   quizzes can't be taken. Lessons are read with `?mode=study`, so the
+ *   backend skips the linear lock, never touches progress, and refuses items
+ *   where the instructor has disabled study mode.
+ * - **green** — strict mode. Computer only, lessons in order when the course
+ *   is linear, with every proctoring detector the course has. The only mode
+ *   that saves progress.
  */
 export type Track = 'blue' | 'green';
 
@@ -22,12 +25,12 @@ export const TRACKS: Record<Track, { label: string; short: string; description: 
   blue: {
     label: 'Study mode',
     short: 'Study',
-    description: 'Browse and rewatch freely. Nothing is saved to your progress.',
+    description: 'Watch and read freely, on any device. Doesn’t count towards your strict progress, and quizzes are taken in strict mode.',
   },
   green: {
-    label: 'Certified mode',
-    short: 'Certified',
-    description: 'Lessons in order, with proctoring. Counts towards your certificate.',
+    label: 'Strict mode',
+    short: 'Strict',
+    description: 'On a computer, with proctoring. The only mode that counts towards your progress and certificate.',
   },
 };
 

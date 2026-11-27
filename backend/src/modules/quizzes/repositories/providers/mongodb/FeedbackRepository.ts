@@ -42,6 +42,75 @@ class FeedbackRepository {
     } catch (e) {
       // Index already exists
     }
+    // Current-answer lookups: one student's submissions to one form, newest first.
+    try {
+      await this.feedbackSubmissionCollection.createIndex(
+        {feedbackFormId: 1, userId: 1, createdAt: -1},
+        {background: true},
+      );
+    } catch (e) {
+      // Index already exists
+    }
+  }
+
+  /**
+   * Ranks each student's submissions to a form, newest first. "Newest" is the
+   * most recently inserted (ObjectId order, which follows insert time).
+   * Rank 1 is the current answer. Works for submissions
+   * written before the isCurrent flag existed, so old duplicates need no
+   * migration. Cohort is not part of the identity: older submissions have none.
+   */
+  static versionStages(): any[] {
+    return [
+      {
+        $setWindowFields: {
+          partitionBy: {u: '$userId', f: '$feedbackFormId'},
+          sortBy: {_id: -1},
+          output: {versionRank: {$documentNumber: {}}},
+        },
+      },
+      {$addFields: {isCurrentVersion: {$eq: ['$versionRank', 1]}}},
+    ];
+  }
+
+  /** Marks a student's earlier answers to a form as replaced (before inserting the new one). */
+  async markReplaced(
+    userId: string,
+    feedbackFormId: string,
+    session?: ClientSession,
+  ): Promise<number> {
+    await this.init();
+    const result = await this.feedbackSubmissionCollection.updateMany(
+      {
+        userId: new ObjectId(userId),
+        feedbackFormId: new ObjectId(feedbackFormId),
+        isCurrent: {$ne: false},
+      },
+      {$set: {isCurrent: false, replacedAt: new Date()}},
+      {session},
+    );
+    return result.modifiedCount ?? 0;
+  }
+
+  /** A student's current answer to a form, or null. */
+  async findCurrentForUser(
+    userId: string,
+    feedbackFormId: string,
+    session?: ClientSession,
+  ): Promise<FeedbackSubmissionItem | null> {
+    await this.init();
+    const [latest] = await this.feedbackSubmissionCollection
+      .find(
+        {
+          userId: new ObjectId(userId),
+          feedbackFormId: new ObjectId(feedbackFormId),
+        },
+        {session},
+      )
+      .sort({_id: -1})
+      .limit(1)
+      .toArray();
+    return latest ?? null;
   }
 
   /* ------------------------------------------------------
@@ -194,53 +263,101 @@ class FeedbackRepository {
     return result ?? null;
   }
 
-  async getFeedbackSubmissionById(
-    feedbackFormId: string,
-    courseId: string,
-    search: string,
-    page: number,
-    limit: number,
-  ) {
-    await this.init();
-    const skip = (page - 1) * limit;
-    // --------------------------
-    // GET FORM SCHEMA
-    // --------------------------
+  /** The lookups that attach the lesson a form is about as `previousItem`. */
+  private static previousItemStages(): any[] {
+    const lookup = (from: string, as: string) => ({
+      $lookup: {from, localField: 'previousItemId', foreignField: '_id', as},
+    });
+    return [
+      lookup('videos', 'videoItem'),
+      lookup('quizzes', 'quizItem'),
+      lookup('blogs', 'blogItem'),
+      lookup('projects', 'projectItem'),
+      {
+        $addFields: {
+          previousItem: {
+            $switch: {
+              branches: [
+                {
+                  case: {$eq: ['$previousItemType', 'VIDEO']},
+                  then: {$arrayElemAt: ['$videoItem', 0]},
+                },
+                {
+                  case: {$eq: ['$previousItemType', 'QUIZ']},
+                  then: {$arrayElemAt: ['$quizItem', 0]},
+                },
+                {
+                  case: {$eq: ['$previousItemType', 'BLOG']},
+                  then: {$arrayElemAt: ['$blogItem', 0]},
+                },
+                {
+                  case: {$eq: ['$previousItemType', 'PROJECT']},
+                  then: {$arrayElemAt: ['$projectItem', 0]},
+                },
+              ],
+              default: null,
+            },
+          },
+        },
+      },
+      {$project: {videoItem: 0, quizItem: 0, blogItem: 0, projectItem: 0}},
+    ];
+  }
+
+  private async labelMapFor(feedbackFormId: string) {
     const feedbackForm = await this.feedbackFormCollection.findOne({
       _id: new ObjectId(feedbackFormId),
     });
-
     const schema = feedbackForm?.details?.jsonSchema;
-
-    // Build value -> label map
     const labelMap: Record<string, Record<string, string>> = {};
-
     if (schema?.properties) {
       Object.entries(schema.properties).forEach(
         ([fieldName, fieldSchema]: any) => {
           labelMap[fieldName] = {};
-
-          // NEW FORMAT — oneOf
           if (fieldSchema.oneOf) {
             fieldSchema.oneOf.forEach((opt: any) => {
               labelMap[fieldName][opt.const] = opt.title;
             });
             return;
           }
-
-          // OLD FORMAT — enum only - for backward compatibility
+          // Older forms: enum only
           if (fieldSchema.enum) {
-            fieldSchema.enum.forEach((val: string) => {
-              const pretty = val
+            // Values may be numbers (a linear scale's enum is 1..N).
+            fieldSchema.enum.forEach((raw: unknown) => {
+              const val = String(raw);
+              labelMap[fieldName][val] = val
                 .replace(/[_-]/g, ' ')
                 .replace(/\b\w/g, (l: string) => l.toUpperCase());
-
-              labelMap[fieldName][val] = pretty;
             });
           }
         },
       );
     }
+    return labelMap;
+  }
+
+  /**
+   * A form's responses, newest first. By default only each student's current
+   * answer; `history: 'all'` includes replaced ones (each marked with
+   * isCurrentVersion). Search matches first name, last name, full name or email.
+   */
+  async getFeedbackSubmissionById(
+    feedbackFormId: string,
+    courseId: string,
+    search: string,
+    page: number,
+    limit: number,
+    options: {
+      userId?: string;
+      cohortIds?: string[];
+      history?: 'latest' | 'all';
+    } = {},
+  ) {
+    await this.init();
+    const skip = (page - 1) * limit;
+    const labelMap = await this.labelMapFor(feedbackFormId);
+    const term = search?.trim();
+    const escaped = term ? term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
 
     try {
       const pipeline: any[] = [
@@ -248,12 +365,25 @@ class FeedbackRepository {
           $match: {
             feedbackFormId: new ObjectId(feedbackFormId),
             courseId: new ObjectId(courseId),
+            ...(options.userId ? {userId: new ObjectId(options.userId)} : {}),
           },
         },
-
-        // --------------------------
-        // USER LOOKUP
-        // --------------------------
+        ...FeedbackRepository.versionStages(),
+        ...(options.history === 'all'
+          ? []
+          : [{$match: {isCurrentVersion: true}}]),
+        ...(options.cohortIds
+          ? [
+              {
+                $match: {
+                  cohortId: {
+                    $in: options.cohortIds.map(id => new ObjectId(id)),
+                  },
+                },
+              },
+            ]
+          : []),
+        {$sort: {createdAt: -1, _id: -1}},
         {
           $lookup: {
             from: 'users',
@@ -263,117 +393,53 @@ class FeedbackRepository {
           },
         },
         {$unwind: '$user'},
-
-        ...(search
+        ...(term
           ? [
               {
                 $match: {
-                  'user.firstName': {$regex: search, $options: 'i'},
+                  $or: [
+                    {'user.firstName': {$regex: escaped, $options: 'i'}},
+                    {'user.lastName': {$regex: escaped, $options: 'i'}},
+                    {'user.email': {$regex: escaped, $options: 'i'}},
+                    {
+                      $expr: {
+                        $regexMatch: {
+                          input: {
+                            $concat: [
+                              {$ifNull: ['$user.firstName', '']},
+                              ' ',
+                              {$ifNull: ['$user.lastName', '']},
+                            ],
+                          },
+                          regex: escaped,
+                          options: 'i',
+                        },
+                      },
+                    },
+                  ],
                 },
               },
             ]
           : []),
-
-        // --------------------------
-        // LOOKUP Previous Item
-        // --------------------------
-        {
-          $lookup: {
-            from: 'videos',
-            localField: 'previousItemId',
-            foreignField: '_id',
-            as: 'videoItem',
-          },
-        },
-        {
-          $lookup: {
-            from: 'quizzes',
-            localField: 'previousItemId',
-            foreignField: '_id',
-            as: 'quizItem',
-          },
-        },
-        {
-          $lookup: {
-            from: 'blogs',
-            localField: 'previousItemId',
-            foreignField: '_id',
-            as: 'blogItem',
-          },
-        },
-        {
-          $lookup: {
-            from: 'projects',
-            localField: 'previousItemId',
-            foreignField: '_id',
-            as: 'projectItem',
-          },
-        },
-
-        // --------------------------
-        // MERGE
-        // --------------------------
-        {
-          $addFields: {
-            previousItem: {
-              $switch: {
-                branches: [
-                  {
-                    case: {$eq: ['$previousItemType', 'VIDEO']},
-                    then: {$arrayElemAt: ['$videoItem', 0]},
-                  },
-                  {
-                    case: {$eq: ['$previousItemType', 'QUIZ']},
-                    then: {$arrayElemAt: ['$quizItem', 0]},
-                  },
-                  {
-                    case: {$eq: ['$previousItemType', 'BLOG']},
-                    then: {$arrayElemAt: ['$blogItem', 0]},
-                  },
-                  {
-                    case: {$eq: ['$previousItemType', 'PROJECT']},
-                    then: {$arrayElemAt: ['$projectItem', 0]},
-                  },
-                ],
-                default: null,
-              },
-            },
-          },
-        },
-
-        // Cleanup
-        {
-          $project: {
-            videoItem: 0,
-            quizItem: 0,
-            blogItem: 0,
-            projectItem: 0,
-          },
-        },
       ];
 
-      // 🟦 Run count separately
-      const countPipeline = [...pipeline, {$count: 'total'}];
-      const countResult = await this.feedbackSubmissionCollection
-        .aggregate(countPipeline)
+      const [countResult] = await this.feedbackSubmissionCollection
+        .aggregate([...pipeline, {$count: 'total'}])
         .toArray();
+      const total = countResult?.total || 0;
 
-      const total = countResult[0]?.total || 0;
-
-      // 🟩 Apply pagination
-      const paginatedPipeline = [...pipeline, {$skip: skip}, {$limit: limit}];
-
-      // 🟧 Fetch docs
       const submissions = await this.feedbackSubmissionCollection
-        .aggregate(paginatedPipeline)
+        .aggregate([
+          ...pipeline,
+          {$skip: skip},
+          {$limit: limit},
+          ...FeedbackRepository.previousItemStages(),
+          {$project: {versionRank: 0, 'user.password': 0}},
+        ])
         .toArray();
 
-      // --------------------------
-      // REPLACE VALUES WITH LABELS
-      // --------------------------
       submissions.forEach(sub => {
         if (!sub.details) return;
-
         Object.entries(sub.details).forEach(([field, value]) => {
           const map = labelMap[field];
           const stringValue = String(value);
@@ -397,158 +463,92 @@ class FeedbackRepository {
     }
   }
 
-  async getAllSubmissions(feedbackFormId: string, courseId: string) {
+  /** Current answers' details for a form (newest first), for the summary. */
+  async getCurrentAnswerDetails(
+    feedbackFormId: string,
+    courseId: string,
+    cohortIds?: string[],
+  ): Promise<Record<string, unknown>[]> {
     await this.init();
-
-    try {
-      const pipeline: any[] = [
+    const rows = await this.feedbackSubmissionCollection
+      .aggregate([
         {
           $match: {
             feedbackFormId: new ObjectId(feedbackFormId),
             courseId: new ObjectId(courseId),
           },
         },
+        ...FeedbackRepository.versionStages(),
         {
-          $lookup: {
-            from: 'users',
-            localField: 'userId',
-            foreignField: '_id',
-            as: 'user',
+          $match: {
+            isCurrentVersion: true,
+            ...(cohortIds
+              ? {cohortId: {$in: cohortIds.map(id => new ObjectId(id))}}
+              : {}),
           },
         },
-        {$unwind: '$user'},
-        {
-          $lookup: {
-            from: 'videos',
-            localField: 'previousItemId',
-            foreignField: '_id',
-            as: 'videoItem',
-          },
-        },
-        {
-          $lookup: {
-            from: 'quizzes',
-            localField: 'previousItemId',
-            foreignField: '_id',
-            as: 'quizItem',
-          },
-        },
-        {
-          $lookup: {
-            from: 'blogs',
-            localField: 'previousItemId',
-            foreignField: '_id',
-            as: 'blogItem',
-          },
-        },
-        {
-          $lookup: {
-            from: 'projects',
-            localField: 'previousItemId',
-            foreignField: '_id',
-            as: 'projectItem',
-          },
-        },
-        {
-          $addFields: {
-            previousItem: {
-              $switch: {
-                branches: [
-                  {
-                    case: {$eq: ['$previousItemType', 'VIDEO']},
-                    then: {$arrayElemAt: ['$videoItem', 0]},
-                  },
-                  {
-                    case: {$eq: ['$previousItemType', 'QUIZ']},
-                    then: {$arrayElemAt: ['$quizItem', 0]},
-                  },
-                  {
-                    case: {$eq: ['$previousItemType', 'BLOG']},
-                    then: {$arrayElemAt: ['$blogItem', 0]},
-                  },
-                  {
-                    case: {$eq: ['$previousItemType', 'PROJECT']},
-                    then: {$arrayElemAt: ['$projectItem', 0]},
-                  },
-                ],
-                default: null,
-              },
-            },
-          },
-        },
-        {
-          $project: {
-            videoItem: 0,
-            quizItem: 0,
-            blogItem: 0,
-            projectItem: 0,
-          },
-        },
-        // Sort by submission date
-        {$sort: {createdAt: -1}},
-      ];
-
-      return await this.feedbackSubmissionCollection
-        .aggregate(pipeline)
-        .toArray();
-    } catch (error) {
-      throw new InternalServerError(
-        `Failed to get all Feedback submissions for form ${feedbackFormId}`,
-      );
-    }
+        {$sort: {createdAt: -1, _id: -1}},
+        {$project: {details: 1}},
+      ])
+      .toArray();
+    return rows.map(r => (r.details ?? {}) as Record<string, unknown>);
   }
 
-  async getAllSubmissionsWithLabels(feedbackFormId: string, courseId: string) {
+  /** Current answers per form (form id -> count), for the course feedback list. */
+  async countCurrentByForm(
+    feedbackFormIds: string[],
+    courseVersionId: string,
+    cohortIds?: string[],
+  ): Promise<Map<string, number>> {
     await this.init();
-
-    const submissions = await this.getAllSubmissions(feedbackFormId, courseId);
-
-    const feedbackForm = await this.feedbackFormCollection.findOne({
-      _id: new ObjectId(feedbackFormId),
-    });
-
-    const schema = feedbackForm?.details?.jsonSchema;
-
-    const labelMap: Record<string, Record<string, string>> = {};
-
-    if (schema?.properties) {
-      Object.entries(schema.properties).forEach(
-        ([fieldName, fieldSchema]: any) => {
-          labelMap[fieldName] = {};
-
-          if (fieldSchema.oneOf) {
-            fieldSchema.oneOf.forEach((opt: any) => {
-              labelMap[fieldName][opt.const] = opt.title;
-            });
-            return;
-          }
-
-          if (fieldSchema.enum) {
-            fieldSchema.enum.forEach((val: string) => {
-              const pretty = val
-                .replace(/[_-]/g, ' ')
-                .replace(/\b\w/g, l => l.toUpperCase());
-
-              labelMap[fieldName][val] = pretty;
-            });
-          }
+    if (!feedbackFormIds.length) return new Map();
+    const rows = await this.feedbackSubmissionCollection
+      .aggregate([
+        {
+          $match: {
+            feedbackFormId: {$in: feedbackFormIds.map(id => new ObjectId(id))},
+            courseVersionId: new ObjectId(courseVersionId),
+          },
         },
-      );
-    }
+        ...FeedbackRepository.versionStages(),
+        {
+          $match: {
+            isCurrentVersion: true,
+            ...(cohortIds
+              ? {cohortId: {$in: cohortIds.map(id => new ObjectId(id))}}
+              : {}),
+          },
+        },
+        {$group: {_id: '$feedbackFormId', count: {$sum: 1}}},
+      ])
+      .toArray();
+    return new Map(rows.map(r => [r._id.toString(), r.count as number]));
+  }
 
-    submissions.forEach(sub => {
-      if (!sub.details) return;
-
-      Object.entries(sub.details).forEach(([field, value]) => {
-        const map = labelMap[field];
-        const stringValue = String(value);
-        if (map && map[stringValue]) {
-          sub.details[field] = map[stringValue];
-        }
-      });
-    });
-
-    return submissions;
+  /** Every submission (all versions) for a set of forms, oldest first, for exports. */
+  async getSubmissionsForForms(
+    feedbackFormIds: string[],
+    courseVersionId: string,
+    cohortIds?: string[],
+  ): Promise<(FeedbackSubmissionItem & {isCurrentVersion: boolean})[]> {
+    await this.init();
+    if (!feedbackFormIds.length) return [];
+    return (await this.feedbackSubmissionCollection
+      .aggregate([
+        {
+          $match: {
+            feedbackFormId: {$in: feedbackFormIds.map(id => new ObjectId(id))},
+            courseVersionId: new ObjectId(courseVersionId),
+          },
+        },
+        ...FeedbackRepository.versionStages(),
+        ...(cohortIds
+          ? [{$match: {cohortId: {$in: cohortIds.map(id => new ObjectId(id))}}}]
+          : []),
+        {$sort: {createdAt: 1, _id: 1}},
+        {$project: {versionRank: 0}},
+      ])
+      .toArray()) as any;
   }
 
   /* ------------------------------------------------------

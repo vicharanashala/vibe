@@ -4,12 +4,18 @@ import {
   ID,
   MongoDatabase,
 } from '#root/shared/index.js';
-import { inject, injectable } from 'inversify';
-import { PROJECTS_TYPES } from '../types.js';
-import { GLOBAL_TYPES } from '#root/types.js';
-import { SubmissionResponse } from '../classes/validators/ProjectValidators.js';
-import { ForbiddenError, InternalServerError, NotFoundError } from 'routing-controllers';
-import { IProjectSubmissionRepository } from '../interfaces/index.js';
+import {inject, injectable} from 'inversify';
+import {PROJECTS_TYPES} from '../types.js';
+import {GLOBAL_TYPES} from '#root/types.js';
+import {SubmissionResponse} from '../classes/validators/ProjectValidators.js';
+import {
+  ForbiddenError,
+  InternalServerError,
+  NotFoundError,
+} from 'routing-controllers';
+import {IProjectSubmissionRepository} from '../interfaces/index.js';
+import {COURSES_TYPES} from '#courses/types.js';
+import {ContentLockService} from '#courses/services/ContentLockService.js';
 
 @injectable()
 export class ProjectService extends BaseService {
@@ -23,6 +29,9 @@ export class ProjectService extends BaseService {
     // Data base
     @inject(GLOBAL_TYPES.Database)
     public readonly database: MongoDatabase,
+
+    @inject(COURSES_TYPES.ContentLockService)
+    private readonly contentLockService: ContentLockService,
   ) {
     super(database);
   }
@@ -38,6 +47,8 @@ export class ProjectService extends BaseService {
   ): Promise<ID> {
     try {
       return this._withTransaction(async session => {
+        await this.contentLockService.assertOpenForUser(userId, projectId);
+
         const isVersionExist = await this.courseRepo.readVersion(
           versionId,
           session,

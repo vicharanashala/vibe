@@ -1,4 +1,6 @@
+import { contentLockRefusal, type LockedLevel } from '@/features/content-lock/content-lock';
 import { ArrowDownIcon, ArrowUpIcon, CheckCircle2Icon, CircleAlertIcon, ClockIcon, KeyboardIcon, LightbulbIcon, ListChecksIcon, RotateCcwIcon, TargetIcon, XCircleIcon } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 
 import { RichText } from '@/components/rich-content';
@@ -23,6 +25,7 @@ import {
   QuestionnaireSubmit,
   QuestionnaireTitle,
 } from '@/components/ui/questionnaire';
+import { enterClass, popIn, stagger } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 import { createAttempt, submitAttempt, toAnswers, type QuizDetails, type QuizQuestion, type QuizResult } from './quiz-api';
@@ -61,6 +64,7 @@ export function QuizRunner({
   lessonRef,
   item,
   ensureWatchItem,
+  onLocked,
   onPassed,
   onExit,
   onAnsweringChange,
@@ -68,6 +72,8 @@ export function QuizRunner({
   lessonRef: LessonRef;
   item: LessonItem;
   ensureWatchItem: () => Promise<string | undefined>;
+  /** Starting was refused because the instructor locked this quiz. */
+  onLocked?: (source: LockedLevel) => void;
   onPassed: () => void;
   onExit: () => void;
   /** True while an attempt is open with answers not yet submitted. */
@@ -90,6 +96,8 @@ export function QuizRunner({
       if (attempt.questions.length === 0) return setStage({ kind: 'blocked', message: 'This quiz has no questions yet.' });
       setStage({ kind: 'answering', attemptId: attempt.attemptId, questions: attempt.questions });
     } catch (e) {
+      const locked = contentLockRefusal(e);
+      if (locked) return onLocked?.(locked.source);
       setError((e as Error).message);
       setStage({ kind: 'intro' });
     }
@@ -418,9 +426,21 @@ function QuizReview({
       <div className="mx-auto w-full max-w-2xl px-4 pt-10 pb-32">
         <div className="text-center">
           {passed ? (
-            <CheckCircle2Icon className="mx-auto size-12 text-emerald-600" aria-hidden />
+            // A gentle success pop, with one soft ring, when the quiz is passed.
+            <motion.span className="relative mx-auto inline-flex" variants={popIn} initial="hidden" animate="shown">
+              <CheckCircle2Icon className="size-12 text-emerald-600" aria-hidden />
+              <motion.span
+                aria-hidden
+                className="absolute inset-0 rounded-full ring-2 ring-emerald-500"
+                initial={{ opacity: 0.6, scale: 1 }}
+                animate={{ opacity: 0, scale: 1.7 }}
+                transition={{ duration: 0.9, ease: 'easeOut', delay: 0.1 }}
+              />
+            </motion.span>
           ) : (
-            <XCircleIcon className={cn('mx-auto size-12', pending ? 'text-amber-500' : 'text-red-500')} aria-hidden />
+            <motion.span className="mx-auto inline-flex" variants={popIn} initial="hidden" animate="shown">
+              <XCircleIcon className={cn('size-12', pending ? 'text-amber-500' : 'text-red-500')} aria-hidden />
+            </motion.span>
           )}
           <h1 className="mt-3 font-aleo text-3xl tracking-tight">{passed ? 'Quiz passed' : pending ? 'Submitted for review' : 'Not passed yet'}</h1>
           {details.showScoreAfterSubmission !== false && pct !== null && (
@@ -437,7 +457,7 @@ function QuizReview({
             const ok = f?.status === 'CORRECT';
             const partial = f?.status === 'PARTIAL';
             return (
-              <li key={q.id}>
+              <li key={q.id} className={enterClass} style={stagger(i)}>
                 <Card size="sm" className="px-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex gap-1.5 text-sm font-medium">

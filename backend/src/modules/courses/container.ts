@@ -9,6 +9,8 @@ import {SectionController} from './controllers/SectionController.js';
 import {CourseService} from './services/CourseService.js';
 import {CourseVersionService} from './services/CourseVersionService.js';
 import {ItemService} from './services/ItemService.js';
+import {FeedbackExportService} from './services/FeedbackExportService.js';
+import {ContentLockService} from './services/ContentLockService.js';
 import {ModuleService} from './services/ModuleService.js';
 import {SectionService} from './services/SectionService.js';
 import {DeleteCronService} from './services/deleteCronService.js';
@@ -37,6 +39,14 @@ export const coursesContainerModule = new ContainerModule(options => {
     .to(SectionService)
     .inSingletonScope();
   options.bind(COURSES_TYPES.ItemService).to(ItemService).inSingletonScope();
+  options
+    .bind(COURSES_TYPES.FeedbackExportService)
+    .to(FeedbackExportService)
+    .inSingletonScope();
+  options
+    .bind(COURSES_TYPES.ContentLockService)
+    .to(ContentLockService)
+    .inSingletonScope();
   options
     .bind(COURSES_TYPES.CourseTransferService)
     .to(CourseTransferService)

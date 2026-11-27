@@ -1,11 +1,15 @@
 /**
  * Face-count detection via TensorFlow.js's MediaPipeFaceDetector model (runtime
- * 'tfjs', weights fetched from TF Hub on first use - not bundled with the app).
+ * 'tfjs'). The page downloads the model through the shared proctoring loader
+ * (pinned, saved on the device, with progress) and hands the files over in
+ * INIT, so this worker never fetches anything itself.
  */
 import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs';
 import * as faceDetection from '@tensorflow-models/face-detection';
+
+import { modelFromFiles, type FaceCountModelFiles } from './face-count-model';
 
 let detector: faceDetection.FaceDetector | null = null;
 // Without this, frames posted faster than inference completes queue up as
@@ -14,7 +18,7 @@ let detector: faceDetection.FaceDetector | null = null;
 // covered doesn't register as 0 faces until the backlog drains).
 let isProcessing = false;
 
-async function initializeModel() {
+async function initializeModel(files: FaceCountModelFiles) {
   try {
     await tf.ready();
     try {
@@ -28,6 +32,7 @@ async function initializeModel() {
       runtime: 'tfjs',
       maxFaces: 10,
       modelType: 'full',
+      detectorModelUrl: modelFromFiles(files),
     });
     self.postMessage({ type: 'MODEL_READY' });
   } catch (err) {
@@ -60,9 +65,9 @@ async function detectFaces(imageBitmap: ImageBitmap) {
   }
 }
 
-self.onmessage = async (event: MessageEvent<{ type: string; image?: ImageBitmap }>) => {
-  const { type, image } = event.data;
-  if (type === 'INIT') await initializeModel();
+self.onmessage = async (event: MessageEvent<{ type: string; image?: ImageBitmap; files?: FaceCountModelFiles }>) => {
+  const { type, image, files } = event.data;
+  if (type === 'INIT' && files) await initializeModel(files);
   if (type === 'DETECT_FACES' && image) {
     if (isProcessing) {
       // Drop this frame rather than queue it — the caller sends a fresh one shortly.
@@ -73,4 +78,3 @@ self.onmessage = async (event: MessageEvent<{ type: string; image?: ImageBitmap 
   }
 };
 
-export {};

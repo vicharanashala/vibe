@@ -8,9 +8,12 @@ import { api, fakeAuth, ok, respond, type STUDENT } from './session';
 
 import courses from './fixtures/studio/courses.json';
 import enrollments from './fixtures/studio/enrollments.json';
+import enrollmentStats from './fixtures/studio/enrollment-stats.json';
 import feedbackItem from './fixtures/studio/feedback-item.json';
 import feedbackSectionItems from './fixtures/studio/feedback-section-items.json';
 import feedbackSubmissions from './fixtures/studio/feedback-submissions.json';
+import feedbackSummary from './fixtures/studio/feedback-summary.json';
+import feedbackForms from './fixtures/studio/feedback-forms.json';
 import feedbackVersion from './fixtures/studio/feedback-version.json';
 import quizBank from './fixtures/studio/quiz-bank.json';
 import quizBankRefs from './fixtures/studio/quiz-bank-refs.json';
@@ -39,6 +42,8 @@ export const studio = {
   feedbackItem,
   feedbackSectionItems,
   feedbackSubmissions,
+  feedbackSummary,
+  feedbackForms,
   feedbackVersion,
   quizBank,
   quizBankRefs,
@@ -104,8 +109,40 @@ export const REGISTRATION = {
 export const RESULTS_QUIZ_ID = resultsItem.item._id;
 
 type Params = {
-  params?: { path?: Record<string, string>; query?: Record<string, string> };
+  params?: { path?: Record<string, string>; query?: Record<string, unknown> };
 };
+
+/** Pages, filters and searches the way the backend does. Newest first is left to the caller. */
+export function pageOfEnrollments<
+  T extends { role: unknown; user: { email: string; firstName: string; lastName?: string | null } },
+>(rows: T[], query: Record<string, unknown> = {}) {
+  const limit = Number(query.limit ?? 10);
+  const page = Number(query.page ?? 1);
+  const search = String(query.search ?? '').toLowerCase();
+  const matches = rows.filter(
+    (e) =>
+      (!query.filter || (query.filter === 'STUDENT') === (e.role === 'STUDENT')) &&
+      (!search || `${e.user.firstName} ${e.user.lastName ?? ''} ${e.user.email}`.toLowerCase().includes(search)),
+  );
+  // Like the backend: sort the whole match before paging. With no sortBy the
+  // rows stay in the order given, which stands for the backend's default.
+  if (query.sortBy) {
+    const key = (e: T): string | number => {
+      const row = e as T & { progress?: number; enrollmentDate?: string };
+      if (query.sortBy === 'name') return `${e.user.firstName} ${e.user.lastName ?? ''}`;
+      if (query.sortBy === 'progress') return row.progress ?? 0;
+      return row.enrollmentDate ?? '';
+    };
+    const dir = query.sortOrder === 'asc' ? 1 : -1;
+    matches.sort((a, b) => (key(a) < key(b) ? -dir : key(a) > key(b) ? dir : 0));
+  }
+  return {
+    enrollments: matches.slice((page - 1) * limit, page * limit),
+    totalDocuments: matches.length,
+    totalPages: Math.ceil(matches.length / limit),
+    currentPage: page,
+  };
+}
 
 export function studioGet(path: string, opts?: Params) {
   const p = opts?.params?.path ?? {};
@@ -117,7 +154,9 @@ export function studioGet(path: string, opts?: Params) {
     case '/api/users/':
       return ok(users);
     case '/api/users/enrollments/courses/{courseId}/versions/{versionId}':
-      return ok(enrollments);
+      return ok(pageOfEnrollments(enrollments.enrollments, opts?.params?.query));
+    case '/api/users/enrollments/courses/{courseId}/versions/{versionId}/statistics':
+      return ok(enrollmentStats);
     case '/api/courses/{courseId}': {
       const c = courses.courses.find((x) => hex(x._id) === p.courseId);
       return ok(
@@ -226,6 +265,10 @@ export function studioGet(path: string, opts?: Params) {
     }
     case '/api/courses/{courseId}/item/{feedbackId}/feedback/submissions':
       return ok(feedbackSubmissions);
+    case '/api/courses/{courseId}/item/{feedbackId}/feedback/summary':
+      return ok(feedbackSummary);
+    case '/api/courses/{courseId}/versions/{versionId}/feedback/forms':
+      return ok(feedbackForms);
     default:
       return respond(path);
   }
@@ -236,6 +279,10 @@ export const ADMIN: typeof STUDENT = {
   email: 'instructor@vibe.local',
   displayName: 'Ira Instructor',
   providerData: [{ providerId: 'password' }],
+  metadata: {
+    creationTime: 'Mon, 05 Oct 2026 10:00:00 GMT',
+    lastSignInTime: 'Mon, 05 Oct 2026 10:00:04 GMT',
+  },
   getIdToken: async () => 'test-token',
   reload: async () => undefined,
 };
@@ -257,6 +304,10 @@ export const TEACHER: typeof STUDENT = {
   email: 'teacher@vibe.local',
   displayName: 'Tara Teacher',
   providerData: [{ providerId: 'password' }],
+  metadata: {
+    creationTime: 'Mon, 05 Oct 2026 10:00:00 GMT',
+    lastSignInTime: 'Mon, 05 Oct 2026 10:00:04 GMT',
+  },
   getIdToken: async () => 'test-token',
   reload: async () => undefined,
 };

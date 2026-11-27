@@ -455,3 +455,19 @@
   .tiptap img.ProseMirror-selectednode { @apply ring-2 ring-ring ring-offset-2 ring-offset-background; }
   .tiptap a { @apply cursor-text; }
 }
+
+/*
+ * Micro-interactions are subtle, but some students ask their OS for less
+ * motion: honour it everywhere (CSS transitions/animations; motion/react
+ * follows via MotionConfig reducedMotion="user" in app.tsx).
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

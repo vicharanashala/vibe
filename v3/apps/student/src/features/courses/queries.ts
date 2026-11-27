@@ -41,6 +41,10 @@ export interface CourseSection {
   order: string;
   isHidden?: boolean;
   isDeleted?: boolean;
+  /** Own study-mode setting; absent/null inherits from the module. */
+  studyModeEnabled?: boolean | null;
+  /** Own lock setting; absent/null inherits from the module. */
+  isLocked?: boolean | null;
 }
 
 export interface CourseModule {
@@ -50,6 +54,10 @@ export interface CourseModule {
   order: string;
   isHidden?: boolean;
   isDeleted?: boolean;
+  /** Own study-mode setting; absent/null means study mode is allowed unless a section or item says otherwise. */
+  studyModeEnabled?: boolean | null;
+  /** Own lock setting; absent/null means open unless a section or lesson says otherwise. */
+  isLocked?: boolean | null;
   sections: CourseSection[];
 }
 
@@ -62,6 +70,8 @@ export interface CourseVersion {
   modules: CourseModule[];
   totalItems?: number;
   itemCounts?: Partial<Record<'VIDEO' | 'QUIZ' | 'BLOG' | 'PROJECT' | 'FEEDBACK', number>>;
+  /** Present when the version has cohorts. */
+  cohortDetails?: { id: string; name: string }[];
 }
 
 export interface SectionItem {
@@ -72,6 +82,10 @@ export interface SectionItem {
   isHidden?: boolean | null;
   isCompleted?: boolean;
   isOptional?: boolean;
+  /** Own study-mode setting; absent/null inherits from the section. */
+  studyModeEnabled?: boolean | null;
+  /** Own lock setting; absent/null inherits from the section. */
+  isLocked?: boolean | null;
 }
 
 export interface ProgressPercentage {
@@ -104,7 +118,8 @@ export const courseKeys = {
   currentPath: (courseId: string, versionId: string) => ['progress', 'current-path', courseId, versionId] as const,
   moduleProgress: (courseId: string, versionId: string) => ['progress', 'modules', courseId, versionId] as const,
   ethicsConsent: (courseId: string, versionId: string) => ['ethics-consent', courseId, versionId] as const,
-  faceReference: (courseId: string, versionId: string) => ['face-reference', courseId, versionId] as const,
+  faceReference: (courseId: string, versionId: string, itemId?: string) =>
+    ['face-reference', courseId, versionId, itemId] as const,
 };
 
 export function useEnrollments(tab: 'active' | 'archived' = 'active', search = '') {
@@ -217,13 +232,17 @@ export interface FaceReference {
   faceEmbedding: number[] | null;
 }
 
-/** The embedding only comes back if `courseId`/`versionId` has faceRecognition enabled. */
-export function useFaceReference(courseId: string, versionId: string) {
+/**
+ * The embedding only comes back if faceRecognition resolves enabled for
+ * `courseId`/`versionId` -- through `itemId`'s own override when supplied,
+ * else the course-wide setting (resolveProctoringDetectors' precedence).
+ */
+export function useFaceReference(courseId: string, versionId: string, itemId?: string) {
   return useQuery({
-    queryKey: courseKeys.faceReference(courseId, versionId),
+    queryKey: courseKeys.faceReference(courseId, versionId, itemId),
     queryFn: async () =>
       unwrap(
-        await api.GET('/api/users/me/face-reference', { params: { query: { courseId, versionId } } }),
+        await api.GET('/api/users/me/face-reference', { params: { query: { courseId, versionId, itemId } } }),
       ) as unknown as FaceReference,
   });
 }

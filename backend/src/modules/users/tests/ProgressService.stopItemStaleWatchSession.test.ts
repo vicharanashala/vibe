@@ -29,6 +29,7 @@ function makeService({
   completedMeanwhile: boolean;
 }) {
   const service: any = Object.create(ProgressService.prototype);
+  service.contentLockService = {assertOpenForUser: async () => {}};
 
   service._withTransaction = async (fn: any) => fn({} as any);
   service.courseRepo = {

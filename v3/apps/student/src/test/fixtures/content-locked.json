@@ -1,0 +1,7 @@
+{
+  "name": "CONTENT_LOCKED",
+  "message": "The instructor has locked this module.",
+  "details": {
+    "source": "module"
+  }
+}

@@ -455,6 +455,119 @@ describe('Course transfer (export / import)', () => {
       expect(settings.settings.followUpInvite.enabled).toBe(false);
     });
 
+    it('keeps module, section and item study-mode settings through export, import and copy', async () => {
+      const source = await seedCourse(faker.commerce.productName());
+
+      // Module one disallows study mode, its section allows it, and its quiz
+      // disallows it again; module two stays unset (inherit).
+      const sourceVersion = await courseRepo.readVersion(source.versionId);
+      sourceVersion.modules[0].studyModeEnabled = false;
+      sourceVersion.modules[0].sections[0].studyModeEnabled = true;
+      await courseRepo.updateVersion(source.versionId, sourceVersion as any);
+      const groupId =
+        sourceVersion.modules[0].sections[0].itemsGroupId.toString();
+      const group = await itemRepo.readItemsGroup(groupId);
+      group.items[1].studyModeEnabled = false;
+      await itemRepo.updateItemsGroup(groupId, group);
+
+      const bundle = await transferService.exportCourseVersion(
+        source.courseId,
+        source.versionId,
+      );
+      expect(bundle.modules[0].studyModeEnabled).toBe(false);
+      expect(bundle.modules[0].sections[0].studyModeEnabled).toBe(true);
+      expect(
+        bundle.modules[0].sections[0].items[0].studyModeEnabled,
+      ).toBeUndefined();
+      expect(bundle.modules[0].sections[0].items[1].studyModeEnabled).toBe(
+        false,
+      );
+      expect(bundle.modules[1].studyModeEnabled).toBeUndefined();
+
+      const expectSettings = async (modules: any[]) => {
+        expect(modules[0].studyModeEnabled).toBe(false);
+        expect(modules[0].sections[0].studyModeEnabled).toBe(true);
+        expect(modules[1].studyModeEnabled ?? null).toBeNull();
+        expect(modules[1].sections[0].studyModeEnabled ?? null).toBeNull();
+        const items = (
+          await itemRepo.readItemsGroup(
+            modules[0].sections[0].itemsGroupId.toString(),
+          )
+        ).items;
+        expect(items[0].studyModeEnabled ?? null).toBeNull();
+        expect(items[1].studyModeEnabled).toBe(false);
+      };
+
+      const created = await transferService.importCourse(bundle, importerId);
+      await expectSettings(
+        (await courseRepo.readVersion(created.versionId)).modules,
+      );
+
+      const cloned = await cloneModules(
+        (await courseRepo.readVersion(source.versionId)).modules as any,
+        new ObjectId().toString(),
+        itemRepo,
+        questionBankRepo,
+        questionRepo,
+        source.courseId,
+      );
+      await expectSettings(cloned);
+    });
+
+    it('keeps module, section and item lock settings through export, import and copy', async () => {
+      const source = await seedCourse(faker.commerce.productName());
+
+      // Module one is locked, its section stays open, and its quiz is locked
+      // again; module two stays unset (inherit).
+      const sourceVersion = await courseRepo.readVersion(source.versionId);
+      sourceVersion.modules[0].isLocked = true;
+      sourceVersion.modules[0].sections[0].isLocked = false;
+      await courseRepo.updateVersion(source.versionId, sourceVersion as any);
+      const groupId =
+        sourceVersion.modules[0].sections[0].itemsGroupId.toString();
+      const group = await itemRepo.readItemsGroup(groupId);
+      group.items[1].isLocked = true;
+      await itemRepo.updateItemsGroup(groupId, group);
+
+      const bundle = await transferService.exportCourseVersion(
+        source.courseId,
+        source.versionId,
+      );
+      expect(bundle.modules[0].isLocked).toBe(true);
+      expect(bundle.modules[0].sections[0].isLocked).toBe(false);
+      expect(bundle.modules[0].sections[0].items[0].isLocked).toBeUndefined();
+      expect(bundle.modules[0].sections[0].items[1].isLocked).toBe(true);
+      expect(bundle.modules[1].isLocked).toBeUndefined();
+
+      const expectSettings = async (modules: any[]) => {
+        expect(modules[0].isLocked).toBe(true);
+        expect(modules[0].sections[0].isLocked).toBe(false);
+        expect(modules[1].isLocked ?? null).toBeNull();
+        const items = (
+          await itemRepo.readItemsGroup(
+            modules[0].sections[0].itemsGroupId.toString(),
+          )
+        ).items;
+        expect(items[0].isLocked ?? null).toBeNull();
+        expect(items[1].isLocked).toBe(true);
+      };
+
+      const created = await transferService.importCourse(bundle, importerId);
+      await expectSettings(
+        (await courseRepo.readVersion(created.versionId)).modules,
+      );
+
+      const cloned = await cloneModules(
+        (await courseRepo.readVersion(source.versionId)).modules as any,
+        new ObjectId().toString(),
+        itemRepo,
+        questionBankRepo,
+        questionRepo,
+        source.courseId,
+      );
+      await expectSettings(cloned);
+    });
+
     it('creates two independent courses when the same bundle is imported twice', async () => {
       const source = await seedCourse(faker.commerce.productName());
       const bundle = await transferService.exportCourseVersion(

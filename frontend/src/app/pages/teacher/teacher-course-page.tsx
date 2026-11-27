@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, use } from "react";
 import * as Papa from 'papaparse';
-import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useUpdateItemProctoring, useUpdateModuleProctoring, useVideoUserAnalytics } from '@/hooks/hooks';
+import { useAddQuestionBankToQuiz, useAddQuestionToBank, useCreateQuestion, useCreateQuestionBank, useOverallVideoAnalytics, userParseCSVtoItems, useUpdateItemOptional, useUpdateItemProctoring, useUpdateModuleProctoring, useUpdateModuleStudyMode, useUpdateSectionStudyMode, useUpdateItemStudyMode, useVideoUserAnalytics } from '@/hooks/hooks';
+import { StudyModePanel } from '@/components/StudyModePanel';
+import { studyModeState } from '@/utils/studyMode';
+import { ContentLockPanel } from '@/components/ContentLockPanel';
+import { contentLockState } from '@/utils/contentLock';
+import { useUpdateItemLock, useUpdateModuleLock, useUpdateSectionLock } from '@/hooks/hooks';
 import { BarChart3, Download, LogOut, Upload, UserRoundCheck, Video, Clock, PlayCircle, Users, Search, LockOpen, Lock } from 'lucide-react';
 import { useHideItem, exportCourseQuestionBank } from '@/hooks/hooks';
 import { DetectorChecklist, allDetectorsOff, type DetectorSetting } from '@/components/proctoring-detectors';
@@ -539,6 +544,12 @@ function TeacherCourseContent() {
   const updateItemOptional = useUpdateItemOptional();
   const updateItemProctoring = useUpdateItemProctoring();
   const updateModuleProctoring = useUpdateModuleProctoring();
+  const updateModuleStudyMode = useUpdateModuleStudyMode();
+  const updateSectionStudyMode = useUpdateSectionStudyMode();
+  const updateItemStudyMode = useUpdateItemStudyMode();
+  const updateModuleLock = useUpdateModuleLock();
+  const updateSectionLock = useUpdateSectionLock();
+  const updateItemLock = useUpdateItemLock();
 
   // Refetch after any success
   useEffect(() => {
@@ -3070,6 +3081,85 @@ function TeacherCourseContent() {
                                 )}
                               </div>
                             );
+                          })()}
+                          {/* Study mode: read from the live version tree / section item list,
+                              not the selection snapshot, so a save shows up straight away. */}
+                          {(() => {
+                            if (!versionId) return null;
+                            const findModule = (id?: string) => modules.find((m: any) => m.moduleId === id);
+                            if (selectedEntity.type === "module") {
+                              const moduleId = selectedEntity.data?.moduleId;
+                              const mod = findModule(moduleId) ?? selectedEntity.data;
+                              return (
+                                <>
+                                <StudyModePanel
+                                  level="module"
+                                  state={studyModeState(mod, [])}
+                                  isPending={updateModuleStudyMode.isPending}
+                                  save={studyModeEnabled => updateModuleStudyMode.mutateAsync({ versionId, moduleId, studyModeEnabled })}
+                                />
+                                <ContentLockPanel
+                                  level="module"
+                                  state={contentLockState(mod, [])}
+                                  isPending={updateModuleLock.isPending}
+                                  save={isLocked => updateModuleLock.mutateAsync({ versionId, moduleId, isLocked })}
+                                />
+                                </>
+                              );
+                            }
+                            if (selectedEntity.type === "section") {
+                              const sectionId = selectedEntity.data?.sectionId;
+                              const mod =
+                                findModule(selectedEntity.parentIds?.moduleId) ??
+                                modules.find((m: any) => (m.sections || []).some((sec: any) => sec.sectionId === sectionId));
+                              if (!mod) return null;
+                              const sec = (mod.sections || []).find((x: any) => x.sectionId === sectionId) ?? selectedEntity.data;
+                              return (
+                                <>
+                                <StudyModePanel
+                                  level="section"
+                                  state={studyModeState(sec, [mod])}
+                                  isPending={updateSectionStudyMode.isPending}
+                                  save={studyModeEnabled =>
+                                    updateSectionStudyMode.mutateAsync({ versionId, moduleId: mod.moduleId, sectionId, studyModeEnabled })
+                                  }
+                                />
+                                <ContentLockPanel
+                                  level="section"
+                                  state={contentLockState(sec, [mod])}
+                                  isPending={updateSectionLock.isPending}
+                                  save={isLocked =>
+                                    updateSectionLock.mutateAsync({ versionId, moduleId: mod.moduleId, sectionId, isLocked })
+                                  }
+                                />
+                                </>
+                              );
+                            }
+                            if (selectedEntity.type === "item" && activeSectionInfo) {
+                              const itemId = selectedEntity.data?._id;
+                              const mod = findModule(activeSectionInfo.moduleId);
+                              const sec = (mod?.sections || []).find((x: any) => x.sectionId === activeSectionInfo.sectionId);
+                              const refs: any[] = (currentSectionItems as any)?.items || (Array.isArray(currentSectionItems) ? currentSectionItems : []);
+                              const ref = refs.find(r => (r._id?.toString?.() ?? r._id) === itemId);
+                              if (!itemId) return null;
+                              return (
+                                <>
+                                <StudyModePanel
+                                  level="lesson"
+                                  state={studyModeState(ref, [sec, mod])}
+                                  isPending={updateItemStudyMode.isPending}
+                                  save={studyModeEnabled => updateItemStudyMode.mutateAsync({ versionId, itemId, studyModeEnabled })}
+                                />
+                                <ContentLockPanel
+                                  level="lesson"
+                                  state={contentLockState(ref, [sec, mod])}
+                                  isPending={updateItemLock.isPending}
+                                  save={isLocked => updateItemLock.mutateAsync({ versionId, itemId, isLocked })}
+                                />
+                                </>
+                              );
+                            }
+                            return null;
                           })()}
                           {selectedEntity.type === "module" && (() => {
                             const moduleId = selectedEntity.data?.moduleId;

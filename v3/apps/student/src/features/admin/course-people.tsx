@@ -1,6 +1,23 @@
-import { MailPlusIcon, SearchIcon, UsersIcon, XIcon } from 'lucide-react';
-import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import {
+  ArrowDownIcon,
+  ArrowUpDownIcon,
+  ArrowUpIcon,
+  ChevronsUpDownIcon,
+  InfoIcon,
+  MailPlusIcon,
+  SearchIcon,
+  UsersIcon,
+  XIcon,
+} from 'lucide-react';
+import {
+  useEffect,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { toast } from 'sonner';
+import { useDebounceValue } from 'usehooks-ts';
 
 import { GeneratedAvatar } from '@/components/generated-art';
 import { Button } from '@/components/ui/button';
@@ -12,6 +29,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Empty,
   EmptyContent,
@@ -28,6 +54,13 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group';
 import { Progress } from '@/components/ui/progress';
+import { enterClass, stagger } from '@/lib/motion';
+import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import {
@@ -40,7 +73,18 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { useCourseEnrollments, useInviteUser } from './queries';
+import {
+  DEFAULT_PEOPLE_SORT,
+  nextSort,
+  SORT_OPTIONS,
+  sortKey,
+  type PeopleSort,
+} from './people-sort';
+import {
+  useCourseEnrollmentsPage,
+  useInviteUser,
+  type PeopleSortBy,
+} from './queries';
 import { ErrorText, formatDate, RoleBadge } from './studio-ui';
 
 type RoleFilter = 'all' | 'STUDENT' | 'INSTRUCTOR';
@@ -51,31 +95,51 @@ export function CoursePeople({
   versionId,
   inviteOpen,
   onInviteOpenChange,
+  sort = DEFAULT_PEOPLE_SORT,
+  onSortChange,
 }: {
   courseId: string;
   versionId: string;
   inviteOpen: boolean;
   onInviteOpenChange: (open: boolean) => void;
+  /** Whole-course order, done by the backend (it lives in the URL). */
+  sort?: PeopleSort;
+  onSortChange: (sort: PeopleSort) => void;
 }) {
-  const enrollments = useCourseEnrollments(courseId, versionId);
   const [query, setQuery] = useState('');
   const [role, setRole] = useState<RoleFilter>('all');
+  const [page, setPage] = useState(1);
+  const [search] = useDebounceValue(query.trim(), 300);
+  useEffect(() => setPage(1), [search, role, sort.by, sort.order]);
 
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return (enrollments.data ?? []).filter(
-      (e) =>
-        (role === 'all' || e.role === role) &&
-        (!q ||
-          e.user.email.toLowerCase().includes(q) ||
-          `${e.user.firstName} ${e.user.lastName ?? ''}`
-            .toLowerCase()
-            .includes(q)),
-    );
-  }, [enrollments.data, query, role]);
-
-  const count = (r: RoleFilter) =>
-    (enrollments.data ?? []).filter((e) => r === 'all' || e.role === r).length;
+  const enrollments = useCourseEnrollmentsPage(courseId, versionId, {
+    page,
+    search,
+    filter:
+      role === 'all' ? undefined : role === 'STUDENT' ? 'STUDENT' : 'OTHER',
+    sortBy: sort.by,
+    sortOrder: sort.order,
+  });
+  const sortBy = (by: PeopleSortBy) => onSortChange(nextSort(sort, by));
+  // Whole-course counts for the tabs. A limit of 1, since only the totals matter.
+  const students = useCourseEnrollmentsPage(courseId, versionId, {
+    limit: 1,
+    filter: 'STUDENT',
+  });
+  const staff = useCourseEnrollmentsPage(courseId, versionId, {
+    limit: 1,
+    filter: 'OTHER',
+  });
+  const counts =
+    students.data && staff.data
+      ? {
+          all: students.data.total + staff.data.total,
+          STUDENT: students.data.total,
+          INSTRUCTOR: staff.data.total,
+        }
+      : null;
+  const shown = enrollments.data?.enrollments ?? [];
+  const totalPages = enrollments.data?.totalPages ?? 1;
 
   return (
     <div>
@@ -84,25 +148,25 @@ export function CoursePeople({
           <TabsList>
             <TabsTrigger value="all">
               All{' '}
-              {enrollments.data && (
+              {counts && (
                 <span className="text-muted-foreground tabular-nums">
-                  {count('all')}
+                  {counts.all.toLocaleString()}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger value="STUDENT">
               Students{' '}
-              {enrollments.data && (
+              {counts && (
                 <span className="text-muted-foreground tabular-nums">
-                  {count('STUDENT')}
+                  {counts.STUDENT.toLocaleString()}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger value="INSTRUCTOR">
               Instructors{' '}
-              {enrollments.data && (
+              {counts && (
                 <span className="text-muted-foreground tabular-nums">
-                  {count('INSTRUCTOR')}
+                  {counts.INSTRUCTOR.toLocaleString()}
                 </span>
               )}
             </TabsTrigger>
@@ -120,6 +184,43 @@ export function CoursePeople({
               onChange={(e) => setQuery(e.target.value)}
             />
           </InputGroup>
+          {/* The Progress and Joined headers are hidden on small screens, so sorting moves here. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="md:hidden"
+                  aria-label="Sort people"
+                />
+              }
+            >
+              <ArrowUpDownIcon aria-hidden />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={sortKey(sort)}
+                  onValueChange={(v) => {
+                    const next = SORT_OPTIONS.find((o) => sortKey(o) === v);
+                    if (next) onSortChange({ by: next.by, order: next.order });
+                  }}
+                >
+                  {SORT_OPTIONS.map((o) => (
+                    <DropdownMenuRadioItem
+                      key={sortKey(o)}
+                      value={sortKey(o)}
+                      closeOnClick
+                    >
+                      {o.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button onClick={() => onInviteOpenChange(true)}>
             <MailPlusIcon aria-hidden /> Invite
           </Button>
@@ -129,7 +230,7 @@ export function CoursePeople({
       <div className="mt-4">
         {enrollments.isPending && <Skeleton className="h-48 rounded-2xl" />}
         {enrollments.isError && <ErrorText error={enrollments.error} />}
-        {enrollments.data && enrollments.data.length === 0 && (
+        {counts?.all === 0 && (
           <Empty className="rounded-2xl border border-dashed border-border bg-card">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -148,25 +249,60 @@ export function CoursePeople({
             </EmptyContent>
           </Empty>
         )}
-        {enrollments.data && enrollments.data.length > 0 && (
+        {enrollments.data && counts?.all !== 0 && (
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="pl-4">Person</TableHead>
+                  <SortHead
+                    by="name"
+                    sort={sort}
+                    onSort={sortBy}
+                    className="pl-4"
+                  >
+                    Person
+                  </SortHead>
                   <TableHead>Role</TableHead>
-                  <TableHead className="hidden md:table-cell">
+                  <SortHead
+                    by="progress"
+                    sort={sort}
+                    onSort={sortBy}
+                    className="hidden md:table-cell"
+                    hint={
+                      <Hint
+                        label="Progress"
+                        text="Lessons completed in strict mode. This is the course progress used for completion and certificates."
+                      />
+                    }
+                  >
+                    <span
+                      className="size-2 rounded-full bg-emerald-500"
+                      aria-hidden
+                    />
                     Progress
+                  </SortHead>
+                  <TableHead className="hidden md:table-cell">
+                    <HeadWithHint
+                      label="Study"
+                      dot="bg-sky-500"
+                      hint="Videos and articles the student studied in study mode or completed in strict mode. Doesn’t count towards completion."
+                    />
                   </TableHead>
-                  <TableHead className="hidden sm:table-cell">Status</TableHead>
-                  <TableHead className="hidden pr-4 text-right sm:table-cell">
+                  <TableHead className="hidden xl:table-cell">Status</TableHead>
+                  <SortHead
+                    by="enrollmentDate"
+                    sort={sort}
+                    onSort={sortBy}
+                    className="hidden pr-4 text-right sm:table-cell"
+                    alignEnd
+                  >
                     Joined
-                  </TableHead>
+                  </SortHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {shown.map((e) => (
-                  <TableRow key={`${e.user._id}:${e.role}`}>
+                {shown.map((e, i) => (
+                  <TableRow key={`${e.user._id}:${e.role}`} className={enterClass} style={stagger(i)}>
                     <TableCell className="pl-4">
                       <div className="flex items-center gap-3">
                         <GeneratedAvatar seed={e.user._id} size={30} />
@@ -185,10 +321,10 @@ export function CoursePeople({
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       {e.role === 'STUDENT' ? (
-                        <div className="flex w-36 items-center gap-2">
+                        <div className="flex w-28 items-center gap-2">
                           <Progress
                             value={e.progress ?? 0}
-                            className="h-1.5 flex-1"
+                            className="h-1.5 flex-1 [&_[data-slot=progress-indicator]]:bg-emerald-500"
                             aria-label={`${e.user.firstName}'s progress`}
                           />
                           <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">
@@ -199,7 +335,26 @@ export function CoursePeople({
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="hidden text-muted-foreground capitalize sm:table-cell">
+                    <TableCell className="hidden md:table-cell">
+                      {e.role === 'STUDENT' && e.studyProgress ? (
+                        <div
+                          className="flex w-28 items-center gap-2"
+                          title={`${e.studyProgress.studiedItems} of ${e.studyProgress.totalItems} videos & articles`}
+                        >
+                          <Progress
+                            value={e.studyProgress.percentStudied}
+                            className="h-1.5 flex-1 [&_[data-slot=progress-indicator]]:bg-sky-500"
+                            aria-label={`${e.user.firstName}'s study progress`}
+                          />
+                          <span className="w-9 text-right text-xs text-sky-700 tabular-nums dark:text-sky-300">
+                            {e.studyProgress.percentStudied}%
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden text-muted-foreground capitalize xl:table-cell">
                       {e.status.toLowerCase()}
                     </TableCell>
                     <TableCell className="hidden pr-4 text-right whitespace-nowrap text-muted-foreground sm:table-cell">
@@ -210,7 +365,7 @@ export function CoursePeople({
                 {shown.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       className="py-8 text-center text-muted-foreground"
                     >
                       No one matches.
@@ -219,6 +374,29 @@ export function CoursePeople({
                 )}
               </TableBody>
             </Table>
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div className="mt-3 flex items-center justify-end gap-2">
+            <span className="mr-auto text-sm text-muted-foreground tabular-nums">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
           </div>
         )}
       </div>
@@ -402,5 +580,114 @@ export function InviteDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * A column header that sorts the whole course (through the backend) when
+ * clicked. Arrows show the current direction; the others show a faint
+ * up-down mark so it's clear they can be sorted.
+ */
+function SortHead({
+  by,
+  sort,
+  onSort,
+  className,
+  alignEnd,
+  hint,
+  children,
+}: {
+  by: PeopleSortBy;
+  sort: PeopleSort;
+  onSort: (by: PeopleSortBy) => void;
+  className?: string;
+  alignEnd?: boolean;
+  hint?: ReactNode;
+  children: ReactNode;
+}) {
+  const active = sort.by === by;
+  const Icon = !active
+    ? ChevronsUpDownIcon
+    : sort.order === 'asc'
+      ? ArrowUpIcon
+      : ArrowDownIcon;
+  return (
+    <TableHead
+      className={className}
+      aria-sort={
+        active ? (sort.order === 'asc' ? 'ascending' : 'descending') : 'none'
+      }
+    >
+      <span
+        className={cn(
+          'inline-flex items-center gap-0.5',
+          alignEnd && 'justify-end',
+        )}
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            'h-7 gap-1.5 px-2 font-medium',
+            alignEnd ? '-mr-2' : '-ml-2',
+            active ? 'text-foreground' : 'text-muted-foreground',
+          )}
+          onClick={() => onSort(by)}
+        >
+          {children}
+          <Icon
+            className={cn('size-3.5', !active && 'opacity-50')}
+            aria-hidden
+          />
+        </Button>
+        {hint}
+      </span>
+    </TableHead>
+  );
+}
+
+/** An info mark that explains a column in a tooltip. */
+function Hint({ label, text }: { label: string; text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-label={`About ${label}`}
+            className="grid size-6 place-items-center rounded text-muted-foreground/70 hover:text-foreground"
+          />
+        }
+      >
+        <InfoIcon className="size-3.5" aria-hidden />
+      </TooltipTrigger>
+      <TooltipContent className="max-w-64">{text}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** A table header with a colour dot (matching its bar) and an explanation in a tooltip. */
+function HeadWithHint({
+  label,
+  dot,
+  hint,
+}: {
+  label: string;
+  dot: string;
+  hint: string;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span className="inline-flex cursor-default items-center gap-1.5" />
+        }
+      >
+        <span className={cn('size-2 rounded-full', dot)} aria-hidden />
+        {label}
+        <InfoIcon className="size-3.5 text-muted-foreground/70" aria-hidden />
+      </TooltipTrigger>
+      <TooltipContent className="max-w-64">{hint}</TooltipContent>
+    </Tooltip>
   );
 }
