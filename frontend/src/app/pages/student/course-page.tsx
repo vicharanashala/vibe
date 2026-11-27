@@ -747,10 +747,35 @@ export default function CoursePage() {
       );
 
       if (hasProgressChanged) {
-        console.log('Progress reset detected, clearing cached section items');
+        // Despite the name, hasProgressChanged fires on an ORDINARY forward
+        // step too (finishing an item, exhausting a single-attempt quiz --
+        // see 0e6ea82e4/3a366fc70 -- advances currentItem the same way).
+        // Wiping sectionItems unconditionally on every such step threw away
+        // every other section the drawer had already loaded, including the
+        // one the student was just looking at -- it would sit there showing
+        // "No items found" until manually re-expanded. Only actually clear
+        // the cache for a real reset (position moved backward), which is
+        // the only case where previously-cached isCompleted flags can be
+        // wrong; a forward step's cache is still perfectly valid, and the
+        // new current section gets fetched below regardless either way.
+        const modules = (courseVersionData as any)?.modules || [];
+        const moduleSectionIndex = (moduleId: string, sectionId: string) => {
+          const mIdx = modules.findIndex((m: any) => m.moduleId === moduleId);
+          if (mIdx === -1) return null;
+          const sIdx = (modules[mIdx].sections || []).findIndex((s: any) => s.sectionId === sectionId);
+          if (sIdx === -1) return null;
+          return [mIdx, sIdx];
+        };
+        const lastPos = moduleSectionIndex(lastModule, lastSection);
+        const currentPos = moduleSectionIndex(currentModule, currentSection);
+        const isBackwardReset =
+          lastPos !== null && currentPos !== null &&
+          (currentPos[0] < lastPos[0] || (currentPos[0] === lastPos[0] && currentPos[1] < lastPos[1]));
 
-        // Clear all cached section items to force fresh load
-        setSectionItems({});
+        if (isBackwardReset) {
+          console.log('Progress reset detected, clearing cached section items');
+          setSectionItems({});
+        }
 
         // Clear waiting states
         setWaitingForNextSection(null);
@@ -777,7 +802,7 @@ export default function CoursePage() {
 
     // Update last known progress data
     setLastProgressData(progressData);
-  }, [progressData, lastProgressData, updateCourseNavigation]);
+  }, [progressData, lastProgressData, updateCourseNavigation, courseVersionData]);
 
   // Effect to initialize based on user progress ONLY ON INITIAL LOAD
   useEffect(() => {
