@@ -1407,14 +1407,24 @@ export default function CoursePage() {
           }
         }
 
-        setSectionItems(prev => ({
-          ...prev,
-          [selectedSectionId!]: prev[selectedSectionId!].map(item =>
-            item._id === selectedItemId
-              ? { ...item, isCompleted: true }
-              : item
-          )
-        }));
+        // The "progress reset" effect (see sectionItems/progressData effect
+        // above) can wipe sectionItems to {} and repoint selectedSectionId
+        // between this item finishing and this callback running -- e.g. a
+        // backend-side progress advance (an exhausted quiz attempt) landing
+        // mid-flow. Without this guard, prev[selectedSectionId!] is undefined
+        // and .map throws, crashing the whole page.
+        setSectionItems(prev => {
+          const items = prev[selectedSectionId!];
+          if (!items) return prev;
+          return {
+            ...prev,
+            [selectedSectionId!]: items.map(item =>
+              item._id === selectedItemId
+                ? { ...item, isCompleted: true }
+                : item
+            )
+          };
+        });
 
         // 2️⃣ Determine next item
         const nextItem = findNextItem();
