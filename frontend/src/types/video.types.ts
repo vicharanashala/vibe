@@ -69,6 +69,15 @@ export interface YTPlayerInstance {
   getDuration: () => number;
   getVolume: () => number;
   setVolume: (volume: number) => void;
+  /**
+   * Muted autoplay is allowed by every browser's autoplay policy; unmuted
+   * autoplay triggered from a timer (not a direct click) is not. These let a
+   * caller start playback muted and then restore audio once playback has
+   * actually begun, without re-triggering the policy check.
+   */
+  mute?: () => void;
+  unMute?: () => void;
+  isMuted?: () => boolean;
   setPlaybackRate: (rate: number) => void;
   getAvailablePlaybackRates?: () => number[];
   /**

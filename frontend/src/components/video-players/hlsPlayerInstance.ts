@@ -93,6 +93,9 @@ export function createHlsPlayerInstance(options: {
         setVolume: (value: number) => {
             video.volume = Math.min(Math.max(value, 0), 100) / 100;
         },
+        mute: () => { video.muted = true; },
+        unMute: () => { video.muted = false; },
+        isMuted: () => video.muted,
         getPlaybackRate: () => video.playbackRate,
         setPlaybackRate: (rate: number) => {
             video.playbackRate = rate;
