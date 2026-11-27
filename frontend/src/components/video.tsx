@@ -73,6 +73,13 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
   const lastSeekErrorToastRef = useRef<number>(0);
   const [playerReady, setPlayerReady] = useState(false);
   const [playing, setPlaying] = useState(false);
+  /**
+   * True from mount until autoplay actually fires (or the learner manually
+   * presses play first). Drives a "starting..." overlay over the otherwise
+   * static paused frame during the brief settle delay before autoplay --
+   * without it that gap looked identical to a stuck/broken player.
+   */
+  const [autoplayPending, setAutoplayPending] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   // const [volume, setVolume] = useState(100);
@@ -423,6 +430,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
   useEffect(() => {
     hasAutoPlayedRef.current = false; // Reset autoplay flag for new video
     autoplayMutedRef.current = false; // New video starts unmuted until autoplay (if any) mutes it
+    setAutoplayPending(true);
     maxTimeRef.current = startTimeSeconds; // Reset maxTime ref
     stopFailCountRef.current = 0; // Reset stop-failure retry counter
 
@@ -799,6 +807,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
           playerRef.current.playVideo();
           setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
           hasAutoPlayedRef.current = true;
+          setAutoplayPending(false);
         }
       }, 1000); // 1 second final delay
 
@@ -1048,6 +1057,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
     }) {
       if (event.data === PLAYER_STATE.PLAYING) {
         setPlaying(true);
+        setAutoplayPending(false);
         if (autoplayMutedRef.current) {
           autoplayMutedRef.current = false;
           event.target.unMute?.();
@@ -1520,6 +1530,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
   // allow autoplay again
   hasAutoPlayedRef.current = false;
   autoplayMutedRef.current = false;
+  setAutoplayPending(true);
 
   // reset max seek tracking
   maxTimeRef.current = startTimeSeconds;
@@ -1791,8 +1802,28 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
                 />
               )}
 
-
-
+              {/* The player sits paused for ~1s before autoplay fires (settle
+                  delay). Without this it's a static frame that reads as stuck. */}
+              {autoplayPending && !playing && (
+                <div
+                  aria-hidden
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    zIndex: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(0, 0, 0, 0.35)',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <Loader2
+                    className="animate-spin"
+                    style={{ width: 36, height: 36, color: '#fff' }}
+                  />
+                </div>
+              )}
 
               {/* Additional security overlay */}
 
