@@ -95,6 +95,7 @@ import { ISubmitFeedbackBody } from '@/components/Item-container';
 import { TranscriptResponse } from '@/types/ai.types';
 import { VideoOverallAnalytics, VideoUserAnalytics, VideoUserAnalyticsResponse } from '@/app/pages/teacher/teacher-course-page';
 import { WatchTimeTrackData } from '@/types/user_activity_event.types';
+import { prefetchProctoringSettings } from '@/lib/proctoring-settings-cache';
 import { start } from 'repl';
 
 // Add missing ObjectId type
@@ -3750,19 +3751,10 @@ export function useGetProcotoringSettings(): {
     setSettingError(null);
 
     try {
-      const method = 'GET';
-      const url = `${import.meta.env.VITE_BASE_URL}/setting/course-setting/${courseId}/${courseVersionId}`;
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', 'authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}` },
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to update settings: ${res.status}`);
-      }
-
-      const data = await res.json();
+      // Reuses a dashboard preload's in-flight/settled fetch for this exact
+      // course if there is one, instead of always starting a fresh request —
+      // see lib/proctoring-settings-cache.ts.
+      const data = await prefetchProctoringSettings(courseId, courseVersionId);
       return data;
     } catch (err: any) {
       setSettingError(err.message || 'Unknown error');
@@ -6596,19 +6588,22 @@ export function useCancelBooking() {
 // Returns { canAccess, message }. Fails OPEN (allows) on any network/error so a
 // transient failure never locks a student out — the backend gate is the backstop.
 export function useCheckTimeSlotAccessOnDemand() {
+  const queryClient = useQueryClient();
   const check = async (
     courseId: string,
     courseVersionId: string,
   ): Promise<{ canAccess: boolean; message?: string }> => {
     try {
-      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/check-access/${courseId}/${courseVersionId}`;
-      const res = await fetch(url, {
-        headers: {
-          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
-        },
-      });
-      if (!res.ok) return { canAccess: true };
-      const data = await res.json().catch(() => ({ canAccess: true }));
+      // Same React Query cache useCheckTimeSlotAccess reads, same key
+      // (queryOptions' key depends only on this init, not the options below)
+      // — a dashboard preload's prefetchQuery for this course resolves this
+      // instantly instead of making the student wait on it before Continue
+      // even navigates.
+      const data: any = await queryClient.fetchQuery(
+        api.queryOptions("get", "/timeslots/check-access/{courseId}/{courseVersionId}", {
+          params: { path: { courseId, courseVersionId } },
+        }),
+      );
       return { canAccess: data?.canAccess !== false, message: data?.message };
     } catch {
       return { canAccess: true };
