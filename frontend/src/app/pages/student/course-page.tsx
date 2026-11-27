@@ -27,6 +27,7 @@ import {
   CircleCheckIcon,
   Maximize2,
   Lock,
+  Home,
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -262,6 +263,9 @@ export default function CoursePage() {
   // Only gate once past the consent + proctoring-declaration dialogs (they run
   // their own flow); then fullscreen is required for the focused learn stage.
   const needsFullscreen = consentSatisfied && !showProctorDialog && !isPageFullscreen;
+  // firstName isn't always populated on the backend profile -- fall back to the
+  // first word of the display name (set from Firebase on signup) before giving up.
+  const firstNameForGreeting = user?.firstName || user?.name?.trim().split(/\s+/)[0] || "";
 
   // Debounced "blocking anomaly" (no person / multiple people / identity / etc.).
   // Face detection is noisy, so require the anomaly to persist briefly before we
@@ -2345,26 +2349,51 @@ return false;
 
       {/* Fullscreen gate — after a reload or an Esc, a request can only succeed
           inside a click, so block the lesson until the student clicks to re-enter. */}
-      {needsFullscreen && !lockedScreen && (
+      {needsFullscreen && !lockedScreen && !drawerOpen && (
         <div
-          className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-5 bg-black/80 backdrop-blur-sm text-center px-6"
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6 bg-black/85 backdrop-blur-md text-center px-6"
           role="dialog"
           aria-modal="true"
         >
-          <Maximize2 className="h-10 w-10 text-white/90" />
-          <div className="max-w-md space-y-1.5">
-            <h2 className="text-xl font-semibold text-white">Fullscreen required</h2>
+          <div className="relative flex items-center justify-center">
+            <div className="absolute h-20 w-20 rounded-full bg-warm/20 blur-xl" />
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-warm/30 to-white/10 ring-1 ring-white/20">
+              <Maximize2 className="h-7 w-7 text-white" />
+            </div>
+          </div>
+          <div className="max-w-sm space-y-2">
+            <h2 className="text-2xl font-semibold text-white">
+              {firstNameForGreeting ? `Hold on, ${firstNameForGreeting}!` : "Hold on!"}
+            </h2>
             <p className="text-sm text-white/70">
-              This lesson runs in fullscreen. Your video is paused — click below to continue.
+              {(courseVersionData as any)?.name
+                ? `"${(courseVersionData as any).name}" pauses outside fullscreen. Re-enter it to keep going, or head out below.`
+                : "This lesson pauses outside fullscreen. Re-enter it to keep going, or head out below."}
             </p>
           </div>
           <button
             type="button"
             onClick={() => enterFullscreen()}
-            className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-white/90"
+            className="rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/20 transition hover:bg-white/90"
           >
             Enter fullscreen
           </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => { pauseVideoForControl(); setDrawerOpen(true); }}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-medium text-white/80 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
+            >
+              <BookOpen className="h-3.5 w-3.5" /> Open course tree
+            </button>
+            <button
+              type="button"
+              onClick={() => router.navigate({ to: "/student" })}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-medium text-white/80 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
+            >
+              <Home className="h-3.5 w-3.5" /> Go to dashboard
+            </button>
+          </div>
         </div>
       )}
 
