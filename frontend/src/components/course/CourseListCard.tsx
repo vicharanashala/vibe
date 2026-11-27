@@ -10,6 +10,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState, lazy, Suspense } from "react";
 import { bufferToHex } from "@/utils/helpers";
 import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
+import { setLaunchOrigin } from "@/lib/page-transition";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { EnrollmentDetailsDialog } from "@/components/course/EnrollmentDetailsDialog";
@@ -87,6 +88,10 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
 
   const handleContinue = async (e?: React.MouseEvent) => {
     e?.stopPropagation();
+    // Captured synchronously: a DOM event's currentTarget is only valid while
+    // the handler is still dispatching, so this has to happen before the
+    // `await` below, not when we actually use it near the navigate() call.
+    const originRect = e?.currentTarget?.getBoundingClientRect();
     if (variant === 'available') {
       navigate({ to: "/student/course-registration/$versionId/{-$cohort}", params: { versionId, cohort: cohortId } });
       return;
@@ -107,6 +112,7 @@ export const CourseListCard = ({ enrollment, index, isLoading: _isLoading, varia
       courseId, versionId, moduleId: null, sectionId: null, itemId: null, watchItemId: null,
       cohortName: enrollment.cohortName || null, cohortId: enrollment.cohortId || null
     });
+    if (originRect) setLaunchOrigin(originRect);
     navigate({ to: "/student/learn" });
   };
 
