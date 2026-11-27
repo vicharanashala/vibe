@@ -181,11 +181,18 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
   // Track if we've already auto-played the video
   const hasAutoPlayedRef = useRef(false)
 
+  /**
+   * Set while an autoplay-triggered playVideo() is muted. Browsers block
+   * unmuted autoplay that isn't tied to a direct user click/tap — which a
+   * setTimeout-driven call never is — so autoplay starts muted (always
+   * allowed) and this flag tells handlePlayerStateChange's PLAYING branch to
+   * unmute once playback has actually begun, restoring audio without
+   * re-triggering the autoplay policy check.
+   */
+  const autoplayMutedRef = useRef(false);
+
   // Track maxTime with a ref for synchronous updates (state updates are async)
   const maxTimeRef = useRef(startTimeSeconds);
-
-  // Track grace period completion
-  const [gracePeriodCompleted, setGracePeriodCompleted] = useState(false);
 
   // Fullscreen state
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -395,21 +402,10 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
     };
   }, [playing, playerReady, playbackRate]);
 
-  // Wait 10 seconds after readyToDetect becomes true (to match FloatingVideo's grace period)
-  useEffect(() => {
-    if (readyToDetect && !gracePeriodCompleted) {
-      const timer = setTimeout(() => {
-        setGracePeriodCompleted(true);
-      }, 10000); // 10 seconds to match FloatingVideo's grace period
-
-      return () => clearTimeout(timer);
-    }
-  }, [readyToDetect, gracePeriodCompleted]);
-
   // Reset when video changes
   useEffect(() => {
-    setGracePeriodCompleted(false);
     hasAutoPlayedRef.current = false; // Reset autoplay flag for new video
+    autoplayMutedRef.current = false; // New video starts unmuted until autoplay (if any) mutes it
     maxTimeRef.current = startTimeSeconds; // Reset maxTime ref
     stopFailCountRef.current = 0; // Reset stop-failure retry counter
 
@@ -746,19 +742,23 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
 
 
 
-  // Autoplay: Wait for grace period completion
+  // Autoplay once the camera/proctoring environment reports ready.
+  //
+  // readyToDetect already reflects FloatingVideo's own 5s "model warmed up"
+  // grace period (floating-video.tsx) -- waiting on a second, separate grace
+  // period here before trusting it just stacked another ~10s of dead time on
+  // top, which is what made autoplay feel stuck/delayed.
   useEffect(() => {
     const player = playerRef.current;
 
     // Only auto-play if ALL conditions are perfect:
     // 1. Player is ready
-    // 2. Camera permissions granted AND grace period completed
+    // 2. Camera/proctoring environment is ready
     // 3. Video is not already playing
     // 4. Not blocked by any anomalies
     // 5. We haven't auto-played yet
     if (playerReady &&
       readyToDetect &&
-      gracePeriodCompleted && // Wait for grace period
       player &&
       !playing &&
       !pauseVid &&
@@ -777,6 +777,8 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
           !doGesture &&
           !awayPaused) {
 
+          playerRef.current.mute?.();
+          autoplayMutedRef.current = true;
           playerRef.current.playVideo();
           setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
           hasAutoPlayedRef.current = true;
@@ -785,7 +787,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
 
       return () => clearTimeout(timer);
     }
-  }, [playerReady, readyToDetect, gracePeriodCompleted, playing, pauseVid, rewindVid, doGesture, awayPaused, videoEnded]);
+  }, [playerReady, readyToDetect, playing, pauseVid, rewindVid, doGesture, awayPaused, videoEnded]);
 
   // Autoplay: Only trigger once when everything becomes ready
   // useEffect(() => {
@@ -1029,6 +1031,10 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
     }) {
       if (event.data === PLAYER_STATE.PLAYING) {
         setPlaying(true);
+        if (autoplayMutedRef.current) {
+          autoplayMutedRef.current = false;
+          event.target.unMute?.();
+        }
         if (!progressStartedRef.current) {
           handleSendStartItem();
           setVideoEnded(false);
@@ -1496,6 +1502,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
 
   // allow autoplay again
   hasAutoPlayedRef.current = false;
+  autoplayMutedRef.current = false;
 
   // reset max seek tracking
   maxTimeRef.current = startTimeSeconds;
