@@ -39,7 +39,7 @@ import { FlagModal } from "@/components/FlagModal";
 import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
-import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
+import { registerStream, unRegisterStream, waitForStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileFallbackScreen from "@/components/MobileFallbackScreen";
@@ -48,13 +48,12 @@ import { useSubmitEmotion } from "@/hooks/use-emotion";
 
 import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 import { EthicsConsentModal } from "./components/policies/EthicsConsentModal";
-import { useGetEthicsConsent } from "@/hooks/system-notification-hooks";
+import { useGetEthicsConsent, useGetProctoringDeclaration, useSignProctoringDeclaration } from "@/hooks/system-notification-hooks";
 // Focused learn-page UI
 import { FloatingBackButton } from "@/components/learn/FloatingBackButton";
 import { FloatingCameraButton } from "@/components/learn/FloatingCameraButton";
 import { AiCompanion } from "@/components/learn/AiCompanion";
 import { AiActionSheet } from "@/components/learn/AiActionSheet";
-import { InitialWebcamPopup } from "@/components/learn/InitialWebcamPopup";
 import { ProctorAlertOverlay } from "@/components/learn/ProctorAlertOverlay";
 import { NoiseIndicator } from "@/components/learn/NoiseIndicator";
 import { AwayOverlay } from "@/components/learn/AwayOverlay";
@@ -103,6 +102,26 @@ export default function CoursePage() {
     useGetEthicsConsent(COURSE_ID, VERSION_ID);
   const [ethicsConsentSignedLocal, setEthicsConsentSignedLocal] = useState(false);
   const consentSatisfied = ethicsConsentSigned || ethicsConsentSignedLocal;
+  // Proctoring declaration: persisted per-enrollment like ethics consent above,
+  // so it only needs to be acknowledged once per course, not on every refresh.
+  const { acked: proctoringDeclarationAcked, isLoading: proctoringDeclarationLoading } =
+    useGetProctoringDeclaration(COURSE_ID, VERSION_ID);
+  const [proctoringDeclarationAckedLocal, setProctoringDeclarationAckedLocal] = useState(false);
+  const declarationAcked = proctoringDeclarationAcked || proctoringDeclarationAckedLocal;
+  const signProctoringDeclaration = useSignProctoringDeclaration();
+  // showProctorDialog defaults to true (so a genuinely first-time student
+  // sees the dialog) and only ever gets set false by the ACCEPT handler
+  // below -- which never fires if the declaration was already acked in a
+  // previous session, since the Dialog's own `open` check already hides it.
+  // Without this sync, showProctorDialog (which also gates FloatingVideo's
+  // mount, fullscreen enforcement, etc. -- not just the dialog's visibility)
+  // would stay stuck true forever for a returning student, never arming
+  // proctoring at all.
+  useEffect(() => {
+    if (!proctoringDeclarationLoading && declarationAcked) {
+      setShowProctorDialog(false);
+    }
+  }, [proctoringDeclarationLoading, declarationAcked]);
   const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
@@ -118,6 +137,8 @@ export default function CoursePage() {
   const { mutateAsync: recalculateStudentProgressAsync } = useRecalculateStudentProgress();
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const prevAllDisabledRef = useRef(false);
+  const rearmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Emotion tracking state
   const [selectedEmotion, setSelectedEmotion] = useState<{ [key: string]: EmotionType }>({});
@@ -130,24 +151,32 @@ export default function CoursePage() {
   useEffect(() => {
     async function checkMediaPermissions() {
       try {
-        // Try to get both camera and microphone access
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // Reuse CameraProcessor's already-acquired, session-long stream
+        // (it requests audio too -- see CameraProcessor.ts) instead of
+        // opening a second concurrent getUserMedia call every time this
+        // effect re-runs, which happens on every allProctorsDisabled
+        // toggle -- unlike CameraProcessor's stream, acquired once for the
+        // whole course session. Falls back to self-acquiring, same as
+        // before, if it's genuinely not there.
+        const borrowed = await waitForStream("CameraProcessor-stream");
+        const stream = borrowed ?? await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
         // Proctoring check: block virtual camera usage at session start
         // This ensures user cannot enter course with spoofed camera
         const violations = await runProctoringChecks(stream);
 
         if (violations.length > 0) {
-          stream.getTracks().forEach(t => t.stop());
+          if (!borrowed) stream.getTracks().forEach(t => t.stop());
 
           alert(violations[0].reason);
 
           router.navigate({ to: "/student" });
           return;
         }
-        
+
         unRegisterStream("course-page-stream");
         registerStream("course-page-stream", stream);
-        streamRef.current = stream;
+        if (!borrowed) streamRef.current = stream;
       } catch (err) {
         alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
         try {
@@ -618,20 +647,41 @@ export default function CoursePage() {
       // Re-acquiring the camera/mic stream itself happens in the
       // checkMediaPermissions effect above, which has allProctorsDisabled
       // in its dependency array for exactly this transition.
+      if (rearmTimerRef.current) {
+        clearTimeout(rearmTimerRef.current);
+        rearmTimerRef.current = null;
+      }
       if (noDetectorsActive || isPlainShareViewer) {
         setShowProctorDialog(false);
         setAllProctorsDisabled(true);
         setReadyToDetect(true);
+        prevAllDisabledRef.current = true;
       } else {
         setAllProctorsDisabled(false);
-        // Stale true from a previous all-off item would let FloatingVideo's
-        // detection checks fire immediately on the freshly re-acquired
-        // stream, before its own models/warm-up actually catch up -- let it
-        // re-set this itself once ready, same as on first mount.
-        setReadyToDetect(false);
+        // Only the genuine re-arm case (the previous item had every detector
+        // off, so the stream/model may not have been actively read) needs a
+        // brief stabilization window -- same idea as the initial modelReady
+        // warm-up in floating-video.tsx. An ordinary active-item-to-active-item
+        // navigation must leave readyToDetect alone: the camera/model are a
+        // session-long singleton that's already warmed up and continuously
+        // read, so resetting it here was freezing whatever anomaly state
+        // existed at that exact instant until a full page reload.
+        if (prevAllDisabledRef.current) {
+          setReadyToDetect(false);
+          rearmTimerRef.current = setTimeout(() => {
+            setReadyToDetect(true);
+          }, 2000);
+        }
+        prevAllDisabledRef.current = false;
       }
     }
     fetch();
+    return () => {
+      if (rearmTimerRef.current) {
+        clearTimeout(rearmTimerRef.current);
+        rearmTimerRef.current = null;
+      }
+    };
   }, [itemData]);
 
   // The detector list FloatingVideo actually arms. Swaps in this item's
@@ -2092,7 +2142,7 @@ return false;
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={consentSatisfied && showProctorDialog} onOpenChange={(open) => {
+      <Dialog open={consentSatisfied && !proctoringDeclarationLoading && !declarationAcked && showProctorDialog} onOpenChange={(open) => {
         if (!open) {
           router.navigate({ to: '/student' });
         }
@@ -2113,7 +2163,18 @@ return false;
             </li>
           </ul>
           <div className="flex justify-end w-full">
-            <Button onClick={() => { enterFullscreen(); setShowProctorDialog(false); }} className="w-full">ACCEPT</Button>
+            <Button onClick={async () => {
+              enterFullscreen();
+              setShowProctorDialog(false);
+              setProctoringDeclarationAckedLocal(true);
+              try {
+                await signProctoringDeclaration.mutateAsync({
+                  params: { path: { courseId: COURSE_ID, versionId: VERSION_ID } },
+                } as any);
+              } catch (err) {
+                console.log("Error recording proctoring declaration:", err);
+              }
+            }} className="w-full">ACCEPT</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -2293,9 +2354,6 @@ return false;
             )}
           </div>
         )}
-
-        {/* Initial webcam popup — first ~11s while the camera sets up */}
-        {!allProctorsDisabled && !showProctorDialog && <InitialWebcamPopup seconds={15} />}
 
         {/* Transient notifications */}
         <div className="top-4 left-1/2 z-90 fixed flex flex-col gap-2 w-[min(92vw,420px)] -translate-x-1/2 pointer-events-none">

@@ -5,7 +5,7 @@ import * as faceDetection from "@tensorflow-models/face-detection";
 import type { MLProcessor } from "@/types/ai.types";
 import { unRegisterStream } from "@/lib/MediaRegistry";
 
-const useCameraProcessor = (frameRate = 3) => {
+const useCameraProcessor = (frameRate = 3, includeAudio = false) => {
   useEffect(() => {
     return () => {
       unRegisterStream("CameraProcessor-stream");
@@ -27,7 +27,7 @@ const useCameraProcessor = (frameRate = 3) => {
         cameraProcessorRef.current.stopCapturing();
       }
 
-      cameraProcessorRef.current = new CameraProcessor(frameRate);
+      cameraProcessorRef.current = new CameraProcessor(frameRate, includeAudio);
 
       if (!videoRef.current || !cameraProcessorRef.current) return;
 
@@ -45,7 +45,7 @@ const useCameraProcessor = (frameRate = 3) => {
     return () => {
       cameraProcessorRef.current?.stopCapturing();
     };
-  }, [frameRate]);
+  }, [frameRate, includeAudio]);
 
   
 
