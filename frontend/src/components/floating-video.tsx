@@ -189,11 +189,14 @@ function FloatingVideo({
 
   useEffect(() => {
   if (modelReady) {
-    // wait 5 seconds after models are ready before enabling anomaly detection
+    // Brief pause after the model loads so the webcam feed (autoexposure/focus)
+    // stabilizes before anomaly detection starts reading it -- otherwise startup
+    // flicker reads as a false-positive anomaly. 2s covers that; the previous
+    // 5s was mostly just added wait, not needed for stabilization.
     const timer = setTimeout(() => {
       // console.log("[FloatingVideo] Environment ready, enabling anomaly detection");
       setReadyToDetect(true);
-    }, 5000);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }
