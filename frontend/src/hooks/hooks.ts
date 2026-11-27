@@ -2015,13 +2015,19 @@ export function useStopItem() {
             query.queryKey[1] ===
             `/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items`,
         });
+        // useModuleProgress interpolates real ids into its path instead of
+        // using a literal template, so it can't be matched the same way as
+        // the queries above -- match by shape instead. The literal-string
+        // match this replaced never actually matched a real query key,
+        // leaving each module's completed/total counts stuck at whatever
+        // they were on page load.
         queryClient.invalidateQueries({
           predicate: (query) =>
             query.queryKey[0] === "get" &&
-            query.queryKey[1] ===
-            "/users/progress/courses/{courseId}/versions/{versionId}/modules",
+            typeof query.queryKey[1] === "string" &&
+            query.queryKey[1].includes("/progress/courses/") &&
+            query.queryKey[1].endsWith("/modules"),
         });
-
 
       },
     }
@@ -3325,8 +3331,8 @@ export function useSaveQuiz(): {
 }
 
 export function useSubmitQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId?: string, cohortId?: string } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId?: string, cohortId?: string } }) => Promise<SubmitAttemptResponse>,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId?: string, cohortId?: string, isOldVibeClient?: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId?: string, cohortId?: string, isOldVibeClient?: boolean } }) => Promise<SubmitAttemptResponse>,
   data: SubmitAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -3336,7 +3342,38 @@ export function useSubmitQuiz(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("post", "/quizzes/{quizId}/attempt/{attemptId}/submit");
+  const queryClient = useQueryClient();
+  const result = api.useMutation("post", "/quizzes/{quizId}/attempt/{attemptId}/submit", {
+    onSuccess: () => {
+      // Unlike useStopItem (VIDEO), a quiz pass/fail never invalidated
+      // anything: the drawer's per-item isCompleted flags, the progress
+      // bookmark isItemLocked() reads, and each module's completed/total
+      // counts all kept showing their pre-submission snapshot until a hard
+      // reload re-fetched everything from scratch.
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "get" &&
+          query.queryKey[1] ===
+          `/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items`,
+      });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "get" &&
+          query.queryKey[1] ===
+          "/users/progress/courses/{courseId}/versions/{courseVersionId}",
+      });
+      // useModuleProgress interpolates real ids into its path instead of
+      // using a literal template (see its own definition below), so it
+      // can't be matched the same way -- match by shape instead.
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "get" &&
+          typeof query.queryKey[1] === "string" &&
+          query.queryKey[1].includes("/progress/courses/") &&
+          query.queryKey[1].endsWith("/modules"),
+      });
+    },
+  });
   return {
     mutate: result.mutate,
     mutateAsync: result.mutateAsync,

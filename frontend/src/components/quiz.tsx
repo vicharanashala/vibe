@@ -737,10 +737,23 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
         return;
       }
 
+      // The rewatch gate (ProgressService.assertNoRewatchPending) refused
+      // this attempt. Resetting quizAttemptedRef below would let the
+      // NO_DEADLINE auto-start effect immediately retry -- same rejection,
+      // same reset -- showing a new toast every render and leaving this
+      // screen stuck on "Loading quiz..." forever. Send the student back to
+      // rewatch instead of retrying, the same destination the quiz's own
+      // failed-attempt countdown already uses.
+      if (errorMessage && errorMessage.includes('before retaking this quiz')) {
+        toast.info('Rewatch the previous video before retaking this quiz.');
+        onPrevVideo?.();
+        return;
+      }
+
       quizAttemptedRef.current = false;
       toast.error('Failed to start quiz: ' + errorMessage);
     }
-  }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, stopItem, currentCourse, attemptId, nextItemId, quizStarted, isPending, clearPendingStudentQuestionContext]);
+  }, [attemptQuiz, processedQuizId, setAttemptId, convertBackendQuestions, handleSendStartItem, stopItem, currentCourse, attemptId, nextItemId, quizStarted, isPending, clearPendingStudentQuestionContext, onPrevVideo]);
 
   const completeQuiz = useCallback(async (isSkipped?: boolean) => {
     if (!attemptId) {
@@ -786,6 +799,9 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
           cohortId: currentCourse?.cohortId??'',
           moduleId: currentCourse?.moduleId ?? '',
           sectionId: currentCourse?.sectionId ?? '',
+          // Old-vibe only -- gates exhausted-attempt/progress-percent fixes
+          // on the shared backend so v3 (same endpoint) is unaffected.
+          isOldVibeClient: true,
         }
       };
 
@@ -1149,17 +1165,26 @@ const Quiz = forwardRef<QuizRef, QuizProps>(({
       if (submissionResults?.gradingStatus === "PASSED") {
         setQuizPassed?.(1);
         setFailedRedirectCountdown(null); // Clear any countdown
-      } else if (submissionResults?.gradingStatus === "FAILED") {
-        setQuizPassed?.(0);
-        setFailedRedirectCountdown(10);
-      } else {
-        // Handle edge case where grading status is not available
-        // Default to failed if we can't determine the status
-        setQuizPassed?.(0);
-        setFailedRedirectCountdown(10);
+        return;
       }
+
+      // Failed (or indeterminate grading status, treated as failed below).
+      // This attempt used up the last one allowed -- there's no rewatch to
+      // send the student back for, since they can't retake anyway. Move on
+      // like a passed item instead of redirecting to the previous video.
+      if (maxAttempts !== -1 && attempts >= maxAttempts) {
+        setQuizPassed?.(3);
+        setTimeout(() => {
+          setQuizCompleted(false);
+          onNext?.();
+        }, 1000);
+        return;
+      }
+
+      setQuizPassed?.(0);
+      setFailedRedirectCountdown(10);
     }
-  }, [quizCompleted, quizType, submissionResults?.gradingStatus, setQuizPassed, onNext, onPrevVideo, noAttemptsLeft, isEmptyQuiz, passThreshold]);
+  }, [quizCompleted, quizType, submissionResults?.gradingStatus, setQuizPassed, onNext, onPrevVideo, noAttemptsLeft, isEmptyQuiz, passThreshold, maxAttempts, attempts]);
 
   useEffect(() => {
     if (failedRedirectCountdown === null) return;
