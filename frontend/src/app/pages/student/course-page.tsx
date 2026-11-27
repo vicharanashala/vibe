@@ -2063,6 +2063,20 @@ return false;
               </div>
             </div>
           )
+        ) : selectedItemId ? (
+          // We already know which item to show (from progress or a prior
+          // selection) and are just waiting on its data -- a loading skeleton
+          // here, not the "nothing selected" CTA below, which otherwise
+          // flashed confusingly on every single course open.
+          <div className="z-30 absolute inset-0 flex justify-center items-center">
+            <div className="flex items-center space-x-4">
+              <Skeleton className="rounded-full w-12 h-12" />
+              <div className="space-y-2">
+                <Skeleton className="w-[250px] h-4" />
+                <Skeleton className="w-[200px] h-4" />
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="z-30 absolute inset-0 place-items-center grid px-6 text-center">
             <div className="max-w-md">
