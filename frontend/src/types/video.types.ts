@@ -117,6 +117,9 @@ export interface IDetectorSettings {
   detectorName: string;
   settings: {
     enabled: boolean;
+    // Detector-specific tuning values, e.g. faceCountDetection's
+    // noFaceFlagFrames -- mirrors backend DetectorOptionsDto.options.
+    options?: Record<string, any>;
   };
 }
 

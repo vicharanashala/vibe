@@ -2331,6 +2331,7 @@ export function useEditProctoringSettings() {
     caseStudiesEnabled: boolean = false,
     caseStudyStrictUnlockEnabled: boolean = true,
     caseStudyWeakStreakThreshold: number = 3,
+    noFaceFlagFrames: number = 4,
   ) => {
     setLoading(true);
     setError(null);
@@ -2344,7 +2345,10 @@ export function useEditProctoringSettings() {
       {
         detectors: detectors.map((d) => ({
           detectorName: d.name,
-          settings: { enabled: d.enabled },
+          settings:
+            d.name === 'faceCountDetection'
+              ? { enabled: d.enabled, options: { noFaceFlagFrames } }
+              : { enabled: d.enabled },
         })),
         linearProgressionEnabled,
         seekForwardEnabled,
