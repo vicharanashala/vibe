@@ -12,6 +12,7 @@ import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
 import { classifyItemForbiddenError } from "@/utils/itemForbiddenError";
 import { resolveContentLock } from "@/utils/contentLock";
 import { consumeLaunchOrigin, type LaunchOrigin } from "@/lib/page-transition";
+import { recordLastVisitedCourse } from "@/lib/last-visited-course";
 const LazyStudentTimeslotModal = lazy(() => import("@/components/course/StudentTimeslotModal"));
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import type { PendingStudentQuestionContext } from "@/types/student-question.types";
@@ -91,6 +92,12 @@ export default function CoursePage() {
   const VERSION_ID = currentCourse?.versionId || "";
   const COHORT_ID = currentCourse?.cohortId || "";
   const COHORT_NAME = currentCourse?.cohortName || "";
+  // Remembered purely client-side so the dashboard knows which card to
+  // preload first on the next visit — see lib/last-visited-course.ts.
+  useEffect(() => {
+    if (!COURSE_ID || !VERSION_ID) return;
+    recordLastVisitedCourse({ courseId: COURSE_ID, versionId: VERSION_ID, cohortId: COHORT_ID || undefined });
+  }, [COURSE_ID, VERSION_ID, COHORT_ID]);
   // Ethics consent gate: must be signed once per course before entering content
   const { signed: ethicsConsentSigned, isLoading: ethicsConsentLoading } =
     useGetEthicsConsent(COURSE_ID, VERSION_ID);

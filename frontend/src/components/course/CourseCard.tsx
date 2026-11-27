@@ -1,4 +1,4 @@
-import { Clock, Trophy, Medal, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Play, Activity, Shield as LucideShield, MoreHorizontal } from "lucide-react";
+import { Clock, Trophy, Medal, Info, ExternalLink, Copy, MessageCircle, Users, Check, Sparkles, Play, Activity, Shield as LucideShield, MoreHorizontal, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,8 @@ import { useState, lazy, useEffect } from "react";
 import { bufferToHex } from "@/utils/helpers";
 import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
 import { setLaunchOrigin } from "@/lib/page-transition";
+import { prefetchCourseLaunch } from "@/lib/course-prefetch";
+import { useCoursePreloadStore, coursePreloadKey } from "@/store/course-preload-store";
 import { cn } from "@/utils/utils";
 import type { CourseCardProps } from '@/types/course.types';
 import { StudentPolicyModal } from "@/app/pages/student/components/policies/StudentPolicyModal";
@@ -122,6 +124,21 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   const isRankVisible = variant !== 'available' && isNotGuruSetu;
   const isTimeslotActive = variant !== 'available' && isNotGuruSetu;
 
+  // Warm the course page's caches as soon as this card is on screen, not
+  // when Continue is clicked — by then it's too late to hide the wait.
+  // 'available' cards go to course-registration instead, so skip those.
+  // While the dashboard is fully preloading a priority (last-visited) course,
+  // every other card holds off so it isn't competing with that one for
+  // bandwidth — they all fire the moment loadingCourseKey clears to null.
+  const myPreloadKey = coursePreloadKey(courseId, versionId);
+  const loadingCourseKey = useCoursePreloadStore((s) => s.loadingCourseKey);
+  const isPriorityLoading = loadingCourseKey === myPreloadKey;
+  useEffect(() => {
+    if (variant === 'available') return;
+    if (loadingCourseKey !== null) return;
+    void prefetchCourseLaunch({ courseId, versionId, cohortId: cohortId || undefined });
+  }, [courseId, versionId, cohortId, variant, loadingCourseKey]);
+
   // const supportLink = enrollment?.course?.supportLink || "";
 
 
@@ -132,6 +149,10 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
   })
 
   const handleContinue = async (e?: React.MouseEvent) => {
+    // Belt-and-suspenders alongside the button's own disabled state: this
+    // card's course is still the dashboard's priority preload target.
+    if (isPriorityLoading) return;
+
     // Captured synchronously: a DOM event's currentTarget is only valid while
     // the handler is still dispatching, so this has to happen before the
     // `await` below, not when we actually use it near the navigate() call.
@@ -204,7 +225,7 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
     ];
     const theme = themes[index % themes.length];
 
-    const continueLabel = variant === 'available' ? 'Register Now' : isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue';
+    const continueLabel = isPriorityLoading ? 'Loading…' : variant === 'available' ? 'Register Now' : isStart ? 'Start Course' : isCompleted ? 'View Course' : 'Continue';
     const versionLabel = courseVersionData?.version || courseVersionData?.name || versionId.substring(0, 8);
 
     return (
@@ -278,12 +299,18 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
                     <div className="flex items-center gap-2">
                       <Button
                         onClick={(e) => { e.stopPropagation(); handleContinue(e); }}
+                        disabled={isPriorityLoading}
                         className={cn(
                           "flex flex-1 justify-center items-center gap-2 shadow-md rounded-xl h-10 font-bold text-sm active:scale-95 transition-all duration-300",
                           variant === 'available' ? "bg-primary text-primary-foreground" : isStart ? "bg-[#22C55E] text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"
                         )}
                       >
-                        {variant === 'available' ? (
+                        {isPriorityLoading ? (
+                          <>
+                            Loading
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          </>
+                        ) : variant === 'available' ? (
                           <span className="flex items-center gap-2">
                             Register Now
                             <ExternalLink className="w-4 h-4" />
@@ -551,8 +578,13 @@ export const CourseCard = ({ enrollment, index, isLoading, variant = 'dashboard'
           </div>
 
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button onClick={handleContinue} className="flex-1">
-              {isStart ? 'Start Course' : 'Continue'}
+            <Button onClick={handleContinue} disabled={isPriorityLoading} className="flex-1">
+              {isPriorityLoading ? (
+                <>
+                  Loading
+                  <Loader2 className="ml-2 w-4 h-4 animate-spin" />
+                </>
+              ) : isStart ? 'Start Course' : 'Continue'}
             </Button>
             <div className="flex gap-2 w-full sm:w-auto">
               {isRankVisible && (
