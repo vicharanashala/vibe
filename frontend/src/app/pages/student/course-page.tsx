@@ -246,20 +246,14 @@ export default function CoursePage() {
   // case the stage renders at full size immediately (no animation to run).
   const [launchOrigin] = useState<LaunchOrigin | null>(() => consumeLaunchOrigin());
   const [stageEntered, setStageEntered] = useState(!launchOrigin);
-  useEffect(() => {
-    if (!launchOrigin) return;
-    // Two rAFs: the first lets the browser paint the initial (shrunk) frame;
-    // only the second one is guaranteed to be a new frame the CSS transition
-    // can animate from, otherwise it can get coalesced into the first paint.
-    const id = requestAnimationFrame(() => requestAnimationFrame(() => setStageEntered(true)));
-    return () => cancelAnimationFrame(id);
-  }, [launchOrigin]);
+  // The flip-to-entered effect lives further down (after the loading-gate
+  // flags below exist) — see the comment there for why.
   // Set true to play the "shrink back to the dashboard" close animation
   // before the navigation it's covering for actually happens.
   const [stageExiting, setStageExiting] = useState(false);
   const exitToDashboard = useCallback(() => {
     setStageExiting(true);
-    setTimeout(() => router.navigate({ to: "/student" }), 280);
+    setTimeout(() => router.navigate({ to: "/student" }), 780);
   }, [router]);
 
   // Fullscreen is entered from the "Continue" click that brings the student here.
@@ -339,6 +333,24 @@ export default function CoursePage() {
   const { data: moduleProgressData, isLoading: moduleProgressLoading } =
     useModuleProgress(COURSE_ID, VERSION_ID, COHORT_ID);
 
+  // Flips the stage from its shrunk launch position to full size. This has
+  // to wait for the same loading gate the component's early return below
+  // waits on: the launch effect used to fire within a couple of frames of
+  // this component merely mounting, which happens while that gate is still
+  // showing a loading skeleton in place of the real <main> stage — so by the
+  // time data arrived and <main> finally rendered, stageEntered was already
+  // true and there was nothing left to animate from (looked like a plain
+  // instant cut straight to the full page). Re-running this off the gate
+  // itself means it only fires once <main> is actually about to paint.
+  const isStageLoadingGate = versionLoading || progressLoading || proctoringLoading || ethicsConsentLoading;
+  useEffect(() => {
+    if (!launchOrigin || isStageLoadingGate) return;
+    // Two rAFs: the first lets the browser paint the initial (shrunk) frame;
+    // only the second one is guaranteed to be a new frame the CSS transition
+    // can animate from, otherwise it can get coalesced into the first paint.
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setStageEntered(true)));
+    return () => cancelAnimationFrame(id);
+  }, [launchOrigin, isStageLoadingGate]);
 
   // Fetch proctoring settings for the course (fetched once when component loads)
   const [proctoringData, setProctoringData] = useState<StudentProctoringSettings | null>(null);
@@ -2041,7 +2053,7 @@ return false;
           opacity: stageExiting ? 0 : !stageEntered && launchOrigin ? 0.4 : 1,
           borderRadius: stageExiting ? 28 : !stageEntered && launchOrigin ? 20 : 0,
           transition: stageExiting
-            ? "transform 280ms cubic-bezier(0.4, 0, 1, 1), opacity 240ms ease, border-radius 280ms ease"
+            ? "transform 700ms cubic-bezier(0.4, 0, 0.2, 1), opacity 650ms ease, border-radius 700ms ease"
             : "transform 480ms cubic-bezier(0.19, 1, 0.22, 1), opacity 360ms ease, border-radius 480ms ease",
         }}
       >
