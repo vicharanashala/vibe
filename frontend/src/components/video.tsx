@@ -3,7 +3,14 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Captions, Loader2, XCircle, Maximize, Minimize, FastForward, ChevronRight } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Captions, Loader2, XCircle, Maximize, Minimize, ChevronDown, ChevronRight } from 'lucide-react';
 import { useSkipOptionalItem, useStartItem, useStopItem, useStoreWatchTimeTrack, useUpsertWatchTime } from '../hooks/hooks';
 import { fetchClient } from '@/lib/openapi';
 
@@ -27,6 +34,11 @@ function formatSecondsToTime(seconds: number): string {
   const secs = Math.floor(seconds % 60);
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
+
+// Standard playback-speed presets offered in the speed menu. Selecting one
+// still snaps to the active player's nearest actually-supported rate (see
+// the speed dropdown's onValueChange) — HLS, for instance, has no 0.25x.
+const SPEED_PRESETS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 // Short, encouraging lines shown while the player + proctoring environment load.
 const LOADING_QUOTES: string[] = [
@@ -85,6 +97,8 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
   // const [volume, setVolume] = useState(100);
   // Use the stored playback rate from the player store
   const { playbackRate, setPlaybackRate, volume, setVolume, subtitlesEnabled, setSubtitlesEnabled } = usePlayerStore();
+  // Remembers the pre-mute level so clicking the speaker icon again restores it.
+  const preMuteVolumeRef = useRef(volume || 50);
   const [maxTime, setMaxTime] = useState(0);
   const [videoEnded, setVideoEnded] = useState(false);
   /**
@@ -2184,12 +2198,17 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
         </div>
 
 
-        {/* Custom Controls — below the video normally, overlaid inside it in focus/fullscreen */}
+        {/* Custom Controls — below the video normally, overlaid inside it in focus/fullscreen.
+            Always a dark "glass" bar regardless of site theme: like any video player's chrome
+            (YouTube, Netflix, VLC), it sits over arbitrary video content, so it can't rely on
+            theme tokens that flip light in light mode — hardcoded dark + white is what keeps
+            every icon readable no matter what's playing behind it. Single slim row: the seek
+            bar fills the space between the transport cluster and the extra-controls cluster,
+            so the bar's height never grows past one row of buttons. */}
 
         <div
           style={{
-            padding: '3px 10px',
-            borderTop: '1px solid hsl(var(--primary) / 0.2)',
+            padding: '6px 10px',
             userSelect: 'none',
             WebkitUserSelect: 'none',
             MozUserSelect: 'none',
@@ -2199,6 +2218,9 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
             alignItems: 'center',
             gap: 10,
             flexWrap: 'wrap',
+            background: 'linear-gradient(to top, rgba(10,10,14,0.92), rgba(10,10,14,0.75))',
+            backdropFilter: 'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)',
             ...(controlsOverlaid
               ? {
                   // Float the bar over the bottom of the video, and let it slide
@@ -2208,9 +2230,6 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
                   right: 0,
                   bottom: 0,
                   zIndex: 20,
-                  background: 'hsl(var(--card) / 0.82)',
-                  backdropFilter: 'blur(10px)',
-                  WebkitBackdropFilter: 'blur(10px)',
                   borderRadius: 0,
                   opacity: controlsVisible ? 1 : 0,
                   transform: controlsVisible ? 'translateY(0)' : 'translateY(100%)',
@@ -2218,7 +2237,6 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
                   transition: 'opacity 200ms ease, transform 220ms ease',
                 }
               : {
-                  background: 'hsl(var(--card))',
                   borderRadius: '0 0 12px 12px',
                 }),
           }}
@@ -2228,8 +2246,57 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
           onMouseEnter={() => { pointerOverControlsRef.current = true; clearControlsHideTimer(); setControlsVisible(true); }}
           onMouseLeave={() => { pointerOverControlsRef.current = false; scheduleControlsHide(); }}
         >
-          {/* Progress Bar - Seeking controlled by seekForwardEnabled (fills the row middle) */}
-          <div style={{ order: 2, flex: 1, minWidth: 140 }}>
+          {/* Transport cluster */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, order: 1 }}>
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePlayPause();
+              }}
+              size="icon"
+              className="rounded-full w-8 h-8 flex-shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
+              aria-label={playing ? 'Pause' : 'Play'}
+            >
+              {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
+            </Button>
+
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleBackward();
+              }}
+              size="icon"
+              variant="ghost"
+              className="rounded-full w-8 h-8 flex-shrink-0 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              aria-label="Back 10 seconds"
+            >
+              <SkipBack className="h-3.5 w-3.5" />
+            </Button>
+
+            {/* Forward seek button - shown when seekForwardEnabled is true */}
+            {seekForwardEnabled && (
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleForward();
+                }}
+                size="icon"
+                variant="ghost"
+                className="rounded-full w-8 h-8 flex-shrink-0 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                aria-label="Forward 10 seconds"
+                title="Forward 10 seconds"
+              >
+                <SkipForward className="h-3.5 w-3.5" />
+              </Button>
+            )}
+
+            <span className="tabular-nums text-[11px] font-semibold text-white/80 ml-1 whitespace-nowrap" style={{ flexShrink: 0 }}>
+              {formatTime(Math.max(startTimeSeconds, currentTime))} / {formatTime(endTimeSeconds > 0 ? endTimeSeconds : duration)}
+            </span>
+          </div>
+
+          {/* Seek bar — fills whatever room is left between the two clusters */}
+          <div style={{ order: 2, flex: 1, minWidth: 100 }}>
             <Slider
               value={[currentTime]}
               min={startTimeSeconds}
@@ -2240,7 +2307,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
                 const currentTimeStr = formatSecondsToTime(currentTime);
                 const newTimeStr = formatSecondsToTime(newTime);
 
-                // Record seek time 
+                // Record seek time
                 lastSeekTimeRef.current = Date.now();
 
                 // Track seek as rewind or fast forward
@@ -2291,114 +2358,52 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
                   stopTimeoutRef.current = null;
                 }
               }}
-              className="w-full"
+              className="w-full [&_[data-slot=slider-track]]:bg-white/25 [&_[data-slot=slider-thumb]]:border-white [&_[data-slot=slider-thumb]]:bg-white"
             />
           </div>
 
-            {/* Left Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, order: 1 }}>
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePlayPause();
-                }}
-                size="icon"
-                variant={playing ? "default" : "secondary"}
-                className="rounded-full w-8 h-8 flex-shrink-0"
-                aria-label={playing ? 'Pause' : 'Play'}
-              >
-                {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              </Button>
-
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleBackward();
-                }}
-                size="icon"
-                variant="secondary"
-                className="rounded-full w-8 h-8 flex-shrink-0"
-                aria-label="Back 10 seconds"
-              >
-                <SkipBack className="h-4 w-4" />
-              </Button>
-
-              {/* Forward seek button - shown when seekForwardEnabled is true */}
-              {seekForwardEnabled && (
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleForward();
-                  }}
-                  size="icon"
-                  variant="secondary"
-                  className="rounded-full w-8 h-8 flex-shrink-0"
-                  aria-label="Forward 10 seconds"
-                  title="Forward 10 seconds"
-                >
-                  <SkipForward className="h-4 w-4" />
-                </Button>
-              )}
-
-              <span style={{
-                color: 'hsl(var(--foreground))',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 12,
-                fontWeight: 600,
-                minWidth: 62,
-                textShadow: '0 1px 3px hsl(var(--background) / 0.5)',
-                flexShrink: 0
-              }}>
-                {formatTime(Math.max(startTimeSeconds, currentTime))} / {formatTime(endTimeSeconds > 0 ? endTimeSeconds : duration)}
-              </span>
-            </div>
-
-            {/* Right Controls */}
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, order: 3 }}>
-
-              <TooltipProvider>
-                {/* Subtitles — hidden entirely for players that cannot show any. */}
-                {subtitlesSupported && (
+          {/* Extra-controls cluster */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, order: 3 }}>
+            <TooltipProvider>
+              {/* Subtitles — hidden entirely for players that cannot show any. */}
+              {subtitlesSupported && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       onClick={handleToggleSubtitles}
                       variant="ghost"
                       size="icon"
-                      className={`rounded-sm relative group h-8 w-8 transition-colors duration-200 ${subtitlesEnabled
-                        ? "text-black dark:text-white"
-                        : "text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
+                      className={`relative h-8 w-8 rounded-full transition-colors duration-200 ${subtitlesEnabled ? "bg-white/25 text-white hover:bg-white/30" : "bg-white/10 text-white hover:bg-white/20"
                         }`}
                     >
-                      <span className="flex items-center justify-center">
-                        <Captions className="h-5 w-5" strokeWidth={2.25} />
-                      </span>
-
-                      {subtitlesEnabled && (
-                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-red-500 rounded-full"></span>
-                      )}
+                      <Captions className="h-4 w-4" strokeWidth={2.25} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Toggle Subtitles</p>
                   </TooltipContent>
                 </Tooltip>
-                )}
+              )}
 
-                {/* Speed Control */}
-                <Card className="flex flex-row items-center gap-1.5 px-2 py-0.5 bg-accent/15 flex-shrink-0">
-                  <span className="hidden md:block text-xs font-semibold text-foreground min-w-[24px]">
-                    Speed
-                  </span>
-                  <FastForward className="flex md:hidden h-3.5 w-3.5 text-accent flex-shrink-0" />
-                  <Slider
-                    value={[playbackRate]}
-                    min={0.25}
-                    max={2}
-                    step={0.05}
-                    onValueChange={(value) => {
-                      const rate = value[0];
+              {/* Speed — a short, tappable preset list beats a cramped drag slider. */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    onClick={(e) => e.stopPropagation()}
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1 rounded-full bg-white/10 px-2.5 text-[11px] font-semibold text-white hover:bg-white/20 hover:text-white"
+                    aria-label="Playback speed"
+                  >
+                    {`${parseFloat(playbackRate.toFixed(2))}x`}
+                    <ChevronDown className="h-3 w-3 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="min-w-24" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuRadioGroup
+                    value={String(parseFloat(playbackRate.toFixed(2)))}
+                    onValueChange={(val) => {
+                      const rate = parseFloat(val);
                       const player = playerRef.current;
                       if (player && typeof player.getAvailablePlaybackRates === 'function') {
                         const availableRates = player.getAvailablePlaybackRates!();
@@ -2407,131 +2412,143 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
                           if (Math.abs(r - rate) < Math.abs(closest - rate)) closest = r;
                         }
                         player.setPlaybackRate(closest);
-                        // Update both local state and global store
                         setPlaybackRate(closest);
                       } else {
                         playerRef.current?.setPlaybackRate(rate);
-                        // Update both local state and global store
                         setPlaybackRate(rate);
                       }
                     }}
-                    className="w-[80px]"
-                  />
-                  <span className="text-xs font-semibold text-primary min-w-[24px] text-center">
-                    {playbackRate.toFixed(2)}x
-                  </span>
-                </Card>
+                  >
+                    {SPEED_PRESETS.map((rate) => (
+                      <DropdownMenuRadioItem key={rate} value={String(rate)}>
+                        {rate}x
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-                {/*
-                  * Quality selector. Rendered only when the active player reports
-                  * renditions, so it appears for uploaded video (HLS ladder) and
-                  * stays hidden where there is nothing to choose between.
-                  */}
-                {qualityLevels.length > 1 && (
-                  <Card className="flex flex-row items-center gap-1.5 px-2 py-0.5 bg-accent/15 flex-shrink-0">
-                    <span className="hidden md:block text-xs font-semibold text-foreground">
-                      Quality
-                    </span>
-                    <select
-                      value={selectedQuality}
-                      onChange={e => {
-                        const next = e.target.value;
-                        setSelectedQuality(next);
-                        playerRef.current?.setPlaybackQuality?.(next);
-                      }}
+              {/*
+                * Quality selector. Rendered only when the active player reports
+                * renditions, so it appears for uploaded video (HLS ladder) and
+                * stays hidden where there is nothing to choose between.
+                */}
+              {qualityLevels.length > 1 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      onClick={(e) => e.stopPropagation()}
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1 rounded-full bg-white/10 px-2.5 text-[11px] font-semibold text-white hover:bg-white/20 hover:text-white"
                       aria-label="Video quality"
-                      className="bg-transparent text-xs font-semibold text-primary
-                        outline-none cursor-pointer"
+                    >
+                      {selectedQuality === 'auto' ? 'Auto' : selectedQuality}
+                      <ChevronDown className="h-3 w-3 opacity-70" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="min-w-24" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenuRadioGroup
+                      value={selectedQuality}
+                      onValueChange={(level) => {
+                        setSelectedQuality(level);
+                        playerRef.current?.setPlaybackQuality?.(level);
+                      }}
                     >
                       {qualityLevels.map(level => (
-                        <option key={level} value={level}>
+                        <DropdownMenuRadioItem key={level} value={level}>
                           {level === 'auto' ? 'Auto' : level}
-                        </option>
+                        </DropdownMenuRadioItem>
                       ))}
-                    </select>
-                  </Card>
-                )}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
-                {/* Volume Control */}
-                <Card className="flex flex-row items-center gap-1.5 px-2 py-0.5 bg-accent/15 flex-shrink-0">
-                  <Volume2 className="h-3.5 w-3.5 text-accent flex-shrink-0" />
-                  <Slider
-                    value={[volume]}
-                    min={0}
-                    max={100}
-                    onValueChange={(value) => {
-                      const v = value[0];
-                      setVolume(v);
-                      playerRef.current?.setVolume(v);
+              {/* Volume — click the speaker to mute/unmute, drag the slider to set a level */}
+              <div className="flex items-center gap-1 pl-0.5">
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (volume > 0) {
+                      preMuteVolumeRef.current = volume;
+                      setVolume(0);
+                      playerRef.current?.setVolume(0);
+                    } else {
+                      const restored = preMuteVolumeRef.current || 50;
+                      setVolume(restored);
+                      playerRef.current?.setVolume(restored);
+                    }
+                  }}
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 flex-shrink-0 rounded-full bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                  aria-label={volume === 0 ? 'Unmute' : 'Mute'}
+                >
+                  {volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </Button>
+                <Slider
+                  value={[volume]}
+                  min={0}
+                  max={100}
+                  onValueChange={(value) => {
+                    const v = value[0];
+                    setVolume(v);
+                    playerRef.current?.setVolume(v);
+                  }}
+                  className="w-14 [&_[data-slot=slider-track]]:bg-white/25 [&_[data-slot=slider-thumb]]:border-white [&_[data-slot=slider-thumb]]:bg-white"
+                  aria-label="Volume"
+                />
+              </div>
+
+              {/* Fullscreen Toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFullscreen();
                     }}
-                    className="w-[80px]"
-                  />
-                  <span className="text-xs font-semibold text-foreground min-w-[24px] text-center">
-                    {Math.round(volume)}%
-                  </span>
-                </Card>
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full bg-white/10 text-white transition-colors duration-200 hover:bg-white/20 hover:text-white"
+                    aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                  >
+                    {isFullscreen ? (
+                      <Minimize className="h-4 w-4" strokeWidth={2.25} />
+                    ) : (
+                      <Maximize className="h-4 w-4" strokeWidth={2.25} />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}</p>
+                </TooltipContent>
+              </Tooltip>
 
-                {/* Fullscreen Toggle */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFullscreen();
-                      }}
-                      variant="ghost"
-                      size="icon"
-                      className="rounded-sm relative group h-8 w-8 transition-colors duration-200 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white"
-                      aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-                    >
-                      <span className="flex items-center justify-center">
-                        {isFullscreen ? (
-                          <Minimize className="h-5 w-5" strokeWidth={2.25} />
-                        ) : (
-                          <Maximize className="h-5 w-5" strokeWidth={2.25} />
-                        )}
-                      </span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-
-          {/* Next Lesson Button */}
-          {onNext && (
-            <div style={{
-              borderTop: '1px solid hsl(var(--border))',
-              paddingTop: '12px',
-              marginTop: '12px',
-              display: 'flex',
-              justifyContent: 'flex-end'
-            }}>
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onNext();
-                }}
-                disabled={isProgressUpdating}
-                className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground border-0"
-                size="lg"
-              >
-                {isProgressUpdating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground mr-2" />
-                    Processing
-                  </>
-                ) : (
-                  <>
-                    Next Lesson
-                    <ChevronRight className="h-4 w-4 ml-2" />
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
+              {/* Next Lesson — part of the same row/cluster, not a separate strip */}
+              {onNext && (
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNext();
+                  }}
+                  disabled={isProgressUpdating}
+                  size="sm"
+                  className="ml-1 h-8 flex-shrink-0 rounded-full bg-primary px-3 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  {isProgressUpdating ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+                  ) : (
+                    <>
+                      Next
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </>
+                  )}
+                </Button>
+              )}
+            </TooltipProvider>
+          </div>
         </div>
       </div>
 
