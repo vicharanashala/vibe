@@ -77,6 +77,11 @@ export class Enrollment implements IEnrollment {
   @IsOptional()
   ethicsAdditionalImageConsent?: boolean;
 
+  @Expose()
+  @IsOptional()
+  @Type(() => Date)
+  proctoringDeclarationAckedAt?: Date;
+
   constructor(userId?: string, courseId?: string, courseVersionId?: string, cohortId?: ID) {
     if (userId && courseId && courseVersionId) {
       this.userId = new ObjectId(userId);

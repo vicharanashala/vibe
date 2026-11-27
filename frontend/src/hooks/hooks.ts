@@ -95,6 +95,7 @@ import { ISubmitFeedbackBody } from '@/components/Item-container';
 import { TranscriptResponse } from '@/types/ai.types';
 import { VideoOverallAnalytics, VideoUserAnalytics, VideoUserAnalyticsResponse } from '@/app/pages/teacher/teacher-course-page';
 import { WatchTimeTrackData } from '@/types/user_activity_event.types';
+import { prefetchProctoringSettings } from '@/lib/proctoring-settings-cache';
 import { start } from 'repl';
 
 // Add missing ObjectId type
@@ -2014,13 +2015,19 @@ export function useStopItem() {
             query.queryKey[1] ===
             `/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items`,
         });
+        // useModuleProgress interpolates real ids into its path instead of
+        // using a literal template, so it can't be matched the same way as
+        // the queries above -- match by shape instead. The literal-string
+        // match this replaced never actually matched a real query key,
+        // leaving each module's completed/total counts stuck at whatever
+        // they were on page load.
         queryClient.invalidateQueries({
           predicate: (query) =>
             query.queryKey[0] === "get" &&
-            query.queryKey[1] ===
-            "/users/progress/courses/{courseId}/versions/{versionId}/modules",
+            typeof query.queryKey[1] === "string" &&
+            query.queryKey[1].includes("/progress/courses/") &&
+            query.queryKey[1].endsWith("/modules"),
         });
-
 
       },
     }
@@ -2239,6 +2246,7 @@ export function useEditProctoringSettings() {
     baseHp: number,
     randomizeItems: boolean,
     crowdsourcedQuestionSubmissionEnabled: boolean = false,
+    noFaceFlagFrames: number = 4,
   ) => {
     setLoading(true);
     setError(null);
@@ -2252,7 +2260,10 @@ export function useEditProctoringSettings() {
       {
         detectors: detectors.map((d) => ({
           detectorName: d.name,
-          settings: { enabled: d.enabled },
+          settings:
+            d.name === 'faceCountDetection'
+              ? { enabled: d.enabled, options: { noFaceFlagFrames } }
+              : { enabled: d.enabled },
         })),
         linearProgressionEnabled,
         seekForwardEnabled,
@@ -3324,8 +3335,8 @@ export function useSaveQuiz(): {
 }
 
 export function useSubmitQuiz(): {
-  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId?: string, cohortId?: string } }) => void,
-  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId?: string, cohortId?: string } }) => Promise<SubmitAttemptResponse>,
+  mutate: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId?: string, cohortId?: string, isOldVibeClient?: boolean } }) => void,
+  mutateAsync: (variables: { params: { path: { quizId: string, attemptId: string } }, body: { answers: SaveQuestion[], isSkipped?: boolean, courseId: string | undefined, courseVersionId: string | null | undefined, watchItemId?: string, cohortId?: string, isOldVibeClient?: boolean } }) => Promise<SubmitAttemptResponse>,
   data: SubmitAttemptResponse | undefined,
   error: string | null,
   isPending: boolean,
@@ -3335,7 +3346,38 @@ export function useSubmitQuiz(): {
   reset: () => void,
   status: 'idle' | 'pending' | 'success' | 'error'
 } {
-  const result = api.useMutation("post", "/quizzes/{quizId}/attempt/{attemptId}/submit");
+  const queryClient = useQueryClient();
+  const result = api.useMutation("post", "/quizzes/{quizId}/attempt/{attemptId}/submit", {
+    onSuccess: () => {
+      // Unlike useStopItem (VIDEO), a quiz pass/fail never invalidated
+      // anything: the drawer's per-item isCompleted flags, the progress
+      // bookmark isItemLocked() reads, and each module's completed/total
+      // counts all kept showing their pre-submission snapshot until a hard
+      // reload re-fetched everything from scratch.
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "get" &&
+          query.queryKey[1] ===
+          `/courses/versions/{versionId}/modules/{moduleId}/sections/{sectionId}/items`,
+      });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "get" &&
+          query.queryKey[1] ===
+          "/users/progress/courses/{courseId}/versions/{courseVersionId}",
+      });
+      // useModuleProgress interpolates real ids into its path instead of
+      // using a literal template (see its own definition below), so it
+      // can't be matched the same way -- match by shape instead.
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "get" &&
+          typeof query.queryKey[1] === "string" &&
+          query.queryKey[1].includes("/progress/courses/") &&
+          query.queryKey[1].endsWith("/modules"),
+      });
+    },
+  });
   return {
     mutate: result.mutate,
     mutateAsync: result.mutateAsync,
@@ -3653,19 +3695,10 @@ export function useGetProcotoringSettings(): {
     setSettingError(null);
 
     try {
-      const method = 'GET';
-      const url = `${import.meta.env.VITE_BASE_URL}/setting/course-setting/${courseId}/${courseVersionId}`;
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', 'authorization': `Bearer ${localStorage.getItem('firebase-auth-token')}` },
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to update settings: ${res.status}`);
-      }
-
-      const data = await res.json();
+      // Reuses a dashboard preload's in-flight/settled fetch for this exact
+      // course if there is one, instead of always starting a fresh request —
+      // see lib/proctoring-settings-cache.ts.
+      const data = await prefetchProctoringSettings(courseId, courseVersionId);
       return data;
     } catch (err: any) {
       setSettingError(err.message || 'Unknown error');
@@ -6461,19 +6494,22 @@ export function useCancelBooking() {
 // Returns { canAccess, message }. Fails OPEN (allows) on any network/error so a
 // transient failure never locks a student out — the backend gate is the backstop.
 export function useCheckTimeSlotAccessOnDemand() {
+  const queryClient = useQueryClient();
   const check = async (
     courseId: string,
     courseVersionId: string,
   ): Promise<{ canAccess: boolean; message?: string }> => {
     try {
-      const url = `${import.meta.env.VITE_BASE_URL}/timeslots/check-access/${courseId}/${courseVersionId}`;
-      const res = await fetch(url, {
-        headers: {
-          authorization: `Bearer ${localStorage.getItem('firebase-auth-token')}`,
-        },
-      });
-      if (!res.ok) return { canAccess: true };
-      const data = await res.json().catch(() => ({ canAccess: true }));
+      // Same React Query cache useCheckTimeSlotAccess reads, same key
+      // (queryOptions' key depends only on this init, not the options below)
+      // — a dashboard preload's prefetchQuery for this course resolves this
+      // instantly instead of making the student wait on it before Continue
+      // even navigates.
+      const data: any = await queryClient.fetchQuery(
+        api.queryOptions("get", "/timeslots/check-access/{courseId}/{courseVersionId}", {
+          params: { path: { courseId, courseVersionId } },
+        }),
+      );
       return { canAccess: data?.canAccess !== false, message: data?.message };
     } catch {
       return { canAccess: true };
