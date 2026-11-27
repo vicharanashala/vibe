@@ -181,6 +181,16 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
   // Track if we've already auto-played the video
   const hasAutoPlayedRef = useRef(false)
 
+  /**
+   * Set while an autoplay-triggered playVideo() is muted. Browsers block
+   * unmuted autoplay that isn't tied to a direct user click/tap — which a
+   * setTimeout-driven call never is — so autoplay starts muted (always
+   * allowed) and this flag tells handlePlayerStateChange's PLAYING branch to
+   * unmute once playback has actually begun, restoring audio without
+   * re-triggering the autoplay policy check.
+   */
+  const autoplayMutedRef = useRef(false);
+
   // Track maxTime with a ref for synchronous updates (state updates are async)
   const maxTimeRef = useRef(startTimeSeconds);
 
@@ -410,6 +420,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
   useEffect(() => {
     setGracePeriodCompleted(false);
     hasAutoPlayedRef.current = false; // Reset autoplay flag for new video
+    autoplayMutedRef.current = false; // New video starts unmuted until autoplay (if any) mutes it
     maxTimeRef.current = startTimeSeconds; // Reset maxTime ref
     stopFailCountRef.current = 0; // Reset stop-failure retry counter
 
@@ -777,6 +788,8 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
           !doGesture &&
           !awayPaused) {
 
+          playerRef.current.mute?.();
+          autoplayMutedRef.current = true;
           playerRef.current.playVideo();
           setTimeout(() => { playerRef.current?.setPlaybackRate?.(playbackRate); }, 50);
           hasAutoPlayedRef.current = true;
@@ -1029,6 +1042,10 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
     }) {
       if (event.data === PLAYER_STATE.PLAYING) {
         setPlaying(true);
+        if (autoplayMutedRef.current) {
+          autoplayMutedRef.current = false;
+          event.target.unMute?.();
+        }
         if (!progressStartedRef.current) {
           handleSendStartItem();
           setVideoEnded(false);
@@ -1496,6 +1513,7 @@ const Video = forwardRef<VideoRef, VideoProps>(function Video({ URL, source, ass
 
   // allow autoplay again
   hasAutoPlayedRef.current = false;
+  autoplayMutedRef.current = false;
 
   // reset max seek tracking
   maxTimeRef.current = startTimeSeconds;
