@@ -14,9 +14,13 @@ export interface FaceDetectorsProps {
   onMismatchChange?: (hasMismatch: boolean) => void;
   onMissingEmbedding?: () => void;
   settings:{
-    isFaceCountDetectionEnabled:boolean, 
-    isFaceRecognitionEnabled:boolean, 
-    isFocusEnabled: boolean
+    isFaceCountDetectionEnabled:boolean,
+    isFaceRecognitionEnabled:boolean,
+    isFocusEnabled: boolean,
+    /** Admin-configurable, via Proctoring Settings -> faceRecognition detector options. */
+    faceMatchThreshold?: number,
+    faceRequiredMatches?: number,
+    faceRequiredMismatches?: number,
   }
 }
 
@@ -71,6 +75,11 @@ export interface FaceRecognitionComponentProps {
   onMismatchChange?: (hasMismatch: boolean) => void;
   onMissingEmbedding?: () => void;
   enabled?: boolean;
+  /** Admin-configurable, via Proctoring Settings -> faceRecognition detector
+   * options. Each defaults to the original hardcoded value when unset. */
+  matchThreshold?: number;
+  requiredMatches?: number;
+  requiredMismatches?: number;
 }
 
 export interface FaceRecognitionOverlayProps {

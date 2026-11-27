@@ -2332,6 +2332,9 @@ export function useEditProctoringSettings() {
     caseStudyStrictUnlockEnabled: boolean = true,
     caseStudyWeakStreakThreshold: number = 3,
     noFaceFlagFrames: number = 4,
+    faceMatchThreshold: number = 0.55,
+    faceRequiredMatches: number = 3,
+    faceRequiredMismatches: number = 2,
   ) => {
     setLoading(true);
     setError(null);
@@ -2343,13 +2346,25 @@ export function useEditProctoringSettings() {
 
       const body =
       {
-        detectors: detectors.map((d) => ({
-          detectorName: d.name,
-          settings:
-            d.name === 'faceCountDetection'
-              ? { enabled: d.enabled, options: { noFaceFlagFrames } }
-              : { enabled: d.enabled },
-        })),
+        detectors: detectors.map((d) => {
+          if (d.name === 'faceCountDetection') {
+            return { detectorName: d.name, settings: { enabled: d.enabled, options: { noFaceFlagFrames } } };
+          }
+          if (d.name === 'faceRecognition') {
+            return {
+              detectorName: d.name,
+              settings: {
+                enabled: d.enabled,
+                options: {
+                  matchThreshold: faceMatchThreshold,
+                  requiredMatches: faceRequiredMatches,
+                  requiredMismatches: faceRequiredMismatches,
+                },
+              },
+            };
+          }
+          return { detectorName: d.name, settings: { enabled: d.enabled } };
+        }),
         linearProgressionEnabled,
         seekForwardEnabled,
         isPublic,
