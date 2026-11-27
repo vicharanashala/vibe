@@ -74,7 +74,6 @@ function FloatingVideo({
   // blip, a quick glance away) doesn't read as a "no face"/"multiple faces"
   // anomaly on its own.
   const faceCountBufferRef = useRef<number[]>([]);
-  const FACE_COUNT_BUFFER_SIZE = 4;
   const [recognizedFaces, setRecognizedFaces] = useState<any[]>([]);
   const [hasFaceRecognitionMismatch, setHasFaceRecognitionMismatch] = useState(false);
   const [showFaceRegisterModal, setShowFaceRegisterModal] = useState(false);
@@ -122,6 +121,16 @@ function FloatingVideo({
     return detector?.settings?.enabled ?? false;
   }, [settings]);
 
+  // Teacher-configurable detector tuning values (Proctoring Settings ->
+  // No-Face Flag Sensitivity), read from the same resolved detector list as
+  // isComponentEnabled above. Falls back to the built-in default when unset.
+  const getComponentOption = useCallback((componentName: string, optionKey: string): any => {
+    const detector = settings?.settings?.proctors?.detectors?.find(
+      (detector) => detector.detectorName === componentName
+    );
+    return detector?.settings?.options?.[optionKey];
+  }, [settings]);
+
   // Check which components are enabled
   const isBlurDetectionEnabled = isComponentEnabled('blurDetection');
   const isFaceCountDetectionEnabled = isComponentEnabled('faceCountDetection');
@@ -130,6 +139,9 @@ function FloatingVideo({
   const isFaceRecognitionEnabled = isComponentEnabled('faceRecognition');
   const isRighClickDisabled = isComponentEnabled("rightClickDisabled");
   const isFocusEnabled = false; //isComponentEnabled('focus');
+  const rawNoFaceFlagFrames = Number(getComponentOption('faceCountDetection', 'noFaceFlagFrames'));
+  const FACE_COUNT_BUFFER_SIZE =
+    Number.isInteger(rawNoFaceFlagFrames) && rawNoFaceFlagFrames > 0 ? rawNoFaceFlagFrames : 4;
 
   // Log enabled components for debugging
   // useEffect(() => {
@@ -534,7 +546,7 @@ const maybeReportImageAnomaly = useCallback((tag: string, isActive: boolean, rep
       }
     }
     setFacesCount(mode);
-  }, [faces, modelReady]);
+  }, [faces, modelReady, FACE_COUNT_BUFFER_SIZE]);
 
   // Debug why TensorFlow sees 0 faces
   useEffect(() => {
