@@ -4075,7 +4075,8 @@ class ProgressService extends BaseService {
       // past the quiz and mark it completed, the same as any other
       // exhausted/resolved item. Old-vibe only (see isOldVibeClient above) --
       // v3 keeps its original isPassed-only behavior unless it opts in too.
-      const shouldAdvance = isPassed || (!!isOldVibeClient && !!attemptsExhausted);
+      const shouldAdvance =
+        isPassed || (!!isOldVibeClient && !!attemptsExhausted);
 
       if (shouldAdvance) {
         // Prefer the quiz's actual module/section over the cursor's current
@@ -4169,57 +4170,61 @@ class ProgressService extends BaseService {
           );
         }
     }
-    // if we refresh the quiz page after passing then the student will land on next item
-    //  and as the stop item is not called for that quiz endtime will never be created
-    // Mark quiz as completed (set endTime) if it was passed, or if attempts
-    // are exhausted (shouldAdvance) -- leaving it uncompleted would make
-    // verifyProgress block the next item's immediate-predecessor check even
-    // though the student has correctly been moved past this quiz above.
-    if (shouldAdvance) {
-      let resolvedWatchItemId = watchItemId;
+      // if we refresh the quiz page after passing then the student will land on next item
+      //  and as the stop item is not called for that quiz endtime will never be created
+      // Mark quiz as completed (set endTime) if it was passed, or if attempts
+      // are exhausted (shouldAdvance) -- leaving it uncompleted would make
+      // verifyProgress block the next item's immediate-predecessor check even
+      // though the student has correctly been moved past this quiz above.
+      if (shouldAdvance) {
+        let resolvedWatchItemId = watchItemId;
 
-      if (!resolvedWatchItemId) {
-        // Look up the most recent active watch time for this user and item
-        const activeWatchTimes = await this.progressRepository.getWatchTime(
-          userId.toString(),
-          quizId,
-          courseId,
-          courseVersionId,
-          cohortId,
-          session,
-        );
-        
-        if (activeWatchTimes && activeWatchTimes.length > 0) {
-          // Find one that doesn't have an endTime
-          const active = activeWatchTimes.find(wt => !wt.endTime);
-          if (active) {
-            resolvedWatchItemId = active._id?.toString();
-          } else {
-             // If all are stopped, fallback to the latest one
-            resolvedWatchItemId = activeWatchTimes[activeWatchTimes.length - 1]._id?.toString();
+        if (!resolvedWatchItemId) {
+          // Look up the most recent active watch time for this user and item
+          const activeWatchTimes = await this.progressRepository.getWatchTime(
+            userId.toString(),
+            quizId,
+            courseId,
+            courseVersionId,
+            cohortId,
+            session,
+          );
+
+          if (activeWatchTimes && activeWatchTimes.length > 0) {
+            // Find one that doesn't have an endTime
+            const active = activeWatchTimes.find(wt => !wt.endTime);
+            if (active) {
+              resolvedWatchItemId = active._id?.toString();
+            } else {
+              // If all are stopped, fallback to the latest one
+              resolvedWatchItemId =
+                activeWatchTimes[activeWatchTimes.length - 1]._id?.toString();
+            }
           }
         }
-      }
 
-      if (!resolvedWatchItemId) {
-        console.warn(`[handleQuizeProgressAfterSubmission] Could not resolve watchItemId for user ${userId} and quiz ${quizId}.`);
-        // If we really can't find it, we skip stopping the item.
-        return;
-      }
+        if (!resolvedWatchItemId) {
+          console.warn(
+            `[handleQuizeProgressAfterSubmission] Could not resolve watchItemId for user ${userId} and quiz ${quizId}.`,
+          );
+          // If we really can't find it, we skip stopping the item.
+          return;
+        }
 
-      const watchTime = await this.progressRepository.findWatchTimeById(
-        resolvedWatchItemId
-      );
-      if (watchTime && watchTime.itemId.toString() !== quizId) {
-        throw new BadRequestError('Watch item does not correspond to the quiz');
-      }
-      const isItemCompleted = await this.progressRepository.isItemCompleted(
-        userId.toString(),
-        courseId,
-        courseVersionId,
-        quizId,
-        cohortId,
-      )
+        const watchTime =
+          await this.progressRepository.findWatchTimeById(resolvedWatchItemId);
+        if (watchTime && watchTime.itemId.toString() !== quizId) {
+          throw new BadRequestError(
+            'Watch item does not correspond to the quiz',
+          );
+        }
+        const isItemCompleted = await this.progressRepository.isItemCompleted(
+          userId.toString(),
+          courseId,
+          courseVersionId,
+          quizId,
+          cohortId,
+        );
 
         if (!isItemCompleted && resolvedWatchItemId) {
           await this.progressRepository.stopItemTracking(
