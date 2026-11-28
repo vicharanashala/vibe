@@ -58,7 +58,9 @@ function makeService() {
     sectionId: SECTION_ID,
     itemId: VIDEO_ID,
   });
-  service.updateEnrollmentProgressPercent = vi.fn().mockResolvedValue(undefined);
+  service.updateEnrollmentProgressPercent = vi
+    .fn()
+    .mockResolvedValue(undefined);
   return service;
 }
 
