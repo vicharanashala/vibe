@@ -27,6 +27,7 @@ import {
   BulkChangeEnrollmentStatusBody,
   EthicsConsentBody,
   EthicsConsentStatusResponse,
+  ProctoringDeclarationStatusResponse,
   AssignCohortsBody,
   AssignCohortsResponse,
 } from '#users/classes/validators/EnrollmentValidators.js';
@@ -1484,6 +1485,48 @@ export class EnrollmentController {
       versionId,
       body.signature,
       body.additionalImageConsent,
+    );
+  }
+
+  @OpenAPI({
+    summary: 'Get the current user proctoring declaration acknowledgment status for a course version',
+    description:
+      'Returns whether the authenticated student has acknowledged the camera/proctoring declaration for the given course version.',
+  })
+  @Authorized()
+  @Get('/enrollments/courses/:courseId/versions/:versionId/proctoring-declaration')
+  @HttpCode(200)
+  @ResponseSchema(ProctoringDeclarationStatusResponse)
+  async getProctoringDeclaration(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @CurrentUser() user: IUser,
+  ): Promise<ProctoringDeclarationStatusResponse> {
+    return this.enrollmentService.getProctoringDeclaration(
+      user._id.toString(),
+      courseId,
+      versionId,
+    );
+  }
+
+  @OpenAPI({
+    summary: 'Acknowledge the proctoring declaration for a course version',
+    description:
+      'Records that the authenticated student acknowledged the camera/proctoring declaration for the given course version.',
+  })
+  @Authorized()
+  @Post('/enrollments/courses/:courseId/versions/:versionId/proctoring-declaration')
+  @HttpCode(200)
+  @ResponseSchema(ProctoringDeclarationStatusResponse)
+  async recordProctoringDeclaration(
+    @Param('courseId') courseId: string,
+    @Param('versionId') versionId: string,
+    @CurrentUser() user: IUser,
+  ): Promise<ProctoringDeclarationStatusResponse> {
+    return this.enrollmentService.recordProctoringDeclaration(
+      user._id.toString(),
+      courseId,
+      versionId,
     );
   }
 }
