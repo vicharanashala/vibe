@@ -239,6 +239,13 @@ function FloatingVideo({
 
 // Image record anomaly effect
 const reportImage = useReportAnomalyImage();
+// faces (raw per-frame detections, used only for the confidence score below)
+// updates at the camera's capture rate (4fps) -- mirrored into a ref rather
+// than read as a reactive dependency so it doesn't force the per-type
+// reporter (and the main detection interval that calls it) to recreate on
+// every frame.
+const facesRef = useRef(faces);
+useEffect(() => { facesRef.current = faces; }, [faces]);
 // Per-type: an off->on transition reports immediately, then re-reports at
 // most once per REPORT_COOLDOWN_MS while the condition stays active -- so a
 // long-running anomaly still gets periodic evidence instead of a single
@@ -291,12 +298,24 @@ const reportImageAnomaly = useCallback(async (reportAnomalyType: AnomalyType) =>
   const imageFile = dataURLtoFile(screenshot, "image");
 
   try {
+    // Per-face detection confidence (#1222). FaceDetectorWorker.ts now runs
+    // @mediapipe/tasks-vision's FaceDetector, which does expose a real
+    // per-face score (unlike the previous @tensorflow-models/face-detection
+    // library) - this now populates for real.
+    const scores = facesRef.current
+      .map((face) => (face as { score?: number }).score)
+      .filter((score): score is number => typeof score === "number");
+    const confidence = scores.length
+      ? scores.reduce((sum, score) => sum + score, 0) / scores.length
+      : undefined;
+
     await reportImage.mutateAsync({
       body: {
         type: reportAnomalyType,
         courseId: courseStore.currentCourse?.courseId || "",
         versionId: courseStore.currentCourse?.versionId || "",
         itemId: courseStore.currentCourse?.itemId || "",
+        ...(confidence !== undefined ? { confidence } : {}),
       },
       file: imageFile,
     });
