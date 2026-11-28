@@ -13,9 +13,9 @@ import type {
 
 const EMBEDDING_LENGTH = 128;
 const VERIFY_INTERVAL_MS = 1000;
-const MATCH_THRESHOLD = 0.55;
-const REQUIRED_MATCHES = 3;
-const REQUIRED_MISMATCHES = 2;
+const DEFAULT_MATCH_THRESHOLD = 0.55;
+const DEFAULT_REQUIRED_MATCHES = 3;
+const DEFAULT_REQUIRED_MISMATCHES = 2;
 
 type FaceReferenceResponse = {
   label: string;
@@ -53,8 +53,21 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
   onMismatchChange,
   onMissingEmbedding,
   enabled = true,
+  matchThreshold = DEFAULT_MATCH_THRESHOLD,
+  requiredMatches = DEFAULT_REQUIRED_MATCHES,
+  requiredMismatches = DEFAULT_REQUIRED_MISMATCHES,
 }) => {
   const [isReady, setIsReady] = useState(false);
+  // Mirrored into refs (not read as useCallback deps) so a settings change
+  // doesn't force processRecognition -- and the VERIFY_INTERVAL_MS interval
+  // effect below that (re)creates off it -- to tear down/recreate every time
+  // these admin-configurable values happen to be present as render inputs.
+  const matchThresholdRef = useRef(matchThreshold);
+  const requiredMatchesRef = useRef(requiredMatches);
+  const requiredMismatchesRef = useRef(requiredMismatches);
+  useEffect(() => { matchThresholdRef.current = matchThreshold; }, [matchThreshold]);
+  useEffect(() => { requiredMatchesRef.current = requiredMatches; }, [requiredMatches]);
+  useEffect(() => { requiredMismatchesRef.current = requiredMismatches; }, [requiredMismatches]);
 
   const reportImage = useReportAnomalyImage();
   const courseStore = useCourseStore();
@@ -310,7 +323,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
       }
 
       const distance = faceapi.euclideanDistance(referenceEmbedding, liveEmbedding);
-      const rawMatch = distance < MATCH_THRESHOLD;
+      const rawMatch = distance < matchThresholdRef.current;
 
       let recognition: FaceRecognition = {
         box: detection.detection.box,
@@ -324,7 +337,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         matchCountRef.current += 1;
         mismatchCountRef.current = 0;
 
-        if (matchCountRef.current >= REQUIRED_MATCHES) {
+        if (matchCountRef.current >= requiredMatchesRef.current) {
           recognition = {
             box: detection.detection.box,
             label: referenceLabelRef.current,
@@ -338,7 +351,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         mismatchCountRef.current += 1;
         matchCountRef.current = 0;
 
-        if (mismatchCountRef.current >= REQUIRED_MISMATCHES) {
+        if (mismatchCountRef.current >= requiredMismatchesRef.current) {
           hasConfirmedMismatch = true;
 
           if (!mismatchReportedRef.current) {
