@@ -843,7 +843,19 @@ class AttemptService extends BaseService {
           }
         }
       }
-      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId, quizModuleId, quizSectionId, attemptsExhausted, isOldVibeClient);
+      await this.progressService.handleQuizeProgressAfterSubmission(
+        userId,
+        quizId,
+        courseId,
+        courseVersionId,
+        isPassed,
+        watchItemId,
+        cohortId,
+        quizModuleId,
+        quizSectionId,
+        attemptsExhausted,
+        isOldVibeClient,
+      );
     }
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */
