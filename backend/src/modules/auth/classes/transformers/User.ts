@@ -113,6 +113,14 @@ class User implements IUser {
   faceEmbedding?: number[];
 
   @Expose()
+  @JSONSchema({
+    title: 'Face Embedding (Human)',
+    description: 'Old-vibe only: stored @vladmandic/human face embedding, kept separate from faceEmbedding (v3/face-api.js-only)',
+    type: 'array',
+  })
+  faceEmbeddingHuman?: number[];
+
+  @Expose()
   @IsString()
   @JSONSchema({
     title: 'Roles',
@@ -133,6 +141,7 @@ class User implements IUser {
     this.city = data?.city;
     this.profileImage = data?.profileImage;
     this.faceEmbedding = data?.faceEmbedding;
+    this.faceEmbeddingHuman = data?.faceEmbeddingHuman;
     this.roles = data?.roles || 'user';
   }
 }
