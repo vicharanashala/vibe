@@ -18,6 +18,8 @@ const ROOT = path.resolve(__dirname, '..');
 const PKG_ROOT = path.join(ROOT, 'node_modules', '@mediapipe', 'tasks-vision');
 const WASM_SRC = path.join(PKG_ROOT, 'wasm');
 const WASM_DEST = path.join(ROOT, 'public', 'mediapipe', 'wasm');
+const BUNDLE_SRC = path.join(PKG_ROOT, 'vision_bundle.mjs');
+const BUNDLE_DEST = path.join(ROOT, 'public', 'mediapipe', 'vision_bundle.mjs');
 const MODEL_DEST = path.join(ROOT, 'public', 'mediapipe', 'models', 'blaze_face_short_range.tflite');
 const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
 
@@ -33,6 +35,24 @@ function copyWasmFiles() {
     fs.copyFileSync(path.join(WASM_SRC, name), dest);
     console.log(`[setup-mediapipe-assets] copied ${name}`);
   }
+}
+
+// public/workers/faceDetectorWorker.js is a classic (non-module) worker -
+// mediapipe's WASM bootstrap calls importScripts(), which module workers
+// don't support (see FaceDetectorWorker's original module-worker version,
+// which crashed on every real browser with exactly that TypeError). Classic
+// workers can't use static `import`, so it loads this bundle via a dynamic
+// import() at runtime instead - self-hosted here rather than pulled from a
+// CDN, same reasoning as the WASM/model assets above.
+function copyVisionBundle() {
+  if (!fs.existsSync(BUNDLE_SRC)) {
+    console.warn(`[setup-mediapipe-assets] ${BUNDLE_SRC} not found - is @mediapipe/tasks-vision installed?`);
+    return;
+  }
+  if (fs.existsSync(BUNDLE_DEST)) return;
+  fs.mkdirSync(path.dirname(BUNDLE_DEST), { recursive: true });
+  fs.copyFileSync(BUNDLE_SRC, BUNDLE_DEST);
+  console.log('[setup-mediapipe-assets] copied vision_bundle.mjs');
 }
 
 function downloadModel() {
@@ -77,6 +97,7 @@ function downloadModel() {
 
 async function main() {
   copyWasmFiles();
+  copyVisionBundle();
   await downloadModel();
   console.log('[setup-mediapipe-assets] done');
 }

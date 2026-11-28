@@ -35,7 +35,7 @@ export interface NewAnomalyData {
   cohortId?: string;
   /**
    * Average per-face detection confidence (0-1) for the frame that triggered
-   * this report (#1222). Populated by FaceDetectorWorker.ts via
+   * this report (#1222). Populated by public/workers/faceDetectorWorker.js via
    * @mediapipe/tasks-vision's FaceDetector, which exposes a real per-face
    * score (the previous @tensorflow-models/face-detection library did not).
    */
