@@ -2,12 +2,19 @@ import React, { useEffect, useRef, useState } from "react";
 import { AudioClassifier, FilesetResolver } from "@mediapipe/tasks-audio";
 
 import type { SpeechDetectorProps } from "@/types/ai.types";
-import {registerStream, unRegisterStream } from "@/lib/MediaRegistry";
+import {registerStream, unRegisterStream, waitForStream } from "@/lib/MediaRegistry";
 
-const SpeechDetector: React.FC<SpeechDetectorProps> = ({ setIsSpeaking }) => {
+const SpeechDetector: React.FC<SpeechDetectorProps> = ({ setIsSpeaking, preferSharedStreamKey }) => {
+  // Only set when this component acquired its own mic stream (the exam
+  // flow's standalone instance does); left null when reusing a shared
+  // stream, so the unmount cleanup below never stops a stream other
+  // consumers (CameraProcessor, course-page, etc.) still need alive.
+  const ownStreamRef = useRef<MediaStream | null>(null);
   useEffect(() => {
     return () => {
-       unRegisterStream("SpeechDetector-audio-stream");
+       if (ownStreamRef.current) {
+         unRegisterStream("SpeechDetector-audio-stream");
+       }
     };
   }, []);
   const [modelReady, setModelReady] = useState(false);
@@ -48,9 +55,26 @@ const SpeechDetector: React.FC<SpeechDetectorProps> = ({ setIsSpeaking }) => {
 
   const startMicrophone = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      unRegisterStream("SpeechDetector-audio-stream");
-      registerStream("SpeechDetector-audio-stream", stream);
+      // Reuse a shared stream's audio track when the caller opted in (the
+      // course-page flow does, via FloatingVideo) -- avoids a second
+      // concurrent getUserMedia({audio:true}) call. The exam flow's
+      // standalone SpeechDetector instance doesn't pass this, so it keeps
+      // self-acquiring exactly as before.
+      const sharedStream = preferSharedStreamKey
+        ? await waitForStream(preferSharedStreamKey)
+        : undefined;
+      let stream: MediaStream;
+      if (sharedStream && sharedStream.getAudioTracks().length > 0) {
+        stream = sharedStream;
+        ownStreamRef.current = null;
+      } else {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        ownStreamRef.current = stream;
+      }
+      if (ownStreamRef.current) {
+        unRegisterStream("SpeechDetector-audio-stream");
+        registerStream("SpeechDetector-audio-stream", stream);
+      }
       audioCtxRef.current = new AudioContext({ sampleRate: 16000 });
       sourceRef.current = audioCtxRef.current.createMediaStreamSource(stream);
       scriptNodeRef.current = audioCtxRef.current.createScriptProcessor(4096, 1, 1); // Reduced buffer size
