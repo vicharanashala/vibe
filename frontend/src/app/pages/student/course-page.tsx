@@ -139,6 +139,9 @@ export default function CoursePage() {
   const streamRef = useRef<MediaStream | null>(null);
   const prevAllDisabledRef = useRef(false);
   const rearmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set to `${COURSE_ID}:${VERSION_ID}` once course-wide proctoring settings
+  // have been fetched for that course -- see the [itemData] effect below.
+  const proctoringSettingsFetchKeyRef = useRef<string | null>(null);
 
   // Emotion tracking state
   const [selectedEmotion, setSelectedEmotion] = useState<{ [key: string]: EmotionType }>({});
@@ -608,8 +611,23 @@ export default function CoursePage() {
   // Log proctoring settings when loaded (only logs once when data is available)
   useEffect(() => {
     async function fetch() {
-      const data = await getSettings(COURSE_ID, VERSION_ID);
-      setProctoringData(data);
+      // Course-wide settings are the same for every item in this course
+      // session (COURSE_ID/VERSION_ID never change between items -- only
+      // the per-item detector overrides below do). Re-running getSettings()
+      // on every single item navigation was toggling settingLoading
+      // true->false each time, which feeds isStageLoadingGate further down
+      // and flashed the whole-page spinner over every item switch, even
+      // though getSettings() itself already resolves from an in-memory
+      // cache (proctoring-settings-cache.ts) after the first call -- the
+      // flash was pure state churn, not a real network wait. Fetch once per
+      // course and reuse it for every later item.
+      const settingsKey = `${COURSE_ID}:${VERSION_ID}`;
+      const alreadyFetched = proctoringSettingsFetchKeyRef.current === settingsKey && proctoringData;
+      const data = alreadyFetched ? proctoringData : await getSettings(COURSE_ID, VERSION_ID);
+      if (!alreadyFetched) {
+        proctoringSettingsFetchKeyRef.current = settingsKey;
+        setProctoringData(data);
+      }
 
       // Selective proctoring: readItem resolves item > module > universal and
       // returns the resolved detector list as itemData.item.proctoringDetectors
