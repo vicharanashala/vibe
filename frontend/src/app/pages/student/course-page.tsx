@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCourseVersionById, useUserProgress, useItemsBySectionId, useItemById, useGetProcotoringSettings, useSubmitFlag, enqueueNavigation, useSkipOptionalItem, useRecalculateStudentProgress, useInvites, useAcceptInvite } from "@/hooks/hooks";
+import { invalidateItemCache } from "@/lib/item-cache";
 import { useAuthStore } from "@/store/auth-store";
 import { useCourseStore } from "@/store/course-store";
 import { useShareLinkStore } from "@/store/share-link-store";
@@ -11,6 +13,8 @@ import StudentProjectItem from "./components/StudentProjectItem";
 import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
 import { classifyItemForbiddenError } from "@/utils/itemForbiddenError";
 import { resolveContentLock } from "@/utils/contentLock";
+import { consumeLaunchOrigin, type LaunchOrigin } from "@/lib/page-transition";
+import { recordLastVisitedCourse } from "@/lib/last-visited-course";
 const LazyStudentTimeslotModal = lazy(() => import("@/components/course/StudentTimeslotModal"));
 import type { Item, ItemContainerRef } from "@/types/item-container.types";
 import type { PendingStudentQuestionContext } from "@/types/student-question.types";
@@ -27,6 +31,7 @@ import {
   CircleCheckIcon,
   Maximize2,
   Lock,
+  Home,
 } from "lucide-react";
 import FloatingVideo from "@/components/floating-video";
 import type { itemref } from "@/types/course.types";
@@ -36,7 +41,7 @@ import { FlagModal } from "@/components/FlagModal";
 import { EntityType } from "@/types/flag.types";
 import { toast } from "sonner";
 import ItemContainer from "@/components/Item-container";
-import { registerStream, unRegisterStream } from "@/lib/MediaRegistry";
+import { registerStream, unRegisterStream, waitForStream } from "@/lib/MediaRegistry";
 import { useModuleProgress } from "@/hooks/hooks";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileFallbackScreen from "@/components/MobileFallbackScreen";
@@ -46,13 +51,12 @@ import { useSubmitEmotion } from "@/hooks/use-emotion";
 
 import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 import { EthicsConsentModal } from "./components/policies/EthicsConsentModal";
-import { useGetEthicsConsent } from "@/hooks/system-notification-hooks";
+import { useGetEthicsConsent, useGetProctoringDeclaration, useSignProctoringDeclaration } from "@/hooks/system-notification-hooks";
 // Focused learn-page UI
 import { FloatingBackButton } from "@/components/learn/FloatingBackButton";
 import { FloatingCameraButton } from "@/components/learn/FloatingCameraButton";
 import { AiCompanion } from "@/components/learn/AiCompanion";
 import { AiActionSheet } from "@/components/learn/AiActionSheet";
-import { InitialWebcamPopup } from "@/components/learn/InitialWebcamPopup";
 import { ProctorAlertOverlay } from "@/components/learn/ProctorAlertOverlay";
 import { NoiseIndicator } from "@/components/learn/NoiseIndicator";
 import { AwayOverlay } from "@/components/learn/AwayOverlay";
@@ -84,16 +88,43 @@ export default function CoursePage() {
   const [showProctorDialog, setShowProctorDialog] = useState(true);
   const { user } = useAuthStore();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const currentCourse = useCourseStore((state) => state.currentCourse);
   const COURSE_ID = currentCourse?.courseId || "";
   const VERSION_ID = currentCourse?.versionId || "";
   const COHORT_ID = currentCourse?.cohortId || "";
   const COHORT_NAME = currentCourse?.cohortName || "";
+  // Remembered purely client-side so the dashboard knows which card to
+  // preload first on the next visit — see lib/last-visited-course.ts.
+  useEffect(() => {
+    if (!COURSE_ID || !VERSION_ID) return;
+    recordLastVisitedCourse({ courseId: COURSE_ID, versionId: VERSION_ID, cohortId: COHORT_ID || undefined });
+  }, [COURSE_ID, VERSION_ID, COHORT_ID]);
   // Ethics consent gate: must be signed once per course before entering content
   const { signed: ethicsConsentSigned, isLoading: ethicsConsentLoading } =
     useGetEthicsConsent(COURSE_ID, VERSION_ID);
   const [ethicsConsentSignedLocal, setEthicsConsentSignedLocal] = useState(false);
   const consentSatisfied = ethicsConsentSigned || ethicsConsentSignedLocal;
+  // Proctoring declaration: persisted per-enrollment like ethics consent above,
+  // so it only needs to be acknowledged once per course, not on every refresh.
+  const { acked: proctoringDeclarationAcked, isLoading: proctoringDeclarationLoading } =
+    useGetProctoringDeclaration(COURSE_ID, VERSION_ID);
+  const [proctoringDeclarationAckedLocal, setProctoringDeclarationAckedLocal] = useState(false);
+  const declarationAcked = proctoringDeclarationAcked || proctoringDeclarationAckedLocal;
+  const signProctoringDeclaration = useSignProctoringDeclaration();
+  // showProctorDialog defaults to true (so a genuinely first-time student
+  // sees the dialog) and only ever gets set false by the ACCEPT handler
+  // below -- which never fires if the declaration was already acked in a
+  // previous session, since the Dialog's own `open` check already hides it.
+  // Without this sync, showProctorDialog (which also gates FloatingVideo's
+  // mount, fullscreen enforcement, etc. -- not just the dialog's visibility)
+  // would stay stuck true forever for a returning student, never arming
+  // proctoring at all.
+  useEffect(() => {
+    if (!proctoringDeclarationLoading && declarationAcked) {
+      setShowProctorDialog(false);
+    }
+  }, [proctoringDeclarationLoading, declarationAcked]);
   const { getSettings, settingLoading: proctoringLoading } = useGetProcotoringSettings();
 
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
@@ -109,6 +140,8 @@ export default function CoursePage() {
   const { mutateAsync: recalculateStudentProgressAsync } = useRecalculateStudentProgress();
   const [allProctorsDisabled, setAllProctorsDisabled] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const prevAllDisabledRef = useRef(false);
+  const rearmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Emotion tracking state
   const [selectedEmotion, setSelectedEmotion] = useState<{ [key: string]: EmotionType }>({});
@@ -121,24 +154,32 @@ export default function CoursePage() {
   useEffect(() => {
     async function checkMediaPermissions() {
       try {
-        // Try to get both camera and microphone access
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // Reuse CameraProcessor's already-acquired, session-long stream
+        // (it requests audio too -- see CameraProcessor.ts) instead of
+        // opening a second concurrent getUserMedia call every time this
+        // effect re-runs, which happens on every allProctorsDisabled
+        // toggle -- unlike CameraProcessor's stream, acquired once for the
+        // whole course session. Falls back to self-acquiring, same as
+        // before, if it's genuinely not there.
+        const borrowed = await waitForStream("CameraProcessor-stream");
+        const stream = borrowed ?? await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
         // Proctoring check: block virtual camera usage at session start
         // This ensures user cannot enter course with spoofed camera
         const violations = await runProctoringChecks(stream);
 
         if (violations.length > 0) {
-          stream.getTracks().forEach(t => t.stop());
+          if (!borrowed) stream.getTracks().forEach(t => t.stop());
 
           alert(violations[0].reason);
 
           router.navigate({ to: "/student" });
           return;
         }
-        
+
         unRegisterStream("course-page-stream");
         registerStream("course-page-stream", stream);
-        streamRef.current = stream;
+        if (!borrowed) streamRef.current = stream;
       } catch (err) {
         alert("Please allow camera and microphone access to continue. You will be redirected to the dashboard if access is denied.");
         try {
@@ -242,6 +283,23 @@ export default function CoursePage() {
   // floating control is used.
   const pauseVideoForControl = useCallback(() => setPauseSignal((n) => n + 1), []);
 
+  // --- Enter/exit "app launch" animation for the focused stage ---
+  // Consumed once on mount: when set, the dashboard's Continue button just
+  // handed us its on-screen rect so the stage can visibly expand out of it
+  // instead of just appearing. Absent on a reload/direct visit, in which
+  // case the stage renders at full size immediately (no animation to run).
+  const [launchOrigin] = useState<LaunchOrigin | null>(() => consumeLaunchOrigin());
+  const [stageEntered, setStageEntered] = useState(!launchOrigin);
+  // The flip-to-entered effect lives further down (after the loading-gate
+  // flags below exist) — see the comment there for why.
+  // Set true to play the "shrink back to the dashboard" close animation
+  // before the navigation it's covering for actually happens.
+  const [stageExiting, setStageExiting] = useState(false);
+  const exitToDashboard = useCallback(() => {
+    setStageExiting(true);
+    setTimeout(() => router.navigate({ to: "/student" }), 780);
+  }, [router]);
+
   // Fullscreen is entered from the "Continue" click that brings the student here.
   // Exit it when they leave the learn page so fullscreen is scoped to this page only.
   useEffect(() => {
@@ -262,6 +320,9 @@ export default function CoursePage() {
   // Only gate once past the consent + proctoring-declaration dialogs (they run
   // their own flow); then fullscreen is required for the focused learn stage.
   const needsFullscreen = consentSatisfied && !showProctorDialog && !isPageFullscreen;
+  // firstName isn't always populated on the backend profile -- fall back to the
+  // first word of the display name (set from Firebase on signup) before giving up.
+  const firstNameForGreeting = user?.firstName || user?.name?.trim().split(/\s+/)[0] || "";
 
   // Debounced "blocking anomaly" (no person / multiple people / identity / etc.).
   // Face detection is noisy, so require the anomaly to persist briefly before we
@@ -304,6 +365,13 @@ export default function CoursePage() {
     sectionId: string;
   } | null>(null);
 
+  // A section clicked in the drawer while another section's fetch is still
+  // in flight -- reassigning activeSectionInfo right away would abandon that
+  // fetch (nothing is left observing its query once activeSectionInfo moves
+  // on), so its row never gets its items and is stuck showing "No items
+  // found". Queue it and let the loading-done effect below pick it up.
+  const pendingSectionRef = useRef<{ moduleId: string; sectionId: string } | null>(null);
+
   // Fetch course version data
   const { data: courseVersionData, isLoading: versionLoading, error: versionError, refetch: refetchVersion } =
     useCourseVersionById(VERSION_ID, undefined, COHORT_ID);
@@ -316,6 +384,24 @@ export default function CoursePage() {
   const { data: moduleProgressData, isLoading: moduleProgressLoading } =
     useModuleProgress(COURSE_ID, VERSION_ID, COHORT_ID);
 
+  // Flips the stage from its shrunk launch position to full size. This has
+  // to wait for the same loading gate the component's early return below
+  // waits on: the launch effect used to fire within a couple of frames of
+  // this component merely mounting, which happens while that gate is still
+  // showing a loading skeleton in place of the real <main> stage — so by the
+  // time data arrived and <main> finally rendered, stageEntered was already
+  // true and there was nothing left to animate from (looked like a plain
+  // instant cut straight to the full page). Re-running this off the gate
+  // itself means it only fires once <main> is actually about to paint.
+  const isStageLoadingGate = versionLoading || progressLoading || proctoringLoading || ethicsConsentLoading;
+  useEffect(() => {
+    if (!launchOrigin || isStageLoadingGate) return;
+    // Two rAFs: the first lets the browser paint the initial (shrunk) frame;
+    // only the second one is guaranteed to be a new frame the CSS transition
+    // can animate from, otherwise it can get coalesced into the first paint.
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setStageEntered(true)));
+    return () => cancelAnimationFrame(id);
+  }, [launchOrigin, isStageLoadingGate]);
 
   // Fetch proctoring settings for the course (fetched once when component loads)
   const [proctoringData, setProctoringData] = useState<StudentProctoringSettings | null>(null);
@@ -545,7 +631,7 @@ export default function CoursePage() {
       // symmetrically already; this check only decides the outer gate.)
       const resolvedDetectors =
         (itemData as {item?: {proctoringDetectors?: {settings: {enabled: boolean}}[]}})
-          ?.item?.proctoringDetectors ?? data.settings.proctors.detectors;
+          ?.item?.proctoringDetectors ?? data.settings?.proctors?.detectors ?? [];
       const noDetectorsActive = resolvedDetectors.every(
         (detector: any) => detector.settings.enabled === false,
       );
@@ -568,20 +654,41 @@ export default function CoursePage() {
       // Re-acquiring the camera/mic stream itself happens in the
       // checkMediaPermissions effect above, which has allProctorsDisabled
       // in its dependency array for exactly this transition.
+      if (rearmTimerRef.current) {
+        clearTimeout(rearmTimerRef.current);
+        rearmTimerRef.current = null;
+      }
       if (noDetectorsActive || isPlainShareViewer) {
         setShowProctorDialog(false);
         setAllProctorsDisabled(true);
         setReadyToDetect(true);
+        prevAllDisabledRef.current = true;
       } else {
         setAllProctorsDisabled(false);
-        // Stale true from a previous all-off item would let FloatingVideo's
-        // detection checks fire immediately on the freshly re-acquired
-        // stream, before its own models/warm-up actually catch up -- let it
-        // re-set this itself once ready, same as on first mount.
-        setReadyToDetect(false);
+        // Only the genuine re-arm case (the previous item had every detector
+        // off, so the stream/model may not have been actively read) needs a
+        // brief stabilization window -- same idea as the initial modelReady
+        // warm-up in floating-video.tsx. An ordinary active-item-to-active-item
+        // navigation must leave readyToDetect alone: the camera/model are a
+        // session-long singleton that's already warmed up and continuously
+        // read, so resetting it here was freezing whatever anomaly state
+        // existed at that exact instant until a full page reload.
+        if (prevAllDisabledRef.current) {
+          setReadyToDetect(false);
+          rearmTimerRef.current = setTimeout(() => {
+            setReadyToDetect(true);
+          }, 2000);
+        }
+        prevAllDisabledRef.current = false;
       }
     }
     fetch();
+    return () => {
+      if (rearmTimerRef.current) {
+        clearTimeout(rearmTimerRef.current);
+        rearmTimerRef.current = null;
+      }
+    };
   }, [itemData]);
 
   // The detector list FloatingVideo actually arms. Swaps in this item's
@@ -697,10 +804,35 @@ export default function CoursePage() {
       );
 
       if (hasProgressChanged) {
-        console.log('Progress reset detected, clearing cached section items');
+        // Despite the name, hasProgressChanged fires on an ORDINARY forward
+        // step too (finishing an item, exhausting a single-attempt quiz --
+        // see 0e6ea82e4/3a366fc70 -- advances currentItem the same way).
+        // Wiping sectionItems unconditionally on every such step threw away
+        // every other section the drawer had already loaded, including the
+        // one the student was just looking at -- it would sit there showing
+        // "No items found" until manually re-expanded. Only actually clear
+        // the cache for a real reset (position moved backward), which is
+        // the only case where previously-cached isCompleted flags can be
+        // wrong; a forward step's cache is still perfectly valid, and the
+        // new current section gets fetched below regardless either way.
+        const modules = (courseVersionData as any)?.modules || [];
+        const moduleSectionIndex = (moduleId: string, sectionId: string) => {
+          const mIdx = modules.findIndex((m: any) => m.moduleId === moduleId);
+          if (mIdx === -1) return null;
+          const sIdx = (modules[mIdx].sections || []).findIndex((s: any) => s.sectionId === sectionId);
+          if (sIdx === -1) return null;
+          return [mIdx, sIdx];
+        };
+        const lastPos = moduleSectionIndex(lastModule, lastSection);
+        const currentPos = moduleSectionIndex(currentModule, currentSection);
+        const isBackwardReset =
+          lastPos !== null && currentPos !== null &&
+          (currentPos[0] < lastPos[0] || (currentPos[0] === lastPos[0] && currentPos[1] < lastPos[1]));
 
-        // Clear all cached section items to force fresh load
-        setSectionItems({});
+        if (isBackwardReset) {
+          console.log('Progress reset detected, clearing cached section items');
+          setSectionItems({});
+        }
 
         // Clear waiting states
         setWaitingForNextSection(null);
@@ -727,7 +859,7 @@ export default function CoursePage() {
 
     // Update last known progress data
     setLastProgressData(progressData);
-  }, [progressData, lastProgressData, updateCourseNavigation]);
+  }, [progressData, lastProgressData, updateCourseNavigation, courseVersionData]);
 
   // Effect to initialize based on user progress ONLY ON INITIAL LOAD
   useEffect(() => {
@@ -1038,13 +1170,28 @@ export default function CoursePage() {
 
   // Toggle section expansion
   const toggleSection = (moduleId: string, sectionId: string) => {
+    setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
+
+    if (itemsLoading && activeSectionInfo?.sectionId !== sectionId) {
+      pendingSectionRef.current = { moduleId, sectionId };
+      return;
+    }
+
     setActiveSectionInfo({
       moduleId,
       sectionId
     });
-
-    setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
   };
+
+  // Once the in-flight fetch finishes, move on to whichever section was
+  // clicked (last one wins) while it was busy.
+  useEffect(() => {
+    if (!itemsLoading && pendingSectionRef.current) {
+      const next = pendingSectionRef.current;
+      pendingSectionRef.current = null;
+      setActiveSectionInfo(next);
+    }
+  }, [itemsLoading]);
 
   // Helper function to find the next item in the course structure
   const findNextItem = useCallback((): {
@@ -1335,14 +1482,24 @@ export default function CoursePage() {
           }
         }
 
-        setSectionItems(prev => ({
-          ...prev,
-          [selectedSectionId!]: prev[selectedSectionId!].map(item =>
-            item._id === selectedItemId
-              ? { ...item, isCompleted: true }
-              : item
-          )
-        }));
+        // The "progress reset" effect (see sectionItems/progressData effect
+        // above) can wipe sectionItems to {} and repoint selectedSectionId
+        // between this item finishing and this callback running -- e.g. a
+        // backend-side progress advance (an exhausted quiz attempt) landing
+        // mid-flow. Without this guard, prev[selectedSectionId!] is undefined
+        // and .map throws, crashing the whole page.
+        setSectionItems(prev => {
+          const items = prev[selectedSectionId!];
+          if (!items) return prev;
+          return {
+            ...prev,
+            [selectedSectionId!]: items.map(item =>
+              item._id === selectedItemId
+                ? { ...item, isCompleted: true }
+                : item
+            )
+          };
+        });
 
         // 2️⃣ Determine next item
         const nextItem = findNextItem();
@@ -1704,6 +1861,43 @@ export default function CoursePage() {
     updateCourseNavigation,
   ]);
 
+  // The moment a failed quiz is known to require a rewatch of the video
+  // before it — not tied to any particular way the student later gets back
+  // to that video (the quiz's own "back" button, the auto-redirect
+  // countdown, or navigating there manually via the course drawer
+  // afterward). Invalidating here instead of inside handlePrevVideo covers
+  // all of those with one targeted call, instead of only the first.
+  useEffect(() => {
+    if (quizPassed !== 0) return;
+    const prevVideoItem = findPreviousVideoItem();
+    if (!prevVideoItem?.itemId) return;
+    invalidateItemCache(queryClient, { itemId: prevVideoItem.itemId });
+  }, [quizPassed, findPreviousVideoItem, queryClient]);
+
+  // Mirrors the video-finish update a few lines up: the drawer's per-item
+  // isCompleted flags live in local sectionItems state (fetched once per
+  // section -- see "SECTION ITEM FETCH (ONCE PER SECTION)" above -- not
+  // re-fetched from the server), so a quiz pass needs the same local patch a
+  // finished video already gets. Without it the drawer (and the counts
+  // derived from it) kept showing the pre-pass snapshot until a full reload.
+  // quizPassed === 3 covers both "no attempts left to start a new one" and a
+  // failed attempt that was the student's last -- the backend marks the quiz
+  // completed (endTime set) in both cases too, see handleQuizeProgressAfterSubmission.
+  useEffect(() => {
+    if (quizPassed !== 1 && quizPassed !== 3) return;
+    if (!selectedSectionId || !selectedItemId) return;
+    setSectionItems(prev => {
+      const items = prev[selectedSectionId];
+      if (!items) return prev;
+      return {
+        ...prev,
+        [selectedSectionId]: items.map(item =>
+          item._id === selectedItemId ? { ...item, isCompleted: true } : item
+        ),
+      };
+    });
+  }, [quizPassed, selectedSectionId, selectedItemId]);
+
 const nextItemInfo = findNextItem();
 
 const proctorAlertActive =
@@ -1979,7 +2173,7 @@ return false;
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={consentSatisfied && showProctorDialog} onOpenChange={(open) => {
+      <Dialog open={consentSatisfied && !proctoringDeclarationLoading && !declarationAcked && showProctorDialog} onOpenChange={(open) => {
         if (!open) {
           router.navigate({ to: '/student' });
         }
@@ -2000,7 +2194,18 @@ return false;
             </li>
           </ul>
           <div className="flex justify-end w-full">
-            <Button onClick={() => { enterFullscreen(); setShowProctorDialog(false); }} className="w-full">ACCEPT</Button>
+            <Button onClick={async () => {
+              enterFullscreen();
+              setShowProctorDialog(false);
+              setProctoringDeclarationAckedLocal(true);
+              try {
+                await signProctoringDeclaration.mutateAsync({
+                  params: { path: { courseId: COURSE_ID, versionId: VERSION_ID } },
+                } as any);
+              } catch (err) {
+                console.log("Error recording proctoring declaration:", err);
+              }
+            }} className="w-full">ACCEPT</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -2034,6 +2239,19 @@ return false;
       <main
         className="fixed inset-0 flex flex-col bg-stage overflow-hidden text-stage-foreground"
         onClick={() => setAiExpanded(false)}
+        style={{
+          transformOrigin: stageExiting ? "center bottom" : "top left",
+          transform: stageExiting
+            ? "scale(0.86) translateY(3vh)"
+            : !stageEntered && launchOrigin
+              ? `translate(${launchOrigin.left}px, ${launchOrigin.top}px) scale(${launchOrigin.width / window.innerWidth}, ${launchOrigin.height / window.innerHeight})`
+              : "translate(0, 0) scale(1, 1)",
+          opacity: stageExiting ? 0 : !stageEntered && launchOrigin ? 0.4 : 1,
+          borderRadius: stageExiting ? 28 : !stageEntered && launchOrigin ? 20 : 0,
+          transition: stageExiting
+            ? "transform 700ms cubic-bezier(0.4, 0, 0.2, 1), opacity 650ms ease, border-radius 700ms ease"
+            : "transform 480ms cubic-bezier(0.19, 1, 0.22, 1), opacity 360ms ease, border-radius 480ms ease",
+        }}
       >
         {/* Lesson content */}
         {lockedScreen ? (
@@ -2187,9 +2405,6 @@ return false;
           </div>
         )}
 
-        {/* Initial webcam popup — first ~11s while the camera sets up */}
-        {!allProctorsDisabled && !showProctorDialog && <InitialWebcamPopup seconds={15} />}
-
         {/* Transient notifications */}
         <div className="top-4 left-1/2 z-90 fixed flex flex-col gap-2 w-[min(92vw,420px)] -translate-x-1/2 pointer-events-none">
           {isItemForbidden && (
@@ -2296,6 +2511,7 @@ return false;
         onToggleSection={toggleSection}
         onSelectItem={(m, s, i) => { handleSelectItem(m, s, i); setDrawerOpen(false); }}
         isItemLocked={isItemLocked}
+        onExitToDashboard={exitToDashboard}
         emotion={
           currentItem
             ? {
@@ -2345,26 +2561,51 @@ return false;
 
       {/* Fullscreen gate — after a reload or an Esc, a request can only succeed
           inside a click, so block the lesson until the student clicks to re-enter. */}
-      {needsFullscreen && !lockedScreen && (
+      {needsFullscreen && !lockedScreen && !drawerOpen && !stageExiting && (
         <div
-          className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-5 bg-black/80 backdrop-blur-sm text-center px-6"
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6 bg-black/85 backdrop-blur-md text-center px-6"
           role="dialog"
           aria-modal="true"
         >
-          <Maximize2 className="h-10 w-10 text-white/90" />
-          <div className="max-w-md space-y-1.5">
-            <h2 className="text-xl font-semibold text-white">Fullscreen required</h2>
+          <div className="relative flex items-center justify-center">
+            <div className="absolute h-20 w-20 rounded-full bg-warm/20 blur-xl" />
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-warm/30 to-white/10 ring-1 ring-white/20">
+              <Maximize2 className="h-7 w-7 text-white" />
+            </div>
+          </div>
+          <div className="max-w-sm space-y-2">
+            <h2 className="text-2xl font-semibold text-white">
+              {firstNameForGreeting ? `Hold on, ${firstNameForGreeting}!` : "Hold on!"}
+            </h2>
             <p className="text-sm text-white/70">
-              This lesson runs in fullscreen. Your video is paused — click below to continue.
+              {(courseVersionData as any)?.name
+                ? `"${(courseVersionData as any).name}" pauses outside fullscreen. Re-enter it to keep going, or head out below.`
+                : "This lesson pauses outside fullscreen. Re-enter it to keep going, or head out below."}
             </p>
           </div>
           <button
             type="button"
             onClick={() => enterFullscreen()}
-            className="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-white/90"
+            className="rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-black shadow-lg shadow-black/20 transition hover:bg-white/90"
           >
             Enter fullscreen
           </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => { pauseVideoForControl(); setDrawerOpen(true); }}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-medium text-white/80 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
+            >
+              <BookOpen className="h-3.5 w-3.5" /> Open course tree
+            </button>
+            <button
+              type="button"
+              onClick={exitToDashboard}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-medium text-white/80 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
+            >
+              <Home className="h-3.5 w-3.5" /> Go to dashboard
+            </button>
+          </div>
         </div>
       )}
 

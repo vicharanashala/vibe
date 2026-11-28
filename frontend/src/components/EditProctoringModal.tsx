@@ -81,6 +81,7 @@ export function ProctoringModal({
   const [isPublic, setIsPublic] = useState(false);
   const [isAdditionalSettingsExpanded, setIsAdditionalSettingsExpanded] = useState(false);
   const [enableRandomize, setEnableRandomize] = useState<boolean>(false);
+  const [noFaceFlagFrames, setNoFaceFlagFrames] = useState<number>(4);
   const [crowdsourcedQuestionSubmissionEnabled, setCrowdsourcedQuestionSubmissionEnabled] = useState(false);
   const { data: courseVersion, isLoading: versionLoading } = useCourseVersionById(courseVersionId || "")
 
@@ -136,6 +137,10 @@ export function ProctoringModal({
         const result = await getSettings(courseId, courseVersionId);
         if (result) {
           setDetectors(result.settings?.proctors?.detectors?.map((d: any) => ({ name: d.detectorName, enabled: d.settings.enabled })))
+          const faceCountDetector = result.settings?.proctors?.detectors?.find(
+            (d: any) => d.detectorName === ProctoringComponent.FACECOUNTDETECTION,
+          )
+          setNoFaceFlagFrames(faceCountDetector?.settings?.options?.noFaceFlagFrames ?? 4)
           setLinearProgressionEnabled(result.settings?.linearProgressionEnabled)
           setSeekForwardEnabled(result.settings?.seekForwardEnabled ?? false)
           setIsPublic(result.settings?.isPublic ?? false)
@@ -195,8 +200,13 @@ export function ProctoringModal({
       return
     }
 
+    if (!Number.isInteger(noFaceFlagFrames) || noFaceFlagFrames < 1) {
+      toast.error("The no-face flag sensitivity must be a whole number of at least 1.")
+      return
+    }
+
     try {
-      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled, baseHp, enableRandomize, crowdsourcedQuestionSubmissionEnabled, caseStudiesEnabled, caseStudyStrictUnlockEnabled, caseStudyWeakStreakThreshold)
+      const result = await editSettings(courseId, courseVersionId, detectors, isNew, linearProgressionEnabled, seekForwardEnabled, isPublic, hpSystemEnabled, baseHp, enableRandomize, crowdsourcedQuestionSubmissionEnabled, caseStudiesEnabled, caseStudyStrictUnlockEnabled, caseStudyWeakStreakThreshold, noFaceFlagFrames)
 
       // Persist the follow-up invite configuration (separate endpoint).
       await updateFollowUpInvite(courseId, courseVersionId, {
@@ -295,18 +305,37 @@ export function ProctoringModal({
         </label>
       </div>
     ) : (
-      <div key={detector.name} className="flex items-center space-x-2">
-        <Checkbox
-          id={detector.name}
-          checked={detector.enabled}
-          onCheckedChange={() => toggle(detector.name)}
-        />
-        <label
-          htmlFor={detector.name}
-          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        >
-          {proctoringLabelMap[detector.name] || detector.name}
-        </label>
+      <div key={detector.name} className="space-y-2">
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id={detector.name}
+            checked={detector.enabled}
+            onCheckedChange={() => toggle(detector.name)}
+          />
+          <label
+            htmlFor={detector.name}
+            className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            {proctoringLabelMap[detector.name] || detector.name}
+          </label>
+        </div>
+        {detector.name === ProctoringComponent.FACECOUNTDETECTION && detector.enabled && (
+          <div className="space-y-1 pl-6">
+            <Label className="text-xs font-medium">No-Face Flag Sensitivity</Label>
+            <p className="text-xs text-muted-foreground">
+              Consecutive camera frames (~4 per second) required before flagging or clearing a no-face/multiple-faces anomaly. Lower = flags faster but more false positives from a quick glance away; higher = fewer false positives but slower to flag a real anomaly. Default: 4.
+            </p>
+            <Input
+              type="number"
+              value={noFaceFlagFrames}
+              min={1}
+              max={20}
+              onChange={(e) => setNoFaceFlagFrames(Number(e.target.value))}
+              placeholder="4"
+              className="max-w-32"
+            />
+          </div>
+        )}
       </div>
     )
   ))}
