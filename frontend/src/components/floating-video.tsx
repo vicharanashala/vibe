@@ -96,7 +96,7 @@ function FloatingVideo({
   }, [setRewindVid, setPauseVid]);
 
   // Get our videoRef and face data from the custom hook
-  const { videoRef, modelReady, faces } = useCameraProcessor(4, true);
+  const { videoRef, modelReady, faces, setRecognitionEnabled } = useCameraProcessor(4, true);
 
   // Use refs to track initialization without causing re-renders
   const faceDetectorsKeyRef = useRef(0);
@@ -142,6 +142,12 @@ function FloatingVideo({
   const rawNoFaceFlagFrames = Number(getComponentOption('faceCountDetection', 'noFaceFlagFrames'));
   const FACE_COUNT_BUFFER_SIZE =
     Number.isInteger(rawNoFaceFlagFrames) && rawNoFaceFlagFrames > 0 ? rawNoFaceFlagFrames : 4;
+
+  // humanFaceWorker.js only extracts embeddings (the extra, costlier part of
+  // its one-pass detect() call) while recognition is actually needed.
+  useEffect(() => {
+    setRecognitionEnabled(isFaceRecognitionEnabled);
+  }, [isFaceRecognitionEnabled, setRecognitionEnabled]);
 
   // Log enabled components for debugging
   // useEffect(() => {

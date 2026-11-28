@@ -2247,7 +2247,7 @@ export function useEditProctoringSettings() {
     randomizeItems: boolean,
     crowdsourcedQuestionSubmissionEnabled: boolean = false,
     noFaceFlagFrames: number = 4,
-    faceMatchThreshold: number = 0.55,
+    faceMatchThreshold: number = 0.6,
     faceRequiredMatches: number = 3,
     faceRequiredMismatches: number = 2,
   ) => {

@@ -79,7 +79,7 @@ export function ProctoringModal({
   const [isAdditionalSettingsExpanded, setIsAdditionalSettingsExpanded] = useState(false);
   const [enableRandomize, setEnableRandomize] = useState<boolean>(false);
   const [noFaceFlagFrames, setNoFaceFlagFrames] = useState<number>(4);
-  const [faceMatchThreshold, setFaceMatchThreshold] = useState<number>(0.55);
+  const [faceMatchThreshold, setFaceMatchThreshold] = useState<number>(0.6);
   const [faceRequiredMatches, setFaceRequiredMatches] = useState<number>(3);
   const [faceRequiredMismatches, setFaceRequiredMismatches] = useState<number>(2);
   const [crowdsourcedQuestionSubmissionEnabled, setCrowdsourcedQuestionSubmissionEnabled] = useState(false);
@@ -144,7 +144,7 @@ export function ProctoringModal({
           const faceRecognitionDetector = result.settings?.proctors?.detectors?.find(
             (d: any) => d.detectorName === ProctoringComponent.FACERECOGNITION,
           )
-          setFaceMatchThreshold(faceRecognitionDetector?.settings?.options?.matchThreshold ?? 0.55)
+          setFaceMatchThreshold(faceRecognitionDetector?.settings?.options?.matchThreshold ?? 0.6)
           setFaceRequiredMatches(faceRecognitionDetector?.settings?.options?.requiredMatches ?? 3)
           setFaceRequiredMismatches(faceRecognitionDetector?.settings?.options?.requiredMismatches ?? 2)
           setLinearProgressionEnabled(result.settings?.linearProgressionEnabled)
@@ -352,7 +352,7 @@ export function ProctoringModal({
             <div className="space-y-1">
               <Label className="text-xs font-medium">Match Threshold</Label>
               <p className="text-xs text-muted-foreground">
-                Max face-embedding distance counted as a match (lower = stricter). Default: 0.55.
+                Minimum face similarity (0-1) counted as a match (higher = stricter). Default: 0.6.
               </p>
               <Input
                 type="number"
@@ -361,7 +361,7 @@ export function ProctoringModal({
                 max={1}
                 step={0.01}
                 onChange={(e) => setFaceMatchThreshold(Number(e.target.value))}
-                placeholder="0.55"
+                placeholder="0.6"
                 className="max-w-32"
               />
             </div>

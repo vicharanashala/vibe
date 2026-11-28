@@ -26,6 +26,13 @@ export interface IUser {
   city?: string;
   profileImage?: string;
   faceEmbedding?: number[];
+  // Old-vibe only (see /me/face-reference-human): a 1024-length
+  // @vladmandic/human embedding, kept separate from faceEmbedding above
+  // (v3's own face-api.js-based embedding, 128-length) since the two
+  // libraries produce incompatible vector spaces -- never derive one from
+  // the other, and never let old-vibe write to faceEmbedding or v3 write to
+  // this field.
+  faceEmbeddingHuman?: number[];
   roles: 'admin' | 'user';
   /**
    * A passwordless identity created for a share-link recipient. They never

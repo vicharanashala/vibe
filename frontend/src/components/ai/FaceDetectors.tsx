@@ -66,20 +66,24 @@ const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, vide
 
   return (
     <>
-      {settings?.isFaceRecognitionEnabled && (
-        <FaceRecognitionComponent
-          faces={faces}
-          videoRef={videoRef}
-          onRecognitionResult={onRecognitionResult}
-          onDebugInfoUpdate={onDebugInfoUpdate}
-          onMismatchChange={onMismatchChange}
-          onMissingEmbedding={onMissingEmbedding}
-          enabled={settings.isFaceRecognitionEnabled}
-          matchThreshold={settings.faceMatchThreshold}
-          requiredMatches={settings.faceRequiredMatches}
-          requiredMismatches={settings.faceRequiredMismatches}
-        />
-      )}
+      {/* Mounted unconditionally (not gated on isFaceRecognitionEnabled) so
+          Selective Proctoring toggling it off/on between items pauses it in
+          place via the enabled prop instead of unmounting/remounting it --
+          an unmount previously meant refetching the reference embedding and
+          losing its consecutive match/mismatch counters every single toggle,
+          confirmed by direct read as the actual cause of per-item reloads. */}
+      <FaceRecognitionComponent
+        faces={faces}
+        videoRef={videoRef}
+        onRecognitionResult={onRecognitionResult}
+        onDebugInfoUpdate={onDebugInfoUpdate}
+        onMismatchChange={onMismatchChange}
+        onMissingEmbedding={onMissingEmbedding}
+        enabled={!!settings?.isFaceRecognitionEnabled}
+        matchThreshold={settings?.faceMatchThreshold}
+        requiredMatches={settings?.faceRequiredMatches}
+        requiredMismatches={settings?.faceRequiredMismatches}
+      />
     </>
   );
 };

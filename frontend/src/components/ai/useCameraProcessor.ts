@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import CameraProcessor from "./CameraProcessor";
 import * as faceDetection from "@tensorflow-models/face-detection";
 
@@ -12,13 +12,15 @@ const useCameraProcessor = (frameRate = 3, includeAudio = false) => {
     };
   }, []);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [imageSrcs, setImageSrcs] = useState<string[]>([]);
+  const [imageSrcs] = useState<string[]>([]);
   const [modelReady, setModelReady] = useState(false);
   const [faces, setFaces] = useState<faceDetection.Face[]>([]);
   const cameraProcessorRef = useRef<CameraProcessor | null>(null);
   const workerRef = useRef<Worker | null>(null);
-  const modelReadyRef = useRef(false); // Add a ref to track model readiness without causing re-renders
+  const modelReadyRef = useRef(false); // track model readiness without causing re-renders
+  // Set once the worker is ready, replayed on (re)init so a toggle made
+  // before/during a worker recreation isn't lost.
+  const recognitionEnabledRef = useRef(false);
 
   useEffect(() => {
     const initializeCamera = async () => {
@@ -47,12 +49,10 @@ const useCameraProcessor = (frameRate = 3, includeAudio = false) => {
     };
   }, [frameRate, includeAudio]);
 
-  
-
   useEffect(() => {
     if (!cameraProcessorRef.current) return;
 
-    // ✅ Clean up previous worker
+    // Clean up previous worker
     if (workerRef.current) {
       workerRef.current.terminate();
       workerRef.current = null;
@@ -62,19 +62,21 @@ const useCameraProcessor = (frameRate = 3, includeAudio = false) => {
     }
 
     // Worker initialization. Classic (non-module) worker served as a static
-    // asset, not Vite-bundled - see public/workers/faceDetectorWorker.js for
-    // why (module workers can't run @mediapipe/tasks-vision's WASM loader).
-    workerRef.current = new Worker("/workers/faceDetectorWorker.js");
+    // asset, not Vite-bundled - see public/workers/humanFaceWorker.js for why
+    // (module workers can't run libraries that call importScripts()
+    // internally, and @vladmandic/human's own "script" build uses it).
+    workerRef.current = new Worker("/workers/humanFaceWorker.js");
 
     workerRef.current.onmessage = (event) => {
       if (event.data.type === "MODEL_READY") {
-        // console.log("[useCameraProcessor] Face detection model ready");
         console.log("✅ MODEL_READY received, setting modelReady to true");
         setModelReady(true);
         modelReadyRef.current = true;
+        workerRef.current?.postMessage({
+          type: "SET_RECOGNITION_ENABLED",
+          enabled: recognitionEnabledRef.current,
+        });
       } else if (event.data.type === "DETECTION_RESULT") {
-        //   console.log("Face Detection Result:", event.data.faces);
-        // console.log("✅ DETECTION_RESULT received, faces:", event.data.faces.length);
         setFaces(event.data.faces);
       } else if (event.data.type === "ERROR") {
         console.error("Worker Error:", event.data.message);
@@ -93,84 +95,38 @@ const useCameraProcessor = (frameRate = 3, includeAudio = false) => {
       isTesting: import.meta.env.VITE_E2E_TESTING === "true",
     });
 
-    // ML Processor function
     const processWithML: MLProcessor = (image) => {
-
-      // console.log("📹 ML Processor called - modelReady:", modelReady, "modelReadyRef:", modelReadyRef.current, "worker exists:", !!workerRef.current);
-  
-      // Using ref instead of state
       if (!workerRef.current || !modelReadyRef.current) {
-        // console.log("📹 Skipping frame - worker not ready");
         return;
       }
-      
+
       try {
-        // console.log("✅ Sending frame to worker - image size:", image.width, "x", image.height);
         workerRef.current.postMessage({ type: "DETECT_FACES", image }, [image]);
       } catch (error) {
         console.error("Error processing image:", error);
       }
-
-      // console.log("📹 ML Processor called - modelReady:", modelReady, "worker exists:", !!workerRef.current);
-      
-      // // if (!workerRef.current || !modelReady) {
-      // if (!workerRef.current || !modelReady) {
-      //   console.log("📹 Skipping frame - worker not ready");
-      //   return;
-      // }
-      
-      // try {
-      //   console.log("📹 Sending frame to worker, image size:", image.width, "x", image.height);
-      //   workerRef.current.postMessage({ type: "DETECT_FACES", image }, [image]);
-      // } catch (error) {
-      //   console.error("Error processing image:", error);
-      // }
     };
 
     cameraProcessorRef.current.addMLProcessor(processWithML);
 
     return () => {
-    if (workerRef.current) {
-      workerRef.current.terminate();
-      workerRef.current = null;
-    }
-    modelReadyRef.current = false;
-  };
-}, []);
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+      modelReadyRef.current = false;
+    };
+  }, []);
 
-  useEffect(() => {
-    console.log("🔍 useCameraProcessor State:", {
-      modelReady,
-      facesCount: faces.length,
-      hasWorker: !!workerRef.current,
-      hasVideo: !!videoRef.current
-    });
-  }, [modelReady, faces.length]);
+  // Face recognition is part of the same one-pass detect() call the face-count
+  // signal comes from (see humanFaceWorker.js) - toggle it independently so
+  // the worker only pays for embedding extraction while it's actually needed.
+  const setRecognitionEnabled = useCallback((enabled: boolean) => {
+    recognitionEnabledRef.current = enabled;
+    workerRef.current?.postMessage({ type: "SET_RECOGNITION_ENABLED", enabled });
+  }, []);
 
-  //   const processWithML: MLProcessor = (image) => {
-  //     // if (!workerRef.current || !modelReady) return;
-  //     if (!workerRef.current || !modelReadyRef.current) return;
-  //     try {
-  //       workerRef.current.postMessage({ type: "DETECT_FACES", image }, [image]);
-  //     } catch (error) {
-  //       console.error("Error processing image:", error);
-  //     }
-  //   };
-
-  //   cameraProcessorRef.current.addMLProcessor(processWithML);
-
-  //   return () => {
-  //     if (workerRef.current) {
-  //       workerRef.current.terminate();
-  //       workerRef.current = null;
-  //     }
-  //     modelReadyRef.current = false;
-  //   };
-  // }, []);
-  // }, [modelReady]);
-
-  return { videoRef, modelReady, faces, imageSrcs };
-
+  return { videoRef, modelReady, faces, imageSrcs, setRecognitionEnabled };
 };
 
 export default useCameraProcessor;

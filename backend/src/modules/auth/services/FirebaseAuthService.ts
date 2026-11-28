@@ -240,6 +240,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       lastName: body.lastName || '',
       profileImage: body.profileImage,
       faceEmbedding: body.faceEmbedding,
+      faceEmbeddingHuman: body.faceEmbeddingHuman,
       roles: 'user',
     };
 
@@ -334,6 +335,11 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
         'Face embedding must be exactly 128 numbers.',
       );
     }
+    if (body.faceEmbeddingHuman && body.faceEmbeddingHuman.length !== 1024) {
+      throw new BadRequestError(
+        'Face embedding (Human) must be exactly 1024 numbers.',
+      );
+    }
 
     // Firebase displayName is often missing (email/password, some SSO), which
     // would otherwise persist a blank firstName -> renders as "Unknown User"
@@ -351,6 +357,7 @@ export class FirebaseAuthService extends BaseService implements IAuthService {
       lastName,
       profileImage: body.profileImage,
       faceEmbedding: body.faceEmbedding,
+      faceEmbeddingHuman: body.faceEmbeddingHuman,
       roles: 'user',
     };
 

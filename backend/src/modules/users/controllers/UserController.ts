@@ -22,6 +22,7 @@ import {
   GetUserParams,
   GetUserResponse,
   UpdateFaceReferenceBody,
+  UpdateFaceReferenceHumanBody,
   UserNotFoundErrorResponse,
 } from '../classes/validators/UserValidators.js';
 import {UserEnrollmentStatisticsResponse} from '../classes/validators/EnrollmentValidators.js';
@@ -204,6 +205,80 @@ export class UserController {
       user._id!.toString(),
       body.profileImage,
       body.faceEmbedding,
+    );
+  }
+
+  @OpenAPI({
+    summary: 'Get the current user Human-based face reference (old-vibe only)',
+    description:
+      'Same as /me/face-reference but reads/writes the separate faceEmbeddingHuman field (1024-length @vladmandic/human embedding) instead of faceEmbedding (128-length, v3). The two never mix.',
+  })
+  @Authorized()
+  @Get('/me/face-reference-human')
+  @HttpCode(200)
+  async getCurrentUserFaceReferenceHuman(
+    @Req() req: any,
+    @QueryParam('courseId') courseId?: string,
+    @QueryParam('versionId') versionId?: string,
+    @QueryParam('moduleId') moduleId?: string,
+    @QueryParam('itemId') itemId?: string,
+  ): Promise<{
+    label: string;
+    profileImage: string | null;
+    faceEmbedding: number[] | null;
+  }> {
+    const token = req.headers.authorization?.split(' ')[1];
+    const user = await this.authService.getCurrentUserFromToken(token);
+
+    let faceRecognitionAllowed = true;
+    if (courseId && versionId) {
+      const [courseSetting, item, courseVersion] = await Promise.all([
+        this.courseSettingService.readCourseSettings(courseId, versionId),
+        itemId ? this.itemRepo.readItemById(itemId) : null,
+        moduleId ? this.courseRepo.readVersion(versionId) : null,
+      ]);
+
+      const itemModule = moduleId
+        ? courseVersion?.modules?.find(m => m.moduleId?.toString() === moduleId)
+        : undefined;
+
+      const resolvedDetectors = resolveProctoringDetectors(
+        item ?? undefined,
+        itemModule,
+        courseSetting ?? undefined,
+      );
+      faceRecognitionAllowed = isDetectorEnabled(
+        resolvedDetectors,
+        ProctoringComponent.FACERECOGNITION,
+      );
+    }
+
+    return {
+      label:
+        `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+      profileImage: user.profileImage || null,
+      faceEmbedding: faceRecognitionAllowed ? user.faceEmbeddingHuman || null : null,
+    };
+  }
+
+  @OpenAPI({
+    summary: 'Set or replace the current user Human-based face reference (old-vibe only)',
+    description:
+      'Stores a profile image and 1024-length @vladmandic/human face embedding on the current user, in the separate faceEmbeddingHuman field (never faceEmbedding, which is v3/face-api.js-only).',
+  })
+  @Authorized()
+  @Patch('/me/face-reference-human')
+  @OnUndefined(200)
+  async updateCurrentUserFaceReferenceHuman(
+    @Req() req: any,
+    @Body({options: {limit: '10mb'}}) body: UpdateFaceReferenceHumanBody,
+  ): Promise<void> {
+    const token = req.headers.authorization?.split(' ')[1];
+    const user = await this.authService.getCurrentUserFromToken(token);
+    await this.userService.updateFaceReferenceHuman(
+      user._id!.toString(),
+      body.profileImage,
+      body.faceEmbeddingHuman,
     );
   }
 
