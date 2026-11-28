@@ -298,8 +298,8 @@ const reportImageAnomaly = useCallback(async (reportAnomalyType: AnomalyType) =>
   const imageFile = dataURLtoFile(screenshot, "image");
 
   try {
-    // Per-face detection confidence (#1222). FaceDetectorWorker.ts now runs
-    // @mediapipe/tasks-vision's FaceDetector, which does expose a real
+    // Per-face detection confidence (#1222). public/workers/faceDetectorWorker.js
+    // now runs @mediapipe/tasks-vision's FaceDetector, which does expose a real
     // per-face score (unlike the previous @tensorflow-models/face-detection
     // library) - this now populates for real.
     const scores = facesRef.current

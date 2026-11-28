@@ -1,28 +1,34 @@
-/* eslint-disable no-restricted-globals */
-
-import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
-
-let detector: FaceDetector | null = null;
-const isTesting = import.meta.env.VITE_E2E_TESTING === 'true';
+// FaceDetectorWorker - proctoring face-count detection (#1222).
+//
+// Classic (non-module) worker, not Vite-bundled: @mediapipe/tasks-vision's
+// WASM bootstrap calls importScripts(), which module-type workers don't
+// support (browsers throw "Module scripts don't support importScripts()").
+// A classic worker has importScripts available, so it works - same pattern
+// already proven in this codebase by gestureWorker.js. Classic workers can't
+// use static `import`, so the library is loaded via dynamic import() below,
+// self-hosted at /mediapipe/vision_bundle.mjs (see setup-mediapipe-assets.mjs)
+// instead of gestureWorker.js's CDN URL, so proctoring doesn't depend on a
+// third-party service being up during an exam.
+let detector = null;
 
 console.log("✅ Face Detection Worker started");
 
-// Global error handler
 self.onerror = (err) => {
   console.error("❌ Worker error:", err);
 };
 
-async function initializeModel() {
+async function initializeModel(isTesting) {
   try {
+    const { FaceDetector, FilesetResolver } = await import("/mediapipe/vision_bundle.mjs");
     const fileset = await FilesetResolver.forVisionTasks("/mediapipe/wasm");
 
     // Same "try GPU, fall back to CPU" shape as the previous WebGL/CPU
     // backend selection, since GPU delegate needs a WebGL context that can
     // fail in the same environments the old code guarded against (e.g. E2E
     // testing, headless browsers).
-    const delegate: "CPU" | "GPU" = isTesting ? "CPU" : "GPU";
+    const delegate = isTesting ? "CPU" : "GPU";
 
-    async function createDetector(useDelegate: "CPU" | "GPU") {
+    async function createDetector(useDelegate) {
       return FaceDetector.createFromOptions(fileset, {
         baseOptions: {
           modelAssetPath: "/mediapipe/models/blaze_face_short_range.tflite",
@@ -60,7 +66,7 @@ async function initializeModel() {
   }
 }
 
-async function detectFaces(imageBitmap: ImageBitmap) {
+async function detectFaces(imageBitmap) {
   if (!detector) {
     self.postMessage({ type: "ERROR", message: "Model not initialized" });
     return;
@@ -126,10 +132,10 @@ async function detectFaces(imageBitmap: ImageBitmap) {
 }
 
 self.onmessage = async (event) => {
-  const { type, image } = event.data;
+  const { type, image, isTesting } = event.data;
 
   if (type === "INIT") {
-    await initializeModel();
+    await initializeModel(!!isTesting);
   }
 
   if (type === "DETECT_FACES" && image) {
