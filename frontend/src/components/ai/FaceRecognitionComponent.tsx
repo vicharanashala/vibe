@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import * as faceapi from '@vladmandic/face-api';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 
@@ -11,11 +10,12 @@ import type {
   FaceRecognitionDebugInfo,
 } from '@/types/ai.types';
 
-const EMBEDDING_LENGTH = 128;
-const VERIFY_INTERVAL_MS = 1000;
-const MATCH_THRESHOLD = 0.55;
-const REQUIRED_MATCHES = 3;
-const REQUIRED_MISMATCHES = 2;
+// @vladmandic/human's "faceres" model (see humanFaceWorker.js), not
+// face-api.js's 128-length descriptor this replaces.
+const EMBEDDING_LENGTH = 1024;
+const DEFAULT_MATCH_THRESHOLD = 0.6;
+const DEFAULT_REQUIRED_MATCHES = 3;
+const DEFAULT_REQUIRED_MISMATCHES = 2;
 
 type FaceReferenceResponse = {
   label: string;
@@ -46,15 +46,45 @@ const normalizeEmbedding = (embedding: unknown): number[] | null => {
   return null;
 };
 
+// Human's exact match.ts similarity formula, reimplemented here rather than
+// importing the whole library onto the main thread for one small calculation
+// -- the actual embedding extraction already happened in humanFaceWorker.js.
+// Returns 0..1, higher = more similar (unlike face-api.js's raw Euclidean
+// distance, where lower meant more similar).
+function embeddingSimilarity(a: number[], b: number[]): number {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    const diff = a[i] - b[i];
+    sum += diff * diff;
+  }
+  const dist = Math.round(100 * 25 * sum) / 100;
+  if (dist === 0) return 1;
+  const root = Math.sqrt(dist);
+  const norm = (1 - root / 100 - 0.2) / (0.8 - 0.2);
+  return Math.round(100 * Math.max(Math.min(norm, 1), 0)) / 100;
+}
+
 const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
+  faces,
   videoRef,
   onRecognitionResult,
   onDebugInfoUpdate,
   onMismatchChange,
   onMissingEmbedding,
   enabled = true,
+  matchThreshold = DEFAULT_MATCH_THRESHOLD,
+  requiredMatches = DEFAULT_REQUIRED_MATCHES,
+  requiredMismatches = DEFAULT_REQUIRED_MISMATCHES,
 }) => {
   const [isReady, setIsReady] = useState(false);
+  // Mirrored into refs (not read as useEffect deps) so a settings change
+  // doesn't force the comparison effect below to recreate every render.
+  const matchThresholdRef = useRef(matchThreshold);
+  const requiredMatchesRef = useRef(requiredMatches);
+  const requiredMismatchesRef = useRef(requiredMismatches);
+  useEffect(() => { matchThresholdRef.current = matchThreshold; }, [matchThreshold]);
+  useEffect(() => { requiredMatchesRef.current = requiredMatches; }, [requiredMatches]);
+  useEffect(() => { requiredMismatchesRef.current = requiredMismatches; }, [requiredMismatches]);
 
   const reportImage = useReportAnomalyImage();
   const courseStore = useCourseStore();
@@ -80,7 +110,6 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
       lastUpdateTime: Date.now(),
       backendStatus: 'loading',
       ...updates,
-     
     };
 
     onDebugInfoUpdate?.(next);
@@ -105,7 +134,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     if (course?.itemId) params.set('itemId', course.itemId);
     const query = params.toString() ? `?${params.toString()}` : '';
 
-    const response = await fetch(`${import.meta.env.VITE_BASE_URL}/users/me/face-reference${query}`, {
+    const response = await fetch(`${import.meta.env.VITE_BASE_URL}/users/me/face-reference-human${query}`, {
       headers: {
         Authorization: `Bearer ${authToken}`,
       },
@@ -169,11 +198,6 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     });
   }, [courseStore.currentCourse, createMismatchSnapshot, reportImage]);
 
-  const resetVerificationState = useCallback(() => {
-    matchCountRef.current = 0;
-    mismatchCountRef.current = 0;
-  }, []);
-
   useEffect(() => {
     if (!enabled) {
       return;
@@ -184,27 +208,6 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     const initialize = async () => {
       try {
         updateDebugInfo({ backendStatus: 'loading', errorMessage: undefined });
-
-        const modelPaths = ['/models', 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'];
-        let loaded = false;
-
-        for (const modelPath of modelPaths) {
-          try {
-            await Promise.all([
-              faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
-              faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
-              faceapi.nets.faceRecognitionNet.loadFromUri(modelPath),
-            ]);
-            loaded = true;
-            break;
-          } catch (error) {
-            console.warn('[FaceRecognitionDebug] model path failed', { modelPath, error });
-          }
-        }
-
-        if (!loaded) {
-          throw new Error('Failed to load face recognition models.');
-        }
 
         const reference = await fetchFaceReference();
         const normalizedEmbedding = normalizeEmbedding(reference.faceEmbedding);
@@ -258,17 +261,28 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     return () => {
       isMounted = false;
     };
+  // onMissingEmbedding deliberately excluded: floating-video.tsx passes it as
+  // a fresh inline arrow function every render, so including it here refired
+  // this effect (and its fetch of /face-reference-human) on every one of
+  // FloatingVideo's renders -- which happen at the camera's capture rate --
+  // compounding into ERR_INSUFFICIENT_RESOURCES within seconds. Only
+  // enabled/fetchFaceReference actually changing should re-run this.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, fetchFaceReference, navigate, updateDebugInfo]);
 
-  const processRecognition = useCallback(async () => {
-    const referenceEmbedding = referenceEmbeddingRef.current;
-    const video = videoRef.current;
-
-    if (!isReady || !referenceEmbedding || !video || isProcessingRef.current) {
+  // Reacts to each fresh detection from the shared humanFaceWorker.js pass
+  // (~4fps, via CameraProcessor) instead of running its own separate
+  // 1000ms-interval model inference on the main thread -- the embedding was
+  // already extracted as part of the same one-pass detect() call that
+  // produces the face-count signal, so there's no extra inference cost here,
+  // only a cheap comparison.
+  useEffect(() => {
+    if (!enabled || !isReady || isProcessingRef.current) {
       return;
     }
 
-    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || video.videoWidth === 0 || video.videoHeight === 0) {
+    const referenceEmbedding = referenceEmbeddingRef.current;
+    if (!referenceEmbedding) {
       return;
     }
 
@@ -276,13 +290,9 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     const startTime = performance.now();
 
     try {
-      // Keep verification focused on the single student face, just like the simpler working sample.
-      const detection = await faceapi
-        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.45 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+      const primaryFace = faces[0] as (typeof faces)[number] & { embedding?: number[] | null };
 
-      if (!detection?.descriptor) {
+      if (!primaryFace) {
         onRecognitionResult?.([]);
         updateDebugInfo({
           currentFrameFaces: 0,
@@ -295,27 +305,23 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         return;
       }
 
-      const liveEmbedding = normalizeEmbedding(Array.from(detection.descriptor));
-      if (!liveEmbedding || liveEmbedding.length !== EMBEDDING_LENGTH) {
-        onRecognitionResult?.([]);
-        updateDebugInfo({
-          currentFrameFaces: 1,
-          recognizedFaces: 0,
-          newRecognitions: 0,
-          processingTime: performance.now() - startTime,
-          errorMessage: 'Live face data is invalid. Try again.',
-          backendStatus: 'success',
-        });
+      // humanFaceWorker.js only computes a fresh embedding every few frames
+      // (description is the heaviest part of its one-pass detect() call, and
+      // doesn't need to run as often as the cheap detector box does) -- most
+      // ticks arrive with a real face but no embedding. Skip silently rather
+      // than reporting "invalid"/clearing the overlay, which would otherwise
+      // flicker the recognition box away on every throttled frame.
+      if (!primaryFace.embedding || primaryFace.embedding.length !== EMBEDDING_LENGTH) {
         return;
       }
 
-      const distance = faceapi.euclideanDistance(referenceEmbedding, liveEmbedding);
-      const rawMatch = distance < MATCH_THRESHOLD;
+      const sim = embeddingSimilarity(referenceEmbedding, primaryFace.embedding);
+      const rawMatch = sim >= matchThresholdRef.current;
 
       let recognition: FaceRecognition = {
-        box: detection.detection.box,
+        box: primaryFace.box as FaceRecognition['box'],
         label: rawMatch ? referenceLabelRef.current : 'unknown',
-        distance,
+        distance: sim,
         isMatch: rawMatch,
       };
       let hasConfirmedMismatch = mismatchReportedRef.current;
@@ -324,11 +330,11 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         matchCountRef.current += 1;
         mismatchCountRef.current = 0;
 
-        if (matchCountRef.current >= REQUIRED_MATCHES) {
+        if (matchCountRef.current >= requiredMatchesRef.current) {
           recognition = {
-            box: detection.detection.box,
+            box: primaryFace.box as FaceRecognition['box'],
             label: referenceLabelRef.current,
-            distance,
+            distance: sim,
             isMatch: true,
           };
           hasConfirmedMismatch = false;
@@ -338,32 +344,21 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         mismatchCountRef.current += 1;
         matchCountRef.current = 0;
 
-        if (mismatchCountRef.current >= REQUIRED_MISMATCHES) {
+        if (mismatchCountRef.current >= requiredMismatchesRef.current) {
           hasConfirmedMismatch = true;
 
           if (!mismatchReportedRef.current) {
-            await reportMismatch();
+            void reportMismatch();
             mismatchReportedRef.current = true;
-            console.log('[FaceRecognitionDebug] anomaly sent', { distance });
           }
         }
       }
 
-      // We always publish the current frame result so the overlay can say Unknown early,
-      // but only the consecutive mismatch rule turns it into a real anomaly.
       onRecognitionResult?.([recognition]);
       onMismatchChange?.(hasConfirmedMismatch);
 
-      console.log('[FaceRecognitionDebug] comparison', {
-        distance,
-        rawMatch,
-        matchCount: matchCountRef.current,
-        mismatchCount: mismatchCountRef.current,
-        confirmedMismatch: hasConfirmedMismatch,
-      });
-
       updateDebugInfo({
-        currentFrameFaces: 1,
+        currentFrameFaces: faces.length,
         recognizedFaces: recognition.isMatch ? 1 : 0,
         newRecognitions: 1,
         processingTime: performance.now() - startTime,
@@ -371,7 +366,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
         errorMessage: hasConfirmedMismatch ? 'Face mismatch detected and reported.' : undefined,
       });
     } catch (error) {
-      console.error('[FaceRecognitionComponent] Recognition failed:', error);
+      console.error('[FaceRecognitionComponent] Comparison failed:', error);
       onMismatchChange?.(false);
       updateDebugInfo({
         processingTime: performance.now() - startTime,
@@ -381,32 +376,7 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     } finally {
       isProcessingRef.current = false;
     }
-  }, [
-    isReady,
-    onMismatchChange,
-    onRecognitionResult,
-    reportMismatch,
-    resetVerificationState,
-    updateDebugInfo,
-    videoRef,
-  ]);
-
-  const processRecognitionRef = useRef(processRecognition);
-  useEffect(() => {
-    processRecognitionRef.current = processRecognition;
-  }, [processRecognition]);
-
-  useEffect(() => {
-    if (!enabled || !isReady) {
-      return;
-    }
-
-    const intervalId = setInterval(() => {
-      void processRecognitionRef.current();
-    }, VERIFY_INTERVAL_MS);
-
-    return () => clearInterval(intervalId);
-  }, [enabled, isReady]);
+  }, [faces, enabled, isReady, onMismatchChange, onRecognitionResult, reportMismatch, updateDebugInfo]);
 
   return null;
 };
