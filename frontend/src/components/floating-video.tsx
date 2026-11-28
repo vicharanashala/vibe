@@ -902,27 +902,6 @@ const maybeReportImageAnomaly = useCallback((tag: string, isActive: boolean, rep
                               (hasFaceRecognitionMismatch && isFaceRecognitionEnabled) ||
                               (isThumbsUpChallenge && isHandGestureDetectionEnabled);
 
-  useEffect(() => {
-    console.log('[FaceRecognitionDebug] floating-video state', {
-      hasFaceRecognitionMismatch,
-      isFaceRecognitionEnabled,
-      isAnomaliesDetected,
-      recognizedFaces,
-      readyToDetect,
-      modelReady,
-      isVideoActive,
-    });
-  }, [
-    hasFaceRecognitionMismatch,
-    isFaceRecognitionEnabled,
-    isAnomaliesDetected,
-    recognizedFaces,
-    readyToDetect,
-    modelReady,
-    isVideoActive,
-  ]);
-
-
   // Smart overlay positioning based on face detection
   useEffect(() => {
     if (!faces.length || !faces[0]) return;
@@ -1023,36 +1002,6 @@ const maybeReportImageAnomaly = useCallback((tag: string, isActive: boolean, rep
     };
   }, [isDragging, isResizing, handleMouseMove]);
 
-  // Comprehensive face detection debug
-  useEffect(() => {
-    // console.log('🔍 [FloatingVideo] FACE DETECTION DEBUG:', {
-    //   // TensorFlow detection
-    //   tensorFlowFaces: faces.length,
-    //   tensorFlowFacesCount: facesCount,
-      
-    //   // Face-api.js recognition  
-    //   recognizedFacesCount: recognizedFaces.length,
-      
-    //   // System states
-    //   modelReady,
-    //   isVideoActive,
-    //   readyToDetect,
-      
-    //   // Video status
-    //   videoReady: videoRef.current?.readyState,
-    //   videoWidth: videoRef.current?.videoWidth,
-    //   videoHeight: videoRef.current?.videoHeight,
-    //   hasStream: !!videoRef.current?.srcObject
-    // });
-
-    // Log actual face data if available
-    if (faces.length > 0) {
-      console.log('👤 TensorFlow Face Details:', faces);
-    }
-    if (recognizedFaces.length > 0) {
-      console.log('🎭 Face-api Recognition Details:', recognizedFaces);
-    }
-  }, [faces, facesCount, recognizedFaces, modelReady, isVideoActive, readyToDetect]);
 
   // Monitor video stream state
   useEffect(() => {
