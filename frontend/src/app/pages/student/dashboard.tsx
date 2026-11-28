@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useUserEnrollments, useWatchtimeTotal, usePublicCourses, useUserEnrollmentStats, useCheckTimeSlotAccessOnDemand } from "@/hooks/hooks";
 import { useNavigate } from "@tanstack/react-router";
@@ -14,6 +14,9 @@ import { getGreeting, bufferToHex } from "@/utils/helpers";
 import { enterFullscreen, exitFullscreen } from "@/utils/fullscreen";
 import type { CourseCardProps } from '@/types/course.types';
 import { stopAllStreams } from "@/lib/MediaRegistry";
+import { getLastVisitedCourse } from "@/lib/last-visited-course";
+import { prefetchCourseLaunch } from "@/lib/course-prefetch";
+import { useCoursePreloadStore, coursePreloadKey } from "@/store/course-preload-store";
 import { cn } from "@/utils/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CourseCard } from "@/components/course/CourseCard";
@@ -187,6 +190,38 @@ function DashboardContent() {
   const completedEnrollments = useMemo(() => {
     return enrollments.filter(enrollment => (enrollment.percentCompleted ?? 0) === 100);
   }, [enrollments]);
+
+  // Fully preload the last-visited course (tracked client-side — see
+  // lib/last-visited-course.ts) before any other card's own prefetch effect
+  // fires, so it isn't competing with every other card for bandwidth while
+  // it's the one the student is most likely to click. Each card reads
+  // loadingCourseKey itself to know when to hold off / show "Loading" — see
+  // the gating in CourseCard.tsx and CourseListCard.tsx.
+  const hasStartedPriorityPreload = useRef(false);
+  useEffect(() => {
+    if (enrollmentsLoading || hasStartedPriorityPreload.current || activeEnrollments.length === 0) return;
+    hasStartedPriorityPreload.current = true;
+
+    const lastVisited = getLastVisitedCourse();
+    if (!lastVisited) return;
+
+    const priority = activeEnrollments.find(
+      (e) => bufferToHex(e.courseId as any) === lastVisited.courseId,
+    );
+    if (!priority) return;
+
+    const courseId = bufferToHex(priority.courseId as any);
+    const versionId = bufferToHex(priority.courseVersionId as any) || "";
+    const cohortId = priority.cohortId
+      ? (typeof priority.cohortId === "string" ? priority.cohortId : bufferToHex(priority.cohortId as any))
+      : undefined;
+    if (!courseId || !versionId) return;
+
+    useCoursePreloadStore.getState().setLoadingCourseKey(coursePreloadKey(courseId, versionId));
+    void prefetchCourseLaunch({ courseId, versionId, cohortId }).finally(() => {
+      useCoursePreloadStore.getState().setLoadingCourseKey(null);
+    });
+  }, [enrollmentsLoading, activeEnrollments]);
 
   // Tab State
   const [activeTab, setActiveTab] = useState("available");
