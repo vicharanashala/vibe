@@ -1651,6 +1651,11 @@ export interface QuestionAnswersBodydto {
   cohortId?: string;
   moduleId?: string;
   sectionId?: string;
+  // Old-vibe only -- gates the exhausted-single-attempt-quiz-advances and
+  // quiz-completion-percent-recalc fixes in ProgressService so v3 (which
+  // shares this exact endpoint) keeps its pre-existing behavior unless it
+  // explicitly opts in too. Omit/false preserves the original behavior.
+  isOldVibeClient?: boolean;
 }
 
 export {

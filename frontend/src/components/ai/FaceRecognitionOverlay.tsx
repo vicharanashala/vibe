@@ -80,10 +80,14 @@ const FaceRecognitionOverlay: React.FC<FaceRecognitionOverlayProps> = ({
                 maxWidth: `${scaledBox.width * 2}px`
               }}
             >
-              {recognition.isMatch ? recognition.label : `Unknown (${Math.max(0, Math.round((1 - recognition.distance) * 100))}% match)`}
+              {/* .distance now holds a 0..1 similarity score (higher = closer
+                  match, per @vladmandic/human's match.similarity) rather than
+                  face-api.js's raw Euclidean distance (lower = closer) this
+                  replaced -- display it directly, no longer inverted. */}
+              {recognition.isMatch ? recognition.label : `Unknown (${Math.max(0, Math.round(recognition.distance * 100))}% match)`}
               {recognition.isMatch && (
                 <div className="text-xs opacity-90">
-                  {Math.round((1 - recognition.distance) * 100)}%
+                  {Math.round(recognition.distance * 100)}%
                 </div>
               )}
             </div>
