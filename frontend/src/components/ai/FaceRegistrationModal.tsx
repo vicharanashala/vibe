@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, type ChangeEvent } from "react";
-import * as faceapi from "@vladmandic/face-api";
+import { detectPrimaryFace, embeddingSimilarity, HUMAN_EMBEDDING_LENGTH } from "@/lib/human-face";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Camera, Upload, RefreshCcw, X, AlertCircle, CheckCircle2, XCircle, Info, ShieldAlert, Target, Sun } from "lucide-react";
@@ -11,7 +11,13 @@ interface FaceRegistrationModalProps {
   onClose: () => void;
 }
 
-const EMBEDDING_LENGTH = 128;
+const EMBEDDING_LENGTH = HUMAN_EMBEDDING_LENGTH;
+// Stricter than live in-course verification's default (0.6) since this
+// checks "does the live webcam match the just-uploaded photo" at
+// registration time, same intent as the original face-api.js-era 0.40
+// max-distance cutoff this replaces -- an initial estimate, not yet tuned
+// against real registration attempts.
+const UPLOAD_MATCH_SIMILARITY_THRESHOLD = 0.75;
 
 export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
   isOpen,
@@ -46,7 +52,6 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
   const videoCaptureRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const faceModelsLoadedRef = useRef(false);
   const uploadEmbeddingRef = useRef<number[] | null>(null);
   const liveAnalysisTimeoutRef = useRef<number | null>(null);
 
@@ -111,11 +116,7 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
       }
 
       try {
-        await ensureFaceModelsLoaded();
-        const detection = await faceapi
-          .detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
-          .withFaceLandmarks()
-          .withFaceDescriptor();
+        const detection = await detectPrimaryFace(videoElement);
 
         if (!detection) {
           if (active) {
@@ -129,7 +130,7 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
         } else {
           // Face detected!
           // 1. Centering check
-          const box = detection.detection.box;
+          const box = detection.box;
           const videoWidth = videoElement.videoWidth || 640;
           const videoHeight = videoElement.videoHeight || 480;
 
@@ -177,9 +178,8 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
 
             // Perform cross-matching if validating an uploaded image
             if (studentPhotoFile && uploadEmbeddingRef.current) {
-              const liveEmbedding = Array.from(detection.descriptor);
-              const distance = faceapi.euclideanDistance(uploadEmbeddingRef.current, liveEmbedding);
-              const isMatch = distance < 0.40;
+              const sim = await embeddingSimilarity(uploadEmbeddingRef.current, detection.embedding);
+              const isMatch = sim >= UPLOAD_MATCH_SIMILARITY_THRESHOLD;
 
               setUploadChecks((prev) => ({
                 ...prev,
@@ -337,13 +337,9 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
 
     try {
       setLoading(true);
-      await ensureFaceModelsLoaded();
       const image = await createImageElementFromFile(file);
 
-      const detection = await faceapi
-        .detectSingleFace(image, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+      const detection = await detectPrimaryFace(image);
 
       if (!detection) {
         setUploadChecks({
@@ -358,7 +354,7 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
       }
 
       // Check centering
-      const box = detection.detection.box;
+      const box = detection.box;
       const isCentered =
         box.x + box.width / 2 > image.width * 0.25 &&
         box.x + box.width / 2 < image.width * 0.75 &&
@@ -385,8 +381,7 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
       }
       const isProperLight = avgBrightness >= 50 && avgBrightness <= 230;
 
-      const descriptor = Array.from(detection.descriptor);
-      uploadEmbeddingRef.current = descriptor;
+      uploadEmbeddingRef.current = detection.embedding;
 
       setUploadChecks({
         faceDetected: true,
@@ -424,34 +419,6 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
       reader.readAsDataURL(file);
     });
 
-  const ensureFaceModelsLoaded = async () => {
-    if (faceModelsLoadedRef.current) {
-      return;
-    }
-
-    const modelPaths = [
-      "/models",
-      "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model",
-    ];
-
-    let lastError: unknown = null;
-    for (const modelPath of modelPaths) {
-      try {
-        await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
-          faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
-          faceapi.nets.faceRecognitionNet.loadFromUri(modelPath),
-        ]);
-        faceModelsLoadedRef.current = true;
-        return;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-
-    throw new Error(`Unable to load face models: ${String(lastError)}`);
-  };
-
   const createImageElementFromFile = (file: File) =>
     new Promise<HTMLImageElement>((resolve, reject) => {
       const objectUrl = URL.createObjectURL(file);
@@ -469,18 +436,14 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
     });
 
   const generateFaceEmbedding = async (file: File) => {
-    await ensureFaceModelsLoaded();
     const image = await createImageElementFromFile(file);
-    const detection = await faceapi
-      .detectSingleFace(image, new faceapi.TinyFaceDetectorOptions())
-      .withFaceLandmarks()
-      .withFaceDescriptor();
+    const detection = await detectPrimaryFace(image);
 
-    if (!detection?.descriptor) {
+    if (!detection) {
       throw new Error("Could not detect a clear face in the selected photo. Please try another image.");
     }
 
-    return Array.from(detection.descriptor);
+    return detection.embedding;
   };
 
   const saveFaceReference = async () => {
@@ -501,9 +464,9 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
       setCameraError("");
 
       const profileImage = await convertFileToDataUrl(studentPhotoFile);
-      const faceEmbedding = uploadEmbeddingRef.current || await generateFaceEmbedding(studentPhotoFile);
+      const faceEmbeddingHuman = uploadEmbeddingRef.current || await generateFaceEmbedding(studentPhotoFile);
 
-      if (!faceEmbedding || faceEmbedding.length !== EMBEDDING_LENGTH) {
+      if (!faceEmbeddingHuman || faceEmbeddingHuman.length !== EMBEDDING_LENGTH) {
         throw new Error("Face embedding generation failed. Try another image.");
       }
 
@@ -513,14 +476,14 @@ export const FaceRegistrationModal: React.FC<FaceRegistrationModalProps> = ({
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/users/me/face-reference`,
+        `${import.meta.env.VITE_BASE_URL}/users/me/face-reference-human`,
         {
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${authToken}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ profileImage, faceEmbedding }),
+          body: JSON.stringify({ profileImage, faceEmbeddingHuman }),
         },
       );
 

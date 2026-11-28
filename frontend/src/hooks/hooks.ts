@@ -2332,7 +2332,7 @@ export function useEditProctoringSettings() {
     caseStudyStrictUnlockEnabled: boolean = true,
     caseStudyWeakStreakThreshold: number = 3,
     noFaceFlagFrames: number = 4,
-    faceMatchThreshold: number = 0.55,
+    faceMatchThreshold: number = 0.6,
     faceRequiredMatches: number = 3,
     faceRequiredMismatches: number = 2,
   ) => {
