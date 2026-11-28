@@ -213,3 +213,39 @@ export function useSignEthicsConsent() {
     },
   });
 }
+
+const PROCTORING_DECLARATION_PATH =
+  '/users/enrollments/courses/{courseId}/versions/{versionId}/proctoring-declaration';
+
+export type ProctoringDeclarationStatus = {
+  acked: boolean;
+  ackedAt?: string;
+};
+
+// GET proctoring declaration acknowledgment status for the current user in a course version
+export function useGetProctoringDeclaration(courseId?: string, versionId?: string) {
+  const result = api.useQuery(
+    'get',
+    PROCTORING_DECLARATION_PATH as any,
+    {
+      params: { path: { courseId, versionId } },
+    },
+    { enabled: !!courseId && !!versionId },
+  );
+  return {
+    status: (result.data as ProctoringDeclarationStatus) ?? undefined,
+    acked: Boolean((result.data as ProctoringDeclarationStatus)?.acked),
+    isLoading: result.isLoading,
+    error: result.error,
+    refetch: result.refetch,
+  };
+}
+
+// POST the proctoring declaration acknowledgment
+export function useSignProctoringDeclaration() {
+  return api.useMutation('post', PROCTORING_DECLARATION_PATH as any, {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['get', PROCTORING_DECLARATION_PATH] });
+    },
+  });
+}
