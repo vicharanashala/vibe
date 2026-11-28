@@ -7,9 +7,18 @@ class CameraProcessor {
   private intervalId: NodeJS.Timeout | null = null;
   private frameRate: number;
   private mlProcessors: MLProcessor[] = [];
+  private includeAudio: boolean;
 
-  constructor(frameRate = 1) {
+  // includeAudio is opt-in: the course-page flow passes it so this one
+  // session-long stream can also back voice detection and evidence-audio
+  // capture elsewhere (via MediaRegistry's "CameraProcessor-stream" key)
+  // instead of each of them opening its own separate concurrent
+  // getUserMedia call. Leave it false for standalone callers (e.g. the exam
+  // flow's own CameraProcessor instance) so they keep requesting only the
+  // camera permission they actually need, unchanged.
+  constructor(frameRate = 1, includeAudio = false) {
     this.frameRate = frameRate;
+    this.includeAudio = includeAudio;
   }
 
   async initialize(videoElement: HTMLVideoElement) {
@@ -18,7 +27,10 @@ class CameraProcessor {
     }
 
     this.videoElement = videoElement;
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { frameRate: { max: 30 } } });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { frameRate: { max: 30 } },
+      ...(this.includeAudio ? { audio: true } : {}),
+    });
     // Safety check: prevent ML pipeline from processing virtual camera stream
     const violations = await runProctoringChecks(stream);
 
@@ -26,7 +38,7 @@ class CameraProcessor {
       stream.getTracks().forEach(t => t.stop());
       throw new Error(violations[0].reason);
     }
-    
+
     unRegisterStream("CameraProcessor-stream");
     registerStream("CameraProcessor-stream", stream);
     this.videoElement.srcObject = stream;

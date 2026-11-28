@@ -6237,6 +6237,30 @@ export class EnrollmentRepository {
       { session },
     );
   }
+  async recordProctoringDeclaration(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+    session?: ClientSession,
+  ): Promise<void> {
+    await this.init();
+    await this.enrollmentCollection.updateOne(
+      {
+        userId: { $in: [userId, new ObjectId(userId)] },
+        courseId: { $in: [courseId, new ObjectId(courseId)] },
+        courseVersionId: {
+          $in: [courseVersionId, new ObjectId(courseVersionId)],
+        },
+        isDeleted: { $ne: true },
+      },
+      {
+        $set: {
+          proctoringDeclarationAckedAt: new Date(),
+        },
+      },
+      { session },
+    );
+  }
   async findActiveStudentsForPolicy(
     courseId?: ObjectId,
     courseVersionId?: ObjectId,

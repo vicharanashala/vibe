@@ -652,6 +652,7 @@ export interface IEnrollment {
   ethicsConsentSignature?: string; // the participant name the student typed
   ethicsConsentVersion?: string; // lets us force re-consent if the text changes
   ethicsAdditionalImageConsent?: boolean; // optional "use for future research" checkbox
+  proctoringDeclarationAckedAt?: Date; // student acknowledged the camera/proctoring notice
   isEjected?: boolean;
   ejectionHistory?: Array<{
     ejectedAt: Date;
