@@ -95,6 +95,19 @@ class SignUpBody {
   @IsArray()
   @IsNumber({}, {each: true})
   faceEmbedding?: number[];
+
+  @JSONSchema({
+    title: 'Face Embedding (Human)',
+    description: 'Old-vibe only: optional 1024-length @vladmandic/human face embedding, kept separate from faceEmbedding above (v3/face-api.js-only, 128-length) since the two libraries produce incompatible vector spaces.',
+    type: 'array',
+    items: {
+      type: 'number',
+    },
+  })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, {each: true})
+  faceEmbeddingHuman?: number[];
 }
 
 class GoogleSignUpBody {
@@ -165,6 +178,19 @@ class GoogleSignUpBody {
   @IsArray()
   @IsNumber({}, {each: true})
   faceEmbedding?: number[];
+
+  @JSONSchema({
+    title: 'Face Embedding (Human)',
+    description: 'Old-vibe only: 1024-length @vladmandic/human face embedding, kept separate from faceEmbedding above (v3/face-api.js-only, 128-length) since the two libraries produce incompatible vector spaces.',
+    type: 'array',
+    items: {
+      type: 'number',
+    },
+  })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, {each: true})
+  faceEmbeddingHuman?: number[];
 }
 
 class VerifySignUpProviderBody {

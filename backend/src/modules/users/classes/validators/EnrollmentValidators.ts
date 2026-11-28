@@ -702,6 +702,21 @@ export class EthicsConsentStatusResponse {
   additionalImageConsent?: boolean;
 }
 
+export class ProctoringDeclarationStatusResponse {
+  @JSONSchema({
+    description: 'Whether the student has acknowledged the camera/proctoring declaration',
+    type: 'boolean',
+  })
+  @IsBoolean()
+  acked: boolean;
+
+  @JSONSchema({type: 'string', format: 'date-time'})
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  ackedAt?: Date;
+}
+
 export const ENROLLMENT_VALIDATORS = [
   EnrollUserResponseData,
   EnrolledUserResponseData,
@@ -719,4 +734,5 @@ export const ENROLLMENT_VALIDATORS = [
   UserEnrollmentStatisticsResponse,
   EthicsConsentBody,
   EthicsConsentStatusResponse,
+  ProctoringDeclarationStatusResponse,
 ];
