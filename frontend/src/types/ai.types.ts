@@ -14,9 +14,13 @@ export interface FaceDetectorsProps {
   onMismatchChange?: (hasMismatch: boolean) => void;
   onMissingEmbedding?: () => void;
   settings:{
-    isFaceCountDetectionEnabled:boolean, 
-    isFaceRecognitionEnabled:boolean, 
-    isFocusEnabled: boolean
+    isFaceCountDetectionEnabled:boolean,
+    isFaceRecognitionEnabled:boolean,
+    isFocusEnabled: boolean,
+    /** Admin-configurable, via Proctoring Settings -> faceRecognition detector options. */
+    faceMatchThreshold?: number,
+    faceRequiredMatches?: number,
+    faceRequiredMismatches?: number,
   }
 }
 
@@ -71,6 +75,11 @@ export interface FaceRecognitionComponentProps {
   onMismatchChange?: (hasMismatch: boolean) => void;
   onMissingEmbedding?: () => void;
   enabled?: boolean;
+  /** Admin-configurable, via Proctoring Settings -> faceRecognition detector
+   * options. Each defaults to the original hardcoded value when unset. */
+  matchThreshold?: number;
+  requiredMatches?: number;
+  requiredMismatches?: number;
 }
 
 export interface FaceRecognitionOverlayProps {
@@ -81,6 +90,10 @@ export interface FaceRecognitionOverlayProps {
 
 export interface SpeechDetectorProps {
   setIsSpeaking: (value: string) => void;
+  /** Reuse this MediaRegistry stream's audio track instead of opening a
+   * second getUserMedia({audio:true}) call. Opt-in: omit to self-acquire
+   * (the exam flow's standalone SpeechDetector instance does this). */
+  preferSharedStreamKey?: string;
 }
 
 export interface GestureDetectorProps {
