@@ -18,6 +18,18 @@
 // "who/how many faces are in frame" job.
 let human = null;
 let recognitionEnabled = false;
+let frameCounter = 0;
+// CameraProcessor captures at 4fps (see floating-video.tsx's
+// useCameraProcessor(4, true)); running the expensive mesh+description pass
+// (FaceMesh landmarks + the 7MB FaceRes embedding model) on every single one
+// of those frames was the dominant main-thread/GPU cost of the whole
+// proctoring pipeline -- for no benefit, since FaceRecognitionComponent's
+// consecutive match/mismatch counters only need a new embedding roughly as
+// often as the original face-api.js-era component sampled one (every
+// VERIFY_INTERVAL_MS=1000ms). 4 ticks at 4fps = ~1/sec, same cadence.
+// detector stays fresh every frame: B2's face-count ring buffer needs
+// genuinely independent raw samples to do its majority-vote smoothing.
+const DESCRIPTION_EVERY_N_FRAMES = 4;
 
 console.log("✅ Human Face Worker started");
 
@@ -45,11 +57,15 @@ function buildConfig(backend) {
       // loop) would otherwise silently reuse a stale detection/embedding
       // across several of our calls, undermining both.
       detector: { enabled: true, maxDetected: 5, rotation: false, return: false, skipFrames: 0, skipTime: 0 },
-      mesh: { enabled: true },
+      // mesh/description start disabled -- detectFaces() below flips both on
+      // together only for the 1-in-N throttled tick where a fresh embedding
+      // is actually wanted, since mesh exists solely to feed description's
+      // crop/alignment and is wasted work on every other frame.
+      mesh: { enabled: false },
       attention: { enabled: false },
       iris: { enabled: false },
       emotion: { enabled: false },
-      description: { enabled: true, skipFrames: 0, skipTime: 0 }, // embeddings, for recognition
+      description: { enabled: false, skipFrames: 0, skipTime: 0 }, // embeddings, for recognition
       antispoof: { enabled: false },
       liveness: { enabled: false },
     },
@@ -114,7 +130,11 @@ async function detectFaces(imageBitmap) {
   }
 
   try {
-    human.config.face.description.enabled = recognitionEnabled;
+    frameCounter++;
+    const wantDescriptionThisFrame =
+      recognitionEnabled && frameCounter % DESCRIPTION_EVERY_N_FRAMES === 0;
+    human.config.face.mesh.enabled = wantDescriptionThisFrame;
+    human.config.face.description.enabled = wantDescriptionThisFrame;
     const result = await human.detect(imageBitmap);
 
     // Reshape to the same { box, keypoints, score } shape the rest of the app
@@ -128,7 +148,7 @@ async function detectFaces(imageBitmap) {
         box: { xMin: x, yMin: y, width, height, xMax: x + width, yMax: y + height },
         keypoints: [], // mesh/attention keypoints not needed by any current consumer
         score: face.score,
-        embedding: recognitionEnabled ? face.embedding ?? null : null,
+        embedding: wantDescriptionThisFrame ? (face.embedding ?? null) : null,
       };
     });
 
