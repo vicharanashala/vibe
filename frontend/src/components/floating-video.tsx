@@ -14,7 +14,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { useCourseStore } from '@/store/course-store';
 import type { FloatingVideoProps } from '@/types/video.types';
 import { useReportAnomalyAudio, useReportAnomalyImage } from '@/hooks/hooks';
-import {registerStream, unRegisterStream, getStream} from "@/lib/MediaRegistry";
+import {registerStream, unRegisterStream, getStream, waitForStream} from "@/lib/MediaRegistry";
 import { runProctoringChecks } from "@/utils/proctoring/proctoringGuard";
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
@@ -51,8 +51,6 @@ function FloatingVideo({
   const [overlayPosition, setOverlayPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-right');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isPoppedOut, setIsPoppedOut] = useState(false);
-  const [anomaly, setAnomaly] = useState(false);
-  const [anomalyType, setAnomalyType] = useState("");
    const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
@@ -71,6 +69,11 @@ function FloatingVideo({
   const [gesture, setGesture] = useState("No Gesture Detected ❌");
   const [isFocused, setIsFocused] = useState(true); 
   const [facesCount, setFacesCount] = useState(0);
+  // Last ~1s of raw per-frame face counts (useCameraProcessor(4) below runs
+  // at 4fps) -- smoothed via majority vote so a single bad frame (autoexposure
+  // blip, a quick glance away) doesn't read as a "no face"/"multiple faces"
+  // anomaly on its own.
+  const faceCountBufferRef = useRef<number[]>([]);
   const [recognizedFaces, setRecognizedFaces] = useState<any[]>([]);
   const [hasFaceRecognitionMismatch, setHasFaceRecognitionMismatch] = useState(false);
   const [showFaceRegisterModal, setShowFaceRegisterModal] = useState(false);
@@ -87,14 +90,13 @@ function FloatingVideo({
   useEffect(() => {
     setContiguousAnomalyPoints(0);
     setPenaltyPoints(0);
-    setAnomaly(false);
     setRewindVid(false);
     setPauseVid(false);
     setAnomalyDetectionStartTime(null);
   }, [setRewindVid, setPauseVid]);
 
   // Get our videoRef and face data from the custom hook
-  const { videoRef, modelReady, faces } = useCameraProcessor(4);
+  const { videoRef, modelReady, faces } = useCameraProcessor(4, true);
 
   // Use refs to track initialization without causing re-renders
   const faceDetectorsKeyRef = useRef(0);
@@ -119,6 +121,16 @@ function FloatingVideo({
     return detector?.settings?.enabled ?? false;
   }, [settings]);
 
+  // Teacher-configurable detector tuning values (Proctoring Settings ->
+  // No-Face Flag Sensitivity), read from the same resolved detector list as
+  // isComponentEnabled above. Falls back to the built-in default when unset.
+  const getComponentOption = useCallback((componentName: string, optionKey: string): any => {
+    const detector = settings?.settings?.proctors?.detectors?.find(
+      (detector) => detector.detectorName === componentName
+    );
+    return detector?.settings?.options?.[optionKey];
+  }, [settings]);
+
   // Check which components are enabled
   const isBlurDetectionEnabled = isComponentEnabled('blurDetection');
   const isFaceCountDetectionEnabled = isComponentEnabled('faceCountDetection');
@@ -127,6 +139,9 @@ function FloatingVideo({
   const isFaceRecognitionEnabled = isComponentEnabled('faceRecognition');
   const isRighClickDisabled = isComponentEnabled("rightClickDisabled");
   const isFocusEnabled = false; //isComponentEnabled('focus');
+  const rawNoFaceFlagFrames = Number(getComponentOption('faceCountDetection', 'noFaceFlagFrames'));
+  const FACE_COUNT_BUFFER_SIZE =
+    Number.isInteger(rawNoFaceFlagFrames) && rawNoFaceFlagFrames > 0 ? rawNoFaceFlagFrames : 4;
 
   // Log enabled components for debugging
   // useEffect(() => {
@@ -224,131 +239,149 @@ function FloatingVideo({
 
 // Image record anomaly effect
 const reportImage = useReportAnomalyImage();
-const lastCalledRef = useRef<number>(0);
-  useEffect(() => {
-    const handleImageAnomaly = async () => {
+// faces (raw per-frame detections, used only for the confidence score below)
+// updates at the camera's capture rate (4fps) -- mirrored into a ref rather
+// than read as a reactive dependency so it doesn't force the per-type
+// reporter (and the main detection interval that calls it) to recreate on
+// every frame.
+const facesRef = useRef(faces);
+useEffect(() => { facesRef.current = faces; }, [faces]);
+// Per-type: an off->on transition reports immediately, then re-reports at
+// most once per REPORT_COOLDOWN_MS while the condition stays active -- so a
+// long-running anomaly still gets periodic evidence instead of a single
+// upload at the start, and concurrent anomalies of different types no
+// longer clobber each other (each type tracks its own state). Scoped to the
+// two types the backend actually accepts images for today (blurDetection,
+// faceCountDetection) -- voiceDetection, focus and faceRecognition aren't
+// image-reportable; see AnomalyType's own comment on the backend enum
+// mismatch (#1222), left as-is and out of scope here.
+const imageAnomalyTrackerRef = useRef<Record<string, { lastSentAt: number; wasActive: boolean }>>({});
+const REPORT_COOLDOWN_MS = 18000;
 
-      // To ensure that there is a minimum gap of 1 second between each request
-      const now = Date.now();
-      if (now - lastCalledRef.current < 1000) {
-        // console.log("Throttled: waiting for 1 second gap");
-        return;
-      }
-      lastCalledRef.current = now;
+const reportImageAnomaly = useCallback(async (reportAnomalyType: AnomalyType) => {
+  const video = videoRef.current;
+  if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+    console.log("Video not ready for screenshot");
+    return;
+  }
 
-      if (anomaly && anomalyType !== "voiceDetection") {
-      const video = videoRef.current;
-      if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
-        console.log("Video not ready for screenshot");
-        return;
-      }
-      
-      // Add validation for course data
-      if (!courseStore.currentCourse?.courseId || 
-          !courseStore.currentCourse?.versionId || 
-          !courseStore.currentCourse?.itemId) {
-        console.log("Missing course data, skipping image report");
-        return;
-      }
+  if (!courseStore.currentCourse?.courseId ||
+      !courseStore.currentCourse?.versionId ||
+      !courseStore.currentCourse?.itemId) {
+    console.log("Missing course data, skipping image report");
+    return;
+  }
 
-        // to convert binary to File type
-        function dataURLtoFile(dataurl: string, filename: string) {
-          const arr = dataurl.split(',');
-          const match = arr[0].match(/:(.*?);/);
-          const mime = match ? match[1] : "image/png";
-          const bstr = atob(arr[1]);
-          let n = bstr.length;
-          const u8arr = new Uint8Array(n);
-          while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
-          }
-          return new File([u8arr], filename, { type: mime });
-        }
-
-        // to take screen shot from video
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        const screenshot = canvas.toDataURL("image/png");
-        const imageFile = dataURLtoFile(screenshot, "image");
-
-        // report anomaly type checking
-        let reportAnomalyType: AnomalyType;
-        if (anomalyType === "blurDetection") {
-          reportAnomalyType = AnomalyType.BLUR_DETECTION;
-        } else if (anomalyType === "faceCountDetection") {
-          // Differentiate between no face and multiple faces
-          if (facesCount === 0) {
-            reportAnomalyType = AnomalyType.NO_FACE;
-          } else if (facesCount > 1) {
-            reportAnomalyType = AnomalyType.MULTIPLE_FACES;
-          } else {
-            console.log("Invalid face count for anomaly reporting");
-            return;
-          }
-        } else {
-          console.log("Unknown anomaly type:", anomalyType);
-          return;
-        }
-
-        // let reportAnomalyType;
-        // if (anomalyType == "blurDetection") reportAnomalyType = "BLUR_DETECTION";
-        // if (anomalyType == "faceCountDetection") {
-        //   // Differentiate between no face and multiple faces
-        //   if (facesCount === 0) {
-        //     reportAnomalyType = "NO_FACE";
-        //   } else if (facesCount > 1) {
-        //     reportAnomalyType = "MULTIPLE_FACES";
-        //   }
-        // }
-
-        // report anomaly type checking 
-        // let reportAnomalyType;
-        // if (anomalyType == "blurDetection") reportAnomalyType = "BLUR_DETECTION";
-        // if (anomalyType == "faceCountDetection") reportAnomalyType = "MULTIPLE_FACES";
-        // if (facesCount === 0) reportAnomalyType = "NO_FACE";
-
-        // // Log for debugging
-        // console.log("Image File", imageFile);
-        // console.log('%c ', `font-size:1px; padding:40px 80px; background:url(${screenshot}); background-size:contain; background-repeat:no-repeat;`);
-        // console.log("anomalyType", reportAnomaly, "====", "anamoly=", anomaly);
-        // console.log("courseId", courseStore.currentCourse?.courseId);
-        // console.log("versionId", courseStore.currentCourse?.versionId);
-        // console.log("itemId", courseStore.currentCourse?.itemId);
-
-
-        try {
-          const response = await reportImage.mutateAsync({
-            body: {
-              type: reportAnomalyType as AnomalyType,
-              courseId: courseStore.currentCourse?.courseId || "",
-              versionId: courseStore.currentCourse?.versionId || "",
-              itemId: courseStore.currentCourse?.itemId || "",
-            },
-            file: imageFile,
-          });
-          // console.log("Post response", response);
-
-        } catch (error) {
-          console.log("Error while reporting image anomaly:", error);
-        }
-      }
+  // to convert binary to File type
+  function dataURLtoFile(dataurl: string, filename: string) {
+    const arr = dataurl.split(',');
+    const match = arr[0].match(/:(.*?);/);
+    const mime = match ? match[1] : "image/png";
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
     }
-    handleImageAnomaly();
-  }, [anomaly, anomalyType, courseStore.currentCourse?.courseId, courseStore.currentCourse?.itemId, courseStore.currentCourse?.moduleId, courseStore.currentCourse?.sectionId, courseStore.currentCourse?.versionId]);
+    return new File([u8arr], filename, { type: mime });
+  }
+
+  // to take screen shot from video
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  const screenshot = canvas.toDataURL("image/png");
+  const imageFile = dataURLtoFile(screenshot, "image");
+
+  try {
+    // Per-face detection confidence (#1222). public/workers/faceDetectorWorker.js
+    // now runs @mediapipe/tasks-vision's FaceDetector, which does expose a real
+    // per-face score (unlike the previous @tensorflow-models/face-detection
+    // library) - this now populates for real.
+    const scores = facesRef.current
+      .map((face) => (face as { score?: number }).score)
+      .filter((score): score is number => typeof score === "number");
+    const confidence = scores.length
+      ? scores.reduce((sum, score) => sum + score, 0) / scores.length
+      : undefined;
+
+    await reportImage.mutateAsync({
+      body: {
+        type: reportAnomalyType,
+        courseId: courseStore.currentCourse?.courseId || "",
+        versionId: courseStore.currentCourse?.versionId || "",
+        itemId: courseStore.currentCourse?.itemId || "",
+        ...(confidence !== undefined ? { confidence } : {}),
+      },
+      file: imageFile,
+    });
+  } catch (error) {
+    console.log("Error while reporting image anomaly:", error);
+  }
+// reportImage.mutateAsync, not reportImage itself: useReportAnomalyImage()
+// returns a brand-new wrapper object every render, so depending on the
+// whole object would recreate this callback (and everything chained off
+// it, including the main detection interval below) on every render.
+// mutateAsync is the one part of it react-query keeps referentially stable.
+}, [reportImage.mutateAsync, courseStore.currentCourse]);
+
+// Called once per detection tick for each image-reportable anomaly tag,
+// with whether it's currently active -- decides transition-vs-cooldown and
+// dispatches the upload itself.
+const maybeReportImageAnomaly = useCallback((tag: string, isActive: boolean, reportAnomalyType: AnomalyType) => {
+  const tracker = imageAnomalyTrackerRef.current;
+  const prev = tracker[tag] ?? { lastSentAt: 0, wasActive: false };
+
+  if (!isActive) {
+    if (prev.wasActive) tracker[tag] = { lastSentAt: prev.lastSentAt, wasActive: false };
+    return;
+  }
+
+  const now = Date.now();
+  const justTransitionedIn = !prev.wasActive;
+  const cooldownElapsed = now - prev.lastSentAt >= REPORT_COOLDOWN_MS;
+
+  if (justTransitionedIn || cooldownElapsed) {
+    tracker[tag] = { lastSentAt: now, wasActive: true };
+    reportImageAnomaly(reportAnomalyType);
+  } else {
+    tracker[tag] = { lastSentAt: prev.lastSentAt, wasActive: true };
+  }
+}, [reportImageAnomaly]);
  
   const reportAudio = useReportAnomalyAudio();
-  
+  // Only set when this effect self-acquired its own mic stream (fallback
+  // path below); left null when reusing CameraProcessor-stream's shared
+  // audio track, so cleanup never stops tracks other consumers still need.
+  const ownAudioStreamRef = useRef<MediaStream | null>(null);
 
   // Audio recording for speech anomaly
   useEffect(() => {
     if (isSpeaking === "Yes" && isVoiceDetectionEnabled && !mediaRecorder) {
-      // Start recording
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      // Start recording -- reuse CameraProcessor-stream's shared audio
+      // track instead of opening a second concurrent getUserMedia call.
+      // Wraps the existing track in a new MediaStream view (MediaRecorder
+      // needs its own MediaStream, but this is the same underlying track,
+      // not a copy -- never call .stop() on it, see cleanup below).
+      (async () => {
+        const sharedStream = await waitForStream("CameraProcessor-stream");
+        let stream: MediaStream;
+        if (sharedStream && sharedStream.getAudioTracks().length > 0) {
+          stream = new MediaStream(sharedStream.getAudioTracks());
+          ownAudioStreamRef.current = null;
+        } else {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            ownAudioStreamRef.current = stream;
+          } catch (err) {
+            console.error("[FloatingVideo] Error accessing microphone for anomaly recording:", err);
+            return;
+          }
+        }
         unRegisterStream("floating-video-audio-stream")
         registerStream("floating-video-audio-stream", stream);
         const recorder = new window.MediaRecorder(stream);
@@ -361,9 +394,7 @@ const lastCalledRef = useRef<number>(0);
         };
         recorder.start();
         setMediaRecorder(recorder);
-      }).catch(err => {
-        console.error("[FloatingVideo] Error accessing microphone for anomaly recording:", err);
-      });
+      })();
     }
     // If isSpeaking goes to No and we have a recorder, stop and send
     if (isSpeaking === "No" && mediaRecorder) {
@@ -374,7 +405,7 @@ const lastCalledRef = useRef<number>(0);
       if (mediaRecorder && mediaRecorder.state !== "inactive") {
         mediaRecorder.stop();
       }
-      if (audioStream) {
+      if (audioStream && ownAudioStreamRef.current === audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
       }
     };
@@ -399,8 +430,10 @@ const lastCalledRef = useRef<number>(0);
       }
       setMediaRecorder(null);
       setAudioChunks([]);
-      if (audioStream) {
+      if (audioStream && ownAudioStreamRef.current === audioStream) {
         audioStream.getTracks().forEach(track => track.stop());
+      }
+      if (audioStream) {
         setAudioStream(null);
       }
     };
@@ -513,11 +546,26 @@ const lastCalledRef = useRef<number>(0);
 }, [currentStream, readyToDetect, isVideoActive]);
 
 
-  // Update face count when faces change
+  // Update face count when faces change -- smoothed over the recent window
+  // via majority vote (ties favor the latest frame) rather than mirroring the
+  // instantaneous last frame straight into the anomaly-scoring logic.
   useEffect(() => {
     if (!modelReady) return;
-    setFacesCount(faces.length);
-  }, [faces, modelReady]);
+    const buffer = faceCountBufferRef.current;
+    buffer.push(faces.length);
+    if (buffer.length > FACE_COUNT_BUFFER_SIZE) buffer.shift();
+    const freq = new Map<number, number>();
+    for (const count of buffer) freq.set(count, (freq.get(count) ?? 0) + 1);
+    let mode = buffer[buffer.length - 1];
+    let modeFreq = 0;
+    for (const [count, countFreq] of freq) {
+      if (countFreq > modeFreq) {
+        modeFreq = countFreq;
+        mode = count;
+      }
+    }
+    setFacesCount(mode);
+  }, [faces, modelReady, FACE_COUNT_BUFFER_SIZE]);
 
   // Debug why TensorFlow sees 0 faces
   useEffect(() => {
@@ -561,6 +609,23 @@ const lastCalledRef = useRef<number>(0);
     if (!readyToDetect || !videoRef.current || !isVideoActive) {
       if (contiguousAnomalyPoints > 0) {
         setContiguousAnomalyPoints(0); // Reset when video is not active
+      }
+      // Defense in depth: whatever anomaly/pause/rewind state existed at the
+      // instant this guard tripped must not survive into whatever comes next
+      // -- the interval below (the only place that clears it) won't run
+      // again until readyToDetect etc. flip back, so leaving this stale would
+      // freeze a stuck "no face"/pause state exactly like the bug this guard
+      // is meant to prevent. Guarded (not unconditional) because pauseVid/
+      // rewindVid are themselves in this effect's dependency array below --
+      // setting them to a value they already hold must stay a no-op, or a
+      // fresh [] array (never reference-equal to the last one) re-triggering
+      // this same effect on every run becomes an infinite render loop.
+      if (anomalies && anomalies.length > 0) {
+        setAnomalies([]);
+      }
+      if (pauseVid || rewindVid) {
+        setPauseVid(false);
+        setRewindVid(false);
       }
       return;
     }
@@ -644,6 +709,19 @@ const lastCalledRef = useRef<number>(0);
 
       setAnomalies(activeAnomalies);
 
+      // Image evidence: per-type transition + cooldown, independent of the
+      // single collapsed anomalyType above (see maybeReportImageAnomaly).
+      maybeReportImageAnomaly(
+        "blurDetection",
+        activeAnomalies.includes("blurDetection"),
+        AnomalyType.BLUR_DETECTION,
+      );
+      maybeReportImageAnomaly(
+        "faceCountDetection",
+        activeAnomalies.includes("faceCountDetection"),
+        hasMultipleFaces ? AnomalyType.MULTIPLE_FACES : AnomalyType.NO_FACE,
+      );
+
       // Determine if we need to pause or rewind immediately
       let immediatePause = false;
       let immediateRewind = false;
@@ -659,18 +737,9 @@ const lastCalledRef = useRef<number>(0);
 
       // If there are any new penalty points, increment the cumulative score
       if (newPenaltyPoints > 0) {
-        setAnomaly(true);
         setPenaltyPoints((prevPoints) => prevPoints + newPenaltyPoints);
         setPenaltyType(newPenaltyType);
-        setAnomalyType(
-          newPenaltyType === "Focus" ? "focus" :
-          newPenaltyType === "Blur" ? "blurDetection" :
-          newPenaltyType === "No Face Detected" || newPenaltyType === "Multiple Faces" ? "faceCountDetection" :
-          newPenaltyType === "Speaking" ? "voiceDetection" :
-          newPenaltyType === "Pre-emptive Thumbs-Up" || newPenaltyType === "Failed Thumbs-Up Challenge" ? "handGestureDetection" :
-          "faceRecognition"
-        );
-        
+
         // Update contiguous points and handle pauses
         setContiguousAnomalyPoints((prev) => {
           const newContiguous = prev + newPenaltyPoints;
@@ -700,7 +769,6 @@ const lastCalledRef = useRef<number>(0);
         });
       }
       else {
-        setAnomaly(false);
         setAnomalies([]);
         // When anomalies are cleared, restore previous video state
         if (rewindVid || pauseVid) {
@@ -712,16 +780,17 @@ const lastCalledRef = useRef<number>(0);
           setContiguousAnomalyPoints(0);
         }
       }
-    }, 100); // Update every second
+    }, 1000); // Update every second
 
     return () => clearInterval(interval);
   }, [readyToDetect,
-    isSpeaking, 
-    facesCount, 
-    isBlur, 
-    isFocused, 
+    isSpeaking,
+    facesCount,
+    isBlur,
+    isFocused,
     // reportAnomaly,
     courseStore.currentCourse,
+    maybeReportImageAnomaly,
     isVoiceDetectionEnabled,
     isFaceCountDetectionEnabled,
     isBlurDetectionEnabled,
@@ -1441,9 +1510,10 @@ const lastCalledRef = useRef<number>(0);
           />
         )}
         {isVoiceDetectionEnabled && (
-          <SpeechDetector 
+          <SpeechDetector
             key={`speech-${aiComponentsKey}`}
             setIsSpeaking={setIsSpeaking}
+            preferSharedStreamKey="CameraProcessor-stream"
           />
         )}
         {isHandGestureDetectionEnabled && (
@@ -1469,8 +1539,11 @@ const lastCalledRef = useRef<number>(0);
             }}
             settings={{
               isFaceCountDetectionEnabled,
-              isFaceRecognitionEnabled, 
-              isFocusEnabled
+              isFaceRecognitionEnabled,
+              isFocusEnabled,
+              faceMatchThreshold: getComponentOption('faceRecognition', 'matchThreshold'),
+              faceRequiredMatches: getComponentOption('faceRecognition', 'requiredMatches'),
+              faceRequiredMismatches: getComponentOption('faceRecognition', 'requiredMismatches')
             }}
           />
   

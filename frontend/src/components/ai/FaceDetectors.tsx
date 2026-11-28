@@ -75,6 +75,9 @@ const FaceDetectors: React.FC<FaceDetectorsProps> = ({ setIsFocused, faces, vide
           onMismatchChange={onMismatchChange}
           onMissingEmbedding={onMissingEmbedding}
           enabled={settings.isFaceRecognitionEnabled}
+          matchThreshold={settings.faceMatchThreshold}
+          requiredMatches={settings.faceRequiredMatches}
+          requiredMismatches={settings.faceRequiredMismatches}
         />
       )}
     </>
