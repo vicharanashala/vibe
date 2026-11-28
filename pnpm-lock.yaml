@@ -441,9 +441,6 @@ importers:
       '@mediapipe/tasks-audio':
         specifier: 0.10.22-rc.20250304
         version: 0.10.22-rc.20250304
-      '@mediapipe/tasks-vision':
-        specifier: 0.10.22-rc.20250304
-        version: 0.10.22-rc.20250304
       '@mui/icons-material':
         specifier: ^7.1.0
         version: 7.3.5(@mui/material@7.3.5(@emotion/react@11.14.0(@types/react@19.2.6)(react@19.2.0))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.6)(react@19.2.0))(@types/react@19.2.6)(react@19.2.0))(@types/react@19.2.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@types/react@19.2.6)(react@19.2.0)
@@ -567,9 +564,9 @@ importers:
       '@types/xlsx':
         specifier: ^0.0.36
         version: 0.0.36
-      '@vladmandic/face-api':
-        specifier: ^1.7.15
-        version: 1.7.15
+      '@vladmandic/human':
+        specifier: ^3.3.6
+        version: 3.3.6
       '@xenova/transformers':
         specifier: ^2.17.2
         version: 2.17.2
@@ -3678,9 +3675,6 @@ packages:
   '@mediapipe/tasks-audio@0.10.22-rc.20250304':
     resolution: {integrity: sha512-3rUl/8/+/J7kkoGU2a6mLQnBpw5KktsKmBKtL50GopzBUE0vd8D0dXwGPHAL2tIRYiQ1TMv1UDJSPrRrHTbnPA==}
 
-  '@mediapipe/tasks-vision@0.10.22-rc.20250304':
-    resolution: {integrity: sha512-dElxVXMFGthshfIj+qAVm8KE2jmNo2p8oXFib8WzEjb7GNaX/ClWBc8UJfoSZwjEMVrdHJ4YUfa7P3ifl6MIWw==}
-
   '@mermaid-js/parser@0.6.3':
     resolution: {integrity: sha512-lnjOhe7zyHjc+If7yT4zoedx2vo4sHaTmtkl1+or8BRTnCtDmcTpAjpzDSfCZrshM5bCoz0GyidzadJAH1xobA==}
 
@@ -6672,8 +6666,8 @@ packages:
   '@vitest/utils@3.2.4':
     resolution: {integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==}
 
-  '@vladmandic/face-api@1.7.15':
-    resolution: {integrity: sha512-WDMmK3CfNLo8jylWqMoQgf4nIst3M0fzx1dnac96wv/dvMTN4DxC/Pq1DGtduDk1lktCamQ3MIDXFnvrdHTXDw==}
+  '@vladmandic/human@3.3.6':
+    resolution: {integrity: sha512-Nr5mPfq1gQ+uKeXY5uM3Fj8UxvF5CEh2s6txM5wRThqaW0mF9huooOuZSrT8hhGho0hGaXLFdAwfD/2+teCv6A==}
     engines: {node: '>=14.0.0'}
 
   '@webassemblyjs/ast@1.14.1':
@@ -21040,8 +21034,6 @@ snapshots:
 
   '@mediapipe/tasks-audio@0.10.22-rc.20250304': {}
 
-  '@mediapipe/tasks-vision@0.10.22-rc.20250304': {}
-
   '@mermaid-js/parser@0.6.3':
     dependencies:
       langium: 3.3.1
@@ -24570,7 +24562,7 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
-  '@vladmandic/face-api@1.7.15': {}
+  '@vladmandic/human@3.3.6': {}
 
   '@webassemblyjs/ast@1.14.1':
     dependencies:

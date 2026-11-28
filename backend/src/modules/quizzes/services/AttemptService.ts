@@ -132,23 +132,31 @@ class AttemptService extends BaseService {
     questionRenderViews: IQuestionRenderView[];
   }> {
     const questionsBankRefs = quiz.details.questionBankRefs || [];
-    const selectedQuestionIds: string[] = [];
 
-    for (const questionBankRef of questionsBankRefs) {
-      const questionIdsForBank =
-        await this.questionBankService.getQuestions(questionBankRef);
-      selectedQuestionIds.push(...questionIdsForBank);
-    }
+    // Each bank's question-id list, and each individual question document,
+    // is an independent read with no ordering dependency on the others --
+    // fetching them one at a time in a for-loop serialized N separate
+    // round trips (each question fetch opens its own full transaction in
+    // QuestionService.getByIdWithoutExplanation), which dominated
+    // quiz-start latency for any quiz with more than a couple of
+    // questions. Fetch concurrently instead; order is preserved since
+    // Promise.all resolves in input order.
+    const questionIdsByBank = await Promise.all(
+      questionsBankRefs.map(ref => this.questionBankService.getQuestions(ref)),
+    );
+    const selectedQuestionIds: string[] = questionIdsByBank.flat();
+
+    const questions = (await Promise.all(
+      selectedQuestionIds.map(questionId =>
+        this.questionService.getByIdWithoutExplanation(questionId, true),
+      ),
+    )) as BaseQuestion[];
 
     const questionDetails: IQuestionDetails[] = [];
     const questionRenderViews: IQuestionRenderView[] = [];
 
-    // Loop through selectedQuestionIds and fetch each question
-    for (const questionId of selectedQuestionIds) {
-      const question = (await this.questionService.getByIdWithoutExplanation(
-        questionId,
-        true,
-      )) as BaseQuestion;
+    selectedQuestionIds.forEach((questionId, i) => {
+      const question = questions[i];
       const questionDetail: IQuestionDetails = {
         questionId: new ObjectId(questionId),
         parameterMap: question.isParameterized
@@ -159,7 +167,7 @@ class AttemptService extends BaseService {
       questionRenderViews.push(
         new QuestionProcessor(question).render(questionDetail.parameterMap),
       );
-    }
+    });
 
     // Stage-2 crowd questions: append at most one COLLECTING (not-yet-eligible)
     // student-submitted MCQ tied to the video segments immediately preceding
@@ -627,6 +635,7 @@ class AttemptService extends BaseService {
     cohortId?: string,
     moduleId?: string,
     sectionId?: string,
+    isOldVibeClient?: boolean,
   ): Promise<Partial<IGradingResult> | null> {
     /* -------------------- READS OUTSIDE TRANSACTION -------------------- */
 
@@ -663,6 +672,7 @@ class AttemptService extends BaseService {
     let submissionId: string | undefined;
     let gradingResult: IGradingResult | undefined;
     let isFirst: Boolean;
+    let attemptsExhausted = false;
     await this._withTransaction(async session => {
       // Save answers (this method should NOT start its own transaction anymore)
       const saveResult = await this.save(
@@ -692,6 +702,12 @@ class AttemptService extends BaseService {
           `UserQuizMetrics for user ${userId} and quiz ${quizId} not found`,
         );
       }
+
+      // remainingAttempts is already decremented at attempt-creation time
+      // (see attempt() above), so for the attempt being submitted right now
+      // this reflects whether a retry is still possible.
+      attemptsExhausted =
+        quiz.details.maxAttempts !== -1 && metrics.remainingAttempts <= 0;
 
       if (metrics.attempts.length === 0) {
         console.log("Metrices lenght is: ", metrics.attempts.length);
@@ -812,7 +828,7 @@ class AttemptService extends BaseService {
           }
         }
       }
-      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId, quizModuleId, quizSectionId);
+      await this.progressService.handleQuizeProgressAfterSubmission(userId, quizId, courseId, courseVersionId, isPassed, watchItemId, cohortId, quizModuleId, quizSectionId, attemptsExhausted, isOldVibeClient);
     }
 
     /* -------------------- RETURN BASED ON QUIZ SETTINGS -------------------- */

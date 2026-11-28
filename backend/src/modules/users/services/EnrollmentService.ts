@@ -3067,6 +3067,48 @@ export class EnrollmentService extends BaseService {
       signature: signature.trim(),
     };
   }
+  async getProctoringDeclaration(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<{ acked: boolean; ackedAt?: Date }> {
+    const enrollment = await this.enrollmentRepo.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+    if (!enrollment) {
+      throw new NotFoundError('Enrollment not found for this course version');
+    }
+    return {
+      acked: Boolean(enrollment.proctoringDeclarationAckedAt),
+      ackedAt: enrollment.proctoringDeclarationAckedAt,
+    };
+  }
+
+  async recordProctoringDeclaration(
+    userId: string,
+    courseId: string,
+    courseVersionId: string,
+  ): Promise<{ acked: boolean; ackedAt: Date }> {
+    const enrollment = await this.enrollmentRepo.findEnrollment(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+    if (!enrollment) {
+      throw new NotFoundError('Enrollment not found for this course version');
+    }
+    await this.enrollmentRepo.recordProctoringDeclaration(
+      userId,
+      courseId,
+      courseVersionId,
+    );
+    return {
+      acked: true,
+      ackedAt: new Date(),
+    };
+  }
   async partialReinstateUser(
     userId: string,
     courseId: string,

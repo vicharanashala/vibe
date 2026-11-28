@@ -26,6 +26,13 @@ export interface IUser {
   city?: string;
   profileImage?: string;
   faceEmbedding?: number[];
+  // Old-vibe only (see /me/face-reference-human): a 1024-length
+  // @vladmandic/human embedding, kept separate from faceEmbedding above
+  // (v3's own face-api.js-based embedding, 128-length) since the two
+  // libraries produce incompatible vector spaces -- never derive one from
+  // the other, and never let old-vibe write to faceEmbedding or v3 write to
+  // this field.
+  faceEmbeddingHuman?: number[];
   roles: 'admin' | 'user';
   /**
    * A passwordless identity created for a share-link recipient. They never
@@ -562,6 +569,7 @@ export interface IEnrollment {
   ethicsConsentSignature?: string; // the participant name the student typed
   ethicsConsentVersion?: string; // lets us force re-consent if the text changes
   ethicsAdditionalImageConsent?: boolean; // optional "use for future research" checkbox
+  proctoringDeclarationAckedAt?: Date; // student acknowledged the camera/proctoring notice
   isEjected?: boolean;
   ejectionHistory?: Array<{
     ejectedAt: Date;
