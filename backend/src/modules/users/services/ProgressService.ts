@@ -3057,9 +3057,21 @@ class ProgressService extends BaseService {
     // just completed this course, create an exclusive invite to the configured
     // follow-up course. Runs outside the completion transaction and must never
     // break completion. InviteService de-dupes pending invites and skips
-    // already-enrolled users, so the overlap at 100% is harmless.
+    // already-enrolled users, so the overlap at 100% is harmless. Not awaited:
+    // triggerFollowUpInvite already catches its own errors, and the student's
+    // stopItem response (which gates the frontend's next-item fetch, see
+    // course-page.tsx's shouldFetchItem) has nothing left to wait on here --
+    // this was adding an extra invite-creation round trip to the one
+    // navigation step (completing the last video/crossing the threshold)
+    // where a delay is most noticeable.
     if (justCompleted || crossedFollowUpThreshold) {
-      await this.triggerFollowUpInvite(userId, courseId, courseVersionId);
+      this.triggerFollowUpInvite(userId, courseId, courseVersionId).catch(
+        error =>
+          console.error(
+            `triggerFollowUpInvite failed outside its own try/catch for user ${userId}:`,
+            error,
+          ),
+      );
     }
   }
 
@@ -4047,6 +4059,12 @@ class ProgressService extends BaseService {
     cohortId?: string,
     quizModuleId?: string,
     quizSectionId?: string,
+    attemptsExhausted?: boolean,
+    // Old-vibe only -- v3 shares this exact method via the same submit
+    // endpoint. Gates both the exhausted-attempt-advances behavior below and
+    // the enrollment-percent recalculation further down so v3's behavior is
+    // unchanged unless it explicitly opts in too.
+    isOldVibeClient?: boolean,
   ) {
     return this._withTransaction(async session => {
       // Fetch progress and course version in parallel
@@ -4061,7 +4079,18 @@ class ProgressService extends BaseService {
 
     // const courseVersion = await this.courseRepo.readVersion(courseVersionId);
 
-      if (isPassed) {
+      // A failed attempt normally sends the student back to rewatch the
+      // previous video before retaking the quiz. If this was the student's
+      // last available attempt, there's no retake to rewatch for -- sending
+      // the pointer backward would be a dead end (the frontend has nowhere
+      // useful to send them either). Treat it like a pass instead: advance
+      // past the quiz and mark it completed, the same as any other
+      // exhausted/resolved item. Old-vibe only (see isOldVibeClient above) --
+      // v3 keeps its original isPassed-only behavior unless it opts in too.
+      const shouldAdvance =
+        isPassed || (!!isOldVibeClient && !!attemptsExhausted);
+
+      if (shouldAdvance) {
         // Prefer the quiz's actual module/section over the cursor's current
         // position — the cursor can be stale if it drifted ahead via optimistic
         // UI, which would make getNextItemInSequence check "is this the last
@@ -4153,60 +4182,89 @@ class ProgressService extends BaseService {
           );
         }
     }
-    // if we refresh the quiz page after passing then the student will land on next item
-    //  and as the stop item is not called for that quiz endtime will never be created
-    // Only mark quiz as completed (set endTime) if it was actually passed
-    if (isPassed) {
-      let resolvedWatchItemId = watchItemId;
+      // if we refresh the quiz page after passing then the student will land on next item
+      //  and as the stop item is not called for that quiz endtime will never be created
+      // Mark quiz as completed (set endTime) if it was passed, or if attempts
+      // are exhausted (shouldAdvance) -- leaving it uncompleted would make
+      // verifyProgress block the next item's immediate-predecessor check even
+      // though the student has correctly been moved past this quiz above.
+      if (shouldAdvance) {
+        let resolvedWatchItemId = watchItemId;
 
-      if (!resolvedWatchItemId) {
-        // Look up the most recent active watch time for this user and item
-        const activeWatchTimes = await this.progressRepository.getWatchTime(
-          userId.toString(),
-          quizId,
-          courseId,
-          courseVersionId,
-          cohortId,
-          session,
-        );
-        
-        if (activeWatchTimes && activeWatchTimes.length > 0) {
-          // Find one that doesn't have an endTime
-          const active = activeWatchTimes.find(wt => !wt.endTime);
-          if (active) {
-            resolvedWatchItemId = active._id?.toString();
-          } else {
-             // If all are stopped, fallback to the latest one
-            resolvedWatchItemId = activeWatchTimes[activeWatchTimes.length - 1]._id?.toString();
+        if (!resolvedWatchItemId) {
+          // Look up the most recent active watch time for this user and item
+          const activeWatchTimes = await this.progressRepository.getWatchTime(
+            userId.toString(),
+            quizId,
+            courseId,
+            courseVersionId,
+            cohortId,
+            session,
+          );
+
+          if (activeWatchTimes && activeWatchTimes.length > 0) {
+            // Find one that doesn't have an endTime
+            const active = activeWatchTimes.find(wt => !wt.endTime);
+            if (active) {
+              resolvedWatchItemId = active._id?.toString();
+            } else {
+              // If all are stopped, fallback to the latest one
+              resolvedWatchItemId =
+                activeWatchTimes[activeWatchTimes.length - 1]._id?.toString();
+            }
           }
         }
-      }
 
-      if (!resolvedWatchItemId) {
-        console.warn(`[handleQuizeProgressAfterSubmission] Could not resolve watchItemId for user ${userId} and quiz ${quizId}.`);
-        // If we really can't find it, we skip stopping the item.
-        return;
-      }
+        if (!resolvedWatchItemId) {
+          console.warn(
+            `[handleQuizeProgressAfterSubmission] Could not resolve watchItemId for user ${userId} and quiz ${quizId}.`,
+          );
+          // If we really can't find it, we skip stopping the item.
+          return;
+        }
 
-      const watchTime = await this.progressRepository.findWatchTimeById(
-        resolvedWatchItemId
-      );
-      if (watchTime && watchTime.itemId.toString() !== quizId) {
-        throw new BadRequestError('Watch item does not correspond to the quiz');
-      }
-      const isItemCompleted = await this.progressRepository.isItemCompleted(
-        userId.toString(),
-        courseId,
-        courseVersionId,
-        quizId,
-        cohortId,
-      )
+        const watchTime =
+          await this.progressRepository.findWatchTimeById(resolvedWatchItemId);
+        if (watchTime && watchTime.itemId.toString() !== quizId) {
+          throw new BadRequestError(
+            'Watch item does not correspond to the quiz',
+          );
+        }
+        const isItemCompleted = await this.progressRepository.isItemCompleted(
+          userId.toString(),
+          courseId,
+          courseVersionId,
+          quizId,
+          cohortId,
+        );
 
         if (!isItemCompleted && resolvedWatchItemId) {
           await this.progressRepository.stopItemTracking(
             resolvedWatchItemId,
             session,
           );
+          // Unlike VIDEO/BLOG items (completed via stopItem, which already
+          // recomputes this as its own last step), a quiz completes here --
+          // without this call, enrollment.percentCompleted/completedItemsCount
+          // never account for the quiz, undercounting by one for every quiz
+          // that isn't immediately followed by another item's stopItem call
+          // (most visibly: the course's very last item being a quiz leaves
+          // the dashboard permanently short by exactly that one item).
+          // Old-vibe only (see isOldVibeClient above) -- this pre-existing
+          // undercount also affects v3, but fixing it there is a separate,
+          // deliberate decision v3 hasn't opted into yet.
+          if (isOldVibeClient) {
+            await this.updateEnrollmentProgressPercent(
+              userId.toString(),
+              courseId,
+              courseVersionId,
+              session,
+              false,
+              undefined,
+              undefined,
+              cohortId,
+            );
+          }
         }
       }
     }); // close transaction

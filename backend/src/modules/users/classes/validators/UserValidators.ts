@@ -197,6 +197,28 @@ export class UpdateFaceReferenceBody {
   faceEmbedding: number[];
 }
 
+export class UpdateFaceReferenceHumanBody {
+  @JSONSchema({
+    description: 'Profile image as a data URL or remote URL',
+    example: 'data:image/jpeg;base64,/9j/4AAQSk...',
+    type: 'string',
+  })
+  @IsString()
+  @IsNotEmpty()
+  profileImage: string;
+
+  @JSONSchema({
+    description: '1024-length @vladmandic/human face embedding generated from the registration image (old-vibe only -- see faceEmbeddingHuman on IUser)',
+    type: 'array',
+    items: {type: 'number'},
+  })
+  @IsArray()
+  @ArrayMinSize(1024)
+  @ArrayMaxSize(1024)
+  @IsNumber({}, {each: true})
+  faceEmbeddingHuman: number[];
+}
+
 /**
  * Error response when user is not found.
  *
