@@ -3,7 +3,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
-import * as faceapi from "@vladmandic/face-api";
+import { detectPrimaryFace, embeddingSimilarity } from "@/lib/human-face";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,13 @@ import { LeftHeroSection } from "@/components/Auth/LeftHeroSection";
 type AuthPageProps = {
   role?: "teacher" | "student";
 }
+
+// Stricter than live in-course verification's default (0.6) since this
+// checks "does the live webcam match the just-uploaded photo" at signup
+// time, same intent as the original face-api.js-era 0.40 max-distance
+// cutoff this replaces -- an initial estimate, not yet tuned against real
+// registration attempts.
+const UPLOAD_MATCH_SIMILARITY_THRESHOLD = 0.75;
 export default function AuthPage({ role }: AuthPageProps) {
   const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
@@ -63,7 +70,6 @@ export default function AuthPage({ role }: AuthPageProps) {
   const videoCaptureRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const faceModelsLoadedRef = useRef(false);
 
   // Live validator checks state
   const [liveChecks, setLiveChecks] = useState({
@@ -147,11 +153,7 @@ export default function AuthPage({ role }: AuthPageProps) {
       }
 
       try {
-        await ensureFaceModelsLoaded();
-        const detection = await faceapi
-          .detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
-          .withFaceLandmarks()
-          .withFaceDescriptor();
+        const detection = await detectPrimaryFace(videoElement);
 
         if (!detection) {
           if (active) {
@@ -165,7 +167,7 @@ export default function AuthPage({ role }: AuthPageProps) {
         } else {
           // Face detected!
           // 1. Centering check
-          const box = detection.detection.box;
+          const box = detection.box;
           const videoWidth = videoElement.videoWidth || 640;
           const videoHeight = videoElement.videoHeight || 480;
 
@@ -213,9 +215,8 @@ export default function AuthPage({ role }: AuthPageProps) {
 
             // Perform cross-matching if validating an uploaded image
             if (studentPhotoFile && uploadEmbeddingRef.current) {
-              const liveEmbedding = Array.from(detection.descriptor);
-              const distance = faceapi.euclideanDistance(uploadEmbeddingRef.current, liveEmbedding);
-              const isMatch = distance < 0.40;
+              const sim = await embeddingSimilarity(uploadEmbeddingRef.current, detection.embedding);
+              const isMatch = sim >= UPLOAD_MATCH_SIMILARITY_THRESHOLD;
 
               setUploadChecks((prev) => ({
                 ...prev,
@@ -354,13 +355,9 @@ export default function AuthPage({ role }: AuthPageProps) {
 
     try {
       setLoading(true);
-      await ensureFaceModelsLoaded();
       const image = await createImageElementFromFile(file);
 
-      const detection = await faceapi
-        .detectSingleFace(image, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+      const detection = await detectPrimaryFace(image);
 
       if (!detection) {
         setUploadChecks({
@@ -375,7 +372,7 @@ export default function AuthPage({ role }: AuthPageProps) {
       }
 
       // Check centering
-      const box = detection.detection.box;
+      const box = detection.box;
       const isCentered =
         box.x + box.width / 2 > image.width * 0.25 &&
         box.x + box.width / 2 < image.width * 0.75 &&
@@ -402,8 +399,7 @@ export default function AuthPage({ role }: AuthPageProps) {
       }
       const isProperLight = avgBrightness >= 50 && avgBrightness <= 230;
 
-      const descriptor = Array.from(detection.descriptor);
-      uploadEmbeddingRef.current = descriptor;
+      uploadEmbeddingRef.current = detection.embedding;
 
       setUploadChecks({
         faceDetected: true,
@@ -441,36 +437,6 @@ export default function AuthPage({ role }: AuthPageProps) {
       reader.readAsDataURL(file);
     });
 
-  // Load the face-api models on demand so signup can derive a stable embedding
-  // from the registration photo without forcing the app to preload them globally.
-  const ensureFaceModelsLoaded = async () => {
-    if (faceModelsLoadedRef.current) {
-      return;
-    }
-
-    const modelPaths = [
-      "/models",
-      "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model",
-    ];
-
-    let lastError: unknown = null;
-    for (const modelPath of modelPaths) {
-      try {
-        await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
-          faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
-          faceapi.nets.faceRecognitionNet.loadFromUri(modelPath),
-        ]);
-        faceModelsLoadedRef.current = true;
-        return;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-
-    throw new Error(`Unable to load face models: ${String(lastError)}`);
-  };
-
   const createImageElementFromFile = (file: File) =>
     new Promise<HTMLImageElement>((resolve, reject) => {
       const objectUrl = URL.createObjectURL(file);
@@ -487,21 +453,18 @@ export default function AuthPage({ role }: AuthPageProps) {
       image.src = objectUrl;
     });
 
-  // We store the 128-d face descriptor at signup so verification can compare
-  // live webcam frames directly against the registered embedding later.
+  // We store the 1024-d Human face embedding at signup so verification can
+  // compare live webcam frames directly against the registered embedding
+  // later.
   const generateFaceEmbedding = async (file: File) => {
-    await ensureFaceModelsLoaded();
     const image = await createImageElementFromFile(file);
-    const detection = await faceapi
-      .detectSingleFace(image, new faceapi.TinyFaceDetectorOptions())
-      .withFaceLandmarks()
-      .withFaceDescriptor();
+    const detection = await detectPrimaryFace(image);
 
-    if (!detection?.descriptor) {
+    if (!detection) {
       throw new Error("Could not detect a clear face in the selected photo. Please try another image.");
     }
 
-    return Array.from(detection.descriptor);
+    return detection.embedding;
   };
 
   const validateForm = () => {
@@ -611,7 +574,7 @@ export default function AuthPage({ role }: AuthPageProps) {
 
   const finishGoogleSignup = async (
     profileImage?: string,
-    faceEmbedding?: number[],
+    faceEmbeddingHuman?: number[],
   ) => {
     if (!googleSignupPending) return;
 
@@ -628,7 +591,7 @@ export default function AuthPage({ role }: AuthPageProps) {
         lastName: googleSignupPending.lastName,
         role: "student",
         ...(profileImage ? { profileImage } : {}),
-        ...(faceEmbedding ? { faceEmbedding } : {}),
+        ...(faceEmbeddingHuman ? { faceEmbeddingHuman } : {}),
       }),
     });
     if (!response.ok) {
@@ -685,7 +648,7 @@ export default function AuthPage({ role }: AuthPageProps) {
       setCameraError("");
 
       const profileImage = await convertFileToDataUrl(studentPhotoFile);
-      const faceEmbedding = uploadEmbeddingRef.current || await generateFaceEmbedding(studentPhotoFile);
+      const faceEmbeddingHuman = uploadEmbeddingRef.current || await generateFaceEmbedding(studentPhotoFile);
 
       const authToken = localStorage.getItem("firebase-auth-token");
       if (!authToken) {
@@ -693,14 +656,14 @@ export default function AuthPage({ role }: AuthPageProps) {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/users/me/face-reference`,
+        `${import.meta.env.VITE_BASE_URL}/users/me/face-reference-human`,
         {
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${authToken}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ profileImage, faceEmbedding }),
+          body: JSON.stringify({ profileImage, faceEmbeddingHuman }),
         },
       );
       if (!response.ok) {
@@ -739,8 +702,8 @@ export default function AuthPage({ role }: AuthPageProps) {
       setCameraError("");
 
       const profileImage = await convertFileToDataUrl(studentPhotoFile);
-      const faceEmbedding = uploadEmbeddingRef.current || await generateFaceEmbedding(studentPhotoFile);
-      await finishGoogleSignup(profileImage, faceEmbedding);
+      const faceEmbeddingHuman = uploadEmbeddingRef.current || await generateFaceEmbedding(studentPhotoFile);
+      await finishGoogleSignup(profileImage, faceEmbeddingHuman);
     } catch (error: any) {
       console.error("Google signup completion failed", error);
       setCameraError(
@@ -892,7 +855,7 @@ export default function AuthPage({ role }: AuthPageProps) {
         activeRole === "student" && studentPhotoFile
           ? await convertFileToDataUrl(studentPhotoFile)
           : undefined;
-      const faceEmbedding =
+      const faceEmbeddingHuman =
         activeRole === "student" && studentPhotoFile
           ? (uploadEmbeddingRef.current || await generateFaceEmbedding(studentPhotoFile))
           : undefined;
@@ -913,8 +876,11 @@ export default function AuthPage({ role }: AuthPageProps) {
             lastName: lastName,
             recaptchaToken: isRecaptchaEnabled ? recaptchaToken : "NO_CAPTCHA",
             profileImage,
-            faceEmbedding,
-          }
+            // faceEmbeddingHuman isn't in the generated OpenAPI schema yet
+            // (schema.ts is a static snapshot, regenerated separately from
+            // the backend build that now accepts it) - cast until that's run.
+            faceEmbeddingHuman,
+          } as any
         });
       } catch (mutationError: any) {
         // Caught locally (rather than read off the useSignup() hook's error/isError
