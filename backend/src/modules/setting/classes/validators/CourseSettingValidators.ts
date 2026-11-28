@@ -41,6 +41,15 @@ import {ProctoringComponent} from '#root/shared/database/interfaces/ISettingRepo
 export class DetectorOptionsDto implements IDetectorOptions {
   @IsBoolean()
   enabled: boolean;
+
+  @IsOptional()
+  @IsObject()
+  @JSONSchema({
+    description:
+      'Detector-specific tuning values, e.g. faceCountDetection.noFaceFlagFrames (consecutive frames required before flagging/clearing a no-face or multiple-faces anomaly). Omit to use the built-in default.',
+    type: 'object',
+  })
+  options?: Record<string, any>;
 }
 
 export class DetectorSettingsDto implements IDetectorSettings {
