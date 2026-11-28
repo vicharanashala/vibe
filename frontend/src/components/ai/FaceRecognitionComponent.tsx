@@ -292,16 +292,26 @@ const FaceRecognitionComponent: React.FC<FaceRecognitionComponentProps> = ({
     try {
       const primaryFace = faces[0] as (typeof faces)[number] & { embedding?: number[] | null };
 
-      if (!primaryFace || !primaryFace.embedding || primaryFace.embedding.length !== EMBEDDING_LENGTH) {
+      if (!primaryFace) {
         onRecognitionResult?.([]);
         updateDebugInfo({
-          currentFrameFaces: faces.length,
+          currentFrameFaces: 0,
           recognizedFaces: 0,
           newRecognitions: 0,
           processingTime: performance.now() - startTime,
-          errorMessage: faces.length ? 'Live face data is invalid. Try again.' : 'No face detected in sampled frame.',
+          errorMessage: 'No face detected in sampled frame.',
           backendStatus: 'success',
         });
+        return;
+      }
+
+      // humanFaceWorker.js only computes a fresh embedding every few frames
+      // (description is the heaviest part of its one-pass detect() call, and
+      // doesn't need to run as often as the cheap detector box does) -- most
+      // ticks arrive with a real face but no embedding. Skip silently rather
+      // than reporting "invalid"/clearing the overlay, which would otherwise
+      // flicker the recognition box away on every throttled frame.
+      if (!primaryFace.embedding || primaryFace.embedding.length !== EMBEDDING_LENGTH) {
         return;
       }
 
