@@ -2791,9 +2791,21 @@ class ProgressService extends BaseService {
     // just completed this course, create an exclusive invite to the configured
     // follow-up course. Runs outside the completion transaction and must never
     // break completion. InviteService de-dupes pending invites and skips
-    // already-enrolled users, so the overlap at 100% is harmless.
+    // already-enrolled users, so the overlap at 100% is harmless. Not awaited:
+    // triggerFollowUpInvite already catches its own errors, and the student's
+    // stopItem response (which gates the frontend's next-item fetch, see
+    // course-page.tsx's shouldFetchItem) has nothing left to wait on here --
+    // this was adding an extra invite-creation round trip to the one
+    // navigation step (completing the last video/crossing the threshold)
+    // where a delay is most noticeable.
     if (justCompleted || crossedFollowUpThreshold) {
-      await this.triggerFollowUpInvite(userId, courseId, courseVersionId);
+      this.triggerFollowUpInvite(userId, courseId, courseVersionId).catch(
+        error =>
+          console.error(
+            `triggerFollowUpInvite failed outside its own try/catch for user ${userId}:`,
+            error,
+          ),
+      );
     }
   }
 

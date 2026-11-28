@@ -605,9 +605,6 @@ export default function CoursePage() {
     }
   }, [itemError, selectedItemId, previousValidItem, updateCourseNavigation]);
 
-  useEffect(() => {
-  }, [itemData]);
-
   // Log proctoring settings when loaded (only logs once when data is available)
   useEffect(() => {
     async function fetch() {
